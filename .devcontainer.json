@@ -1,0 +1,37 @@
+{
+    // minimal image for speed
+    "image": "debian:bookworm-slim",
+    "features": {
+        // enable nix
+        "ghcr.io/devcontainers/features/nix:1": {
+            // equivalent to `nix profile add` for critical setup
+            "packages": [
+                "gh",
+                "jujutsu"
+            ]
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "jjk.jjk",
+                "jnoortheen.nix-ide",
+                // replaces git as Source Control
+                "visualjj.visualjj"
+            ],
+            "settings": {
+                // disable copilot, we want claude
+                "chat.agent.enabled": false,
+                "editor.wordWrap": "on",
+                // "git.autofetch": true,
+                "git.confirmSync": false,
+                // disable git for jj, 
+                "git.enabled": false,
+                // hide copilot
+                "workbench.secondarySideBar.defaultVisibility": "hidden"
+            }
+        }
+    },
+    // see: https://code.visualstudio.com/docs/sourcecontrol/faq#_why-is-vs-code-warning-me-that-the-git-repository-is-potentially-unsafe (because of nix)
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+}
