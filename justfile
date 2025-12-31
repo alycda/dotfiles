@@ -1,3 +1,6 @@
+check:
+    nix flake check
+
 export USER := shell("whoami")
 
 _rebuild USER="alyssa@dev":
@@ -17,3 +20,6 @@ _list-profile:
 # parse file for correct syntax
 _nix-check file:
     nix-instantiate --parse {{file}}
+
+darwin-generations:
+    darwin-rebuild --list-generations
