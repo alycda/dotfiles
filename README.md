@@ -6,6 +6,7 @@ These are my dotfiles, managed by [Nix](https://nixos.org/) and [Home Manager](h
 dotfiles/
 ├── home-manager/
 |   ├── modules/
+|   |   ├── ide/vscode  # extensions & settings
 |   |   └── common.nix
 |   └── profiles/
 |       ├── dev.nix     # for devcontainers

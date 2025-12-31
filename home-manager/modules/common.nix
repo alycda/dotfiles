@@ -1,6 +1,10 @@
 { config, pkgs, ... }:
 
 {
+  imports = [
+    ./ide/vscode.nix
+  ];
+
   home.stateVersion = "24.05";
 
   # Core packages across all profiles

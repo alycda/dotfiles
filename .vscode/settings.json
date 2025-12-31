@@ -1,8 +1,0 @@
-{
-    "files.exclude": {
-        "**/.jj": true
-    },
-    "search.exclude": {
-        "**/.jj": true
-    }
-}

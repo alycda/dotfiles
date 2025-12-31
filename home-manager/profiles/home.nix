@@ -9,6 +9,4 @@
   home.packages = with pkgs; [
     # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
   ];
-
-  programs.home-manager.enable = true;
 }

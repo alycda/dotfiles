@@ -14,6 +14,4 @@
     openjdk
     # swig - installed via homebrew (locked tap)
   ];
-
-  programs.home-manager.enable = true;
 }
