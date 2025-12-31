@@ -1,12 +1,14 @@
 # Alyssa's dotfiles
 
-These are my dotfiles, managed by [Nix](https://nixos.org/).
+These are my dotfiles, managed by [Nix](https://nixos.org/) and [Home Manager](https://github.com/nix-community/home-manager) (via [flakes](https://nixos.wiki/wiki/Flakes)).
 
 ```
 dotfiles/
 ├── .devcontainer.json  # NixOS
 ├── .gitignore          # Nix artifacts
-├── README.md           
+├── flake.lock
+├── flake.nix           # Home Manager config
+└── README.md           
 ```
 
 ### Quickstart
@@ -22,7 +24,7 @@ Nix is three things:
 | **Nix** (package manager) | A [package manager](https://nixos.org/manual/nixpkgs/stable/) that installs packages in isolation. Like [homebrew](https://brew.sh/). | `nix profile install nixpkgs#ripgrep` |
 | **NixOS** (os) | A Linux [distro](https://nixos.org/manual/nixos/stable/) configured entirely by Nix files | Run a fully reproducible system |
 
-You don't need all three. This repo starts with NixOS in a [devcontainer](https://containers.dev/).
+You don't need all three. This repo leverages Home Manager with flakes in a [devcontainer](https://containers.dev/) (NixOS).
 
 
 ## Getting started
@@ -39,13 +41,17 @@ You need ONE of these:
 
 1. Clone this repo
     - `gh repo clone alycda/dotfiles`
-2. Open in VSCode
+1. Open in VSCode
     - `ms-vscode-remote.remote-containers`
-3. Click "Reopen in Container" when prompted
-4. You now have `nix`, `jj` and `gh` available
+1. Click "Reopen in Container" when prompted
+    - or <kbd>CMD</kbd>+<kbd>SHIFT</kbd>+<kbd>P</kbd> > **Dev Containers**
+1. You now have `nix` available:
     - `nix-env`
     - `nix profile`
     - [nix-shell](https://nix.dev/tutorials/first-steps/declarative-shell.html)
+1. Bootstrap Home Manager (once)
+    - `nix run home-manager/master -- switch --flake .#alyssa@dev`
+1. You now have `gh`, `hx` and `jj` available:
     - [github cli](https://cli.github.com/manual/)
     - What is [jujutsu](https://kubamartin.com/posts/introduction-to-the-jujutsu-vcs/)?
 
@@ -54,6 +60,15 @@ You need ONE of these:
 
 As long as you have docker or an [ephemeral environment in the cloud](https://ephemeralenvironments.io/), you can explore my setup without polluting your system.
 
+
+## How it works
+
+The devcontainer provides Nix with flakes enabled. Packages are declared in `flake.nix` and managed by Home Manager:
+```nix
+home.packages = with pkgs; [ gh helix jujutsu just ];
+```
+
+This keeps package management declarative and reproducible across environments.
 
 ---
 

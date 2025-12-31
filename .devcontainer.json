@@ -4,11 +4,9 @@
     "features": {
         // enable nix
         "ghcr.io/devcontainers/features/nix:1": {
-            // equivalent to `nix profile add` for critical setup
-            "packages": [
-                "gh",
-                "jujutsu"
-            ]
+            "packages": [], // managed by Home Manager
+            // enable flakes and nix-command globally
+            "extraNixConfig": "experimental-features = nix-command flakes"
         }
     },
     "customizations": {
