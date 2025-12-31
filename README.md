@@ -4,7 +4,7 @@ These are my dotfiles, managed by [Nix](https://nixos.org/) and [Home Manager](h
 
 ```
 dotfiles/
-├── .devcontainer.json  # NixOS
+├── .devcontainer.json  # Nix Package Manager (not full NixOS)
 ├── .gitignore          # Nix artifacts
 ├── flake.lock
 ├── flake.nix           # Home Manager config
@@ -24,7 +24,7 @@ Nix is three things:
 | **Nix** (package manager) | A [package manager](https://nixos.org/manual/nixpkgs/stable/) that installs packages in isolation. Like [homebrew](https://brew.sh/). | `nix profile install nixpkgs#ripgrep` |
 | **NixOS** (os) | A Linux [distro](https://nixos.org/manual/nixos/stable/) configured entirely by Nix files | Run a fully reproducible system |
 
-You don't need all three. This repo leverages Home Manager with flakes in a [devcontainer](https://containers.dev/) (NixOS).
+You don't need all three. This repo leverages Home Manager with flakes in a [devcontainer](https://containers.dev/) (lightweight Debian with Nix Package Manager).
 
 
 ## Getting started
