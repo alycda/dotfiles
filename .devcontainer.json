@@ -21,10 +21,16 @@
                 // disable copilot, we want claude
                 "chat.agent.enabled": false,
                 "editor.wordWrap": "on",
+                "files.exclude": {
+                    "**/.jj": true
+                },
                 // "git.autofetch": true,
                 "git.confirmSync": false,
                 // disable git for jj, 
                 "git.enabled": false,
+                "search.exclude": {
+                    "**/.jj": true
+                },
                 // hide copilot
                 "workbench.secondarySideBar.defaultVisibility": "hidden"
             }
