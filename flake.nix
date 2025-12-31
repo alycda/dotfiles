@@ -1,6 +1,3 @@
-# first run: `USER=root nix run home-manager/master -- switch --flake .#alyssa@dev`
-# subsequent runs: `USER=root home-manager switch --flake .#alyssa@dev`
-
 {
   description = "Alyssa's Dotfiles";
 
@@ -21,7 +18,7 @@
         home.homeDirectory = "/root";
         home.stateVersion = "24.05";
         
-        home.packages = with pkgs; [ gh helix jujutsu ];
+        home.packages = with pkgs; [ gh helix jujutsu just ];
         
         programs.home-manager.enable = true;
       })];

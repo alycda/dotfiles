@@ -8,6 +8,7 @@ dotfiles/
 ├── .gitignore          # Nix artifacts
 ├── flake.lock
 ├── flake.nix           # Home Manager config
+├── justfile            # Task Runner recipes
 └── README.md           
 ```
 
@@ -51,9 +52,10 @@ You need ONE of these:
     - [nix-shell](https://nix.dev/tutorials/first-steps/declarative-shell.html)
 1. Bootstrap Home Manager (once)
     - `nix run home-manager/master -- switch --flake .#alyssa@dev`
-1. You now have `gh`, `hx` and `jj` available:
+1. You now have `gh`, `hx`, `jj` and `just` available:
     - [github cli](https://cli.github.com/manual/)
     - What is [jujutsu](https://kubamartin.com/posts/introduction-to-the-jujutsu-vcs/)?
+    - rebuild with `just` or `just _rebuild`
 
 
 ## Why devcontainer first?

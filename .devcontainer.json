@@ -14,6 +14,7 @@
             "extensions": [
                 "jjk.jjk",
                 "jnoortheen.nix-ide",
+                "skellock.just",
                 // replaces git as Source Control
                 "visualjj.visualjj"
             ],
