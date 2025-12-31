@@ -1,8 +1,14 @@
+check:
+    nix flake check
+
 export USER := shell("whoami")
 
-_rebuild USER="alyssa@dev":
-    home-manager switch --flake .#{{USER}}
+manager := if os() == "macos" { "darwin-rebuild" } else { "home-manager" }
 
+_rebuild USER="alyssa@dev":
+    {{manager}} switch --flake .#{{USER}}
+
+# darwin requires sudo, so we use home manager on OSX for non-sudo "code" user
 _rebuild-code:
     home-manager switch -b backup --flake .#code
 
@@ -17,3 +23,6 @@ _list-profile:
 # parse file for correct syntax
 _nix-check file:
     nix-instantiate --parse {{file}}
+
+build-dry-run:
+    nix build .#darwinConfigurations.ditto.system --dry-run

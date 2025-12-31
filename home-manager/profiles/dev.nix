@@ -1,10 +1,10 @@
 # devcontainers / codespaces
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 {
-  home.username = "root"; 
-  home.homeDirectory = "/root";
-  home.stateVersion = "24.05";
+  home.username = lib.mkForce "root";
+  home.homeDirectory = lib.mkForce "/root";
+  home.stateVersion = "25.05";
 
   home.packages = with pkgs; [
     docker # on OSX docker/orbstack is installed by homebrew

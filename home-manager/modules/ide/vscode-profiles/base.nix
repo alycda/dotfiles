@@ -11,6 +11,14 @@
       "**/.jj" = true;
     };
     workbench.secondarySideBar.defaultVisibility = "hidden";
+
+    # Terminal settings - use nix-darwin managed zsh
+    "terminal.integrated.defaultProfile.osx" = "zsh";
+    "terminal.integrated.profiles.osx" = {
+      zsh = {
+        path = "/run/current-system/sw/bin/zsh";
+      };
+    };
   };
 
   extensions = with pkgs; [

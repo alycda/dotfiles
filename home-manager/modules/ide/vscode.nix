@@ -11,9 +11,8 @@ let
   };
 in
 {
-  nixpkgs.overlays = [
-    nix-vscode-extensions.overlays.default
-  ];
+  # Overlay is applied at darwin/configuration.nix level when using useGlobalPkgs
+  # This makes vscode-marketplace available throughout the system
 
   programs.vscode = {
     enable = true;
