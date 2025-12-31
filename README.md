@@ -4,7 +4,11 @@ These are my dotfiles, managed by [Nix](https://nixos.org/) and [Home Manager](h
 
 ```
 dotfiles/
-├── .devcontainer.json  # Nix Package Manager (not full NixOS)
+├── home-manager/profiles
+|   ├── dev.nix         # for devcontainers
+|   ├── home.nix
+|   └── work.nix
+├── .devcontainer.json  # Nix Package Manager
 ├── .gitignore          # Nix artifacts
 ├── flake.lock
 ├── flake.nix           # Home Manager config

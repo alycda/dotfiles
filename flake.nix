@@ -9,19 +9,25 @@
     };
   };
 
-  outputs = { nixpkgs, home-manager, ... }: {
-    homeConfigurations."alyssa@dev" = home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.aarch64-linux;
-
-      modules = [({ pkgs, ... }: {
-        home.username = "root";
-        home.homeDirectory = "/root";
-        home.stateVersion = "24.05";
-        
-        home.packages = with pkgs; [ gh helix jujutsu just ];
-        
-        programs.home-manager.enable = true;
-      })];
+  outputs = { self, nixpkgs, home-manager, ... }:
+    let
+      system = "aarch64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+    in
+    {
+      homeConfigurations = {
+        "alyssa@home" = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          modules = [ ./home-manager/profiles/home.nix ];
+        };
+        "alyssa@dev" = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          modules = [ ./home-manager/profiles/dev.nix ];
+        };
+        "alyssa@work" = home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          modules = [ ./home-manager/profiles/work.nix ];
+        };
+      };
     };
-  };
 }

@@ -1,0 +1,21 @@
+# ditto
+{ config, pkgs, ... }:
+
+{
+  home.username = "alyssaevans"; 
+  home.homeDirectory = "/Users/alyssaevans";
+  home.stateVersion = "24.05";
+
+  home.packages = with pkgs; [
+    gh helix jujutsu just
+    # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
+    ripgrep
+    teleport # kubectl
+    cmake
+    # flutter - managed by puro (manually installed)
+    openjdk
+    # swig - installed via homebrew (locked tap)
+  ];
+
+  programs.home-manager.enable = true;
+}

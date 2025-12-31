@@ -1,7 +1,7 @@
 export USER := shell("whoami")
 
-_rebuild:
-    home-manager switch --flake .#alyssa@dev
+_rebuild USER="alyssa@dev":
+    home-manager switch --flake .#{{USER}}
 
 # queries and lists all packages installed in the current user's profile
 _list-env:
