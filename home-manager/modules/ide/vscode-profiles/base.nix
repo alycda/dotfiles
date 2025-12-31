@@ -2,7 +2,10 @@
 {
   userSettings = {
     chat.agent.enabled = false;
-    claudeCode.preferredLocation = "panel";
+    claudeCode = {
+      preferredLocation = "panel";
+    };
+    diffEditor.ignoreTrimWhitespace = false;
     editor.wordWrap = "on";
     files.exclude = {
       "**/.jj" = true;
@@ -11,6 +14,7 @@
       "**/.jj" = true;
     };
     workbench.secondarySideBar.defaultVisibility = "hidden";
+    
   };
 
   extensions = with pkgs; [
