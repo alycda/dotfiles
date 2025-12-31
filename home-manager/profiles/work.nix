@@ -7,9 +7,7 @@
   home.stateVersion = "24.05";
 
   home.packages = with pkgs; [
-    gh helix jujutsu just
     # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
-    ripgrep
     teleport # kubectl
     cmake
     # flutter - managed by puro (manually installed)

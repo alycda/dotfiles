@@ -11,23 +11,24 @@
 
   outputs = { self, nixpkgs, home-manager, ... }:
     let
-      system = "aarch64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      mkHome = system: profile: home-manager.lib.homeManagerConfiguration {
+        pkgs = import nixpkgs { inherit system; };
+        modules = [
+          ./home-manager/modules/common.nix
+          ./home-manager/profiles/${profile}.nix
+        ];
+      };
     in
     {
       homeConfigurations = {
-        "alyssa@home" = home-manager.lib.homeManagerConfiguration {
-          inherit pkgs;
-          modules = [ ./home-manager/profiles/home.nix ];
-        };
-        "alyssa@dev" = home-manager.lib.homeManagerConfiguration {
-          inherit pkgs;
-          modules = [ ./home-manager/profiles/dev.nix ];
-        };
-        "alyssa@work" = home-manager.lib.homeManagerConfiguration {
-          inherit pkgs;
-          modules = [ ./home-manager/profiles/work.nix ];
-        };
+        # laptop
+        "alyssa@home" = mkHome "aarch64-darwin" "home";
+        # devcontainer
+        "alyssa@dev" = mkHome "aarch64-linux" "dev";
+        # laptop
+        "alyssa@work" = mkHome "aarch64-darwin" "work";
+        # devcontainer / linux
+        "alyssa@work-dev" = mkHome "aarch64-linux" "work";
       };
     };
 }
