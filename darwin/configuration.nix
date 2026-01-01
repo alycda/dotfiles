@@ -1,259 +1,60 @@
-# first run: sudo .result/bin/darwin-rebuild switch -I darwin-config=/etc/nix-darwin/configuration.nix
-# subsequent: sudo darwin-rebuild switch
+{ config, pkgs, nix-vscode-extensions, ... }:
 
-{ config, pkgs, ... }:
-
-let
-  nix-vscode-extensions = import (builtins.fetchTarball
-    "https://github.com/nix-community/nix-vscode-extensions/archive/master.tar.gz"
-  );
-in
 {
-  imports = [
-    <home-manager/nix-darwin>
-  ];
+  # Nix package manager settings
+  nix.settings = {
+    # Enable flakes and nix-command
+    experimental-features = [ "nix-command" "flakes" ];
 
+    # Allow users to use nix without sudo (needed for flakes)
+    trusted-users = [ "@admin" "alyssaevans" ];
+
+    # Build users
+    build-users-group = "nixbld";
+  };
+
+  # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
+  # Apply VSCode marketplace overlay at system level
   nixpkgs.overlays = [
     nix-vscode-extensions.overlays.default
   ];
 
-  users.users.alyssaevans = {
-    name = "alyssaevans";
-    home = "/Users/alyssaevans";
-  };
-
-  home-manager.users.alyssaevans = { pkgs, ... }: {
-
-    # home.sessionVariables = {
-    #   EDITOR = "hx";
-    #   NIXPKGS_ALLOW_UNFREE = 1;
-    #   VISUAL = "code";
-    # };
-
-    programs.direnv = {
-      enable = true;
-      nix-direnv.enable = true;
-    };
-
-    programs.zsh = {
-      enable = true;
-
-      sessionVariables = {
-        EDITOR = "hx";
-        NIXPKGS_ALLOW_UNFREE = 1;
-      };
-
-      initContent = ''
-        ulimit -n 4096
-
-        autoload -Uz compinit
-        compinit
-        
-        # Puro (Flutter version manager)
-        export PATH="$HOME/.puro/bin:$PATH"            
-      '';
-    };
-
-    programs.git = {
-      enable = true;
-      userEmail = "alyda@me.com";
-      userName = "alycda";
-      extraConfig = {
-        init.defaultBranch = "main";
-        credential.helper = "osxkeychain";
-      };
-    };
-
-    # programs.gh = {
-    #   enable = true;
-    #   settings = {
-    #     git_protocol = "ssh";
-    #     prompt = "enabled";
-    #     # prefer_editor_prompt = "disabled";
-    #   };
-    # };
-
-    programs.helix = {
-      ignores = [
-        "target/"
-        "!.gitignore"
-      ];
-
-      # editor = {
-      #   theme = "mine";
-      #   soft-wrap.enable = true;
-      #   rulers = [72 80 100 120];
-      #   inline-diagnostics = {
-      #     cursor-line = "hint";
-      #     other-lines = "hint";
-      #   };
-      # };
-
-      themes = {
-        mine = {
-          inherits = "boo_berry";
-          "ui.background" = {};
-          "ui.cursor.primary.select" = { fg = "berry"; bg = "bubblegum"; };
-          "ui.cursor.primary.insert" = { fg = "berry"; bg = "mint"; };
-        };
-      };
-
-      languages = {
-        # language = [{
-        #   name = "rust";
-        #   auto-format = true;
-
-        #   # scope = "source.rust"
-        #   formatter = { command = "rustfmt" };
-        #   file-types = ["rs"];
-        #   language-servers = [ "rust-analyzer" ];
-        # }];
-      };
-    };
-
-    programs.vscode = {
-      enable = true;
-      # mutableExtensionsDir = true;
-
-      # Rust
-      profiles.default = {
-        userSettings = {
-          editor.wordWrap = "on";
-          chat.agent.enabled = false;
-          workbench.secondarySideBar.defaultVisibility = "hidden";
-          files.hotExit = "onExitAndWindowClose";
-          git.autofetch = true;
-          git.confirmSync = false;
-          # git.blame.editorDecoration.enabled = true;
-          claudeCode.preferredLocation = "panel";
-          gitlens.plusFeatures.enabled = false;
-
-          # "chat.mcp.access": "none" //.chat.mcp.enabled = true
-        };
-
-        # extensions = with pkgs.vscode-marketplace; [
-        extensions = with pkgs; [
-          vscode-marketplace.jnoortheen.nix-ide
-          vscode-marketplace.visualjj.visualjj
-          vscode-marketplace.eamodio.gitlens
-          vscode-marketplace.anthropic.claude-code
-          vscode-marketplace.rust-lang.rust-analyzer
-          vscode-marketplace.tamasfe.even-better-toml
-
-          # GitHub Remote Repositories
-          vscode-marketplace.ms-vscode.remote-repositories
-          vscode-marketplace.github.remotehub # required for above
-
-          vscode-marketplace.ms-vscode-remote.remote-containers # ms-vscode-remote.vscode-remote-extensionpack
-
-          # error: The version `1.12.0` of `vadimcn.vscode-lldb` is not supported.
-          # Try `extensions.aarch64-darwin.vscode-marketplace-universal.vadimcn.vscode-lldb`
-          # or  `extensions.aarch64-darwin.open-vsx-universal.vadimcn.vscode-lldb`.
-          # vadimcn.vscode-lldb # llvm-vs-code-extensions.lldb-dap
-          vscode-extensions.vadimcn.vscode-lldb
-
-          vscode-extensions.dart-code.flutter
-
-          # makenotion/notion-mcp-server
-        ];
-      };
-
-      profiles.jj = {
-        extensions = with pkgs.vscode-marketplace; [
-          visualjj.visualjj
-          jjk.jjk
-        ];
-      };
-
-      profiles.ios = {
-        extensions = with pkgs.vscode-marketplace; [
-          swiftlang.swift-vscode
-        ];
-      };
-      profiles.android = {
-        extensions = with pkgs.vscode-marketplace; [
-          # Java
-          # Kotlin
-        ];
-      };
-      profiles.flutter = {
-        extensions = with pkgs.vscode-marketplace; [
-          # Dart
-          # Flutter
-        ];
-      };
-    };
-    
-  };
-
-  # home.file.".vscode/mcp.json".text = builtins.toJSON {
-  #    mcpServers = {
-  #      notion = {
-  #        command = "npx";
-  #        args = ["-y" "@makenotion/notion-mcp-server"];
-  #        env = {
-  #          NOTION_API_KEY = builtins.getEnv "NOTION_API_KEY";
-  #        };
-  #      };
-  #    };
-  #  };
-
-  # List packages installed in system profile. To search by name, run:
-  # $ nix-env -qaP | grep wget
-  environment.systemPackages = with pkgs;
-    [ direnv
-      ripgrep
-      helix
-      gh
-      jujutsu
-      cheat
-      rustup
-      rust-analyzer
-      lldb
-      bacon
-      clock-rs
-      nil nixd # nix LSP
-
-      # Ditto
-      teleport
-      cmake
-      # flutter use puro to manage
-      openjdk
-      # swig installed via homebrew locked tap
-    ];
-
-  programs.zsh = {
-    enable = true;
-
-    # sessionVariables = {
-    #   EDITOR = "hx";
-    # };
-
-    # This gets added to /etc/zshrc
-    interactiveShellInit = ''
-      rustup update
-      # rustup toolchain install nightly
-      eval "$(/opt/homebrew/bin/brew shellenv)"
-      eval "$(direnv hook zsh)"
-    '';
-  };
-
-  # TODO: install puro
-  # curl -fsSL https://puro.dev/install.sh | bash
-
-  system.primaryUser = "alyssaevans";
+  # macOS system defaults
   system.defaults = {
+    # Dock settings
     dock = {
       autohide = true;
-      mru-spaces = false;
-
-      wvous-tl-corner = 2; # mission control
-      wvous-tr-corner = 4; # desktop
-      wvous-br-corner = 13; # lock screen
-      wvous-bl-corner = 24; # quick note
+      orientation = "bottom";
+      show-recents = false;
+      tilesize = 48;
     };
-    NSGlobalDomain."com.apple.swipescrolldirection" = false;
+
+    # Finder settings
+    finder = {
+      AppleShowAllExtensions = true;
+      FXEnableExtensionChangeWarning = false;
+      ShowPathbar = true;
+      ShowStatusBar = true;
+    };
+
+    # NSGlobalDomain settings (general macOS preferences)
+    NSGlobalDomain = {
+      AppleShowAllExtensions = true;
+      InitialKeyRepeat = 15;
+      KeyRepeat = 2;
+
+      # Disable auto-correct and auto-capitalize
+      NSAutomaticCapitalizationEnabled = false;
+      NSAutomaticSpellingCorrectionEnabled = false;
+    };
   };
+
+  # Used for backwards compatibility, please read the changelog before changing
+  # $ darwin-rebuild changelog
+  system.stateVersion = 6;
+
+  # Create /etc/zshrc that loads the nix-darwin environment
+  programs.zsh.enable = true;
 }

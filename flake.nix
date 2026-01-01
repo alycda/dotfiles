@@ -20,7 +20,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, home-manager, darwin, nix-vscode-extensions, ... }:
+  outputs = { self, nixpkgs, darwin, home-manager, nix-vscode-extensions, ... }:
     let
       # For standalone home-manager (Linux/devcontainers)
       mkHome = system: profile: home-manager.lib.homeManagerConfiguration {
@@ -37,59 +37,48 @@
         ];
       };
 
+      # For nix-darwin + home-manager (macOS)
+      mkDarwin = system: darwinProfile: homeProfile:
+        let
+          username = "alyssaevans";
+        in
+        darwin.lib.darwinSystem {
+          inherit system;
 
+          specialArgs = { inherit nix-vscode-extensions; };
+
+          modules = [
+            ./darwin/configuration.nix
+            ./darwin/profiles/${darwinProfile}.nix
+
+            # Integrate home-manager into darwin
+            home-manager.darwinModules.home-manager
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.extraSpecialArgs = { inherit nix-vscode-extensions; };
+              home-manager.users.${username} = {
+                imports = [
+                  ./home-manager/modules/common.nix
+                  ./home-manager/profiles/${homeProfile}.nix
+                ];
+              };
+            }
+          ];
+        };
     in
     {
-      darwinConfigurations.basic = darwin.lib.darwinSystem {
-        system = "aarch64-darwin";
-        modules = [
-          # Basic nix-darwin config
-          {
-            nix.settings = {
-              experimental-features = [ "nix-command" "flakes" ];
-              trusted-users = [ "alyssaevans" ];
-            };
-
-            nixpkgs.config.allowUnfree = true;
-
-            users.users.alyssaevans = {
-              name = "alyssaevans";
-              home = "/Users/alyssaevans";
-            };
-
-            # Used for backwards compatibility, please read the changelog before changing.
-            # $ darwin-rebuild changelog
-            system.stateVersion = 6;
-            programs.zsh.enable = true;
-          }
-
-          # Home-manager integration
-          home-manager.darwinModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-
-            home-manager.users.alyssaevans = {
-              home.username = "alyssaevans";
-              home.homeDirectory = "/Users/alyssaevans";
-              home.stateVersion = "25.05";
-
-              home.packages = [ ];
-
-              programs.home-manager.enable = true;
-            };
-          }
-        ];
+      # macOS systems (use darwin-rebuild)
+      darwinConfigurations = {
+        "ditto" = mkDarwin "aarch64-darwin" "ditto" "work";
       };
 
+      # Linux/devcontainer systems (use home-manager)
       homeConfigurations = {
+        # non-sudo user on macOS
         "code" = mkHome "aarch64-darwin" "code";
-        # laptop
-        "alyssa@home" = mkHome "aarch64-darwin" "home";
         # devcontainer
         "alyssa@dev" = mkHome "aarch64-linux" "dev";
-        # laptop
-        "alyssa@work" = mkHome "aarch64-darwin" "work";
         # devcontainer / linux
         "alyssa@work-dev" = mkHome "aarch64-linux" "work";
       };
