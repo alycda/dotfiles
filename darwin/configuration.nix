@@ -13,11 +13,6 @@ in
     <home-manager/nix-darwin>
   ];
 
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    trusted-users = [ "alyssaevans" ];
-  };
-
   nixpkgs.config.allowUnfree = true;
 
   nixpkgs.overlays = [
@@ -29,8 +24,6 @@ in
     home = "/Users/alyssaevans";
   };
 
-  home-manager.useGlobalPkgs = true;
-  home-manager.useUserPackages = true;
   home-manager.users.alyssaevans = { pkgs, ... }: {
 
     # home.sessionVariables = {
@@ -263,8 +256,4 @@ in
     };
     NSGlobalDomain."com.apple.swipescrolldirection" = false;
   };
-
-  # Used for backwards compatibility, please read the changelog before changing.
-  # $ darwin-rebuild changelog
-  system.stateVersion = 6;
 }
