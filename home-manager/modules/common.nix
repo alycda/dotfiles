@@ -3,6 +3,7 @@
 {
   imports = [
     ./ide/vscode.nix
+    ./dev/nix-lang.nix
   ];
 
   home.stateVersion = "25.05";
@@ -15,6 +16,7 @@
     jujutsu
     just
     gh
+    direnv
   ];
 
   # Enable home-manager
