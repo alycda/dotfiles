@@ -4,7 +4,7 @@
 {
   home.username = "alyssaevans"; 
   home.homeDirectory = "/Users/alyssaevans";
-  home.stateVersion = "24.05";
+  home.stateVersion = "25.05";
 
   home.packages = with pkgs; [
     # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
