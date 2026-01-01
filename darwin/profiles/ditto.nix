@@ -10,10 +10,33 @@
     home = "/Users/alyssaevans";
   };
 
-  # DARWIN Work-specific packages
+  # System-level packages for Ditto work machine
+  # These need to be system-level (not home-manager) for system services or root access
   environment.systemPackages = with pkgs; [
-    # Add work-specific packages here if needed
+    # Ditto work-specific
+    teleport
+    cmake
+    openjdk
+    # Note: direnv, rustup, etc. should ideally be in home-manager
+    # but keeping them here for now to match the backup config
+    direnv
+    rustup
+    rust-analyzer
+    lldb
+    bacon
+    clock-rs
+    nil
+    nixd  # nix LSP
+    cheat
   ];
+
+  # System-level zsh configuration (added to /etc/zshrc)
+  programs.zsh.interactiveShellInit = ''
+    rustup update
+    # rustup toolchain install nightly
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    eval "$(direnv hook zsh)"
+  '';
 
   # Work-specific system settings
   system.defaults.dock.persistent-apps = [
