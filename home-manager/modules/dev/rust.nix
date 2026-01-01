@@ -4,7 +4,7 @@
   # Rust development tools
   home.packages = with pkgs; [
     rustup
-    rust-analyzer
+    # rust-analyzer # Don't install standalone - rustup provides rust-analyzer and installing both causes conflicts
     lldb
     bacon
   ];

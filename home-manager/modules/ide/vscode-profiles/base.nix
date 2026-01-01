@@ -13,6 +13,8 @@
     search.exclude = {
       "**/.jj" = true;
     };
+    # Use system zsh instead of nix-managed path that may not exist
+    "terminal.integrated.defaultProfile.osx" = "zsh";
     workbench.secondarySideBar.defaultVisibility = "hidden";
     
   };
