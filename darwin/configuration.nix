@@ -29,6 +29,13 @@
       orientation = "bottom";
       show-recents = false;
       tilesize = 48;
+      mru-spaces = false;
+
+      # Hot corners
+      wvous-tl-corner = 2;  # mission control
+      wvous-tr-corner = 4;  # desktop
+      wvous-br-corner = 13; # lock screen
+      wvous-bl-corner = 24; # quick note
     };
 
     # Finder settings
@@ -48,6 +55,9 @@
       # Disable auto-correct and auto-capitalize
       NSAutomaticCapitalizationEnabled = false;
       NSAutomaticSpellingCorrectionEnabled = false;
+
+      # Natural scrolling (false = traditional scrolling)
+      "com.apple.swipescrolldirection" = false;
     };
   };
 
