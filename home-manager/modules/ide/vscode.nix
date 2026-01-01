@@ -11,9 +11,8 @@ let
   };
 in
 {
-  nixpkgs.overlays = [
-    nix-vscode-extensions.overlays.default
-  ];
+  # Note: nixpkgs.overlays is set at the darwin system level (darwin/configuration.nix)
+  # to avoid conflicts with home-manager.useGlobalPkgs
 
   programs.vscode = {
     enable = true;
