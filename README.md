@@ -101,6 +101,15 @@ This keeps package management declarative and reproducible across environments.
 
 ---
 
+#### /etc/nix/nix.conf (without nix-darwin)
+
+```nix
+allowed-users = @nix-users
+build-users-group = nixbld
+
+extra-experimental-features = nix-command flakes
+```
+
 ### Resources
 
 - [Zero to Nix](https://zero-to-nix.com/)
