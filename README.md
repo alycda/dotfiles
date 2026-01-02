@@ -101,34 +101,6 @@ This keeps package management declarative and reproducible across environments.
 
 ---
 
-## Manual Installations
-
-Some tools cannot be managed by Nix or Homebrew and require manual installation:
-
-### Puro (Flutter version manager)
-
-[Puro](https://puro.dev/) is a Flutter version manager that must be installed manually:
-
-```bash
-curl -fsSL https://puro.dev/install.sh | bash
-```
-
-After installation, set up your Flutter version:
-
-```bash
-# Install and use a specific Flutter version globally
-puro use -g 3.27.4
-```
-
-**Why not Nix?** Puro dynamically manages Flutter SDKs and integrates with system paths in ways that conflict with Nix's isolated package management.
-
-**Environment setup for Flutter development:**
-- Android SDK: `$HOME/Library/Android/sdk`
-- NDK: Managed via Android SDK Manager
-- SWIG: Install via Homebrew (`brew install swig`)
-
----
-
 ### Resources
 
 - [Zero to Nix](https://zero-to-nix.com/)
