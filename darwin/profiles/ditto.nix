@@ -10,10 +10,16 @@
     home = "/Users/alyssaevans";
   };
 
-  # DARWIN Work-specific packages
+  # DARWIN System-level packages for Ditto machine
   environment.systemPackages = with pkgs; [
     clock-rs
   ];
+
+  # System-level zsh configuration (added to /etc/zshrc)
+  programs.zsh.interactiveShellInit = ''
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    eval "$(direnv hook zsh)"
+  '';
 
   # Work-specific system settings
   system.defaults.dock.persistent-apps = [

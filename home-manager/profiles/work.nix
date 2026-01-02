@@ -2,6 +2,10 @@
 { config, pkgs, ... }:
 
 {
+  imports = [
+    ../modules/dev/rust.nix
+  ];
+
   home.username = "alyssaevans"; 
   home.homeDirectory = "/Users/alyssaevans";
 
