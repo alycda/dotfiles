@@ -167,9 +167,9 @@ Some tools fundamentally conflict with Nix's isolation model and must be install
 
 **Puro (Flutter version manager)**
 - **Why not Nix?** Puro dynamically manages Flutter SDKs and modifies system paths in ways that conflict with Nix's immutable package model
-- **Installation**: Manual via `curl -fsSL https://puro.dev/install.sh | bash`
+- **Installation**: Automated via `system.activationScripts` in darwin profiles (see [darwin/DITTO.md](darwin/DITTO.md))
 - **Usage**: Global installation (`puro use -g 3.27.4`), not project-specific nix-shell
-- **Documentation**: See README.md "Manual Installations" section
+- **Persistence**: Installs to `~/.puro` which persists across darwin-rebuild
 
 **Flutter development dependencies:**
 - Android SDK: Manual installation at `$HOME/Library/Android/sdk`

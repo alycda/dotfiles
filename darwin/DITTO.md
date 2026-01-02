@@ -28,11 +28,24 @@ puro use -g 3.27.4
 - NDK: Managed via Android SDK Manager
 - SWIG: Install via Homebrew (`brew install swig`)
 
-### Persistence Issue
+### Installation via Nix-Darwin
 
-**Problem:** Puro installation gets wiped on `darwin-rebuild switch`
+Puro is automatically installed via a `system.activationScripts` hook in [ditto.nix](profiles/ditto.nix). This ensures:
 
-**Investigation needed:**
-- Can nix-darwin run the curl installation automatically?
-- Should this be handled via system activation scripts?
-- Or does puro need a different installation location to persist?
+1. **Idempotent installation**: Only installs if not already present
+2. **Persistence**: Installs to `~/.puro` which persists across rebuilds
+3. **User-level**: Runs as the user (not root) via `sudo -u`
+
+The activation script runs on every `darwin-rebuild switch`, checking if puro exists before attempting installation.
+
+**Why activation scripts?**
+- Puro cannot be packaged in nixpkgs (dynamic SDK manager)
+- Manual curl installation is required by puro's design
+- `~/.puro` is in the user's home directory, so it persists across macOS rebuilds
+- See: [nix-darwin activation scripts documentation](https://github.com/nix-darwin/nix-darwin/blob/master/modules/system/activation-scripts.nix)
+
+**Post-installation:**
+After the first rebuild, set your Flutter version:
+```bash
+puro use -g 3.27.4
+```
