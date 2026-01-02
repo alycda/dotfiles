@@ -5,7 +5,7 @@
     ./ide/vscode.nix
   ];
 
-  home.stateVersion = "24.05";
+  home.stateVersion = "25.05";
 
   # Core packages across all profiles
   home.packages = with pkgs; [
