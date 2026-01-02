@@ -161,6 +161,23 @@ dotfiles/
 2. **Rust-analyzer**: Don't install standalone - rustup provides it (conflicts otherwise)
 3. **Shell paths**: Use system shells (e.g., `terminal.integrated.defaultProfile.osx = "zsh"`) instead of nix-managed paths
 
+### Tools That Cannot Be Managed by Nix
+
+Some tools fundamentally conflict with Nix's isolation model and must be installed manually:
+
+**Puro (Flutter version manager)**
+- **Why not Nix?** Puro dynamically manages Flutter SDKs and modifies system paths in ways that conflict with Nix's immutable package model
+- **Installation**: Manual via `curl -fsSL https://puro.dev/install.sh | bash`
+- **Usage**: Global installation (`puro use -g 3.27.4`), not project-specific nix-shell
+- **Documentation**: See README.md "Manual Installations" section
+
+**Flutter development dependencies:**
+- Android SDK: Manual installation at `$HOME/Library/Android/sdk`
+- SWIG: Install via Homebrew (`brew install swig`)
+- NDK: Managed via Android SDK Manager
+
+**Pattern**: If a tool manages its own ecosystem of SDKs/versions (like rustup, puro, asdf), it likely conflicts with Nix's model. Document manual installation in README, reference from CLAUDE.md.
+
 ## Migration Workflow
 
 When migrating changes from experimental branches:
@@ -230,4 +247,6 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-01-01 - Initial creation documenting jujutsu-first workflow and incremental learning commits*
+*Last updated: 2026-01-01*
+- Initial creation documenting jujutsu-first workflow and incremental learning commits
+- Added section on tools that cannot be managed by Nix (puro/Flutter)
