@@ -1,9 +1,14 @@
 # Alyssa's dotfiles
 
-These are my dotfiles, managed by [Nix](https://nixos.org/) and [Home Manager](https://github.com/nix-community/home-manager) (via [flakes](https://nixos.wiki/wiki/Flakes)).
+These are my dotfiles, managed by [Nix](https://nixos.org/), [Nix-Darwin](https://nix-darwin.org) and [Home Manager](https://github.com/nix-community/home-manager) (via [flakes](https://nixos.wiki/wiki/Flakes)).
 
 ```
 dotfiles/
+├── darwin/
+|   ├── profiles/
+|   |   ├── alyssa.nix
+|   |   └── ditto.nix
+|   └── configuration.nix
 ├── home-manager/
 |   ├── modules/
 |   |   ├── ide/vscode  # extensions & settings
@@ -46,7 +51,19 @@ You need ONE of these:
 | **[GitHub Codespaces](https://github.com/features/codespaces/)** | A GitHub account | Exploring in the cloud |
 | **Local Nix** | [Nix installed](https://nixos.org/download) | Already have Nix or want to install it |
 
-### Devcontainer (sandboxed environment)
+### macOS setup (Darwin)
+
+`nix-darwin` manages macOS system configuration declaratively, including dock apps, system defaults (defaults write) and Homebrew packages.
+
+1. [Install Nix](https://nixos.org/download)
+1. Bootstrap `nix-darwin` (once)
+    - `nix run nix-darwin -- switch --flake .ditto` (work)
+1. Rebuild after changes
+    - `just _rebuild alyssa@work`
+
+### Devcontainer (Linux sandboxed environment)
+
+> ! does not support nix-darwin
 
 1. Clone this repo
     - `gh repo clone alycda/dotfiles`
@@ -66,17 +83,19 @@ You need ONE of these:
     - rebuild with `just` or `just _rebuild`
 
 
-## Why devcontainer first?
+## Why a devcontainer?
 
 As long as you have docker or an [ephemeral environment in the cloud](https://ephemeralenvironments.io/), you can explore my setup without polluting your system.
 
 
 ## How it works
 
-The devcontainer provides Nix with flakes enabled. Packages are declared in `flake.nix` and managed by Home Manager:
-```nix
-home.packages = with pkgs; [ gh helix jujutsu just ];
-```
+### Structure
+
+| Directory | Tool | Purpose |
+|-----------|------|---------|
+| `darwin/` | nix-darwin | macOS system config (dock, defaults, homebrew)
+| `home-manager/` | Home Manager | User packages and dotfiles (cross-platform)
 
 This keeps package management declarative and reproducible across environments.
 
@@ -87,7 +106,8 @@ This keeps package management declarative and reproducible across environments.
 - [Zero to Nix](https://zero-to-nix.com/)
 - [Nix Pills](https://nixos.org/guides/nix-pills/) — Deep dive (dense but thorough)
 - [home-manager](https://github.com/nix-community/home-manager) — Manage dotfiles with Nix
+- [hame-manager Option Search](https://home-manager-options.extranix.com/)
+- [nix-darwin](https://nix-darwin.org)
 - [devcontainers](https://containers.dev/) — Container-based dev environments
 - [Orbstack](https://orbstack.dev/) — Fast Docker alternative for macOS
 - [gh repo clone](https://cli.github.com/manual/gh_repo_clone)
-

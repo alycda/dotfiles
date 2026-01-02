@@ -32,6 +32,10 @@ _list-env:
 _list-profile:
     nix profile list
 
+[group('darwin')]
+build-dry-run-darwin USER:
+    nix build .#darwinConfigurations.{{USER}}.system --dry-run
+
 build-dry-run USER:
     nix build --dry-run --json .#homeConfigurations."{{USER}}".activationPackage 2>&1 | head -20
 

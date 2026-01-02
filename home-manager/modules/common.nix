@@ -19,4 +19,10 @@
 
   # Enable home-manager
   programs.home-manager.enable = true;
+
+  # Enable direnv for project-specific environments
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
 }

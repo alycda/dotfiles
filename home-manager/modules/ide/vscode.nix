@@ -9,9 +9,15 @@ let
   mergeProfiles = a: b: lib.recursiveUpdate a b // {
     extensions = (a.extensions or []) ++ (b.extensions or []);
   };
+
+  # Check if we're running under nix-darwin (which has useGlobalPkgs=true)
+  # If so, overlays are set at darwin/configuration.nix and inherited
+  isDarwin = config.targets.darwin or null != null;
 in
 {
-  nixpkgs.overlays = [
+  # Only set overlays for standalone home-manager (non-darwin)
+  # For darwin configs, overlays are inherited via useGlobalPkgs=true
+  nixpkgs.overlays = lib.mkIf (!isDarwin) [
     nix-vscode-extensions.overlays.default
   ];
 
