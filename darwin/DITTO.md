@@ -35,8 +35,9 @@ Puro is automatically installed via a `system.activationScripts` hook in [ditto.
 1. **Idempotent installation**: Only installs if not already present
 2. **Persistence**: Installs to `~/.puro` which persists across rebuilds
 3. **User-level**: Runs as the user (not root) via `sudo -u`
+4. **PATH setup**: `~/.puro/bin` is added to PATH in zsh configuration
 
-The activation script runs on every `darwin-rebuild switch`, checking if puro exists before attempting installation.
+The activation script runs on every `darwin-rebuild switch`, checking if puro exists before attempting installation. The PATH is configured in `/etc/zshrc` via `programs.zsh.interactiveShellInit`.
 
 **Why activation scripts?**
 - Puro cannot be packaged in nixpkgs (dynamic SDK manager)

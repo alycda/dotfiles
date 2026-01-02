@@ -22,6 +22,9 @@
   programs.zsh.interactiveShellInit = ''
     eval "$(/opt/homebrew/bin/brew shellenv)"
     eval "$(direnv hook zsh)"
+
+    # Add puro to PATH
+    export PATH="$HOME/.puro/bin:$PATH"
   '';
 
   # Install puro (Flutter version manager) on system activation
