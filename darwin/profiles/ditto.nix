@@ -1,6 +1,9 @@
 { pkgs, ... }:
 
 {
+  imports = [
+    ../modules/homebrew.nix
+  ];
   # Primary user for this machine (required for user-specific defaults)
   system.primaryUser = "alyssaevans";
 
