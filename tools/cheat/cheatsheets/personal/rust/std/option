@@ -1,0 +1,56 @@
+# Option<T> Methods
+
+## Extracting
+unwrap() -> T               Panics if None
+unwrap_or(T) -> T           Default value
+unwrap_or_else(F: () -> T) -> T
+unwrap_or_default() -> T    where T: Default
+expect(&str) -> T           Panics with message
+
+## Transforming
+map(F: (T) -> U) -> Option<U>
+map_or(U, F: (T) -> U) -> U
+map_or_else(D: () -> U, F: (T) -> U) -> U
+
+## To Result
+ok_or(E) -> Result<T, E>
+ok_or_else(F: () -> E) -> Result<T, E>
+
+## Boolean Operations
+filter(F: (&T) -> bool) -> Option<T>
+and(Option<U>) -> Option<U>
+and_then(F: (T) -> Option<U>) -> Option<U>
+or(Option<T>) -> Option<T>
+or_else(F: () -> Option<T>) -> Option<T>
+xor(Option<T>) -> Option<T>
+
+## Reference Operations (Option<&T>)
+cloned() -> Option<T>       where T: Clone
+copied() -> Option<T>       where T: Copy
+
+## Borrowing
+as_ref() -> Option<&T>
+iter() -> Iter<&T>
+as_deref() -> Option<&T::Target>
+
+## Mutable Borrowing
+as_mut() -> Option<&mut T>
+iter_mut() -> IterMut<&mut T>
+as_deref_mut() -> Option<&mut T::Target>
+
+## Nested Options (Option<Option<T>>)
+flatten() -> Option<T>
+
+## Transpose (Option<Result<T, E>>)
+transpose() -> Result<Option<T>, E>
+
+## State
+is_some() -> bool
+is_none() -> bool
+take() -> Option<T>         Replace with None
+replace(T) -> Option<T>     Replace value
+insert(T) -> &mut T         Insert value
+get_or_insert(T) -> &mut T
+get_or_insert_with(F: () -> T) -> &mut T
+
+from https://upsuper.github.io/rust-cheatsheet/

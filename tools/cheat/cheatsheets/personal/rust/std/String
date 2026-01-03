@@ -1,0 +1,26 @@
+# String (mut) Methods
+
+## Modification
+push_str(&str)              Append a string slice
+insert_str(usize, &str)     Insert string at position
+push(char)                  Append a character
+insert(usize, char)         Insert char at position
+pop() -> Option<char>       Remove last char
+remove(usize) -> char       Remove char at position
+
+## Truncation
+clear()                     Empty the string
+truncate(usize)             Keep only first n bytes
+retain((char) -> bool)      Keep only chars matching predicate
+
+## Memory
+reserve(usize)              Reserve additional capacity
+reserve_exact(usize)        Reserve exactly additional capacity
+shrink_to_fit()             Shrink capacity to length
+
+## Advanced
+split_off(usize) -> String  Split into two strings
+replace_range(RangeBounds<usize>, &str)
+drain(RangeBounds<usize>) -> Drain
+
+from https://upsuper.github.io/rust-cheatsheet/

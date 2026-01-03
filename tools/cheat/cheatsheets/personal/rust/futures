@@ -1,0 +1,43 @@
+# Rust Futures Cheatsheet
+
+## Leaf Futures
+empty()                     Create a future that never completes
+ok(T) -> FutureResult       Create a resolved future from a value
+err(E) -> FutureResult      Create a rejected future from an error
+result(Result) -> FutureResult
+
+## Mapping
+map(F: (T) -> U) -> Future<U>
+map_err(F: (E) -> U) -> Future<T, U>
+
+## Chaining
+then(F: (Result) -> Future) -> Future
+and_then(F: (T) -> Future) -> Future
+or_else(F: (E) -> Future) -> Future
+
+## Joining
+join(Future, Future) -> Future<(A, B)>
+join3(Future, Future, Future) -> Future<(A, B, C)>
+join4(...)
+join5(...)
+join_all(Vec<Future>) -> Future<Vec<T>>
+
+## Selecting
+select(Future, Future) -> Future  (first to complete)
+select2(Future, Future) -> Future
+select_all(Vec<Future>) -> Future
+select_ok(Vec<Future>) -> Future  (first success)
+
+## Utility
+lazy(F: () -> Future) -> Future   Deferred creation
+loop_fn(S, F: (S) -> Future) -> Future
+boxed() -> BoxFuture              Type erasure
+
+## Misc
+into_stream() -> Stream
+fuse() -> Fuse                    Ensure poll after completion returns NotReady
+catch_unwind() -> Future          Catch panics
+shared() -> Shared                Clone-able future
+wait() -> Result                  Block until completion
+
+from https://rufflewind.com/img/rust-futures-cheatsheet.html

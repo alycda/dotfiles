@@ -22,6 +22,10 @@
 
   outputs = { self, nixpkgs, darwin, home-manager, nix-vscode-extensions, ... }:
     let
+      # Systems supported for devShells
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+
       # For standalone home-manager (Linux/devcontainers/non-sudo macOS)
       # These configs create their own pkgs (not inherited from darwin)
       mkHome = system: profile: home-manager.lib.homeManagerConfiguration {
@@ -92,5 +96,34 @@
         # devcontainer / linux
         "alyssa@work-dev" = mkHome "aarch64-linux" "work";
       };
+
+      # Development shells
+      devShells = forAllSystems (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+
+          cheatConf = import ./tools/cheat/conf.nix {
+            inherit pkgs;
+            cheatsheetsPath = ./tools/cheat/cheatsheets;
+          };
+
+          cheatShell = pkgs.mkShell {
+            packages = [ pkgs.cheat ];
+            shellHook = ''export CHEAT_CONFIG_PATH="${cheatConf}"'';
+          };
+        in
+        {
+          cheat = cheatShell;
+
+          default = pkgs.mkShell {
+            inputsFrom = [ cheatShell ];
+            packages = with pkgs; [
+              ripgrep
+              helix
+              jujutsu
+            ];
+          };
+        }
+      );
     };
 }
