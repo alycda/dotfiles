@@ -53,3 +53,7 @@ setup-xcode:
 # # Complete setup
 # setup-all: rebuild "ditto" setup-xcode
 #     @echo "✓ Swift dev environment ready!"
+
+# Verify Swift development environment
+verify-swift:
+    ./scripts/verify-swift-setup.sh
