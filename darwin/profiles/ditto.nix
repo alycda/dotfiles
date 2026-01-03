@@ -2,8 +2,10 @@
 
 {
   imports = [
+    ../modules/swift-dev.nix
     ../modules/homebrew.nix
   ];
+
   # Primary user for this machine (required for user-specific defaults)
   system.primaryUser = "alyssaevans";
 
@@ -23,6 +25,12 @@
     eval "$(/opt/homebrew/bin/brew shellenv)"
     eval "$(direnv hook zsh)"
   '';
+
+  # Enable Swift development environment
+  ditto.swiftDev = {
+    enable = true;
+    xcodeVersion = "16.2";  # Override if needed
+  };
 
   # Work-specific system settings
   system.defaults.dock.persistent-apps = [
