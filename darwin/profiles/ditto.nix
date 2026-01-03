@@ -2,7 +2,7 @@
 
 {
   imports = [
-    ../modules/swift-dev.nix
+    ../modules/dev/swift.nix
     ../modules/homebrew.nix
   ];
 

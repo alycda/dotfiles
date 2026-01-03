@@ -50,29 +50,6 @@ _nix-check file:
 setup-xcode:
     ./scripts/setup-xcode.sh
 
-# ──────────────────────────────────────────────────────────────
-# Recipe: setup-ruby
-# Description: Installs Ruby 3.3.0 via rbenv, makes it the global version,
-#              and installs the CocoaPods and Jazzy gems.
-#
-# Documentation references:
-# • rbenv init – https://github.com/rbenv/rbenv#readme
-# • rbenv install – https://github.com/rbenv/ruby-build#readme
-# • gem install – https://guides.rubygems.org/command-reference/#gem-install
-# ──────────────────────────────────────────────────────────────
-
-setup-ruby:
-    # Initialise rbenv for the current shell (zsh in this case)
-    eval "$(rbenv init - zsh)"
-
-    # Install Ruby 3.3.0 (requires ruby-build plugin)
-    rbenv install 3.3.0
-
-    # Make Ruby 3.3.0 the default for all shells
-    rbenv global 3.3.0
-
-    # Refresh shims so the newly‑installed Ruby is visible
-    rbenv rehash
-
-    # Install the desired gems globally
-    gem install cocoapods jazzy
+# # Complete setup
+# setup-all: rebuild "ditto" setup-xcode
+#     @echo "✓ Swift dev environment ready!"
