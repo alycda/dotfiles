@@ -18,9 +18,6 @@
     # Nix
     nil
 
-    # Debug adapter
-    lldb_18
-
     # Mobile/Work languages (ditto)
     jdt-language-server   # Java
     kotlin-language-server
