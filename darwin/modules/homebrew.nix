@@ -28,6 +28,7 @@ _:
       "android-studio" # Ditto
       "arc"
       "brave-browser"
+      "claude"
       "clocker"
       "chromedriver" # Ditto
       "docker-desktop"
