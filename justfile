@@ -45,3 +45,7 @@ eval USER:
 # parse file for correct syntax
 _nix-check file:
     nix-instantiate --parse {{file}}
+
+_login:
+    gh auth login --web
+    claude login

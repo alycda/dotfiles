@@ -1,0 +1,90 @@
+# Slice and Vec Methods
+
+## Immutable Slices (&[T])
+len() -> usize
+is_empty() -> bool
+first() -> Option<&T>
+last() -> Option<&T>
+get(usize) -> Option<&T>
+get(Range) -> Option<&[T]>
+
+### Splitting
+split_at(usize) -> (&[T], &[T])
+split_first() -> Option<(&T, &[T])>
+split_last() -> Option<(&T, &[T])>
+split(F: (&T) -> bool) -> Split
+rsplit(F) -> RSplit
+splitn(usize, F) -> SplitN
+rsplitn(usize, F) -> RSplitN
+chunks(usize) -> Chunks
+chunks_exact(usize) -> ChunksExact
+windows(usize) -> Windows
+
+### Searching
+contains(&T) -> bool        where T: PartialEq
+starts_with(&[T]) -> bool
+ends_with(&[T]) -> bool
+binary_search(&T) -> Result<usize, usize>
+binary_search_by(F: (&T) -> Ordering) -> Result
+
+### Iteration
+iter() -> Iter<&T>
+
+## Mutable Slices (&mut [T])
+first_mut() -> Option<&mut T>
+last_mut() -> Option<&mut T>
+get_mut(usize) -> Option<&mut T>
+iter_mut() -> IterMut<&mut T>
+split_at_mut(usize) -> (&mut [T], &mut [T])
+
+### Sorting
+sort()                      where T: Ord
+sort_by(F: (&T, &T) -> Ordering)
+sort_by_key(F: (&T) -> K)   where K: Ord
+sort_unstable()             Faster, not stable
+sort_unstable_by(F)
+sort_unstable_by_key(F)
+
+### Rearranging
+swap(usize, usize)
+reverse()
+rotate_left(usize)
+rotate_right(usize)
+
+### Modifying
+fill(T)                     where T: Clone
+fill_with(F: () -> T)
+copy_from_slice(&[T])       where T: Copy
+clone_from_slice(&[T])      where T: Clone
+swap_with_slice(&mut [T])
+
+## Mutable Vectors (&mut Vec<T>)
+push(T)
+pop() -> Option<T>
+insert(usize, T)
+remove(usize) -> T
+append(&mut Vec<T>)
+clear()
+truncate(usize)
+resize(usize, T)            where T: Clone
+resize_with(usize, F: () -> T)
+extend_from_slice(&[T])     where T: Clone
+dedup()                     where T: PartialEq
+dedup_by(F: (&mut T, &mut T) -> bool)
+dedup_by_key(F: (&mut T) -> K)
+retain(F: (&T) -> bool)
+drain(RangeBounds) -> Drain
+splice(RangeBounds, IntoIterator) -> Splice
+
+### Capacity
+capacity() -> usize
+reserve(usize)
+reserve_exact(usize)
+shrink_to_fit()
+shrink_to(usize)
+
+## Slice Creation
+from_ref(&T) -> &[T]
+from_mut(&mut T) -> &mut [T]
+
+from https://upsuper.github.io/rust-cheatsheet/

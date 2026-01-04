@@ -1,0 +1,1 @@
+docker run --rm -it -e NIX_CONFIG="experimental-features = nix-command flakes" nixos/nix:latest

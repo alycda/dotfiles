@@ -1,0 +1,1 @@
+sudo /opt/homebrew/opt/openvpn/sbin/openvpn --config ~/Downloads/Firewalla.ovpn

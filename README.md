@@ -82,6 +82,11 @@ You need ONE of these:
     - What is [jujutsu](https://kubamartin.com/posts/introduction-to-the-jujutsu-vcs/)?
     - rebuild with `just` or `just _rebuild`
 
+### Other (Flake) devShell (without Home Manager)
+
+- `nix develop github:alycda/dotfiles` or
+- `nix develop github:alycda/dotfiles#tools`
+  + `-c cheat -l` immediately run a command AND EXIT
 
 ## Why a devcontainer?
 

@@ -4,6 +4,7 @@
   imports = [
     ./ide/vscode.nix
     ./dev/nix-lang.nix
+    ./tools/cheat.nix
   ];
 
   home.stateVersion = "25.05";

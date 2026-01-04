@@ -1,0 +1,72 @@
+# Iterator Methods
+
+## Transformations
+map(F: (T) -> U) -> Iterator<U>
+filter(F: (&T) -> bool) -> Iterator<T>
+filter_map(F: (T) -> Option<U>) -> Iterator<U>
+flat_map(F: (T) -> IntoIterator<U>) -> Iterator<U>
+flatten() -> Iterator<T::Item>          where T: IntoIterator
+
+## Aggregations
+fold(B, F: (B, T) -> B) -> B
+collect() -> Collection
+reduce(F: (T, T) -> T) -> Option<T>
+
+## Enumeration
+count() -> usize
+last() -> Option<T>
+enumerate() -> Iterator<(usize, T)>
+nth(usize) -> Option<T>
+
+## Combining
+zip(Iterator<U>) -> Iterator<(T, U)>
+chain(Iterator<T>) -> Iterator<T>
+
+## Slicing
+skip(usize) -> Iterator<T>
+take(usize) -> Iterator<T>
+skip_while(F: (&T) -> bool) -> Iterator<T>
+take_while(F: (&T) -> bool) -> Iterator<T>
+step_by(usize) -> Iterator<T>
+
+## Inspection
+for_each(F: (T) -> ())
+inspect(F: (&T) -> ()) -> Iterator<T>
+scan(S, F: (&mut S, T) -> Option<U>) -> Iterator<U>
+
+## Analysis
+sum() -> T                  where T: Sum
+product() -> T              where T: Product
+max() -> Option<T>          where T: Ord
+min() -> Option<T>          where T: Ord
+max_by_key(F: (&T) -> K) -> Option<T>
+min_by_key(F: (&T) -> K) -> Option<T>
+
+## Comparison
+eq(Iterator) -> bool
+cmp(Iterator) -> Ordering
+partial_cmp(Iterator) -> Option<Ordering>
+
+## Special
+rev() -> Iterator<T>        where Self: DoubleEndedIterator
+cycle() -> Iterator<T>      where Self: Clone
+cloned() -> Iterator<T>     where T: Clone
+copied() -> Iterator<T>     where T: Copy
+peekable() -> Peekable<Self>
+fuse() -> Fuse<Self>
+
+## Search
+find(F: (&T) -> bool) -> Option<T>
+find_map(F: (T) -> Option<U>) -> Option<U>
+position(F: (T) -> bool) -> Option<usize>
+any(F: (T) -> bool) -> bool
+all(F: (T) -> bool) -> bool
+
+## Generators (std::iter)
+empty() -> Empty<T>
+once(T) -> Once<T>
+repeat(T) -> Repeat<T>
+from_fn(F: () -> Option<T>) -> FromFn<F>
+successors(Option<T>, F: (&T) -> Option<T>) -> Successors
+
+from https://upsuper.github.io/rust-cheatsheet/
