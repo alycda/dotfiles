@@ -10,7 +10,7 @@ Key features:
 
 ## Why cheat over IDE snippets?
 
-Cheatsheets live in the terminal, not a specific editor. They work the same whether you're in VS Code, Helix, or a bare SSH session. Combined with a justfile, they're excellent for live demos - you can quickly show exact commands without fumbling.
+Cheatsheets live in the terminal, not a specific editor. They work the same whether you're in VS Code, Helix, or a bare SSH session. Combined with a justfile, they're excellent for live demos - you can quickly show exact commands without fumbling ([live demo](https://www.youtube.com/watch?v=Ee-VWKtkmVg) by [Nathan Stocks](https://github.com/CleanCut)).
 
 ## Usage
 
