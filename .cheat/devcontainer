@@ -1,0 +1,10 @@
+# .devcontainer.json
+{
+    "features": {
+        "ghcr.io/devcontainers/features/nix:1": {
+            # nix-profile
+            "packages": []
+        }
+    },
+    "postCreateCommand": "nix develop github:alycda/dotfiles -c bash"
+}
