@@ -1,20 +1,5 @@
-# first run: sudo .result/bin/darwin-rebuild switch -I darwin-config=/etc/nix-darwin/configuration.nix
-# subsequent: sudo darwin-rebuild switch
-
-{ config, pkgs, ... }:
-
-let
-  nix-vscode-extensions = import (builtins.fetchTarball
-    "https://github.com/nix-community/nix-vscode-extensions/archive/master.tar.gz"
-  );
-in
-{
-  imports = [
-    <home-manager/nix-darwin>
-  ];
 
   home-manager.users.alyssaevans = { pkgs, ... }: {
-
     programs.zsh = {
       enable = true;
 
@@ -115,4 +100,3 @@ in
       eval "$(direnv hook zsh)"
     '';
   };
-}
