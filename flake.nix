@@ -130,12 +130,12 @@
           default = pkgs.mkShell {
             inputsFrom = [ cheatShell ];
             # helix inherited from cheatShell, full config via home-manager
+            # NOTE: LSPs intentionally duplicated with helix.nix (Option A - helix owns deps)
             packages = with pkgs; [
               ripgrep
               jujutsu
 
-              # Language servers for helix
-              rust-analyzer
+              # Language servers for helix (rust-analyzer from rustup)
               typescript-language-server
               vscode-langservers-extracted
               nil

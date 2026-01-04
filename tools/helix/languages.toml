@@ -26,14 +26,3 @@ name = "json"
 language-servers = ["vscode-json-languageserver"]
 file-types = ["json", "jsonc", "geojson"]
 indent = { tab-width = 2, unit = "  " }
-
-[[language]]
-name = "brightscript"
-file-types = ["brs", "bs"]
-comment-tokens = ["'", "rem"]
-indent = { tab-width = 4, unit = "    " }
-language-servers = ["brighterscript-lsp"]
-
-[language-server.brighterscript-lsp]
-command = "bsc"
-args = ["--lsp"]

@@ -1,18 +1,14 @@
 # Helix - modal text editor
 # Config files live in tools/helix/ (TOML format for easy editing)
 # This module uses programs.helix for proper home-manager integration
+#
+# NOTE: Language server packages are intentionally duplicated in flake.nix devShells.
+# This follows "Option A" - helix owns its deps. Nix deduplicates at build time.
 { config, pkgs, lib, ... }:
-let
-  # Read TOML config files from tools/helix/
-  configDir = ../../../tools/helix;
-in
 {
   # Language servers and tools that helix uses
-  # (Nix deduplicates if also in dev modules)
+  # (rust-analyzer and rustfmt provided by rustup, not here)
   home.packages = with pkgs; [
-    # Rust
-    rust-analyzer
-
     # TypeScript/JavaScript
     typescript-language-server
 
@@ -85,15 +81,9 @@ in
           file-types = [ "json" "jsonc" "geojson" ];
           indent = { tab-width = 2; unit = "  "; };
         }
-        {
-          name = "brightscript";
-          file-types = [ "brs" "bs" ];
-          comment-tokens = [ "'" "rem" ];
-          indent = { tab-width = 4; unit = "    "; };
-          language-servers = [ "brighterscript-lsp" ];
-        }
       ];
 
+      # rust-analyzer config (binary provided by rustup)
       language-server = {
         rust-analyzer.config = {
           check.command = "clippy";
@@ -105,10 +95,6 @@ in
             lifetimeElisionHints.enable = "skip_trivial";
             typeHints.hideClosureInitialization = false;
           };
-        };
-        brighterscript-lsp = {
-          command = "bsc";
-          args = [ "--lsp" ];
         };
       };
     };
