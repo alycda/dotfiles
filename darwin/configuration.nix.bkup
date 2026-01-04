@@ -44,23 +44,6 @@ in
       };
     };
 
-    programs.helix = {
-      ignores = [
-        "target/"
-        "!.gitignore"
-      ];
-
-      themes = {
-        mine = {
-          inherits = "boo_berry";
-          "ui.background" = {};
-          "ui.cursor.primary.select" = { fg = "berry"; bg = "bubblegum"; };
-          "ui.cursor.primary.insert" = { fg = "berry"; bg = "mint"; };
-        };
-      };
-
-    };
-
     programs.vscode = {
       enable = true;
       # mutableExtensionsDir = true;
