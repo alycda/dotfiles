@@ -13,10 +13,6 @@ in
     <home-manager/nix-darwin>
   ];
 
-  nixpkgs.overlays = [
-    nix-vscode-extensions.overlays.default
-  ];
-
   users.users.alyssaevans = {
     name = "alyssaevans";
     home = "/Users/alyssaevans";
