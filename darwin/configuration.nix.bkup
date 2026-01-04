@@ -13,8 +13,6 @@ in
     <home-manager/nix-darwin>
   ];
 
-  nixpkgs.config.allowUnfree = true;
-
   nixpkgs.overlays = [
     nix-vscode-extensions.overlays.default
   ];
