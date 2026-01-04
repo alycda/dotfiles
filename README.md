@@ -86,6 +86,7 @@ You need ONE of these:
 
 - `nix develop github:alycda/dotfiles` or
 - `nix develop github:alycda/dotfiles#tools`
+  + `-c cheat -l` immediately run a command AND EXIT
 
 ## Why a devcontainer?
 
