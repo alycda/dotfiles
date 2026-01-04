@@ -145,6 +145,18 @@
               jdt-language-server
               kotlin-language-server
               dart
+
+              # Go
+              gopls
+              golangci-lint-langserver
+              delve
+
+              # Zig
+              zls
+              zig
+
+              # Just
+              just-lsp
             ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
               swift-format  # macOS only (sourcekit-lsp from Xcode)
             ];

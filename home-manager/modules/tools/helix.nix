@@ -29,6 +29,18 @@ in
     jdt-language-server   # Java
     kotlin-language-server
     dart                  # Dart SDK includes LSP
+
+    # Go
+    gopls
+    golangci-lint-langserver
+    delve                 # dlv debugger
+
+    # Zig
+    zls
+    zig
+
+    # Just
+    just-lsp
   ] ++ lib.optionals pkgs.stdenv.isDarwin [
     swift-format          # Swift formatter (sourcekit-lsp from Xcode)
   ];
