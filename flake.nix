@@ -140,6 +140,13 @@
               vscode-langservers-extracted
               nil
               lldb_18
+
+              # Mobile/Work languages (ditto)
+              jdt-language-server
+              kotlin-language-server
+              dart
+            ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+              swift-format  # macOS only (sourcekit-lsp from Xcode)
             ];
           };
         }

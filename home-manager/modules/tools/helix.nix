@@ -24,6 +24,13 @@ in
 
     # Debug adapter
     lldb_18
+
+    # Mobile/Work languages (ditto)
+    jdt-language-server   # Java
+    kotlin-language-server
+    dart                  # Dart SDK includes LSP
+  ] ++ lib.optionals pkgs.stdenv.isDarwin [
+    swift-format          # Swift formatter (sourcekit-lsp from Xcode)
   ];
 
   programs.helix = {
