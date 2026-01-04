@@ -1,0 +1,13 @@
+# ASCII Methods on &[u8]
+
+## Immutable (&[u8])
+is_ascii() -> bool
+eq_ignore_ascii_case(&[u8]) -> bool
+to_ascii_uppercase() -> Vec<u8>
+to_ascii_lowercase() -> Vec<u8>
+
+## Mutable (&mut [u8])
+make_ascii_uppercase()
+make_ascii_lowercase()
+
+from https://upsuper.github.io/rust-cheatsheet/

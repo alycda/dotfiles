@@ -25,5 +25,6 @@
     vscode-marketplace.alefragnani.bookmarks
     vscode-marketplace.anthropic.claude-code # unfree
     vscode-marketplace.jnoortheen.nix-ide
+    vscode-marketplace.ms-vscode-remote.remote-containers
   ];
 }

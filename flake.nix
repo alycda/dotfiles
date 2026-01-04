@@ -22,6 +22,10 @@
 
   outputs = { self, nixpkgs, darwin, home-manager, nix-vscode-extensions, ... }:
     let
+      # Systems supported for devShells
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+
       # For standalone home-manager (Linux/devcontainers/non-sudo macOS)
       # These configs create their own pkgs (not inherited from darwin)
       mkHome = system: profile: home-manager.lib.homeManagerConfiguration {
@@ -92,5 +96,50 @@
         # devcontainer / linux
         "alyssa@work-dev" = mkHome "aarch64-linux" "work";
       };
+
+      # Development shells
+      devShells = forAllSystems (system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+
+          cheatConf = import ./tools/cheat/conf.nix {
+            inherit pkgs;
+            cheatsheetsPath = ./tools/cheat/cheatsheets;
+          };
+          
+          # Create a wrapped version of cheat that always has the right config
+          cheatWrapped = pkgs.symlinkJoin {
+            name = "cheat";
+            paths = [ pkgs.cheat ];
+            buildInputs = [ pkgs.makeWrapper ];
+            postBuild = ''
+              wrapProgram $out/bin/cheat \
+                --set CHEAT_CONFIG_PATH "${cheatConf}"
+            '';
+          };
+
+          # Basic helix for cheat's editor (full config via home-manager)
+          cheatShell = pkgs.mkShell {
+            packages = [ cheatWrapped pkgs.helix ];
+            shellHook = ''
+              export CHEAT_CONFIG_PATH="${cheatConf}"
+              export EDITOR="hx"
+            '';
+          };
+        in
+        {
+          tools = cheatShell;
+
+          default = pkgs.mkShell {
+            inputsFrom = [ cheatShell ];
+            # helix inherited from cheatShell (basic, for cheat's $EDITOR)
+            # Full helix with LSPs requires home-manager switch
+            packages = with pkgs; [
+              ripgrep
+              jujutsu
+            ];
+          };
+        }
+      );
     };
 }

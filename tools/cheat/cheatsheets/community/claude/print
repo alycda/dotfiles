@@ -1,0 +1,2 @@
+# query - https://code.claude.com/docs/en/cli-reference#cli-commands
+claude -p "explain this function"

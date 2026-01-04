@@ -1,0 +1,9 @@
+# bash mode - https://code.claude.com/docs/en/interactive-mode#bash-mode-with-prefix
+Run bash commands directly without going through Claude by prefixing your input with !
+
+ex:
+```
+! ls -lah
+! pwd
+! jj st
+```

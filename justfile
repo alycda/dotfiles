@@ -57,3 +57,7 @@ setup-xcode:
 # Verify Swift development environment
 verify-swift:
     ./scripts/verify-swift-setup.sh
+    
+_login:
+    gh auth login --web
+    claude login
