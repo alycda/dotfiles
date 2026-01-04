@@ -13,11 +13,6 @@ in
     <home-manager/nix-darwin>
   ];
 
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    trusted-users = [ "alyssaevans" ];
-  };
-
   nixpkgs.config.allowUnfree = true;
 
   nixpkgs.overlays = [
