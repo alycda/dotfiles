@@ -13,11 +13,6 @@ in
     <home-manager/nix-darwin>
   ];
 
-  users.users.alyssaevans = {
-    name = "alyssaevans";
-    home = "/Users/alyssaevans";
-  };
-
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
   home-manager.users.alyssaevans = { pkgs, ... }: {
