@@ -29,4 +29,9 @@
     enable = true;
     nix-direnv.enable = true;
   };
+  
+  # Set helix as default editor
+  home.sessionVariables = {
+    EDITOR = "hx";
+  };
 }

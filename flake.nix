@@ -121,7 +121,10 @@
           # Basic helix for cheat's editor (full config via home-manager)
           cheatShell = pkgs.mkShell {
             packages = [ cheatWrapped pkgs.helix ];
-            shellHook = ''export CHEAT_CONFIG_PATH="${cheatConf}"'';
+            shellHook = ''
+              export CHEAT_CONFIG_PATH="${cheatConf}"
+              export EDITOR="hx"
+            '';
           };
         in
         {
