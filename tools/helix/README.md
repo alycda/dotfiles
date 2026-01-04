@@ -1,4 +1,16 @@
-# Helix Configuration
+# Helix
+
+[Helix](https://helix-editor.com/) is a post-modern terminal-based text editor with batteries included. It's written in Rust and takes inspiration from Kakoune and Neovim.
+
+Key features:
+- **Multiple selections** as a core editing primitive (like Kakoune)
+- **Built-in LSP support** - language servers work out of the box
+- **Tree-sitter integration** - for syntax highlighting and text objects
+- **No plugin system needed** - common features are built-in (fuzzy finder, file picker, etc.)
+
+The command `hx` launches the editor. Press `?` in normal mode to see available keybindings.
+
+## Configuration
 
 This directory contains helix configuration files that serve as:
 1. **Documentation** - Human-readable reference for the config
