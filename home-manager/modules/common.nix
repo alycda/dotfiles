@@ -18,7 +18,6 @@
     jujutsu
     just
     gh
-    direnv
   ];
 
   # Enable home-manager
