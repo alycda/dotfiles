@@ -133,6 +133,13 @@
             packages = with pkgs; [
               ripgrep
               jujutsu
+
+              # Language servers for helix
+              rust-analyzer
+              typescript-language-server
+              vscode-langservers-extracted
+              nil
+              lldb_18
             ];
           };
         }

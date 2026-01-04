@@ -7,6 +7,25 @@ let
   configDir = ../../../tools/helix;
 in
 {
+  # Language servers and tools that helix uses
+  # (Nix deduplicates if also in dev modules)
+  home.packages = with pkgs; [
+    # Rust
+    rust-analyzer
+
+    # TypeScript/JavaScript
+    typescript-language-server
+
+    # JSON, HTML, CSS
+    vscode-langservers-extracted
+
+    # Nix
+    nil
+
+    # Debug adapter
+    lldb_18
+  ];
+
   programs.helix = {
     enable = true;
 
