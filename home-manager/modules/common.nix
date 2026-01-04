@@ -16,8 +16,10 @@
     helix
     jujutsu
     just
+    jq
     gh
     direnv
+    rage
   ];
 
   # Enable home-manager
