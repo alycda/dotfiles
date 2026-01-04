@@ -108,12 +108,12 @@
           };
 
           cheatShell = pkgs.mkShell {
-            packages = [ pkgs.cheat ];
+            packages = [ pkgs.cheat pkgs.helix ];
             shellHook = ''export CHEAT_CONFIG_PATH="${cheatConf}"'';
           };
         in
         {
-          cheat = cheatShell;
+          tools = cheatShell;
 
           default = pkgs.mkShell {
             inputsFrom = [ cheatShell ];

@@ -1,0 +1,5 @@
+# https://code.claude.com/docs/en/slash-commands
+/rename <name>	Rename the current session for easier identification
+/todos	List current TODO items
+
+https://code.claude.com/docs/en/slash-commands#custom-slash-commands

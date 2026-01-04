@@ -1,7 +1,7 @@
 { pkgs, cheatsheetsPath }:
 
 pkgs.writeText "conf.yml" ''
-  editor: vi
+  editor: hx
   colorize: false
   style: monokai
   formatter: terminal256
