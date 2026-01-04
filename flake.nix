@@ -129,36 +129,11 @@
 
           default = pkgs.mkShell {
             inputsFrom = [ cheatShell ];
-            # helix inherited from cheatShell, full config via home-manager
-            # NOTE: LSPs intentionally duplicated with helix.nix (Option A - helix owns deps)
+            # helix inherited from cheatShell (basic, for cheat's $EDITOR)
+            # Full helix with LSPs requires home-manager switch
             packages = with pkgs; [
               ripgrep
               jujutsu
-
-              # Language servers for helix (rust-analyzer from rustup)
-              typescript-language-server
-              vscode-langservers-extracted
-              nil
-              lldb_18
-
-              # Mobile/Work languages (ditto)
-              jdt-language-server
-              kotlin-language-server
-              dart
-
-              # Go
-              gopls
-              golangci-lint-langserver
-              delve
-
-              # Zig
-              zls
-              zig
-
-              # Just
-              just-lsp
-            ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-              swift-format  # macOS only (sourcekit-lsp from Xcode)
             ];
           };
         }

@@ -2,8 +2,8 @@
 # Config files live in tools/helix/ (TOML format for easy editing)
 # This module uses programs.helix for proper home-manager integration
 #
-# NOTE: Language server packages are intentionally duplicated in flake.nix devShells.
-# This follows "Option A" - helix owns its deps. Nix deduplicates at build time.
+# NOTE: devShell provides basic helix only (for cheat's $EDITOR).
+# Full helix with LSPs and config requires home-manager switch.
 { config, pkgs, lib, ... }:
 {
   # Language servers and tools that helix uses
