@@ -1,0 +1,28 @@
+[[language]]
+name = "rust"
+auto-format = true
+formatter = { command = "rustfmt" }
+
+[language-server.rust-analyzer.config]
+check.command = "clippy"
+inlayHints.bindingModeHints.enable = true
+inlayHints.closingBraceHints.minLines = 10
+inlayHints.closureReturnTypeHints.enable = "with_block"
+inlayHints.discriminantHints.enable = "fieldless"
+inlayHints.lifetimeElisionHints.enable = "skip_trivial"
+inlayHints.typeHints.hideClosureInitialization = false
+
+[[language]]
+name = "javascript"
+language-servers = ["typescript-language-server"]
+
+[[language]]
+name = "typescript"
+indent = { tab-width = 2, unit = "  " }
+roots = ["deno.json", "package.json", "tsconfig.json"]
+
+[[language]]
+name = "json"
+language-servers = ["vscode-json-languageserver"]
+file-types = ["json", "jsonc", "geojson"]
+indent = { tab-width = 2, unit = "  " }
