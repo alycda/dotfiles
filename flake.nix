@@ -118,9 +118,9 @@
             '';
           };
 
+          # Basic helix for cheat's editor (full config via home-manager)
           cheatShell = pkgs.mkShell {
             packages = [ cheatWrapped pkgs.helix ];
-            # Still export for convenience in the shell
             shellHook = ''export CHEAT_CONFIG_PATH="${cheatConf}"'';
           };
         in
@@ -129,9 +129,9 @@
 
           default = pkgs.mkShell {
             inputsFrom = [ cheatShell ];
+            # helix inherited from cheatShell, full config via home-manager
             packages = with pkgs; [
               ripgrep
-              helix
               jujutsu
             ];
           };
