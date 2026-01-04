@@ -106,9 +106,21 @@
             inherit pkgs;
             cheatsheetsPath = ./tools/cheat/cheatsheets;
           };
+          
+          # Create a wrapped version of cheat that always has the right config
+          cheatWrapped = pkgs.symlinkJoin {
+            name = "cheat";
+            paths = [ pkgs.cheat ];
+            buildInputs = [ pkgs.makeWrapper ];
+            postBuild = ''
+              wrapProgram $out/bin/cheat \
+                --set CHEAT_CONFIG_PATH "${cheatConf}"
+            '';
+          };
 
           cheatShell = pkgs.mkShell {
-            packages = [ pkgs.cheat pkgs.helix ];
+            packages = [ cheatWrapped pkgs.helix ];
+            # Still export for convenience in the shell
             shellHook = ''export CHEAT_CONFIG_PATH="${cheatConf}"'';
           };
         in
