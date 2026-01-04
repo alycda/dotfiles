@@ -55,6 +55,8 @@
       # Disable auto-correct and auto-capitalize
       NSAutomaticCapitalizationEnabled = false;
       NSAutomaticSpellingCorrectionEnabled = false;
+
+      com.apple.swipescrolldirection = false;
     };
   };
 

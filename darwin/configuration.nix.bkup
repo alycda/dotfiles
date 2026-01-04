@@ -115,22 +115,4 @@ in
       eval "$(direnv hook zsh)"
     '';
   };
-
-  system.primaryUser = "alyssaevans";
-  system.defaults = {
-    dock = {
-      autohide = true;
-      mru-spaces = false;
-
-      wvous-tl-corner = 2; # mission control
-      wvous-tr-corner = 4; # desktop
-      wvous-br-corner = 13; # lock screen
-      wvous-bl-corner = 24; # quick note
-    };
-    NSGlobalDomain."com.apple.swipescrolldirection" = false;
-  };
-
-  # Used for backwards compatibility, please read the changelog before changing.
-  # $ darwin-rebuild changelog
-  system.stateVersion = 6;
 }
