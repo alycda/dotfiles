@@ -1,0 +1,2 @@
+[revset-aliases]
+"immutable_heads()" = "trunk() | done"

@@ -5,6 +5,7 @@
     ./ide/vscode.nix
     ./dev/nix-lang.nix
     ./tools/cheat.nix
+    ./tools/claude.nix
     ./tools/helix.nix
   ];
 

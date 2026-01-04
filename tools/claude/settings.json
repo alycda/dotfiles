@@ -1,0 +1,7 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/settings-schema.json",
+  "permissions": {
+    "allow": [],
+    "deny": []
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/settings-schema.json",
+  "permissions": {
+    "allow": [
+      "Bash(jj *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(sudo *)"
+    ]
+  }
+}
