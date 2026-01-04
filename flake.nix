@@ -18,9 +18,14 @@
       url = "github:nix-community/nix-vscode-extensions";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, darwin, home-manager, nix-vscode-extensions, ... }:
+  outputs = { self, nixpkgs, darwin, home-manager, nix-vscode-extensions, agenix, ... }:
     let
       # Systems supported for devShells
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -44,6 +49,7 @@
         extraSpecialArgs = { inherit nix-vscode-extensions; };
 
         modules = [
+          agenix.homeManagerModules.default
           ./home-manager/modules/common.nix
           ./home-manager/profiles/${profile}.nix
         ];
@@ -62,6 +68,7 @@
           modules = [
             ./darwin/configuration.nix
             ./darwin/profiles/${darwinProfile}.nix
+            agenix.darwinModules.default
 
             # Integrate home-manager into darwin
             home-manager.darwinModules.home-manager
@@ -71,6 +78,7 @@
               home-manager.extraSpecialArgs = { inherit nix-vscode-extensions; };
               home-manager.users.${username} = {
                 imports = [
+                  agenix.homeManagerModules.default
                   ./home-manager/modules/common.nix
                   ./home-manager/profiles/${homeProfile}.nix
                 ];

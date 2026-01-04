@@ -1,0 +1,5 @@
+# Create or edit an encrypted secret
+agenix -e secrets/<name>.age
+
+# Re-key all secrets (after adding new keys to secrets.nix)
+agenix -r
