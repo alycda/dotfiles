@@ -51,14 +51,10 @@ in
       # Rust
       profiles.default = {
         userSettings = {
-          editor.wordWrap = "on";
-          chat.agent.enabled = false;
-          workbench.secondarySideBar.defaultVisibility = "hidden";
           files.hotExit = "onExitAndWindowClose";
           git.autofetch = true;
           git.confirmSync = false;
           # git.blame.editorDecoration.enabled = true;
-          claudeCode.preferredLocation = "panel";
           gitlens.plusFeatures.enabled = false;
 
           # "chat.mcp.access": "none" //.chat.mcp.enabled = true
@@ -66,12 +62,7 @@ in
 
         # extensions = with pkgs.vscode-marketplace; [
         extensions = with pkgs; [
-          vscode-marketplace.jnoortheen.nix-ide
-          vscode-marketplace.visualjj.visualjj
           vscode-marketplace.eamodio.gitlens
-          vscode-marketplace.anthropic.claude-code
-          vscode-marketplace.rust-lang.rust-analyzer
-          vscode-marketplace.tamasfe.even-better-toml
 
           # GitHub Remote Repositories
           vscode-marketplace.ms-vscode.remote-repositories
@@ -79,22 +70,9 @@ in
 
           vscode-marketplace.ms-vscode-remote.remote-containers # ms-vscode-remote.vscode-remote-extensionpack
 
-          # error: The version `1.12.0` of `vadimcn.vscode-lldb` is not supported.
-          # Try `extensions.aarch64-darwin.vscode-marketplace-universal.vadimcn.vscode-lldb`
-          # or  `extensions.aarch64-darwin.open-vsx-universal.vadimcn.vscode-lldb`.
-          # vadimcn.vscode-lldb # llvm-vs-code-extensions.lldb-dap
-          vscode-extensions.vadimcn.vscode-lldb
-
           vscode-extensions.dart-code.flutter
 
           # makenotion/notion-mcp-server
-        ];
-      };
-
-      profiles.jj = {
-        extensions = with pkgs.vscode-marketplace; [
-          visualjj.visualjj
-          jjk.jjk
         ];
       };
 

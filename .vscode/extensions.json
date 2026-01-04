@@ -1,0 +1,5 @@
+{
+    "recommendations": [
+        "eamodio.gitlens" // ONLY for github.dev web editor, unfortunately requires sign-in and is overkill but works
+    ]
+}
