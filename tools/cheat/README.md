@@ -33,6 +33,20 @@ cheatsheets/
 └── personal/      # Machine-specific or private sheets
 ```
 
+## Local `.cheat` directories
+
+Cheat automatically detects a `.cheat` folder in your current working directory. This enables project-specific cheatsheets without any configuration:
+
+```
+my-project/
+├── .cheat/
+│   └── deploy      # Project-specific deploy commands
+├── src/
+└── justfile
+```
+
+When you `cd` into a directory with `.cheat`, those sheets are temporarily added to your available cheatpaths. Great for embedding runbooks or common commands directly in a repository.
+
 ## Configuration
 
 See `conf.nix` - generates the `conf.yml` that cheat reads. Sets helix as the editor and defines the cheatpaths.
