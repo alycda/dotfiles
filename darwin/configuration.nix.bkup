@@ -101,15 +101,7 @@ in
   # $ nix-env -qaP | grep wget
   environment.systemPackages = with pkgs;
     [ 
-      clock-rs
       nil nixd # nix LSP
-
-      # Ditto
-      teleport
-      cmake
-      # flutter use puro to manage
-      openjdk
-      # swig installed via homebrew locked tap
     ];
 
   programs.zsh = {
