@@ -56,7 +56,7 @@
       NSAutomaticCapitalizationEnabled = false;
       NSAutomaticSpellingCorrectionEnabled = false;
 
-      com.apple.swipescrolldirection = false;
+      "com.apple.swipescrolldirection" = false;
     };
   };
 
