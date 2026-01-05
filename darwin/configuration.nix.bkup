@@ -36,7 +36,6 @@
       # Rust
       profiles.default = {
         userSettings = {
-          files.hotExit = "onExitAndWindowClose";
           git.autofetch = true;
           git.confirmSync = false;
           # git.blame.editorDecoration.enabled = true;

@@ -12,6 +12,7 @@
       "**/.jj" = true;
       "result" = true;
     };
+    files.hotExit = "onExitAndWindowClose"; # remember unsaved changes
     search.exclude = {
       "**/.jj" = true;
       "result" = true;
