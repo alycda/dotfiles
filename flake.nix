@@ -135,6 +135,7 @@
             # helix inherited from cheatShell (basic, for cheat's $EDITOR)
             # Full helix with LSPs requires home-manager switch
             packages = with pkgs; [
+              bat
               ripgrep
               jujutsu
             ];

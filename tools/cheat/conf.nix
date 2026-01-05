@@ -2,10 +2,10 @@
 
 pkgs.writeText "conf.yml" ''
   editor: hx
-  colorize: false
+  colorize: true
   style: monokai
   formatter: terminal256
-  pager: less -FRX
+  pager: bat --paging=auto --style=plain
   cheatpaths:
     - name: community
       path: ${cheatsheetsPath}/community

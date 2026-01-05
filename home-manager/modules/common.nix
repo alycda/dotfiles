@@ -14,6 +14,7 @@
   # Note: helix is configured via ./tools/helix.nix (programs.helix)
   home.packages = with pkgs; [
     # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
+    bat
     ripgrep
     jujutsu
     just
