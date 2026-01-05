@@ -1,5 +1,10 @@
 { config, pkgs, ... }:
 
+let
+  # Core packages shared with devShells (defined in lib/core-packages.nix)
+  # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
+  corePackages = import ../../lib/core-packages.nix pkgs;
+in
 {
   imports = [
     ./ide/vscode.nix
@@ -12,14 +17,7 @@
 
   # Core packages across all profiles
   # Note: helix is configured via ./tools/helix.nix (programs.helix)
-  home.packages = with pkgs; [
-    # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
-    bat
-    ripgrep
-    jujutsu
-    just
-    gh
-  ];
+  home.packages = corePackages;
 
   # Enable home-manager
   programs.home-manager.enable = true;
