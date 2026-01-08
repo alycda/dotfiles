@@ -27,6 +27,7 @@ in
     profiles.default = mergeProfiles base {
       extensions = with pkgs; [
         vscode-marketplace.eamodio.gitlens
+        github.vscode-github-actions
       ];
     };
 
