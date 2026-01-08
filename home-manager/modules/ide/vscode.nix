@@ -26,10 +26,22 @@ in
 
     profiles.default = mergeProfiles base {
       extensions = with pkgs; [
-        vscode-marketplace.eamodio.gitlens
         github.vscode-github-actions
+        vscode-marketplace.eamodio.gitlens
       ];
     };
+
+    profiles.ditto = mergeProfiles (mergeProfiles base {
+      extensions = with pkgs; [
+        Dart-Code.flutter
+        github.vscode-github-actions
+        mathiasfrohlich.Kotlin
+        ms-vscode.cpptools
+        ms-vscode.makefile-tools
+        swiftlang.swift-vscode
+        vscjava.vscode-gradle
+      ]
+    }) jujutsu;
 
     profiles.jujutsu = mergeProfiles base jujutsu;
 
