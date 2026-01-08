@@ -2,10 +2,12 @@
 { config, pkgs, ... }:
 
 {
-  home.username = "alyssa"; 
-  home.homeDirectory = "/Users/alyssa";
+  home = {
+    username = "alyssa";
+    homeDirectory = "/Users/alyssa";
 
-  home.packages = with pkgs; [
-    # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
-  ];
+    packages = with pkgs; [
+      # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
+    ];
+  };
 }

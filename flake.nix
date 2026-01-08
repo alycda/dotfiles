@@ -66,14 +66,16 @@
             # Integrate home-manager into darwin
             home-manager.darwinModules.home-manager
             {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = { inherit nix-vscode-extensions; };
-              home-manager.users.${username} = {
-                imports = [
-                  ./home-manager/modules/common.nix
-                  ./home-manager/profiles/${homeProfile}.nix
-                ];
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                extraSpecialArgs = { inherit nix-vscode-extensions; };
+                users.${username} = {
+                  imports = [
+                    ./home-manager/modules/common.nix
+                    ./home-manager/profiles/${homeProfile}.nix
+                  ];
+                };
               };
             }
           ];

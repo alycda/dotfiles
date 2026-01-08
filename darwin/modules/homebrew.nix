@@ -5,12 +5,12 @@
   homebrew = {
     enable = true;
 
-    # Remove packages/casks not listed here
-    onActivation.cleanup = "zap";
-
-    # Update homebrew and packages on activation
-    onActivation.autoUpdate = true;
-    onActivation.upgrade = true;
+    # Remove packages/casks not listed here and update on activation
+    onActivation = {
+      cleanup = "zap";
+      autoUpdate = true;
+      upgrade = true;
+    };
 
     # Custom taps
     taps = [
