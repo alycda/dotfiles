@@ -102,6 +102,9 @@
         let
           pkgs = import nixpkgs { inherit system; };
 
+          # Core packages shared with home-manager
+          corePackages = import ./lib/core-packages.nix pkgs;
+
           cheatConf = import ./tools/cheat/conf.nix {
             inherit pkgs;
             cheatsheetsPath = ./tools/cheat/cheatsheets;
@@ -134,10 +137,8 @@
             inputsFrom = [ cheatShell ];
             # helix inherited from cheatShell (basic, for cheat's $EDITOR)
             # Full helix with LSPs requires home-manager switch
-            packages = with pkgs; [
-              ripgrep
-              jujutsu
-            ];
+            # Core packages imported from lib/core-packages.nix (shared with home-manager)
+            packages = corePackages;
           };
         }
       );
