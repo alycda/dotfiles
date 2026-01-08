@@ -7,6 +7,24 @@ update:
 check:
     nix flake check
 
+# Run all linters (statix + deadnix)
+[group('lint')]
+lint: lint-statix lint-deadnix
+
+# Check for Nix anti-patterns with statix
+[group('lint')]
+lint-statix:
+    nix run nixpkgs#statix -- check .
+
+# Check for unused code with deadnix
+[group('lint')]
+lint-deadnix:
+    nix run nixpkgs#deadnix -- .
+
+# Run all CI checks locally (lint + flake check)
+[group('lint')]
+ci: lint check
+
 export USER := shell("whoami")
 
 manager := if os() == "macos" { "darwin-rebuild" } else { "home-manager" }

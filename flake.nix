@@ -20,7 +20,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, darwin, home-manager, nix-vscode-extensions, ... }:
+  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ... }:
     let
       # Systems supported for devShells
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -66,14 +66,16 @@
             # Integrate home-manager into darwin
             home-manager.darwinModules.home-manager
             {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = { inherit nix-vscode-extensions; };
-              home-manager.users.${username} = {
-                imports = [
-                  ./home-manager/modules/common.nix
-                  ./home-manager/profiles/${homeProfile}.nix
-                ];
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                extraSpecialArgs = { inherit nix-vscode-extensions; };
+                users.${username} = {
+                  imports = [
+                    ./home-manager/modules/common.nix
+                    ./home-manager/profiles/${homeProfile}.nix
+                  ];
+                };
               };
             }
           ];

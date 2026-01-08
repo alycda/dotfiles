@@ -1,4 +1,4 @@
-{ config, pkgs, nix-vscode-extensions, ... }:
+{ nix-vscode-extensions, ... }:
 
 {
   # Nix package manager settings
