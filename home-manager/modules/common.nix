@@ -7,6 +7,7 @@ let
 in
 {
   imports = [
+    ./shell.nix
     ./ide/vscode.nix
     ./dev/nix-lang.nix
     ./tools/cheat.nix
