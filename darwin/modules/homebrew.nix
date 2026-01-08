@@ -25,15 +25,16 @@
 
     # Casks (GUI applications)
     casks = [
-      "android-studio"
+      "android-studio" # Ditto
       "arc"
       "brave-browser"
       "clocker"
+      "chromedriver" # Ditto
       "docker-desktop"
       "muteme"
       "orbstack"
-      "parallels"
-      "tailscale-app"
+      "parallels" # Ditto
+      "tailscale-app" # Ditto
       "visual-studio-code"
       "warp"
       "workflowy"
