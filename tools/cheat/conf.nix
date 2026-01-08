@@ -5,7 +5,7 @@ pkgs.writeText "conf.yml" ''
   colorize: true
   style: monokai
   formatter: terminal256
-  pager: bat --paging=auto --style=plain
+  pager: bat --paging=auto
   cheatpaths:
     - name: community
       path: ${cheatsheetsPath}/community
