@@ -1,5 +1,5 @@
 # devcontainers / codespaces
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   home = {

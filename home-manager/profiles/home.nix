@@ -1,5 +1,5 @@
 # shesfast
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   home = {

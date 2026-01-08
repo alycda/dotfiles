@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 let
   # Core packages shared with devShells (defined in lib/core-packages.nix)

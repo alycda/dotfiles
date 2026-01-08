@@ -1,5 +1,5 @@
 # ditto
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   imports = [

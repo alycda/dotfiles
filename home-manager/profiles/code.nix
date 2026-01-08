@@ -1,5 +1,5 @@
 #
-{ config, pkgs, lib, ... }:
+{ pkgs, lib, ... }:
 
 {
   home = {
