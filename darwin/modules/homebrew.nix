@@ -32,8 +32,9 @@
       "chromedriver" # Ditto
       "docker-desktop"
       "muteme"
+      "notion"
       "orbstack"
-      "parallels" # Ditto
+      "parallels" # Ditto      
       "tailscale-app" # Ditto
       "visual-studio-code"
       "warp"
