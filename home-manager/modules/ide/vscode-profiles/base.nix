@@ -13,6 +13,7 @@
       "result" = true;
     };
     files.hotExit = "onExitAndWindowClose"; # remember unsaved changes
+    git.autofetch = true;
     git.confirmSync = false;
     search.exclude = {
       "**/.jj" = true;
@@ -20,6 +21,7 @@
     };
     # Use system zsh instead of nix-managed path that may not exist
     terminal.integrated.defaultProfile.osx = "zsh";
+    terminal.integrated.initialHint = false;
     workbench.secondarySideBar.defaultVisibility = "hidden";
   };
 
