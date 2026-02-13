@@ -34,7 +34,8 @@ _:
       "muteme"
       "notion"
       "orbstack"
-      "parallels" # Ditto      
+      "parallels" # Ditto     
+      "rustdesk" 
       "tailscale-app" # Ditto
       "visual-studio-code"
       "warp"
