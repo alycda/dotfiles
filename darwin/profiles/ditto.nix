@@ -27,6 +27,7 @@
   # Work-specific system settings
   system.defaults.dock.persistent-apps = [
     # Finder
+    "/Applications/RustDesk.app"
     "/Applications/Warp.app"
     "/Applications/Slack.app"
     "/Applications/Brave Browser.app"
