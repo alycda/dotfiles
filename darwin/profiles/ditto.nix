@@ -38,5 +38,7 @@
     # Stickies
     "/Applications/Arc.app"
     "/Applications/Notion.app"
+    "/Applications/OrbStack.app"
+    "/Applications/Utilities/Terminal.app"
   ];
 }
