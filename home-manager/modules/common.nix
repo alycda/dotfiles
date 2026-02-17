@@ -5,6 +5,7 @@
     ./ide/vscode.nix
     ./dev/nix-lang.nix
     ./tools/cheat.nix
+    ./git.nix
   ];
 
   home.stateVersion = "25.05";
@@ -20,6 +21,7 @@
     gh
     direnv
     rage
+    ragenix
   ];
 
   # Enable home-manager

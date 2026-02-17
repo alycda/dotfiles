@@ -12,6 +12,5 @@ let
   # alyssa-ssh = "ssh-ed25519 AAAA... alyssa@machine";
 in
 {
-  # Example: uncomment and run `agenix -e secrets/example.age`
-  # "example.age".publicKeys = [ alyssa ];
+  "personal/git-config.age".publicKeys = [ alyssa ];
 }
