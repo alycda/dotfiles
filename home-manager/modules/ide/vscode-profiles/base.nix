@@ -31,5 +31,6 @@
     vscode-marketplace.jnoortheen.nix-ide
     vscode-marketplace.ms-vscode-remote.remote-containers
     vscode-marketplace.ms-vscode-remote.remote-ssh
+    vscode-marketplace.skellock.just
   ];
 }
