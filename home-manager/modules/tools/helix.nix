@@ -4,7 +4,7 @@
 #
 # NOTE: devShell provides basic helix only (for cheat's $EDITOR).
 # Full helix with LSPs and config requires home-manager switch.
-{ config, pkgs, lib, ... }:
+{ pkgs, lib, ... }:
 {
   # Language servers and tools that helix uses
   # (rust-analyzer and rustfmt provided by rustup, not here)

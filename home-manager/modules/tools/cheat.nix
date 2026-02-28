@@ -1,6 +1,6 @@
 # Cheat - command-line cheatsheet tool
 # Config and cheatsheets live in tools/cheat/ (shared with devShell)
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 let
   cheatsheetsPath = ../../../tools/cheat/cheatsheets;
   cheatConf = import ../../../tools/cheat/conf.nix { inherit pkgs cheatsheetsPath; };

@@ -18,9 +18,14 @@
       url = "github:nix-community/nix-vscode-extensions";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    ragenix = {
+      url = "github:yaxitech/ragenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, darwin, home-manager, nix-vscode-extensions, ... }:
+  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, ... }:
     let
       # Systems supported for devShells
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -44,6 +49,7 @@
         extraSpecialArgs = { inherit nix-vscode-extensions; };
 
         modules = [
+          ragenix.homeManagerModules.default
           ./home-manager/modules/common.nix
           ./home-manager/profiles/${profile}.nix
         ];
@@ -62,18 +68,22 @@
           modules = [
             ./darwin/configuration.nix
             ./darwin/profiles/${darwinProfile}.nix
+            ragenix.darwinModules.default
 
             # Integrate home-manager into darwin
             home-manager.darwinModules.home-manager
             {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = { inherit nix-vscode-extensions; };
-              home-manager.users.${username} = {
-                imports = [
-                  ./home-manager/modules/common.nix
-                  ./home-manager/profiles/${homeProfile}.nix
-                ];
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                extraSpecialArgs = { inherit nix-vscode-extensions; };
+                users.${username} = {
+                  imports = [
+                    ragenix.homeManagerModules.default
+                    ./home-manager/modules/common.nix
+                    ./home-manager/profiles/${homeProfile}.nix
+                  ];
+                };
               };
             }
           ];
@@ -102,11 +112,14 @@
         let
           pkgs = import nixpkgs { inherit system; };
 
+          # Core packages shared with home-manager
+          corePackages = import ./lib/core-packages.nix pkgs;
+
           cheatConf = import ./tools/cheat/conf.nix {
             inherit pkgs;
             cheatsheetsPath = ./tools/cheat/cheatsheets;
           };
-          
+
           # Create a wrapped version of cheat that always has the right config
           cheatWrapped = pkgs.symlinkJoin {
             name = "cheat";
@@ -134,10 +147,8 @@
             inputsFrom = [ cheatShell ];
             # helix inherited from cheatShell (basic, for cheat's $EDITOR)
             # Full helix with LSPs requires home-manager switch
-            packages = with pkgs; [
-              ripgrep
-              jujutsu
-            ];
+            # Core packages imported from lib/core-packages.nix (shared with home-manager)
+            packages = corePackages;
           };
         }
       );

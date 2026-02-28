@@ -1,52 +1,5 @@
-# first run: sudo .result/bin/darwin-rebuild switch -I darwin-config=/etc/nix-darwin/configuration.nix
-# subsequent: sudo darwin-rebuild switch
 
-{ config, pkgs, ... }:
-
-let
-  nix-vscode-extensions = import (builtins.fetchTarball
-    "https://github.com/nix-community/nix-vscode-extensions/archive/master.tar.gz"
-  );
-in
-{
-  imports = [
-    <home-manager/nix-darwin>
-  ];
-
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    trusted-users = [ "alyssaevans" ];
-  };
-
-  nixpkgs.config.allowUnfree = true;
-
-  nixpkgs.overlays = [
-    nix-vscode-extensions.overlays.default
-  ];
-
-  users.users.alyssaevans = {
-    name = "alyssaevans";
-    home = "/Users/alyssaevans";
-  };
-
-  home-manager.useGlobalPkgs = true;
-  home-manager.useUserPackages = true;
   home-manager.users.alyssaevans = { pkgs, ... }: {
-    # The state version is required and should stay at the version you
-    # originally installed.
-    home.stateVersion = "25.05";
-
-    # home.sessionVariables = {
-    #   EDITOR = "hx";
-    #   NIXPKGS_ALLOW_UNFREE = 1;
-    #   VISUAL = "code";
-    # };
-
-    programs.direnv = {
-      enable = true;
-      nix-direnv.enable = true;
-    };
-
     programs.zsh = {
       enable = true;
 
@@ -76,53 +29,6 @@ in
       };
     };
 
-    # programs.gh = {
-    #   enable = true;
-    #   settings = {
-    #     git_protocol = "ssh";
-    #     prompt = "enabled";
-    #     # prefer_editor_prompt = "disabled";
-    #   };
-    # };
-
-    programs.helix = {
-      ignores = [
-        "target/"
-        "!.gitignore"
-      ];
-
-      # editor = {
-      #   theme = "mine";
-      #   soft-wrap.enable = true;
-      #   rulers = [72 80 100 120];
-      #   inline-diagnostics = {
-      #     cursor-line = "hint";
-      #     other-lines = "hint";
-      #   };
-      # };
-
-      themes = {
-        mine = {
-          inherits = "boo_berry";
-          "ui.background" = {};
-          "ui.cursor.primary.select" = { fg = "berry"; bg = "bubblegum"; };
-          "ui.cursor.primary.insert" = { fg = "berry"; bg = "mint"; };
-        };
-      };
-
-      languages = {
-        # language = [{
-        #   name = "rust";
-        #   auto-format = true;
-
-        #   # scope = "source.rust"
-        #   formatter = { command = "rustfmt" };
-        #   file-types = ["rs"];
-        #   language-servers = [ "rust-analyzer" ];
-        # }];
-      };
-    };
-
     programs.vscode = {
       enable = true;
       # mutableExtensionsDir = true;
@@ -130,14 +36,9 @@ in
       # Rust
       profiles.default = {
         userSettings = {
-          editor.wordWrap = "on";
-          chat.agent.enabled = false;
-          workbench.secondarySideBar.defaultVisibility = "hidden";
-          files.hotExit = "onExitAndWindowClose";
           git.autofetch = true;
           git.confirmSync = false;
           # git.blame.editorDecoration.enabled = true;
-          claudeCode.preferredLocation = "panel";
           gitlens.plusFeatures.enabled = false;
 
           # "chat.mcp.access": "none" //.chat.mcp.enabled = true
@@ -145,12 +46,7 @@ in
 
         # extensions = with pkgs.vscode-marketplace; [
         extensions = with pkgs; [
-          vscode-marketplace.jnoortheen.nix-ide
-          vscode-marketplace.visualjj.visualjj
           vscode-marketplace.eamodio.gitlens
-          vscode-marketplace.anthropic.claude-code
-          vscode-marketplace.rust-lang.rust-analyzer
-          vscode-marketplace.tamasfe.even-better-toml
 
           # GitHub Remote Repositories
           vscode-marketplace.ms-vscode.remote-repositories
@@ -158,22 +54,9 @@ in
 
           vscode-marketplace.ms-vscode-remote.remote-containers # ms-vscode-remote.vscode-remote-extensionpack
 
-          # error: The version `1.12.0` of `vadimcn.vscode-lldb` is not supported.
-          # Try `extensions.aarch64-darwin.vscode-marketplace-universal.vadimcn.vscode-lldb`
-          # or  `extensions.aarch64-darwin.open-vsx-universal.vadimcn.vscode-lldb`.
-          # vadimcn.vscode-lldb # llvm-vs-code-extensions.lldb-dap
-          vscode-extensions.vadimcn.vscode-lldb
-
           vscode-extensions.dart-code.flutter
 
           # makenotion/notion-mcp-server
-        ];
-      };
-
-      profiles.jj = {
-        extensions = with pkgs.vscode-marketplace; [
-          visualjj.visualjj
-          jjk.jjk
         ];
       };
 
@@ -198,48 +81,8 @@ in
     
   };
 
-  # home.file.".vscode/mcp.json".text = builtins.toJSON {
-  #    mcpServers = {
-  #      notion = {
-  #        command = "npx";
-  #        args = ["-y" "@makenotion/notion-mcp-server"];
-  #        env = {
-  #          NOTION_API_KEY = builtins.getEnv "NOTION_API_KEY";
-  #        };
-  #      };
-  #    };
-  #  };
-
-  # List packages installed in system profile. To search by name, run:
-  # $ nix-env -qaP | grep wget
-  environment.systemPackages = with pkgs;
-    [ direnv
-      ripgrep
-      helix
-      gh
-      jujutsu
-      cheat
-      rustup
-      rust-analyzer
-      lldb
-      bacon
-      clock-rs
-      nil nixd # nix LSP
-
-      # Ditto
-      teleport
-      cmake
-      # flutter use puro to manage
-      openjdk
-      # swig installed via homebrew locked tap
-    ];
-
   programs.zsh = {
     enable = true;
-
-    # sessionVariables = {
-    #   EDITOR = "hx";
-    # };
 
     # This gets added to /etc/zshrc
     interactiveShellInit = ''
@@ -249,25 +92,3 @@ in
       eval "$(direnv hook zsh)"
     '';
   };
-
-  # TODO: install puro
-  # curl -fsSL https://puro.dev/install.sh | bash
-
-  system.primaryUser = "alyssaevans";
-  system.defaults = {
-    dock = {
-      autohide = true;
-      mru-spaces = false;
-
-      wvous-tl-corner = 2; # mission control
-      wvous-tr-corner = 4; # desktop
-      wvous-br-corner = 13; # lock screen
-      wvous-bl-corner = 24; # quick note
-    };
-    NSGlobalDomain."com.apple.swipescrolldirection" = false;
-  };
-
-  # Used for backwards compatibility, please read the changelog before changing.
-  # $ darwin-rebuild changelog
-  system.stateVersion = 6;
-}
