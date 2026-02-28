@@ -7,6 +7,9 @@ update:
 check:
     nix flake check
 
+check-all:
+    nix flake check --all-systems
+
 # Run all linters (statix + deadnix)
 [group('lint')]
 lint: lint-statix lint-deadnix

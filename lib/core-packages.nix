@@ -5,5 +5,8 @@ pkgs: with pkgs; [
   ripgrep
   jujutsu
   just
+  jq
   gh
+  rage
+  ragenix
 ]

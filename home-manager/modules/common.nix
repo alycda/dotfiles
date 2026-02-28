@@ -10,6 +10,7 @@ in
     ./ide/vscode.nix
     ./dev/nix-lang.nix
     ./tools/cheat.nix
+    ./git.nix
     ./tools/helix.nix
   ];
 
