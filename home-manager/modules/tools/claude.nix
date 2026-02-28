@@ -2,7 +2,7 @@
 # Config files live in tools/claude/ and are symlinked to ~/.claude/
 #
 # For portable/sandboxed usage without home-manager, see tools/claude/docker/
-{ config, pkgs, lib, ... }:
+{ pkgs, ... }:
 let
   claudeDir = ../../../tools/claude;
 in
