@@ -7,6 +7,24 @@ on:
   workflow_dispatch:
 
 jobs:
+  lint:
+    name: Lint Nix Files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Lint with statix
+        run: |
+          nix profile install nixpkgs#statix
+          statix check .
+
+      - name: Check for dead code
+        run: |
+          nix profile install nixpkgs#deadnix
+          deadnix --fail .
+
   check:
     name: Validate Flake
     runs-on: ubuntu-latest
@@ -14,8 +32,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: DeterminateSystems/nix-installer-action@main
-
-      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check flake
         run: nix flake check --all-systems

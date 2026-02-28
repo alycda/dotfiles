@@ -1,16 +1,16 @@
-{ config, pkgs, ... }:
+_:
 
 {
   # Enable homebrew integration
   homebrew = {
     enable = true;
 
-    # Remove packages/casks not listed here
-    onActivation.cleanup = "zap";
-
-    # Update homebrew and packages on activation
-    onActivation.autoUpdate = true;
-    onActivation.upgrade = true;
+    # Remove packages/casks not listed here and update on activation
+    onActivation = {
+      cleanup = "zap";
+      autoUpdate = true;
+      upgrade = true;
+    };
 
     # Custom taps
     taps = [
@@ -25,15 +25,18 @@
 
     # Casks (GUI applications)
     casks = [
-      "android-studio"
+      "android-studio" # Ditto
       "arc"
       "brave-browser"
       "clocker"
+      "chromedriver" # Ditto
       "docker-desktop"
       "muteme"
+      "notion"
       "orbstack"
-      "parallels"
-      "tailscale-app"
+      "parallels" # Ditto     
+      "rustdesk" 
+      "tailscale-app" # Ditto
       "visual-studio-code"
       "warp"
       "workflowy"

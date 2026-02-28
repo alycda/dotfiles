@@ -1,11 +1,13 @@
 # devcontainers / codespaces
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 {
-  home.username = "root"; 
-  home.homeDirectory = "/root";
+  home = {
+    username = "root";
+    homeDirectory = "/root";
 
-  home.packages = with pkgs; [
-    docker # on OSX docker/orbstack is installed by homebrew
-  ];
+    packages = with pkgs; [
+      docker # on OSX docker/orbstack is installed by homebrew
+    ];
+  };
 }

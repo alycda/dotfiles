@@ -1,4 +1,4 @@
-{ config, pkgs, nix-vscode-extensions, ... }:
+{ nix-vscode-extensions, ... }:
 
 {
   # Nix package manager settings
@@ -55,6 +55,8 @@
       # Disable auto-correct and auto-capitalize
       NSAutomaticCapitalizationEnabled = false;
       NSAutomaticSpellingCorrectionEnabled = false;
+
+      "com.apple.swipescrolldirection" = false;
     };
   };
 

@@ -2,6 +2,7 @@
 
 {
   userSettings = {
+    git.autofetch = false; # should be covered by git.enabled = false, but setting explicitly just in case
     git.enabled = false;
   };
 

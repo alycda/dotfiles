@@ -1,0 +1,74 @@
+#!/usr/bin/env -S cargo +nightly -Zscript
+---cargo
+[dependencies]
+miette = { version = "7.6", features = ["fancy"] }
+dotenvy = "0.15.7"
+clap = { version = "4.5", features = ["derive", "env"] }
+---
+//! see https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#script
+
+use std::fmt;
+use miette::{Diagnostic, SourceSpan};
+use clap::Parser;
+
+#[derive(Debug, Parser)]
+pub struct Cli {
+    /// The App ID
+    #[clap(long, env = "APP_ID")]
+    app_id: String,
+}
+
+#[derive(Debug)]
+struct BadJson {
+    src: String,
+    bad_bit: SourceSpan,
+}
+
+impl fmt::Display for BadJson {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Invalid JSON")
+    }
+}
+
+impl std::error::Error for BadJson {}
+
+impl Diagnostic for BadJson {
+    fn code<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        Some(Box::new("bad::json"))
+    }
+
+    fn severity(&self) -> Option<miette::Severity> {
+        Some(miette::Severity::Error)
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn fmt::Display + 'a>> {
+        Some(Box::new("Expected a JSON object or array"))
+    }
+
+    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+        Some(&self.src)
+    }
+
+    fn labels(&self) -> Option<Box<dyn Iterator<Item = miette::LabeledSpan> + '_>> {
+        Some(Box::new(std::iter::once(
+            miette::LabeledSpan::new_with_span(
+                Some("this bit".to_string()),
+                self.bad_bit,
+            )
+        )))
+    }
+}
+
+fn this_fails() -> Result<(), BadJson> {
+    let src = "source\n  text\n    here".to_string();
+    let bad_bit = (9, 4).into();
+    
+    Err(BadJson { src, bad_bit })
+}
+
+fn main() -> miette::Result<()> {
+    dotenvy::from_path('.env').into_diagnostic()?;
+    this_fails()?;
+    let cli = Cli::parse();
+    Ok(())
+}

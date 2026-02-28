@@ -1,1 +1,1 @@
-docker run --rm -it -e NIX_CONFIG="experimental-features = nix-command flakes" nixos/nix:latest
+docker run -v $(PWD):/wip -w /wip --rm -it -e NIX_CONFIG="experimental-features = nix-command flakes" nixos/nix:latest
