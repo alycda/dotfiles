@@ -4,11 +4,13 @@
   # Use a stable path for secrets so git's include.path can reference it directly.
   # The default on macOS is $(getconf DARWIN_USER_TEMP_DIR)/agenix which is a shell
   # expression git cannot evaluate. A path under ~ is stable across sessions.
-  age.secretsDir = "${config.home.homeDirectory}/.local/share/agenix";
-  age.identityPaths = [ "${config.home.homeDirectory}/.age/personal-key.txt" ];
+  age = {
+    secretsDir = "${config.home.homeDirectory}/.local/share/agenix";
+    identityPaths = [ "${config.home.homeDirectory}/.age/personal-key.txt" ];
 
-  age.secrets.git-config = {
-    file = ../../secrets/personal/git-config.age;
+    secrets.git-config = {
+      file = ../../secrets/personal/git-config.age;
+    };
   };
 
   programs.git = {
