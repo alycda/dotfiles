@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, ... }:
 
 {
   # Use a stable path for secrets so git's include.path can reference it directly.
