@@ -30,7 +30,6 @@ _:
       "brave-browser"
       "clocker"
       "chromedriver" # Ditto
-      "docker-desktop"
       "muteme"
       "notion"
       "orbstack"
