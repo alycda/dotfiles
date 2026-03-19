@@ -13,9 +13,11 @@
       "result" = true;
     };
     files.hotExit = "onExitAndWindowClose"; # remember unsaved changes
-    git.autofetch = true;
-    git.confirmSync = false;
-    git.replaceTagsWhenPull = true;
+    git = {
+      autofetch = true;
+      confirmSync = false;
+      replaceTagsWhenPull = true;
+    };
     search.exclude = {
       "**/.jj" = true;
       "result" = true;
