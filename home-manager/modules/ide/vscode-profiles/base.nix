@@ -15,10 +15,12 @@
     files.hotExit = "onExitAndWindowClose"; # remember unsaved changes
     git.autofetch = true;
     git.confirmSync = false;
+    git.replaceTagsWhenPull = true;
     search.exclude = {
       "**/.jj" = true;
       "result" = true;
     };
+    task.allowAutomaticTasks = "on";
     # Use system zsh instead of nix-managed path that may not exist
     terminal.integrated.defaultProfile.osx = "zsh";
     terminal.integrated.initialHint = false;
