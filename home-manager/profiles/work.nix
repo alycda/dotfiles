@@ -11,6 +11,7 @@
     homeDirectory = "/Users/alyssaevans";
 
     packages = with pkgs; [
+      cocoapods # for flutter (to be removed soon)
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
       teleport # kubectl
       cmake
