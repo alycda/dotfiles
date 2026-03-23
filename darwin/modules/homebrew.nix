@@ -31,8 +31,10 @@ _:
       "claude"
       "clocker"
       "chromedriver" # Ditto
+      "kondo"
       "muteme"
       "notion"
+      "obsidian"
       "orbstack"
       "parallels" # Ditto     
       "rustdesk" 
