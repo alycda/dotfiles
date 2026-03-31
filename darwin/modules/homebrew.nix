@@ -28,10 +28,12 @@ _:
       "android-studio" # Ditto
       "arc"
       "brave-browser"
+      "cirruslabs/cli/tart" # Ditto
       "claude"
       "clocker"
       "chromedriver" # Ditto
       "kondo"
+      "logseq"
       "muteme"
       "notion"
       "obsidian"
