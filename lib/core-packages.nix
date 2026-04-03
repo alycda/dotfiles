@@ -9,4 +9,5 @@ pkgs: with pkgs; [
   gh
   rage
   ragenix
+  tmux
 ]
