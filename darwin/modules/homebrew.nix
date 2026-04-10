@@ -23,6 +23,7 @@ _:
       "cirruslabs/cli/tart" # Ditto - VM management
       "kondo" # Clean build artifacts
       "pcre2"
+      "sem-cli" # Semantic Diff (ataraxy-labs/sem)
       "swig@4.2.1"
     ];
 
