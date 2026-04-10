@@ -14,11 +14,14 @@ _:
 
     # Custom taps
     taps = [
+      "cirruslabs/cli"
       "getditto/build-infra"
     ];
 
     # Formulae (CLI packages)
     brews = [
+      "cirruslabs/cli/tart" # Ditto - VM management
+      "kondo" # Clean build artifacts
       "pcre2"
       "swig@4.2.1"
     ];
@@ -28,11 +31,9 @@ _:
       "android-studio" # Ditto
       "arc"
       "brave-browser"
-      "cirruslabs/cli/tart" # Ditto
       "claude"
       "clocker"
       "chromedriver" # Ditto
-      "kondo"
       "logseq"
       "muteme"
       "notion"
