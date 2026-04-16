@@ -16,6 +16,7 @@
   # DARWIN System-level packages for Ditto machine
   environment.systemPackages = with pkgs; [
     clock-rs
+    xcodegen
   ];
 
   # System-level zsh configuration (added to /etc/zshrc)
