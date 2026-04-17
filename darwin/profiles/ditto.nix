@@ -23,6 +23,7 @@
   programs.zsh.interactiveShellInit = ''
     eval "$(/opt/homebrew/bin/brew shellenv)"
     eval "$(direnv hook zsh)"
+    if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
   '';
 
   # Work-specific system settings
