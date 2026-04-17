@@ -25,6 +25,7 @@ _:
       "pcre2"
       "sem-cli" # Semantic Diff (ataraxy-labs/sem)
       "swig@4.2.1"
+      "worktrunk" # git worktree management for parallel AI agent workflows
     ];
 
     # Casks (GUI applications)
