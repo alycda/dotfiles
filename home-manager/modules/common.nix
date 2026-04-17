@@ -16,6 +16,7 @@ in
     # and connects in, so `code` is never needed inside.
     ./dev/nix-lang.nix
     ./tools/cheat.nix
+    ./tools/gh-dash.nix
     ./git.nix
     ./tools/helix.nix
   ];
