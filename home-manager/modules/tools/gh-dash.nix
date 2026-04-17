@@ -1,7 +1,7 @@
 # gh-dash - GitHub dashboard TUI for the gh CLI
 # Requires a Nerd Font for icons - Fira Code Nerd Font installed via darwin/configuration.nix
 # https://github.com/dlvhdr/gh-dash
-{ ... }:
+_:
 {
   programs.gh-dash = {
     enable = true;
