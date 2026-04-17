@@ -1,5 +1,3 @@
-{ ... }:
-
 # fzf: mature fuzzy finder (Go), battle-tested shell integrations
 # Activates Ctrl+R (history), Ctrl+T (files), Alt+C (dirs) in zsh
 # Preview powered by bat + ripgrep (already in core packages)
