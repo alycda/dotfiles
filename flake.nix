@@ -93,7 +93,6 @@
       # macOS systems (use darwin-rebuild)
       darwinConfigurations = {
         "ditto" = mkDarwin "aarch64-darwin" "ditto" "work";
-        "worktrunk" = mkDarwin "aarch64-darwin" "worktrunk" "work";
       };
 
       # Linux/devcontainer systems (use home-manager)
