@@ -21,6 +21,17 @@ in
     nix-vscode-extensions.overlays.default
   ];
 
+  # If mutableExtensionsDir was ever set to false, home-manager replaces
+  # ~/.vscode/extensions with a symlink to the Nix store. Reverting the
+  # setting does not remove that symlink — VS Code then gets EACCES trying
+  # to write temp dirs inside it. Remove any stale symlink before
+  # home-manager recreates the directory with per-extension symlinks.
+  home.activation.vscodeExtensionsDir = lib.hm.dag.entryBefore [ "writeBoundary" ] ''
+    if [ -L "$HOME/.vscode/extensions" ]; then
+      $DRY_RUN_CMD rm "$HOME/.vscode/extensions"
+    fi
+  '';
+
   programs.vscode = {
     enable = true;
 
