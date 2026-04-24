@@ -23,7 +23,6 @@ in
 
   programs.vscode = {
     enable = true;
-    mutableExtensionsDir = false;
 
     profiles = {
       default = mergeProfiles base {
