@@ -1,7 +1,6 @@
 { pkgs, ... }:
 {
   userSettings = {
-    chat.agent.enabled = false;
     # claudeCode = {
     #   preferredLocation = "panel";
     # };
