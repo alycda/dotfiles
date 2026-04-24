@@ -45,6 +45,11 @@ _rebuild-code:
 darwin-generations:
     darwin-rebuild --list-generations
 
+# requires sudo
+[group('darwin')]
+rollback-to generation:
+    darwin-rebuild --switch-generation {{generation}}
+
 # queries and lists all packages installed in the current user's profile
 _list-env:
     nix-env -qaP
