@@ -1,4 +1,4 @@
-{ nix-vscode-extensions, ... }:
+{ nix-vscode-extensions, claude-code-nix, ... }:
 
 {
   # Nix package manager settings
@@ -21,6 +21,7 @@
   # For standalone home-manager (non-darwin), the overlay is applied in flake.nix's mkHome function
   nixpkgs.overlays = [
     nix-vscode-extensions.overlays.default
+    claude-code-nix.overlays.default
   ];
 
   # macOS system defaults
