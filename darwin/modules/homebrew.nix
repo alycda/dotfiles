@@ -21,28 +21,29 @@ _:
     # Formulae (CLI packages)
     brews = [
       "cirruslabs/cli/tart" # Ditto - VM management
-      "kondo" # Clean build artifacts
+      "kondo"           # Clean build artifacts
       "pcre2"
-      "sem-cli" # Semantic Diff (ataraxy-labs/sem)
-      "swig@4.2.1"
+      "sem-cli"         # Semantic Diff (ataraxy-labs/sem)
+      "swig@4.2.1"      # Ditto
+      "z3"              # Ditto
     ];
 
     # Casks (GUI applications)
     casks = [
-      "android-studio" # Ditto
+      "android-studio"  # Ditto
       "arc"
       "brave-browser"
       "claude"
       "clocker"
-      "chromedriver" # Ditto
+      "chromedriver"    # Ditto
       "logseq"
       "muteme"
       "notion"
       "obsidian"
       "orbstack"
-      "parallels" # Ditto     
+      "parallels"       # Ditto     
       "rustdesk" 
-      "tailscale-app" # Ditto
+      "tailscale-app"   # Ditto
       "visual-studio-code"
       "warp"
       "workflowy"
