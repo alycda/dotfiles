@@ -1,7 +1,34 @@
 {
-  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/settings-schema.json",
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "model": "opus[1m]", // sonnet for personal
+  "enabledPlugins": {
+    "clangd-lsp@claude-plugins-official": true,
+    "compound-engineering@compound-engineering-plugin": true,
+    "coding-tutor@compound-engineering-plugin": true
+  },
+  "extraKnownMarketplaces": {
+    "compound-engineering-plugin": {
+      "source": {
+        "source": "github",
+        "repo": "EveryInc/compound-engineering-plugin"
+      }
+    }
+  },
   "permissions": {
-    "allow": [],
+    "allow": [
+      "Bash(gh api *)",
+      "Bash(gh pr *)",
+      "Bash(git worktree:*)",
+      "Bash(hermes kanban:*)",
+      "mcp__linear-server__get_issue",
+      "mcp__linear-server__list_comments",
+      "mcp__linear-server__list_issues"
+    ],
+    "ask": [
+      "Bash(gh pr comment *)",
+      "mcp__linear-server__save_issue",
+      "mcp__claude_ai_Linear__save_comment"
+    ],
     "deny": []
   }
 }
