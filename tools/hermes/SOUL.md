@@ -1,0 +1,1 @@
+https://hermes-agent.nousresearch.com/docs/guides/use-soul-with-hermes
