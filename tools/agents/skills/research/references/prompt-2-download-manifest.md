@@ -8,6 +8,18 @@ Produces `docs/research/downloads.yaml`.
 >
 > Because research results will continue to stream in from other researchers, create a docs/research/downloads.yaml to track which papers, repos, articles etc have already been downloaded. The format should be suitable for idempotent upsert as new URLs are discovered.
 
+## Dispatch
+
+Step 2 runs on the **`writer` profile (Haiku 4.5)**, not the parent's frontier model. The work is structured extraction — URL detection, normalization, classification — which Haiku handles at roughly 1/5 the cost of Sonnet with no measurable regression on this task. Frontier models stay reserved for Steps 0, 1, and 1.5.
+
+The parent dispatches via `terminal`:
+
+```bash
+hermes -p writer chat -q "$WORKER_PROMPT"
+```
+
+where `$WORKER_PROMPT` embeds the Procedure below plus the project root path. If the `writer` profile is missing, fall back to running Step 2 on the parent provider and instruct the user to run `hermes profile create writer` with Anthropic + `claude-haiku-4-5` as the default model.
+
 ## Procedure
 
 1. Scan `docs/research/*.md` for cited URLs (prefer the explicit "Source ledger" section if present; fall back to scraping URLs from prose).
@@ -42,3 +54,4 @@ See `templates/downloads.yaml.example` for format. Each entry has:
 - **Source ledger trust.** Some researchers cite secondary sources (Medium reposts, paper summaries) instead of primaries. Flag suspicious URLs in `notes` but don't drop them — let the user decide.
 - **Re-runs after Step 1.5 streams in more researchers.** This is the core reason for upsert. Don't lose existing `status: done` / `path:` annotations on re-run.
 - **Short URLs and redirects.** `bit.ly/...`, `tinyurl/...`, `t.co/...` should be expanded before storing. Some shorteners 404 over time.
+- **Classification cascades into Step 3.** Haiku is good at all four sub-tasks (detect / normalize / classify / flag) but a misclassified `github.com/owner/repo/blob/main/file.py` as `repo` causes Step 3 to `git clone` something that should be a single-file save. If you see any Step 3 download failures attributable to wrong `kind`, escalate that one entry's classification to the parent provider — don't escalate the whole step.

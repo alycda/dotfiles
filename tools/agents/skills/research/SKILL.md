@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: Bootstraps a research-driven project end-to-end using StrongDM's Software Factory pattern. Generates a SEED.md, drafts a research brief, runs parallel deep-research sub-agents (Anthropic-only by default; multi-provider via Hermes profiles when --external is passed), downloads materials, and builds a semantic index. Trigger when the user wants to start a new project that needs systematic prior-art collection — phrases like "prior art", "research brief", "set up factory", "seed and research", "compound engineering", "bootstrap a project", or any reference to the multi-step pipeline. Do NOT use for one-off questions, single web searches, or projects that already have docs/research/index/ built.
-version: 0.2.0
+version: 0.4.0
 metadata:
   hermes:
     tags: [research, factory, prior-art, seed, deep-research]
@@ -39,7 +39,8 @@ Do NOT use for:
 | Research brief exemplar | `references/exemplar-research-brief.md` | Built-in |
 | StrongDM principles + techniques + products | `references/strongdm-*.md` | Built-in (refresh from web with `--refresh`) |
 | Worker profiles for cross-provider Mode B | `~/.hermes/profiles/researcher-codex/`, `~/.hermes/profiles/researcher-gemini/` | Optional — required only for `--external` flag. Setup: `references/hermes-profile-setup.md` |
-| Web search tool | Hermes built-in (default profile and worker profiles) | Required for Step 1.5 |
+| `writer` profile (Haiku 4.5) | `~/.hermes/profiles/writer/` (default model: `claude-haiku-4-5`) | Recommended for Step 2 dispatch. Falls back to parent provider if missing. |
+| Web search tool | Hermes built-in `web_search` (requires backend: Tavily / Firecrawl / Exa / Parallel / SearXNG) | Required for Step 1.5 *for the Anthropic worker only* — codex and gemini workers use provider-native browsing. See `references/hermes-profile-setup.md` "Web Search Backend" section. |
 
 ## Procedure
 
@@ -68,11 +69,13 @@ Read `references/prompt-1.5-execute-research.md`. Two modes:
 - **Mode C (default, no flag)** — Anthropic-only multi-perspective. Three `delegate_task` sub-agents on the parent's Anthropic provider, each with a different system prompt (theory / tooling / industry). Outputs `docs/research/{theory,tooling,industry}.md`. Safe — nothing leaves Anthropic.
 - **Mode B (`--external`)** — Cross-provider via Hermes profiles. Parent's `terminal` tool runs `hermes -p <profile> chat -q ...` for the default (anthropic), `researcher-codex`, and `researcher-gemini` profiles in parallel. Outputs `docs/research/{claude,codex,gemini}.md`. Requires `--external` AND explicit consent prompt confirmation.
 
+In both modes, workers prefer specialist research skills (`arxiv`, `polymarket`, `blogwatcher`, `llm-wiki`) when the brief warrants and fall back to browser tools / `scrapling` when `web_search` returns nothing useful. See `references/prompt-1.5-execute-research.md` §1.5.3 for the loadout.
+
 If Mode B is requested but worker profiles are missing, fall back to Mode C and point the user at `references/hermes-profile-setup.md`.
 
 ### Step 2 — Download Manifest
 
-Read `references/prompt-2-download-manifest.md`. Produce `docs/research/downloads.yaml` (idempotent-upsert format; see `templates/downloads.yaml.example`).
+Read `references/prompt-2-download-manifest.md`. Dispatch to the **`writer` profile (Haiku 4.5)** via `hermes -p writer chat -q "$WORKER_PROMPT"` — Step 2 is structured extraction (URL detection / normalization / classification), and Haiku handles it at ~1/5 the cost of Sonnet with no quality regression. The worker produces `docs/research/downloads.yaml` (idempotent-upsert format; see `templates/downloads.yaml.example`). Fall back to the parent provider if the `writer` profile is missing.
 
 ### Step 3 — Download
 
@@ -84,9 +87,11 @@ Read `references/prompt-4-semantic-index.md`. Build `docs/research/index/` using
 
 ## Pitfalls
 
+- **Web backend silently missing.** Hermes's `web_search` requires a configured backend (Tavily / Firecrawl / Exa / Parallel / SearXNG). Without one, the Anthropic worker silently falls back to training-corpus knowledge and produces stale citations. Step 1.5.0 preflight catches this — do not bypass. Codex and Gemini workers are unaffected (provider-native browsing).
 - **Cold-start overconfidence.** First runs cannot rely on cross-session memory. Spend more time on Step 0 probe questions than feels natural.
 - **Mode B without consent.** The `--external` flag does not bypass the consent prompt. Briefs naturally contain sensitive info; the phrase-confirmation gate exists because of that. Don't auto-confirm.
-- **Sub-agent provider inheritance.** Hermes's `delegate_task` sub-agents inherit the parent's provider — there is no per-call override. Cross-provider diversity requires profile-level orchestration (Mode B), not in-process sub-agents (Mode C).
+- **Sub-agent provider inheritance.** Hermes's `delegate_task` sub-agents inherit the parent's provider — there is no per-call override. Cross-provider diversity requires profile-level orchestration (Mode B), not in-process sub-agents (Mode C). The same escape hatch is used in Step 2 to route to Haiku via the `writer` profile, for cost reasons rather than diversity.
+- **Mode C toolsets and skill visibility.** Mode C's `delegate_task` calls now pass `["web", "browser", "file"]` so browser fallbacks work for resistant sources. Specialist research skills (`arxiv`, `polymarket`, `blogwatcher`, `llm-wiki`) are available because they're installed at `~/.hermes/skills/research/` and sub-agents see them automatically. Renaming or moving those skill directories silently disables the Mode C augmentation — leave them where they are.
 - **Brief-quality bottleneck.** Steps 2–4 only produce useful output if the Step 1 brief was high-quality. Vague brief → mediocre prior art across all researchers regardless of mode.
 - **Token budget at Step 4.** Don't read all of `inspiration/` into a single context. MapReduce sub-agents are mandatory; serial reads will OOM.
 - **`inspiration/` gitignore.** Step 3 must verify `.gitignore` excludes `inspiration/`. Failure can commit gigabytes of cloned repos and PDFs.
