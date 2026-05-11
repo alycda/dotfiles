@@ -11,6 +11,7 @@ in
     ./dev/nix-lang.nix
     ./tools/cheat.nix
     ./tools/claude.nix
+    ./tools/hermes.nix
     ./git.nix
     ./tools/helix.nix
   ];
