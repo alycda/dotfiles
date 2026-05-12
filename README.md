@@ -56,6 +56,10 @@ You need ONE of these:
 `nix-darwin` manages macOS system configuration declaratively, including dock apps, system defaults (defaults write) and Homebrew packages.
 
 1. [Install Nix](https://nixos.org/download)
+1. install a few tools to help you get started: `nix profile install helix gh github:NousResearch/hermes-agent`
+    - `hx` for editing files before dotfiles are fully configured
+    - `gh` convenient to clone these dotfiles, but requires login (git clone https is ok)
+    - `hermes` needs to be manually installed via profile or curl, not yet a managed nix package
 1. Bootstrap `nix-darwin` (once)
     - `nix run nix-darwin -- switch --flake .ditto` (work)
 1. Rebuild after changes

@@ -4,7 +4,11 @@
     "features": {
         // enable nix
         "ghcr.io/devcontainers/features/nix:1": {
-            "packages": [], // managed by Home Manager
+            // nix profile install
+            "packages": [
+                "github:NousResearch/hermes-agent"
+                // the rest are installed by Home Manager
+            ],
             // enable flakes and nix-command globally
             "extraNixConfig": "experimental-features = nix-command flakes"
         }
