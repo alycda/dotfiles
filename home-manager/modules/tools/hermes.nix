@@ -43,6 +43,7 @@ let
     "principal-engineer"
     "researcher-claude"
     "researcher-codex"
+    "researcher-gemini"
     "staff-engineer"
     "writer"
   ];
