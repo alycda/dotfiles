@@ -21,6 +21,7 @@ in
     ./git.nix
     ./tools/helix.nix
     ./tools/claude.nix
+    ./tools/hermes.nix
   ];
 
   home = {

@@ -61,6 +61,10 @@ Verified end-to-end on a clean tart VM (macOS Tahoe base image), 2026-07-01.
 1. Enable flakes — the official installer doesn't:
     - `echo "experimental-features = nix-command flakes" | sudo tee -a /etc/nix/nix.conf`
     - `sudo launchctl kickstart -k system/org.nixos.nix-daemon`
+1. install a few tools to help you get started: `nix profile install helix gh github:NousResearch/hermes-agent`
+    - `hx` for editing files before dotfiles are fully configured
+    - `gh` convenient to clone these dotfiles, but requires login (git clone https is ok)
+    - `hermes` — installed via flake reference here; folds into home-manager once it lands in nixpkgs
 1. Trust the third-party Homebrew taps (new `brew` requires this; also needed
    once on existing machines after a brew update):
     - `brew trust cirruslabs/cli getditto/build-infra`
