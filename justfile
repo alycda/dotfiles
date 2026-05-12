@@ -32,6 +32,10 @@ export USER := shell("whoami")
 
 manager := if os() == "macos" { "darwin-rebuild" } else { "home-manager" }
 
+# requires sudo, build to verify without automatic switching
+_build USER="ditto":
+    darwin-rebuild build --flake .#{{USER}}
+
 # may require sudo
 _rebuild USER="alyssa@dev":
     {{manager}} switch --flake .#{{USER}}
