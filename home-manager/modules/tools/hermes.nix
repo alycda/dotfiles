@@ -18,6 +18,7 @@
 let
   homeDir = config.home.homeDirectory;
   hermesDir = "${homeDir}/dotfiles/tools/hermes";
+  agentsSkills = "${homeDir}/dotfiles/tools/agents/skills";
   oosSymlink = config.lib.file.mkOutOfStoreSymlink;
 
   # Profiles whose config.yaml + SOUL.md are tracked in dotfiles.
@@ -49,5 +50,11 @@ in
   home.file = profileFiles // {
     # Default profile persona.
     ".hermes/SOUL.md".source = oosSymlink "${hermesDir}/SOUL.md";
+
+    # Researcher skill — canonical source under tools/agents/skills/researcher/.
+    # Mounted at ~/.hermes/skills/<category>/<skill>/ per hermes' nesting
+    # convention (live alongside built-in research-paper-writing/, etc.).
+    ".hermes/skills/research/researcher".source =
+      oosSymlink "${agentsSkills}/researcher";
   };
 }
