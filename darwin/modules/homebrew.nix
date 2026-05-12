@@ -22,6 +22,7 @@ _:
     brews = [
       "cirruslabs/cli/tart" # Ditto - VM management
       "envelope"
+      "gemini-cli"
       "kondo"           # Clean build artifacts
       "pcre2"
       "sem-cli"         # Semantic Diff (ataraxy-labs/sem)
@@ -39,6 +40,7 @@ _:
       "clocker"
       "chromedriver"    # Ditto
       "cmux"
+      "codex"
       "logseq"
       "muteme"
       "notion"
