@@ -34,6 +34,16 @@ Ask the user via `AskUserQuestion` which model should implement (single question
 
 If the user has already said which one in their original message, skip the question.
 
+**Dual-implementer pattern (opus + one autonomous CLI in parallel).** The user has, in practice, also invoked patterns like `opus and codex, skip gemini` — two implementers on parallel sibling worktrees, no gemini because of capacity issues or model-fit. This is a valid third shape between solo and full quad. Trade-offs:
+
+- Codex (autonomous CLI) typically completes 2-3x more tasks per wall-clock unit because it skips retro-note thickness and rolls straight into the next task.
+- Opus (this session) produces richer cross-implementer evidence — empirical findings, retro tags, deliberate decision records — at lower throughput.
+- The cross-implementer diff at retro is still meaningful with two paths (different SUBSTRATE.md choices, different CLI-affordance interpretations, different commit cadence).
+- Set ledger `executor` to a composite string like `"opus+codex (dual)"` and record both branches/worktrees: primary fields for opus, `secondary_branch`/`secondary_worktree` for the autonomous side. Dispatch the autonomous CLI in the background BEFORE you (opus) start work, so both implementers race on the same plan.
+- Empirical-probe tasks (T-003-style affordance validators) are the most valuable thing the dual path produces — both sides run the probe independently and the diff between their findings is what the retro reads. Don't synchronize that step.
+
+When to use dual: high-uncertainty sprints with empirical-discovery tasks (CLI surface, substrate choice, schema decisions) but the user is bandwidth-constrained for full quad orchestration.
+
 ### 3. Mark the ledger
 
 Atomically reflect the choice before any work begins:
