@@ -7,7 +7,7 @@
     experimental-features = [ "nix-command" "flakes" ];
 
     # Allow users to use nix without sudo (needed for flakes)
-    trusted-users = [ "@admin" "alyssaevans" ];
+    trusted-users = [ "@admin" "admin" ];
 
     # Build users
     build-users-group = "nixbld";

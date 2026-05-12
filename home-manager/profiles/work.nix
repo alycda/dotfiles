@@ -7,8 +7,8 @@
   ];
 
   home = {
-    username = "alyssaevans";
-    homeDirectory = "/Users/alyssaevans";
+    username = "admin";
+    homeDirectory = "/Users/admin";
 
     packages = with pkgs; [
       cocoapods # for flutter (to be removed soon)

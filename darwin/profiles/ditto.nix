@@ -5,12 +5,12 @@
     ../modules/homebrew.nix
   ];
   # Primary user for this machine (required for user-specific defaults)
-  system.primaryUser = "alyssaevans";
+  system.primaryUser = "admin";
 
   # Define the user
-  users.users.alyssaevans = {
-    name = "alyssaevans";
-    home = "/Users/alyssaevans";
+  users.users.admin = {
+    name = "admin";
+    home = "/Users/admin";
   };
 
   # DARWIN System-level packages for Ditto machine
@@ -25,21 +25,9 @@
     eval "$(direnv hook zsh)"
   '';
 
-  # Work-specific system settings
+  # VM validation: trimmed dock to only apps that will actually be installed
   system.defaults.dock.persistent-apps = [
-    # Finder
-    "/Applications/RustDesk.app"
-    "/Applications/Warp.app"
-    "/Applications/Slack.app"
-    "/Applications/Brave Browser.app"
-    "/Applications/Workflowy.app"
     "/Applications/Visual Studio Code.app"
-    # Google Drive
-    # Speediness
-    # Stickies
-    "/Applications/Arc.app"
-    "/Applications/Notion.app"
-    "/Applications/OrbStack.app"
     "/Applications/Utilities/Terminal.app"
   ];
 }

@@ -64,7 +64,7 @@
       # For nix-darwin + home-manager (macOS)
       mkDarwin = system: darwinProfile: homeProfile:
         let
-          username = "alyssaevans";
+          username = "admin";
         in
         darwin.lib.darwinSystem {
           inherit system;
