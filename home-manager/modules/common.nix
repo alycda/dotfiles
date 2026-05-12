@@ -12,15 +12,14 @@ in
     ./tools/cheat.nix
     ./git.nix
     ./tools/helix.nix
+    ./tools/claude.nix
   ];
 
   home = {
     stateVersion = "25.05";
 
     # Core packages across all profiles
-    # Note: helix is configured via ./tools/helix.nix (programs.helix)
-    # Note: claude-code CLI installed here (binary only, config not managed by home-manager)
-    packages = corePackages ++ [ pkgs.claude-code ];
+    packages = corePackages;
 
     # Set helix as default editor
     sessionVariables = {
