@@ -1,0 +1,89 @@
+# Sprint manifest — produced by sprinter from a Linear parent ticket.
+# Reviewed by the user before any kanban tasks get created.
+# This file is human-editable — adjust batches, override SDK targets,
+# add or remove sprints, adjust blocked_by edges, before approval.
+#
+# Path convention: docs/sprints/manifests/<parent-id>-<utc-iso-timestamp>.yaml
+
+version: 1
+
+# Identifying metadata about the sprinter run
+sprinter_run_id: sprinter-run-2026-05-08T14-23-00Z
+created: 2026-05-08T14:23:00Z
+
+# The Linear parent ticket this manifest came from
+parent:
+  id: SDKS-3481
+  url: https://linear.app/ditto/issue/SDKS-3481
+  title: "User exceptions in callbacks crash as Ditto SIGABRT across SDKs"
+  workspace: ditto
+  state: in-progress
+
+# Sprints, in suggested order. Order is informational; actual execution
+# order is determined by the blocked_by graph below.
+sprints:
+
+  - sprint_slug: kitchen-sink-ffi-callback-contract
+    title: "Kitchen Sink defines the FFI callback contract; Rust + C++ audits"
+    tickets:
+      - SDKS-3488      # Rust audit
+      - SDKS-3489      # C++ audit
+    estimate_total: 5  # 3 + 2 (or 3 + 3, depending on Linear)
+    sdk_targets: [rust-core, cpp]
+    cross_sdk: false
+    blocked_by: []     # No upstream dependencies
+    notes: |
+      Defines the FFI callback contract that all per-SDK sub-issues will
+      reference. Includes mdbook section landing.
+
+  - sprint_slug: per-sdk-callback-tests
+    title: "Per-SDK callback contract tests"
+    tickets:
+      - SDKS-3482      # JVM/Kotlin
+      - SDKS-3483      # Swift
+      - SDKS-3484      # Dart/Flutter
+      - SDKS-3485      # JS/wasm
+      - SDKS-3486      # Go
+      - SDKS-3487      # Python
+    estimate_total: 12 # 6 × 2
+    sdk_targets: [jvm, swift, dart, js, go, python]
+    cross_sdk: true    # Multi-SDK batch
+    blocked_by:
+      - sprint_slug: kitchen-sink-ffi-callback-contract
+    notes: |
+      Each per-SDK ticket is 2 points; batched into one sprint per the
+      "1-2 point cross-SDK" rule. Each ticket's host-language test
+      proves its shim upholds the FFI callback contract from sprint 1.
+
+# Decisions made during decomposition (visible to the user during review)
+decomposition_log:
+  - level: info
+    message: "Parent ticket has 8 subissues, all estimated."
+  - level: info
+    message: "SDKS-3488, SDKS-3489 promoted to standalone sprint (estimate >= 3, single SDK each)."
+  - level: info
+    message: "SDKS-3482..3487 batched (each estimate 2, all per-SDK callback tests)."
+  - level: info
+    message: "Discovered blocking edge: 3482..3487 each blockedBy 3488 (Rust audit must finish first). Reflected as sprint-2 blocked_by sprint-1."
+
+# External dependencies — blocked-by relationships outside this manifest's tree.
+# These cannot be honored as kanban links; surfaced for awareness.
+external_dependencies: []
+
+# Decisions deferred to the user for approval
+asks_to_user:
+  - "Confirm the per-SDK batching — happy to split into 2-3 smaller sprints if you'd rather (e.g., split into 'mobile shims' + 'web/server shims')."
+  - "SDKS-3488 has no SDK label; defaulted to rust-core based on title. Override here if wrong."
+
+# Per-task assignee policy. If you've set up specialist profiles, name them
+# here. Otherwise default profile runs all stages.
+assignment_policy:
+  default:                          # applied to all unspecified
+    plan_assignee: default
+    exec_assignee: default
+    retro_assignee: default
+  # Override per-sprint if needed:
+  # kitchen-sink-ffi-callback-contract:
+  #   plan_assignee: sprint-planner-profile
+  #   exec_assignee: sprint-executor-profile
+  #   retro_assignee: sprint-retroer-profile

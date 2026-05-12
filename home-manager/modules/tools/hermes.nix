@@ -65,5 +65,11 @@ in
       oosSymlink "${agentsSkills}/sprint-execute";
     ".hermes/skills/software-development/sprint-retrospective".source =
       oosSymlink "${agentsSkills}/sprint-retrospective";
+
+    # Sprinter — cross-sprint orchestrator. Hermes-only (requires
+    # kanban_create/kanban_link); not mounted for claude. Lives under a
+    # new `orchestration` category per its SKILL.md frontmatter.
+    ".hermes/skills/orchestration/sprinter".source =
+      oosSymlink "${hermesDir}/skills/sprinter";
   };
 }
