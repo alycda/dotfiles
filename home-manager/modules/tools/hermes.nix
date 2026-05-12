@@ -56,5 +56,14 @@ in
     # convention (live alongside built-in research-paper-writing/, etc.).
     ".hermes/skills/research/researcher".source =
       oosSymlink "${agentsSkills}/researcher";
+
+    # Sprint workflow skills — software-development category in hermes
+    # (live alongside built-in plan/, spike/, test-driven-development/, etc.).
+    ".hermes/skills/software-development/sprint-planner".source =
+      oosSymlink "${agentsSkills}/sprint-planner";
+    ".hermes/skills/software-development/sprint-execute".source =
+      oosSymlink "${agentsSkills}/sprint-execute";
+    ".hermes/skills/software-development/sprint-retrospective".source =
+      oosSymlink "${agentsSkills}/sprint-retrospective";
   };
 }

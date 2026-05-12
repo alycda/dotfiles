@@ -18,5 +18,11 @@ in
     # Researcher skill — out-of-store symlink for live editing.
     # Canonical source under tools/agents/skills/researcher/, shared with hermes.
     ".claude/skills/researcher".source = oosSymlink "${agentsSkills}/researcher";
+
+    # Sprint workflow skills — shared with hermes (software-development category there).
+    # User-level mount so they're available regardless of cwd.
+    ".claude/skills/sprint-planner".source = oosSymlink "${agentsSkills}/sprint-planner";
+    ".claude/skills/sprint-execute".source = oosSymlink "${agentsSkills}/sprint-execute";
+    ".claude/skills/sprint-retrospective".source = oosSymlink "${agentsSkills}/sprint-retrospective";
   };
 }
