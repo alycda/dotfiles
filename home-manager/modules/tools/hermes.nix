@@ -1,8 +1,21 @@
 # Hermes Agent - self-improving AI agent framework (Nous Research)
 #
-# Hermes is installed via the upstream curl installer (see
-# https://hermes-agent.nousresearch.com/docs/getting-started/quickstart);
-# this module manages only the tracked config subset under ~/.hermes/.
+# Install method
+# --------------
+# Today: upstream curl installer
+#   (see https://hermes-agent.nousresearch.com/docs/getting-started/quickstart)
+#
+# Planned: `nix profile install` against an upstream Hermes flake, once
+# Nous publishes one (or we vendor one here). Reasons to migrate:
+#   - Imperative install lives outside the flake — not reproducible across
+#     machines, no rollback, no `nix profile list`.
+#   - `home.packages = [ pkgs.hermes ]` (the claude.nix pattern) would be
+#     even better, but requires hermes in nixpkgs. `nix profile` is the
+#     stepping stone: declarative install of an out-of-tree flake without
+#     waiting on nixpkgs upstreaming.
+#
+# This module manages only the tracked config subset under ~/.hermes/
+# regardless of which install method delivers the hermes binary.
 #
 # Same pattern as claude.nix: OUT-OF-STORE symlinks point ~/.hermes/<path>
 # at ~/dotfiles/tools/{agents,hermes}/<path> so edits are live in both
