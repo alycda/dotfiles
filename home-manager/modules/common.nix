@@ -20,6 +20,7 @@ in
     ./tools/gh-dash.nix
     ./git.nix
     ./tools/helix.nix
+    ./tools/claude.nix
   ];
 
   home = {
@@ -27,8 +28,9 @@ in
 
     # Core packages across all profiles
     # Note: helix is configured via ./tools/helix.nix (programs.helix)
-    # Note: claude-code CLI installed here (binary only; global rules managed by ./tools/claude-code.nix)
-    packages = corePackages ++ [ pkgs.claude-code pkgs.presenterm ];
+    # Note: claude-code CLI + config managed by ./tools/claude.nix;
+    # outbound-message gate rules by ./tools/claude-code.nix
+    packages = corePackages ++ [ pkgs.presenterm ];
 
     # Set helix as default editor
     sessionVariables = {
