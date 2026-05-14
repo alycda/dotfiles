@@ -40,6 +40,7 @@ _:
       "muteme"
       "notion"
       "obsidian"
+      "ollama"
       "orbstack"
       "parallels"       # Ditto     
       "rustdesk" 
