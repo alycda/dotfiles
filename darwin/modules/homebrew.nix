@@ -36,6 +36,7 @@ _:
       "claude"
       "clocker"
       "chromedriver"    # Ditto
+      "cmux"
       "logseq"
       "muteme"
       "notion"
