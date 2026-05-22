@@ -21,6 +21,7 @@ _:
     # Formulae (CLI packages)
     brews = [
       "cirruslabs/cli/tart" # Ditto - VM management
+      "envelope"
       "kondo"           # Clean build artifacts
       "pcre2"
       "sem-cli"         # Semantic Diff (ataraxy-labs/sem)

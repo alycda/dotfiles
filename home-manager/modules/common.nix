@@ -20,7 +20,7 @@ in
     # Core packages across all profiles
     # Note: helix is configured via ./tools/helix.nix (programs.helix)
     # Note: claude-code CLI installed here (binary only, config not managed by home-manager)
-    packages = corePackages ++ [ pkgs.claude-code presenterm ];
+    packages = corePackages ++ [ pkgs.claude-code pkgs.presenterm ];
 
     # Set helix as default editor
     sessionVariables = {
