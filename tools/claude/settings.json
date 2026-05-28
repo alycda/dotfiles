@@ -25,9 +25,18 @@
       "mcp__linear-server__list_issues"
     ],
     "ask": [
-      "Bash(gh pr comment *)",
       "mcp__linear-server__save_issue",
-      "mcp__claude_ai_Linear__save_comment"
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr review:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh api:*POST*comments*)",
+      "Bash(gh api:*POST*replies*)",
+      "Bash(gh api:*POST*reviews*)",
+      "Bash(gh api:*PATCH*comments*)",
+      "mcp__claude_ai_Linear__save_comment",
+      "mcp__claude_ai_Linear_2__save_comment",
+      "mcp__claude_ai_Linear__save_status_update",
+      "mcp__claude_ai_Linear_2__save_status_update"
     ],
     "deny": []
   }
