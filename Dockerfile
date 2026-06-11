@@ -60,6 +60,13 @@ COPY . /opt/dotfiles
 RUN nix build "path:/opt/dotfiles#homeConfigurations.\"alyssa@dev-x86\".activationPackage" -o /opt/hm-activation
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
+
+# Bake the container-env doc in as Claude's user-level memory, so it applies
+# regardless of which project is mounted at /work. NOTE: /root is the devhome
+# volume at runtime, so Docker only seeds this into an EMPTY devhome - an
+# existing devhome won't see it (or pick up edits) until it's reset.
+COPY docker/CLAUDE.md /root/.claude/CLAUDE.md
+
 WORKDIR /work
 ENTRYPOINT ["/opt/dotfiles/docker/entrypoint.sh"]
 CMD ["bash", "-l"]
