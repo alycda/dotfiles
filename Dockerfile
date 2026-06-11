@@ -41,6 +41,12 @@
 #     docker image prune          # drops dangling images (e.g. old dev-x86 builds)
 #     docker builder prune        # drops stale build cache
 #     docker volume rm nix-store  # remove any leftover /nix volume from old runs
+#   activation "conflict ... git-minimal ... info/exclude" - the base image
+#     ships git-minimal in root's profile and it collides with home-manager's
+#     full git. The entrypoint now removes it before activating; a devhome that
+#     predates that fix can be cleared with (the age key survives):
+#       docker run --rm -v devhome:/root alpine \
+#         sh -c 'rm -rf /root/.local/state/nix /root/.nix-profile /root/.nix-defexpr'
 
 FROM nixos/nix:latest
 
