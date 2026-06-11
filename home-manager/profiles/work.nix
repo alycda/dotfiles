@@ -3,6 +3,7 @@
 
 {
   imports = [
+    ../modules/ide/vscode.nix
     ../modules/dev/rust.nix
   ];
 

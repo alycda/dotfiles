@@ -144,6 +144,13 @@ dotfiles/
 - Core CLI tools everyone needs (ripgrep, helix, jj, just, gh)
 - Universal configurations
 - Imported by ALL profiles
+- **No GUI apps here.** `common.nix` is inherited by the headless `dev`
+  devcontainer too, so a heavy GUI closure (e.g. VS Code) gets built into the
+  x86 image for nothing - and on the disk-constrained 2012 MBP that overflows
+  Docker's disk mid-build. GUI editors belong in the desktop profiles
+  (`home.nix`, `work.nix`), which import `modules/ide/vscode.nix` directly.
+  In a container you use VS Code Remote: the GUI runs on the host and connects
+  in, so `code` is never needed inside.
 
 **Specialized modules** (`home-manager/modules/dev/*`):
 - Language-specific tooling (rust, nix, etc.)
