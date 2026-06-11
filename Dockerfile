@@ -10,10 +10,18 @@
 # Run:
 #   docker run -it --rm \
 #     -v devhome:/root \
+#     -v claude-home:/root/.claude \
 #     -v "$PWD":/work -w /work \
 #     -v /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock \
 #     -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock \
 #     dev-x86
+#
+# claude-home keeps Claude's auth (~/.claude/.credentials.json) and config in
+# its own volume, nested under the devhome mount. This decouples your login from
+# devhome, so resetting the nix profile (or doing `docker volume rm devhome`)
+# never logs you out. Note: the host's old Claude predates .credentials.json, so
+# there's nothing to seed from it - you authenticate once inside the container
+# and claude-home remembers it.
 #
 # Do NOT mount a named volume over /nix. The store is baked into the image and
 # used directly. Mounting a volume there makes Docker copy the whole ~10GB
@@ -62,9 +70,10 @@ RUN nix build "path:/opt/dotfiles#homeConfigurations.\"alyssa@dev-x86\".activati
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 
 # Bake the container-env doc in as Claude's user-level memory, so it applies
-# regardless of which project is mounted at /work. NOTE: /root is the devhome
-# volume at runtime, so Docker only seeds this into an EMPTY devhome - an
-# existing devhome won't see it (or pick up edits) until it's reset.
+# regardless of which project is mounted at /work. At runtime /root/.claude is a
+# volume (claude-home) that shadows this baked copy, so the entrypoint re-copies
+# it from /opt/dotfiles on every start to keep it current; this COPY just seeds
+# a fresh volume and covers runs without the claude-home mount.
 COPY docker/CLAUDE.md /root/.claude/CLAUDE.md
 
 WORKDIR /work

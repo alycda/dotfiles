@@ -6,6 +6,13 @@
 CURRENT=$(readlink -f /root/.local/state/nix/profiles/home-manager 2>/dev/null)
 BAKED=$(readlink -f /opt/hm-activation)
 
+# Keep Claude's user-level memory current. /root/.claude is its own volume
+# (claude-home) so auth/.credentials.json survives devhome resets - but that
+# volume shadows the CLAUDE.md baked into the image, so refresh it from the
+# flake source on every start. Only touches CLAUDE.md, never the credentials.
+mkdir -p /root/.claude
+cp -f /opt/dotfiles/docker/CLAUDE.md /root/.claude/CLAUDE.md 2>/dev/null || true
+
 if [ ! -e /root/.nix-profile ] || [ "$CURRENT" != "$BAKED" ]; then
   echo ">> activating home-manager generation (alyssa@dev-x86)"
 
