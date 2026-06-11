@@ -6,8 +6,11 @@ host CANNOT run current Claude Code: Nix itself requires macOS 14+ (host is on
 10.15), and the host's npm install of `@anthropic-ai/claude-code` is pinned at
 1.0.56 with max compatibility ~1.0.93. The container IS the modern toolchain;
 the host is frozen. Dotfiles: https://github.com/alycda/dotfiles (its
-Dockerfile/CLAUDE.md cover the container build; PR #34 documents the /nix volume
-and git-minimal pitfalls).
+`Dockerfile` + `docker/CLAUDE.md` cover the container build). PR #34 *fixed* the
+two startup pitfalls this image used to hit, so you should not see them: the
+entrypoint now auto-drops the base image's `git-minimal` (it collided with
+home-manager's full git), and the documented run command no longer mounts a
+volume over `/nix`.
 
 ## Hardware (verified 2026-06-11)
 
@@ -49,8 +52,9 @@ unavailable here). Consequences:
   means the Docker VM disk is full — fix with `docker system prune` on the HOST,
   not by deleting files in `/work` (the host SSD has ~1.2 TB free).
 - The Nix store is baked into the image. Never mount a named volume over `/nix`
-  (copies the ~10 GB closure, doubles disk use, leaves stale shadows that break
-  startup — dotfiles PR #34).
+  (copies the ~10 GB closure, doubles disk use, and leaves stale shadows that
+  break startup). The documented run command already omits this since PR #34 —
+  don't add it back.
 
 ## CPU / age-related gotchas
 
