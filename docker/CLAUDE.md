@@ -92,7 +92,7 @@ fix is (a) `cargo install --locked` on the host (works: jj, just, rustledger), o
 Inside the container, Linux software is NOT capped — current Node, Rust, Claude
 Code, etc. all run fine. That's the point of the container.
 
-## Host services (reach via host.docker.internal)
+## Host editing setup
 
 - Host terminal is Warp; editing happens via VS Code 1.97.2 + Remote Containers on
   the host. This image is Claude-only: no GUI, no `code` binary inside.
