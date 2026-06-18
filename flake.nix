@@ -109,6 +109,8 @@
         "alyssa@home" = mkHome "aarch64-darwin" "home";
         # devcontainer
         "alyssa@dev" = mkHome "aarch64-linux" "dev";
+        # devcontainer on x86_64 hosts (e.g. Docker on the 2012 MBP)
+        "alyssa@dev-x86" = mkHome "x86_64-linux" "dev";
         # devcontainer / linux
         "alyssa@work-dev" = mkHome "aarch64-linux" "work";
       };

@@ -2,6 +2,10 @@
 { pkgs, ... }:
 
 {
+  imports = [
+    ../modules/ide/vscode.nix
+  ];
+
   home = {
     username = "alyssa";
     homeDirectory = "/Users/alyssa";

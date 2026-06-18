@@ -7,7 +7,13 @@ let
 in
 {
   imports = [
-    ./ide/vscode.nix
+    # Deliberately NOT ./ide/vscode.nix here. common.nix is inherited by every
+    # profile, including the headless `dev` devcontainer - and baking the VS Code
+    # GUI closure into the x86 image is pure dead weight that overflowed Docker's
+    # disk mid-build on the 2012 MBP (see PR #34). GUI editors belong in the
+    # desktop profiles (home.nix / work.nix), which import modules/ide/vscode.nix
+    # directly. In a container you use VS Code Remote: the GUI runs on the host
+    # and connects in, so `code` is never needed inside.
     ./dev/nix-lang.nix
     ./tools/cheat.nix
     ./git.nix
