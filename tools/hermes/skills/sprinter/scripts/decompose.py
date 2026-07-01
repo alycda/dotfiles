@@ -12,8 +12,8 @@ and reasoned about without an LLM in the loop.
 Input shape (JSON on stdin):
     {
       "parent": {
-        "id": "SDKS-3481",
-        "url": "https://linear.app/ditto/issue/SDKS-3481",
+        "id": "PROJ-3481",
+        "url": "https://linear.app/example/issue/PROJ-3481",
         "title": "...",
         "workspace": "ditto",
         "state": "in-progress",
@@ -22,11 +22,11 @@ Input shape (JSON on stdin):
       },
       "subissues": [
         {
-          "id": "SDKS-3482",
+          "id": "PROJ-3482",
           "title": "...",
           "estimate": 2,
           "labels": ["area:jvm"],
-          "blockedBy": ["SDKS-3488"],
+          "blockedBy": ["PROJ-3488"],
           "blocks": []
         },
         ...

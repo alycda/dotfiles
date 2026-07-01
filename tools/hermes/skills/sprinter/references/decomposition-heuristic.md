@@ -30,7 +30,7 @@ When grouping 1-2 point subissues into a multi-ticket sprint, use this priority 
 3. **Acceptance criteria overlap** — subissues whose descriptions reference the same test scaffolding, the same API surface, or the same migration step.
 4. **Fall-through batching** — if no above grouping applies, batch by parent ticket (all small subissues of the same parent become one "small-tickets" sprint).
 
-A batched sprint's title should describe the unifying property, not list every ticket: "Apply FFI callback contract across SDK shims" beats "SDKS-3482, SDKS-3483, SDKS-3484, SDKS-3485, SDKS-3486, SDKS-3487".
+A batched sprint's title should describe the unifying property, not list every ticket: "Apply FFI callback contract across SDK shims" beats "PROJ-3482, PROJ-3483, PROJ-3484, PROJ-3485, PROJ-3486, PROJ-3487".
 
 ## Estimate handling
 

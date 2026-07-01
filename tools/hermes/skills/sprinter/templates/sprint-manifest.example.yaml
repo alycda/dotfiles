@@ -13,8 +13,8 @@ created: 2026-05-08T14:23:00Z
 
 # The Linear parent ticket this manifest came from
 parent:
-  id: SDKS-3481
-  url: https://linear.app/ditto/issue/SDKS-3481
+  id: PROJ-3481
+  url: https://linear.app/example/issue/PROJ-3481
   title: "User exceptions in callbacks crash as Ditto SIGABRT across SDKs"
   workspace: ditto
   state: in-progress
@@ -26,8 +26,8 @@ sprints:
   - sprint_slug: kitchen-sink-ffi-callback-contract
     title: "Kitchen Sink defines the FFI callback contract; Rust + C++ audits"
     tickets:
-      - SDKS-3488      # Rust audit
-      - SDKS-3489      # C++ audit
+      - PROJ-3488      # Rust audit
+      - PROJ-3489      # C++ audit
     estimate_total: 5  # 3 + 2 (or 3 + 3, depending on Linear)
     sdk_targets: [rust-core, cpp]
     cross_sdk: false
@@ -39,12 +39,12 @@ sprints:
   - sprint_slug: per-sdk-callback-tests
     title: "Per-SDK callback contract tests"
     tickets:
-      - SDKS-3482      # JVM/Kotlin
-      - SDKS-3483      # Swift
-      - SDKS-3484      # Dart/Flutter
-      - SDKS-3485      # JS/wasm
-      - SDKS-3486      # Go
-      - SDKS-3487      # Python
+      - PROJ-3482      # JVM/Kotlin
+      - PROJ-3483      # Swift
+      - PROJ-3484      # Dart/Flutter
+      - PROJ-3485      # JS/wasm
+      - PROJ-3486      # Go
+      - PROJ-3487      # Python
     estimate_total: 12 # 6 × 2
     sdk_targets: [jvm, swift, dart, js, go, python]
     cross_sdk: true    # Multi-SDK batch
@@ -60,9 +60,9 @@ decomposition_log:
   - level: info
     message: "Parent ticket has 8 subissues, all estimated."
   - level: info
-    message: "SDKS-3488, SDKS-3489 promoted to standalone sprint (estimate >= 3, single SDK each)."
+    message: "PROJ-3488, PROJ-3489 promoted to standalone sprint (estimate >= 3, single SDK each)."
   - level: info
-    message: "SDKS-3482..3487 batched (each estimate 2, all per-SDK callback tests)."
+    message: "PROJ-3482..3487 batched (each estimate 2, all per-SDK callback tests)."
   - level: info
     message: "Discovered blocking edge: 3482..3487 each blockedBy 3488 (Rust audit must finish first). Reflected as sprint-2 blocked_by sprint-1."
 
@@ -73,7 +73,7 @@ external_dependencies: []
 # Decisions deferred to the user for approval
 asks_to_user:
   - "Confirm the per-SDK batching — happy to split into 2-3 smaller sprints if you'd rather (e.g., split into 'mobile shims' + 'web/server shims')."
-  - "SDKS-3488 has no SDK label; defaulted to rust-core based on title. Override here if wrong."
+  - "PROJ-3488 has no SDK label; defaulted to rust-core based on title. Override here if wrong."
 
 # Per-task assignee policy. If you've set up specialist profiles, name them
 # here. Otherwise default profile runs all stages.

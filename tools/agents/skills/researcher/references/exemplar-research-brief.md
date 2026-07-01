@@ -125,8 +125,8 @@ Return a single Markdown document with these sections:
 
 - Don't research general Rust learning material, async-Rust tutorials, or generic CI tooling (we have CI).
 - Don't research Big Peer / cloud sync — explicitly out of scope for this seed.
-- Don't research Bluetooth / transport-layer permissioning — separate ticket (SDKS-2484).
-- Don't research SDK-layer test patterns — that's SDKS-2642's problem.
+- Don't research Bluetooth / transport-layer permissioning — separate ticket (<INTERNAL-TICKET-C>).
+- Don't research SDK-layer test patterns — that's <INTERNAL-TICKET-A>'s problem.
 - Don't propose architectures or write code; this is a sourcing exercise.
 
 ---
