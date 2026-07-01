@@ -4,7 +4,11 @@
   "enabledPlugins": {
     "clangd-lsp@claude-plugins-official": true,
     "compound-engineering@compound-engineering-plugin": true,
-    "coding-tutor@compound-engineering-plugin": true
+    "coding-tutor@compound-engineering-plugin": true,
+    "understand-anything@understand-anything": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "datadog@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "compound-engineering-plugin": {
@@ -12,14 +16,34 @@
         "source": "github",
         "repo": "EveryInc/compound-engineering-plugin"
       }
+    },
+    "understand-anything": {
+      "source": {
+        "source": "github",
+        "repo": "Lum1104/Understand-Anything"
+      }
     }
   },
   "permissions": {
     "allow": [
       "Bash(gh api *)",
+      "Bash(gh label list:*)",
       "Bash(gh pr *)",
+      "Bash(gh run *)",
+      "Bash(git branch:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git status:*)",
       "Bash(git worktree:*)",
       "Bash(hermes kanban:*)",
+      "Bash(just copy:*)",
+      "Bash(just fetch:*)",
+      "Bash(just info:*)",
+      "Bash(just new:*)",
+      "Bash(just status:*)",
+      "Bash(tb-ticket:*)",
+      "Bash(tb:*)",
+      "mcp__hackmd__create_note",
       "mcp__linear-server__get_issue",
       "mcp__linear-server__list_comments",
       "mcp__linear-server__list_issues"
@@ -30,5 +54,6 @@
       "mcp__claude_ai_Linear__save_comment"
     ],
     "deny": []
-  }
+  },
+  "skipAutoPermissionPrompt": true
 }
