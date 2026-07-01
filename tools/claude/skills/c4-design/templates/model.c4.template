@@ -1,0 +1,127 @@
+// docs/c4/model.c4 — Likec4 architectural model for <PROJECT_NAME>.
+//
+// Source of truth. Edit this file; never edit the built dashboard at docs/c4/dashboard/.
+// Rebuild with: bash ~/.claude/skills/c4-design/scripts/build-dashboard.sh
+// Validate with: npx @likec4/cli validate docs/c4/model.c4
+//
+// Likec4 docs: https://likec4.dev/docs/dsl
+// Skill: ~/.claude/skills/c4-design/
+
+specification {
+  element actor {
+    style {
+      shape person
+      color secondary
+    }
+  }
+
+  element externalSystem {
+    style {
+      shape rectangle
+      color muted
+    }
+  }
+
+  element system
+
+  element container {
+    style {
+      shape rectangle
+    }
+  }
+
+  element component {
+    style {
+      shape rectangle
+      color primary
+    }
+  }
+}
+
+model {
+  //
+  // ─── External actors (humans + systems outside the boundary) ────────
+  //
+  // Replace these placeholders with the actors from your Step 0 interview.
+
+  // user = actor 'User' {
+  //   description 'Primary persona of the system'
+  // }
+
+  // operator = actor 'Operator' {
+  //   description 'Internal staff'
+  // }
+
+  // ─── External systems (3rd-party services the system depends on) ────
+
+  // exampleService = externalSystem 'Example Third-Party' {
+  //   description 'What it provides'
+  // }
+
+  //
+  // ─── The system being designed ──────────────────────────────────────
+  //
+
+  mainSystem = system 'Main System' {
+    description '<one-line description of the system>'
+
+    // ─── Containers (deployable units) ────────────────────────────────
+
+    // web = container 'Web App' {
+    //   technology 'React + TypeScript'
+    //   description 'User-facing web interface'
+    // }
+
+    // api = container 'API' {
+    //   technology 'Node.js'
+    //   description 'Application API'
+    //
+    //   // Components (one level deeper than containers; use for the
+    //   // 1-3 most non-obvious containers, skip for trivial ones).
+    //
+    //   // auth = component 'Auth Handler' {
+    //   //   description 'Token issuance and validation'
+    //   // }
+    //
+    //   // ...
+    // }
+
+    // db = container 'PostgreSQL' {
+    //   technology 'PostgreSQL 16'
+    //   description 'Application database'
+    // }
+  }
+
+  //
+  // ─── Relationships ──────────────────────────────────────────────────
+  //
+  // Format: <from> -> <to> 'Verb phrase or protocol'
+  // Use dot notation for components: api.auth -> db 'Reads users'
+
+  // user -> mainSystem.web 'Uses'
+  // mainSystem.web -> mainSystem.api 'HTTPS/JSON'
+  // mainSystem.api -> mainSystem.db 'Reads/writes'
+  // mainSystem.api -> exampleService 'Calls'
+}
+
+views {
+  view index {
+    title 'System Context'
+    description 'Actors, external systems, and the system being designed.'
+    include *
+  }
+
+  view containers of mainSystem {
+    title 'Containers'
+    description 'Deployable units of the system.'
+    include *
+  }
+
+  // Add one Component view per non-trivially-decomposed container:
+  //
+  // view api_components of mainSystem.api {
+  //   title 'API Components'
+  //   description 'Internal modules of the API container.'
+  //   include *
+  // }
+}
