@@ -1,0 +1,54 @@
+# _docs/research/downloads.yaml
+# Idempotent-upsert format. The `url` field is the unique key.
+# Each entry tracks a source's download state across re-runs.
+#
+# Step 2 produces this file (upsert: new URLs added as `pending`,
+#   existing entries' status/path/notes preserved).
+# Step 3 updates `status` and `path` as downloads complete.
+
+version: 1
+
+entries:
+  # A successfully-downloaded paper
+  - url: https://arxiv.org/abs/2406.12345
+    kind: paper
+    title: "Some CRDT Paper"
+    cited_in: [claude-opus, gpt-5]
+    status: done       # pending | downloading | done | failed | skipped
+    path: _inspiration/papers/2406.12345.pdf
+    notes: "Foundational; see section 4.2"
+
+  # A repo waiting to be downloaded
+  - url: https://github.com/owner/repo
+    kind: repo
+    title: "Reference Implementation"
+    cited_in: [gpt-5, gemini-2-pro]
+    status: pending
+    path: null
+
+  # A failed download (404, network error, etc.)
+  - url: https://example.com/blog/postmortem
+    kind: article
+    title: "ABI Breakage Postmortem"
+    cited_in: [claude-opus]
+    status: failed
+    path: null
+    notes: "404 — try archive.org/web/*/example.com/blog/postmortem"
+
+  # A paywalled / auth-gated source skipped on purpose
+  - url: https://docs.example.com/sdk/
+    kind: docs
+    title: "SDK Documentation"
+    cited_in: [gemini-2-pro]
+    status: skipped
+    path: null
+    notes: "Auth-gated; download manually"
+
+  # A repo too large to clone under default size cap
+  - url: https://github.com/giant/monorepo
+    kind: repo
+    title: "Giant Monorepo"
+    cited_in: [theory]
+    status: skipped
+    path: null
+    notes: "Size > max_size_mb; clone manually if needed"
