@@ -21,7 +21,7 @@ Produces `RESEARCH-BRIEF.md` at the project root.
 
 The brief should be runnable through any deep-research provider (Anthropic, Codex, Gemini, etc.) without leaking project specifics. **Strip or generalize** before output:
 
-- Internal ticket IDs (Linear, Jira) → replace with generic descriptions ("an SDK integration ticket", not "SDKS-2129")
+- Internal ticket IDs (Linear, Jira) → replace with generic descriptions ("an SDK integration ticket", not "PROJ-1234")
 - Customer names → replace with generic personas ("a Flutter customer", not literal company names)
 - Internal incident IDs → replace with technical phenomenon descriptions ("a TransactionTooLarge disconnect loop", not "i-604")
 - Unreleased product names → use the public name or the technical category

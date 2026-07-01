@@ -18,7 +18,7 @@ The suite exercises the complete peer lifecycle: initialize, configure transport
 
 **Current state:** Validating Rust core changes requires SDK tests. SDK tests can't pass until all SDKs implement breaking core changes. This deadlock serializes delivery across every SDK team.
 
-**Target state:** The FFI boundary is validated independently. Core ships. SDKs consume. The circular dependency (CORE-1220) is broken at the layer where it should be broken — the ABI contract itself.
+**Target state:** The FFI boundary is validated independently. Core ships. SDKs consume. The circular dependency (<INTERNAL-TICKET-D>) is broken at the layer where it should be broken — the ABI contract itself.
 
 **Secondary use case:** The `ditto-cli` black-box state verifier — a tool that uses this same C FFI surface to inspect store state in SDK integration tests without instrumenting the app under test.
 
@@ -51,9 +51,9 @@ The suite exercises the complete peer lifecycle: initialize, configure transport
 ### What Is NOT "Real" (explicitly out of scope)
 
 - Big Peer / cloud sync (LAN-only for this seed)
-- SDK-layer tests (those belong in SDKS-2642)
+- SDK-layer tests (those belong in <INTERNAL-TICKET-A>)
 - Performance benchmarking
-- Bluetooth / transport-layer permissioning (separate CI infra issue — see SDKS-2484)
+- Bluetooth / transport-layer permissioning (separate CI infra issue — see <INTERNAL-TICKET-C>)
 
 ---
 
@@ -80,22 +80,22 @@ Each run of the validation harness produces a feedback signal fed back into the 
 | Obstacle | Token Form |
 |----------|------------|
 | Incomplete `#[ffi_export]` surface | Paste the generated C header (`dittoffi.h`) as direct context |
-| Which scenarios to cover | SDKS-2642 sub-issues (14 categories: Init, Auth, Store Ops, Sync, Transports, Presence, Attachments, Observers, Transactions, ...) as holdout spec |
+| Which scenarios to cover | <INTERNAL-TICKET-A> sub-issues (14 categories: Init, Auth, Store Ops, Sync, Transports, Presence, Attachments, Observers, Transactions, ...) as holdout spec |
 | Incident replays | i-604 (TransactionTooLarge disconnect loop) as an adversarial sync scenario: does the C peer reproduce the infinite replay? |
 | CI failure logs | Buildkite traces as token input for debugging flaky WASM async tests |
 | Existing SDK tests | Flutter/JS test cases converted to C equivalents — what the C suite must cover to achieve parity |
 | WASM async constraints | Flutter Web CI failures as annotated failure transcripts |
-| Customer integration context | SDKS-2129 (smallPeersOnly / license token) as a real customer-shaped scenario the suite must exercise |
+| Customer integration context | <INTERNAL-TICKET-B> (smallPeersOnly / license token) as a real customer-shaped scenario the suite must exercise |
 
 ---
 
 ## Related Tickets
 
-- `CORE-1225` — C and WASM tests for Rust FFI validation (primary)
-- `SDKS-2642` — Cypress UI kitchen sink testing (parallel track; shares holdout scenario spec)
-- `SDKS-2129` — Flutter license token / smallPeersOnly (customer scenario input)
-- `CORE-1220` — SDK/Core circular dependency analysis (the problem this solves)
-- `SDKS-2484` — 16KB page size Flutter/Android (downstream beneficiary once CI harness stabilizes)
+- `<INTERNAL-TICKET-E>` — C and WASM tests for Rust FFI validation (primary)
+- `<INTERNAL-TICKET-A>` — Cypress UI kitchen sink testing (parallel track; shares holdout scenario spec)
+- `<INTERNAL-TICKET-B>` — Flutter license token / smallPeersOnly (customer scenario input)
+- `<INTERNAL-TICKET-D>` — SDK/Core circular dependency analysis (the problem this solves)
+- `<INTERNAL-TICKET-C>` — 16KB page size Flutter/Android (downstream beneficiary once CI harness stabilizes)
 
 ---
 

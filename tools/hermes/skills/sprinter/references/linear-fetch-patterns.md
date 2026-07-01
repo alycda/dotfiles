@@ -8,7 +8,7 @@ Run `hermes mcp list` (or check the agent's available tool inventory). Look for 
 
 If multiple Linear servers are present, each is typically configured against a different Linear workspace. The user might have:
 
-- A primary work workspace (e.g., `linear.app/ditto`)
+- A primary work workspace (e.g., `linear.app/yourcompany`)
 - A secondary or personal workspace
 
 Either can be the right target for a given URL. Routing logic:
@@ -22,13 +22,13 @@ Either can be the right target for a given URL. Routing logic:
 Single MCP call gets the parent:
 
 ```
-get_issue(id="SDKS-3481")
+get_issue(id="PROJ-3481")
 ```
 
 Returns: `{id, title, description, estimate, labels, state, parentId, ...}`.
 
 For subissues, the Linear MCP usually exposes either:
-- `list_issues(parent_id="SDKS-3481")` — preferred, single call
+- `list_issues(parent_id="PROJ-3481")` — preferred, single call
 - Or you traverse via the parent's `children` field if present in the get_issue response
 
 If neither works, fall back to:
@@ -41,7 +41,7 @@ list_issues(filter={"parent": {"id": {"eq": "<parent-id>"}}})
 Linear issues have `relations` (or sometimes `relationships`) that include `blocks`, `blockedBy`, `relatesTo`, `duplicateOf`. Fetch via:
 
 ```
-get_issue(id="SDKS-3482")  # returns issue with relations
+get_issue(id="PROJ-3482")  # returns issue with relations
 # or
 list_issues(filter={"id": {"in": [...]}}, include=["relations"])
 ```
@@ -89,20 +89,20 @@ If the user re-runs sprinter on the same parent ticket later (e.g., after subiss
 
 ## Worked example
 
-Input: `https://linear.app/ditto/issue/SDKS-3481`
+Input: `https://linear.app/example/issue/PROJ-3481`
 
 ```
 1. Detect MCPs: ["mcp__abc__", "mcp__xyz__"] — both Linear, different workspaces
 2. URL slug "ditto" matches mcp__abc's workspace → route to abc
-3. get_issue(id="SDKS-3481") via mcp__abc → parent: 
+3. get_issue(id="PROJ-3481") via mcp__abc → parent: 
      {title: "User exceptions in callbacks crash as Ditto SIGABRT", 
-      estimate: null, labels: ["area:ffi"], children: [SDKS-3482..3489]}
-4. list_issues(parent="SDKS-3481") → 8 subissues
+      estimate: null, labels: ["area:ffi"], children: [PROJ-3482..3489]}
+4. list_issues(parent="PROJ-3481") → 8 subissues
 5. For each subissue, fetch with relations
 6. Apply decomposition heuristic:
-   - SDKS-3488 (estimate 3, "Rust audit") → standalone
-   - SDKS-3489 (estimate 3, "C++ audit") → standalone
-   - SDKS-3482..3487 (each estimate 2, per-SDK) → batch into one sprint
+   - PROJ-3488 (estimate 3, "Rust audit") → standalone
+   - PROJ-3489 (estimate 3, "C++ audit") → standalone
+   - PROJ-3482..3487 (each estimate 2, per-SDK) → batch into one sprint
    - Discovered blocking edge: 3482..3487 each blockedBy 3488 (Rust audit must finish first)
 7. Manifest:
      sprint-1: kitchen-sink-ffi-callback-contract  (3488 + 3489)
