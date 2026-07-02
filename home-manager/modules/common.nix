@@ -16,6 +16,7 @@ in
     # and connects in, so `code` is never needed inside.
     ./dev/nix-lang.nix
     ./tools/cheat.nix
+    ./tools/claude-code.nix
     ./tools/gh-dash.nix
     ./git.nix
     ./tools/helix.nix
@@ -26,7 +27,7 @@ in
 
     # Core packages across all profiles
     # Note: helix is configured via ./tools/helix.nix (programs.helix)
-    # Note: claude-code CLI installed here (binary only, config not managed by home-manager)
+    # Note: claude-code CLI installed here (binary only; global rules managed by ./tools/claude-code.nix)
     packages = corePackages ++ [ pkgs.claude-code pkgs.presenterm ];
 
     # Set helix as default editor
