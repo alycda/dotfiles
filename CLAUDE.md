@@ -117,6 +117,9 @@ dotfiles/
 │       ├── dev.nix         # Devcontainer profile
 │       ├── home.nix        # Personal profile
 │       └── work.nix        # Work profile
+├── docs/
+│   └── solutions/          # Documented solutions to past problems (bugs, patterns),
+│                           # organized by category with YAML frontmatter (module, tags, problem_type)
 └── flake.nix               # Flake configuration
 ```
 
