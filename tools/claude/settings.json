@@ -43,15 +43,23 @@
       "Bash(just status:*)",
       "Bash(tb-ticket:*)",
       "Bash(tb:*)",
+      "mcp__claude_ai_Linear__get_issue",
+      "mcp__claude_ai_Linear__list_comments",
+      "mcp__claude_ai_Linear__list_issues",
       "mcp__hackmd__create_note",
       "mcp__linear-server__get_issue",
       "mcp__linear-server__list_comments",
       "mcp__linear-server__list_issues"
     ],
     "ask": [
-      "Bash(gh pr comment *)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr review:*)",
+      "Bash(gh issue comment:*)",
       "mcp__linear-server__save_issue",
-      "mcp__claude_ai_Linear__save_comment"
+      "mcp__claude_ai_Linear__save_comment",
+      "mcp__claude_ai_Linear_2__save_comment",
+      "mcp__claude_ai_Linear__save_status_update",
+      "mcp__claude_ai_Linear_2__save_status_update"
     ],
     "deny": []
   },
