@@ -19,7 +19,7 @@ from pathlib import Path
 
 STATUSES = ["planned", "in-progress", "done", "abandoned"]
 SPRINT_RE = re.compile(r"^SPRINT-(\d{4})$")
-FIELDS = ("id", "title", "status", "executor", "created", "updated")
+FIELDS = ("id", "title", "status", "executor", "branch", "worktree", "created", "updated")
 EXECUTORS = ["opus", "gpt-5.5", "gemini"]
 
 
@@ -128,13 +128,18 @@ def cmd_add(args) -> int:
     if find(data, sid):
         sys.stderr.write(f"{sid} already exists\n")
         return 1
-    data["sprints"].append({
+    record = {
         "id": sid,
         "title": args.title,
         "status": "planned",
         "created": now(),
         "updated": now(),
-    })
+    }
+    if args.branch:
+        record["branch"] = args.branch
+    if args.worktree:
+        record["worktree"] = args.worktree
+    data["sprints"].append(record)
     save(data)
     print(sid)
     return 0
@@ -192,6 +197,36 @@ def cmd_set_executor(args) -> int:
     return 0
 
 
+def cmd_set_branch(args) -> int:
+    data = load()
+    s = find(data, args.id)
+    if not s:
+        sys.stderr.write(f"{args.id} not found\n")
+        return 1
+    if args.branch == "":
+        s.pop("branch", None)
+    else:
+        s["branch"] = args.branch
+    s["updated"] = now()
+    save(data)
+    return 0
+
+
+def cmd_set_worktree(args) -> int:
+    data = load()
+    s = find(data, args.id)
+    if not s:
+        sys.stderr.write(f"{args.id} not found\n")
+        return 1
+    if args.worktree == "":
+        s.pop("worktree", None)
+    else:
+        s["worktree"] = args.worktree
+    s["updated"] = now()
+    save(data)
+    return 0
+
+
 def cmd_set_title(args) -> int:
     data = load()
     s = find(data, args.id)
@@ -227,6 +262,8 @@ def main() -> int:
     a = sub.add_parser("add", help="register a new sprint (status=planned)")
     a.add_argument("title")
     a.add_argument("--id", help="override auto-assigned id")
+    a.add_argument("--branch", default=None, help="branch name (typically Linear-formatted)")
+    a.add_argument("--worktree", default=None, help="worktree path (relative or absolute)")
     a.set_defaults(func=cmd_add)
 
     l = sub.add_parser("list")
@@ -246,6 +283,16 @@ def main() -> int:
     e.add_argument("id")
     e.add_argument("executor", help=f"one of {EXECUTORS}, or '' to clear")
     e.set_defaults(func=cmd_set_executor)
+
+    b = sub.add_parser("set-branch", help="record the branch where the sprint runs")
+    b.add_argument("id")
+    b.add_argument("branch", help="branch name, or '' to clear")
+    b.set_defaults(func=cmd_set_branch)
+
+    w = sub.add_parser("set-worktree", help="record the worktree path where the sprint runs")
+    w.add_argument("id")
+    w.add_argument("worktree", help="worktree path (relative or absolute), or '' to clear")
+    w.set_defaults(func=cmd_set_worktree)
 
     t = sub.add_parser("set-title")
     t.add_argument("id")

@@ -53,10 +53,11 @@ Collect:
 - **Blockers section** — if the plan has a `## Blockers` heading, copy it verbatim. This is the executor's own record of what went wrong.
 - **Executor identity** — `executor` field from the ledger (`opus` / `gpt-5.5` / `gemini`). The retro should be honest about who did the work.
 - **Sprint timestamps** — `created` and `updated` from the ledger, to anchor the git window.
-- **Git evidence** — commits and diffstat in the sprint window:
+- **Branch and worktree** — `branch` and `worktree` fields from the ledger (recorded by `sprint-execute` on dispatch for SPRINT-0009+). Both anchor the git evidence: run the log/diff commands below with `git -C "$WORKTREE"` and constrained to the recorded branch (`-- $BRANCH`) so the retro reflects work that landed there, not whatever HEAD happens to be when the retro runs. If the fields are missing (older sprints), fall back to the current cwd and HEAD and note the assumption in the evidence pack.
+- **Git evidence** — commits and diffstat in the sprint window, scoped to the sprint's branch and worktree when recorded:
   ```bash
-  git log --since="{created}" --until="{updated}" --pretty=format:'%h %ad %s' --date=short
-  git diff --stat $(git log --since="{created}" --until="{updated}" --reverse --pretty=format:'%h' | head -1)^..HEAD
+  git -C "${WORKTREE:-.}" log "${BRANCH:-HEAD}" --since="{created}" --until="{updated}" --pretty=format:'%h %ad %s' --date=short
+  git -C "${WORKTREE:-.}" diff --stat $(git -C "${WORKTREE:-.}" log "${BRANCH:-HEAD}" --since="{created}" --until="{updated}" --reverse --pretty=format:'%h' | head -1)^..${BRANCH:-HEAD}
   ```
   If the repo has no commits in the window, note that — execution may have been WIP or non-code.
 - **Per-model progress files** — if `docs/sprints/{SID}-*-progress.md` files exist (a pattern the user has used to track per-model attempts), include their paths. They're prior art for the retro.
@@ -71,7 +72,7 @@ The YOLO / non-interactive invocations — these are the same as the planner's, 
 
 - **codex**: `codex exec --dangerously-bypass-approvals-and-sandbox "<prompt>"`
 - **gemini**: `gemini -y -p "<prompt>"`
-- **claude**: `claude -p "<prompt>"`
+- **claude**: `claude -p --permission-mode acceptEdits "<prompt>"`
 
 Prompt each agent with:
 
