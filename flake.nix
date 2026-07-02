@@ -23,9 +23,14 @@
       url = "github:yaxitech/ragenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    claude-code-nix = {
+      url = "github:sadjow/claude-code-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, ... }:
+  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, claude-code-nix, ... }:
     let
       # Systems supported for devShells
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -43,6 +48,7 @@
           # Note: For darwin configs, this is set at darwin/configuration.nix and inherited via useGlobalPkgs
           overlays = [
             nix-vscode-extensions.overlays.default
+            claude-code-nix.overlays.default
           ];
         };
 
@@ -63,7 +69,7 @@
         darwin.lib.darwinSystem {
           inherit system;
 
-          specialArgs = { inherit nix-vscode-extensions; };
+          specialArgs = { inherit nix-vscode-extensions claude-code-nix; };
 
           modules = [
             ./darwin/configuration.nix
@@ -103,6 +109,8 @@
         "alyssa@home" = mkHome "aarch64-darwin" "home";
         # devcontainer
         "alyssa@dev" = mkHome "aarch64-linux" "dev";
+        # devcontainer on x86_64 hosts (e.g. Docker on the 2012 MBP)
+        "alyssa@dev-x86" = mkHome "x86_64-linux" "dev";
         # devcontainer / linux
         "alyssa@work-dev" = mkHome "aarch64-linux" "work";
       };

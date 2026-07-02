@@ -30,17 +30,18 @@
   system.defaults.dock.persistent-apps = [
     # Finder
     "/Applications/RustDesk.app"
-    "/Applications/Warp.app"
+    # "/Applications/Warp.app"
     "/Applications/Slack.app"
     "/Applications/Brave Browser.app"
-    "/Applications/Workflowy.app"
+    # "/Applications/Workflowy.app"
+    "/Applications/Logseq.app"
     "/Applications/Visual Studio Code.app"
     # Google Drive
     # Speediness
     # Stickies
-    "/Applications/Arc.app"
+    # "/Applications/Arc.app"
     "/Applications/Notion.app"
     "/Applications/OrbStack.app"
-    "/Applications/Utilities/Terminal.app"
+    "/Applications/cmux.app"
   ];
 }

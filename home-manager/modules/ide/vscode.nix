@@ -29,6 +29,7 @@ in
         extensions = with pkgs; [
           vscode-marketplace.github.vscode-github-actions
           vscode-marketplace.eamodio.gitlens
+          vscode-marketplace.github.vscode-pull-request-github
         ];
       };
 
@@ -36,6 +37,7 @@ in
         extensions = with pkgs; [
           vscode-marketplace.dart-code.flutter
           vscode-marketplace.github.vscode-github-actions
+          vscode-marketplace.github.vscode-pull-request-github
           vscode-marketplace.mathiasfrohlich.kotlin
           # vscode-marketplace.ms-vscode.cpptools # removed on aarch64-darwin
           vscode-marketplace.ms-vscode.makefile-tools

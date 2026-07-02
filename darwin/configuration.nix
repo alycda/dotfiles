@@ -1,4 +1,4 @@
-{ nix-vscode-extensions, ... }:
+{ pkgs, nix-vscode-extensions, claude-code-nix, ... }:
 
 {
   # Nix package manager settings
@@ -21,6 +21,7 @@
   # For standalone home-manager (non-darwin), the overlay is applied in flake.nix's mkHome function
   nixpkgs.overlays = [
     nix-vscode-extensions.overlays.default
+    claude-code-nix.overlays.default
   ];
 
   # macOS system defaults
@@ -59,6 +60,10 @@
       "com.apple.swipescrolldirection" = false;
     };
   };
+
+  # Fonts - installed at system level so all apps can access them
+  # Fira Code Nerd Font is used by gh-dash and terminal tools for icon glyphs
+  fonts.packages = [ pkgs.nerd-fonts.fira-code ];
 
   # Used for backwards compatibility, please read the changelog before changing
   # $ darwin-rebuild changelog
