@@ -34,12 +34,15 @@ in
     };
   };
 
-  # Enable home-manager
-  programs.home-manager.enable = true;
+  programs = {
+    home-manager.enable = true;
 
-  # Enable direnv for project-specific environments
-  programs.direnv = {
-    enable = true;
-    nix-direnv.enable = true;
+    # Enable zsh so home-manager can inject shell hooks (e.g. direnv)
+    zsh.enable = true;
+
+    direnv = {
+      enable = true;
+      nix-direnv.enable = true;
+    };
   };
 }
