@@ -217,6 +217,51 @@ The User will decide if and when to run darwin-rebuild/home-manager switch (and 
 just --list
 ```
 
+## CI Checks
+
+CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs must pass before merging.
+
+### Lint job: `statix` + `deadnix`
+
+**statix** catches Nix anti-patterns. Rules that have caused failures:
+
+- **`empty_pattern`**: Never write `{ ... }:` when a module takes no named arguments — use `_:` instead.
+  ```nix
+  # ❌ statix flags this as empty_pattern
+  { ... }:
+  { programs.foo.enable = true; }
+
+  # ✅ correct
+  _:
+  { programs.foo.enable = true; }
+  ```
+
+- **`with` expressions**: Avoid `with pkgs;` — statix flags it. Use explicit `pkgs.` prefixes.
+
+**deadnix** finds unused bindings. Any argument listed in the function signature but never referenced in the body will fail CI:
+
+```nix
+# ❌ deadnix: lib is declared but never used
+{ pkgs, lib, ... }:
+{ environment.systemPackages = [ pkgs.git ]; }
+
+# ✅ correct — only declare what you use
+{ pkgs, ... }:
+{ environment.systemPackages = [ pkgs.git ]; }
+```
+
+### Check job: `nix flake check --all-systems`
+
+The flake must evaluate cleanly across all systems. This catches type errors, missing attributes, and evaluation failures.
+
+### Running linters locally before pushing
+
+```bash
+nix profile install nixpkgs#statix && statix check .
+nix profile install nixpkgs#deadnix && deadnix --fail .
+nix flake check --all-systems
+```
+
 ## Learning Resources
 
 When adding new Nix patterns or configurations, include links to:
@@ -237,4 +282,4 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-01-01 - Initial creation documenting jujutsu-first workflow and incremental learning commits*
+*Last updated: 2026-04-17 - Added CI checks section documenting statix/deadnix rules after empty_pattern failure in PR #20*
