@@ -43,7 +43,18 @@ python3 .claude/skills/sprint-planner/scripts/ledger.py set-status   {SID} in-pr
 python3 .claude/skills/sprint-planner/scripts/ledger.py set-executor {SID} {opus|gpt-5.5|gemini}
 ```
 
-The ledger is the source of truth for "who is currently working on what". Set it *before* dispatch so a crash mid-run still leaves an accurate trail.
+Also record where the work will run, so the user can later jump straight to the branch and worktree without guessing:
+
+```bash
+BRANCH=$(git -C <work-dir> rev-parse --abbrev-ref HEAD)
+WORKTREE=$(git -C <work-dir> rev-parse --show-toplevel)
+python3 .claude/skills/sprint-planner/scripts/ledger.py set-branch   {SID} "$BRANCH"
+python3 .claude/skills/sprint-planner/scripts/ledger.py set-worktree {SID} "$WORKTREE"
+```
+
+`<work-dir>` is wherever the implementer will actually run — for opus that's this session's cwd; for codex/gemini it's whatever cwd you'll dispatch them from. If the sprint already has these recorded by the planner (per-sprint worktree was created up front), confirm they still match before overwriting; if they don't, ask the user which is correct rather than silently flipping the record.
+
+The ledger is the source of truth for "who is currently working on what, and where". Set it *before* dispatch so a crash mid-run still leaves an accurate trail.
 
 ### 4. Run the implementer
 
@@ -128,6 +139,8 @@ One short message: which sprint, which implementer, how many tasks were checked 
 |---|---|
 | `status` | `planned` → `in-progress` (on dispatch) → `done` (on full completion). Stays `in-progress` if any checkboxes remain. |
 | `executor` | `opus`, `gpt-5.5`, or `gemini`. Set on dispatch. The `set-executor` subcommand on `ledger.py` accepts `""` to clear. |
+| `branch` | Branch where the sprint is being run (typically Linear-formatted, e.g. `alycda/sdks-NNNN-...`). Set on dispatch so the user can locate the work. `set-branch` accepts `""` to clear. |
+| `worktree` | Path of the worktree where the sprint is being run (relative or absolute). Set on dispatch alongside `branch`. `set-worktree` accepts `""` to clear. |
 
 Other fields (`title`, `created`, `updated`) are managed by `ledger.py` automatically.
 

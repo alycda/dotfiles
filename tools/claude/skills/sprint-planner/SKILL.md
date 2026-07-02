@@ -63,6 +63,15 @@ python3 .claude/skills/sprint-planner/scripts/ledger.py add "<short title>"
 
 `add` also prints the id it assigned; prefer that over computing it twice. Use a short title derived from the intent (≤60 chars).
 
+If the user has already created the branch and worktree for this sprint at planning time (Linear-formatted branches in sibling worktrees are the project convention), pass them through:
+
+```bash
+python3 .claude/skills/sprint-planner/scripts/ledger.py add "<short title>" \
+  --branch alycda/sdks-NNNN-... --worktree ../sdks-NNNN/
+```
+
+Otherwise leave them blank — `sprint-execute` records them at dispatch when the worktree definitely exists. Don't invent a branch name; an empty field is more honest than a wrong one.
+
 ### 4. Generate three independent drafts — in parallel
 
 Run all three CLI calls **in the same turn** (parallel Bash tool calls). Each agent writes directly to its own draft file. Hand each agent the same intent and the same instructions about structure.
@@ -123,10 +132,13 @@ Tell the user: the sprint id, the final path (`docs/sprints/{SID}.md`), and a on
 
 | Command | What it does |
 |---|---|
-| `add "<title>" [--id SPRINT-XXXX]` | Register a new sprint as `planned`. Prints the id. |
+| `add "<title>" [--id SPRINT-XXXX] [--branch B] [--worktree W]` | Register a new sprint as `planned`. Prints the id. |
 | `list [--status S]` | List all sprints, optionally filtered. |
 | `get SPRINT-XXXX` | Show one sprint's fields. |
 | `set-status SPRINT-XXXX {planned,in-progress,done,abandoned}` | Change status. |
+| `set-executor SPRINT-XXXX {opus,gpt-5.5,gemini,""}` | Record (or clear) the implementer model. |
+| `set-branch SPRINT-XXXX <branch>` | Record (or clear with `""`) the branch for the sprint. |
+| `set-worktree SPRINT-XXXX <path>` | Record (or clear with `""`) the worktree path (relative or absolute). |
 | `set-title SPRINT-XXXX "new title"` | Rename. |
 | `remove SPRINT-XXXX` | Delete the row (does not touch the .md files). |
 | `next-id` | Peek at what the next id would be without creating anything. |

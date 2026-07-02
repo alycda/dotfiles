@@ -24,7 +24,9 @@ in
     # trio are the Claude-native forks — the Hermes-flavored originals stay in
     # tools/agents/skills and are deployed to Hermes, not here.
     ".claude/skills/c4-design".source = oosSymlink "${claudeSkills}/c4-design";
+    ".claude/skills/clean-git-history".source = oosSymlink "${claudeSkills}/clean-git-history";
     ".claude/skills/communication-bridge".source = oosSymlink "${claudeSkills}/communication-bridge";
+    ".claude/skills/failure-doc".source = oosSymlink "${claudeSkills}/failure-doc";
     ".claude/skills/html-deck".source = oosSymlink "${claudeSkills}/html-deck";
     ".claude/skills/jj-extract-gitignores".source = oosSymlink "${claudeSkills}/jj-extract-gitignores";
     ".claude/skills/jujutsu".source = oosSymlink "${claudeSkills}/jujutsu";
