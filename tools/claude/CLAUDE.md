@@ -38,3 +38,5 @@ When asked to review writing, PRs, docs, or talk scripts:
 - Flag where my tone may not match my intent, and where meaning might land differently than I intend.
 - When analyzing workplace communications, distinguish what was **said explicitly** vs. what was **implied**.
 - For talk scripts: flag pacing risks — spots where I'm likely to speed up or lose the audience — and help me anticipate audience questions.
+
+@rules/outbound-comment-gate.md

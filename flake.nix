@@ -82,6 +82,9 @@
               home-manager = {
                 useGlobalPkgs = true;
                 useUserPackages = true;
+                # Migration path for newly-managed dotfiles (e.g. ~/.claude/CLAUDE.md):
+                # back up pre-existing unmanaged files instead of refusing to activate.
+                backupFileExtension = "hm-backup";
                 extraSpecialArgs = { inherit nix-vscode-extensions; };
                 users.${username} = {
                   imports = [
