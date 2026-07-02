@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# tb-ticket: hermes-style wrapper around klaudiosinani/taskbook.
+# Encodes the @flutter + @<TICKET> + @blocked multi-board pattern and
+# a sidecar journal at ~/.taskbook-journals/<TICKET>.md per ticket.
+# Linear org is hardcoded to Ditto.
+
+set -euo pipefail
+
+STORAGE="${TASKBOOK_DIR:-$HOME/.taskbook}/storage/storage.json"
+JOURNAL_DIR="$HOME/.taskbook-journals"
+PRIMARY_BOARD="flutter"
+BLOCKED_BOARD="blocked"
+NEEDS_INPUT_BOARD="needs-input"
+LINEAR_BASE="https://linear.app/ditto/issue"
+
+_need() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "tb-ticket: requires '$1' on PATH. ${2:-}" >&2
+    exit 127
+  }
+}
+_need tb "Install with: npm i -g taskbook"
+_need jq "Install with: brew install jq"
+
+_journal() { echo "$JOURNAL_DIR/$1.md"; }
+_iso_now() { date -u +%FT%TZ; }
+
+_resolve_id() {
+  [ -f "$STORAGE" ] || return 0
+  jq -r --arg id "$1" '
+    to_entries[]
+    | select(.value._isTask == true
+             and (.value.description | startswith($id + " —")))
+    | .key
+  ' "$STORAGE" | head -1
+}
+
+_require_id() {
+  local id
+  id=$(_resolve_id "$1")
+  if [ -z "$id" ]; then
+    echo "tb-ticket: no active task for $1. Run: tb-ticket create $1 ..." >&2
+    exit 1
+  fi
+  echo "$id"
+}
+
+_journal_append() {
+  local tid=$1 msg=$2 path
+  path=$(_journal "$tid")
+  if ! grep -q '^## Journal' "$path" 2>/dev/null; then
+    printf '\n## Journal\n' >> "$path"
+  fi
+  printf -- '- %s: %s\n' "$(_iso_now)" "$msg" >> "$path"
+}
+
+_write_journal_header() {
+  local tid=$1 title=$2 worktree=$3 body=$4 path
+  path=$(_journal "$tid")
+  {
+    echo "# $tid — $title"
+    echo ""
+    echo "Linear:   $LINEAR_BASE/$tid"
+    echo "Worktree: $worktree"
+    echo "Created:  $(_iso_now)"
+    echo ""
+    echo "## Spec"
+    echo "${body:-<add a one-paragraph summary of the spec and proposed approach>}"
+  } > "$path"
+}
+
+cmd_create() {
+  local tid=$1 title=$2 worktree=$3
+  shift 3
+  local body=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --body) body=$2; shift 2 ;;
+      *) echo "tb-ticket create: unknown option '$1'" >&2; exit 2 ;;
+    esac
+  done
+
+  mkdir -p "$JOURNAL_DIR"
+  local journal
+  journal=$(_journal "$tid")
+
+  local existing
+  existing=$(_resolve_id "$tid")
+  if [ -n "$existing" ]; then
+    echo "tb-ticket: $tid already exists as taskbook id $existing (no-op)" >&2
+    if [ ! -f "$journal" ]; then
+      _write_journal_header "$tid" "$title" "$worktree" "$body"
+      _journal_append "$tid" "Re-created journal (was missing)"
+    fi
+    return 0
+  fi
+
+  local desc="$tid — $title [$journal]"
+  tb -t "@$PRIMARY_BOARD" "@$tid" "$desc" >/dev/null
+
+  _write_journal_header "$tid" "$title" "$worktree" "$body"
+  _journal_append "$tid" "Created"
+
+  local nid
+  nid=$(_resolve_id "$tid")
+  echo "Created $tid → taskbook id $nid, journal $journal"
+}
+
+cmd_comment() {
+  local tid=$1 text=$2
+  _require_id "$tid" >/dev/null
+  _journal_append "$tid" "$text"
+}
+
+cmd_block() {
+  local tid=$1 reason=$2 id
+  id=$(_require_id "$tid")
+  tb -m "@$id" "$PRIMARY_BOARD" "$BLOCKED_BOARD" "$tid" >/dev/null
+  _journal_append "$tid" "Blocked — $reason"
+}
+
+cmd_unblock() {
+  local tid=$1 id
+  id=$(_require_id "$tid")
+  tb -m "@$id" "$PRIMARY_BOARD" "$tid" >/dev/null
+  _journal_append "$tid" "Unblocked"
+}
+
+# Soft pause: agent did real work but is waiting on me (permission/approval/answer).
+# Distinct from `block` (truly stuck). Cleared by `unblock` or `complete`.
+cmd_needs_input() {
+  local tid=$1 reason=$2 id
+  id=$(_require_id "$tid")
+  tb -m "@$id" "$PRIMARY_BOARD" "$NEEDS_INPUT_BOARD" "$tid" >/dev/null
+  _journal_append "$tid" "Needs input — $reason"
+}
+
+cmd_complete() {
+  local tid=$1 handoff=$2 id
+  id=$(_require_id "$tid")
+  local already
+  already=$(jq -r --arg id "$id" '.[$id].isComplete' "$STORAGE")
+  if [ "$already" = "true" ]; then
+    echo "tb-ticket: $tid already complete; appending handoff to journal only" >&2
+  else
+    # drop transient boards (@blocked/@needs-input) before completing so a done
+    # ticket doesn't linger on those columns; keep @flutter + per-ticket board
+    tb -m "@$id" "$PRIMARY_BOARD" "$tid" >/dev/null
+    tb -c "$id" >/dev/null
+  fi
+  _journal_append "$tid" "Complete — $handoff"
+}
+
+cmd_id()   { _resolve_id "$1"; }
+cmd_show() { cat "$(_journal "$1")"; }
+
+cmd_help() {
+  cat <<'EOF'
+tb-ticket — hermes-style wrapper around taskbook for Ditto SDKS-* tickets
+
+Usage:
+  tb-ticket create   <TICKET-ID> "<title>" <worktree-path> [--body "<spec>"]
+  tb-ticket comment    <TICKET-ID> "<free-form progress note>"
+  tb-ticket block      <TICKET-ID> "<concrete one-sentence reason>"
+  tb-ticket needs-input <TICKET-ID> "<what you're waiting on me for>"
+  tb-ticket unblock    <TICKET-ID>
+  tb-ticket complete   <TICKET-ID> "<handoff: PR URL + summary>"
+  tb-ticket id         <TICKET-ID>          # numeric taskbook id, or empty
+  tb-ticket show       <TICKET-ID>          # cat the journal markdown
+
+State lives in two places:
+  - Taskbook JSON: ~/.taskbook/storage/storage.json   (kanban, multi-board)
+  - Journal:       ~/.taskbook-journals/<TICKET-ID>.md (narrative + links)
+
+Boards in use:
+  @flutter        — primary kanban (all in-flight tickets)
+  @<TICKET-ID>    — per-ticket board (so `tb -l <TICKET-ID>` works)
+  @blocked        — truly stuck; added by `block`, cleared by `unblock`
+  @needs-input    — soft pause awaiting me; added by `needs-input`, cleared by `unblock`/`complete`
+EOF
+}
+
+sub=${1:-help}
+shift || true
+case $sub in
+  create)   cmd_create   "$@" ;;
+  comment)  cmd_comment  "$@" ;;
+  block)    cmd_block    "$@" ;;
+  needs-input|needs_input) cmd_needs_input "$@" ;;
+  unblock)  cmd_unblock  "$@" ;;
+  complete) cmd_complete "$@" ;;
+  id)       cmd_id       "$@" ;;
+  show)     cmd_show     "$@" ;;
+  help|-h|--help) cmd_help ;;
+  *)
+    echo "tb-ticket: unknown subcommand '$sub'" >&2
+    cmd_help
+    exit 2
+    ;;
+esac

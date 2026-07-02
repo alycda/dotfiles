@@ -1,0 +1,665 @@
+[working-directory: 'main']
+help:
+    make help
+
+# starts work in headless mode, will exit when done but can resume with `claude -c` with optional "next prompt", also can resume from VSCode panel
+# logs to .agent-logs/<TICKET>.out (e.g. .agent-logs/SDKS-3626.out) so parallel runs don't collide on shared nohup.out
+# writes .agent-logs/<TICKET>.pid so `just status` can distinguish a running agent from a finished one
+chat prompt:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p .agent-logs
+    ticket=$(echo "{{prompt}}" | grep -oE '^[A-Z]+-[0-9]+' || echo "chat-$(date +%Y%m%d-%H%M%S)")
+    log=".agent-logs/${ticket}.out"
+    nohup claude --model opus --permission-mode acceptEdits -p "{{prompt}}. Follow the 'Starting work on a ticket' protocol in CLAUDE.md. Before you stop for any reason, record your terminal state in taskbook so the board is authoritative without anyone reading this log: when the PR is open, mark complete per the 'Closing the loop' protocol (tb-ticket complete); if you are paused waiting on my approval, permission, or an answer (not truly stuck), run tb-ticket needs-input SDKS-NNNN with a one-line reason; if you are truly stuck, run tb-ticket block SDKS-NNNN with a one-line reason. Then, as the very last line of your final message, also emit a machine-readable status sentinel on its own line in exactly this form: '::STATUS:: <state> — <detail>' where <state> is one of done|needs-input|blocked — use 'done' with the PR url as <detail> when a PR is open, 'needs-input' with a short reason when you are waiting on my approval or an answer, and 'blocked' with a one-line reason otherwise." > "$log" 2>&1 &
+    pid=$!
+    echo "$pid" > ".agent-logs/${ticket}.pid"
+    echo "Started agent for ${ticket} (PID $pid) → just status  (or tail -f ${log})"
+
+# dashboard of headless `just chat` agents. Working set = .agent-logs/*.out artifacts;
+# state is read from taskbook (authoritative — survives interactive resumes that
+# never touch the .out), falling back to the ::STATUS:: sentinel then a heuristic
+# scan. Completed tickets drop to a footer — run `just sweep` to archive them.
+status:
+    #!/usr/bin/env python3
+    import glob, json, os, re, subprocess, time
+    STORAGE = os.path.expanduser('~/.taskbook/storage/storage.json')
+    JOURNALS = os.path.expanduser('~/.taskbook-journals')
+    LOGS = '.agent-logs'
+    def taskbook_state():
+        out = {}
+        try:
+            d = json.load(open(STORAGE))
+        except Exception:
+            return out
+        for v in d.values():
+            if isinstance(v, dict) and v.get('_isTask'):
+                m = re.match(r'([A-Z]+-\d+)', v.get('description', ''))
+                if m:
+                    boards = v.get('boards', [])
+                    out[m.group(1)] = {'done': bool(v.get('isComplete')), 'blocked': '@blocked' in boards, 'needs_input': '@needs-input' in boards}
+        return out
+    def journal_pr(ticket):
+        p = os.path.join(JOURNALS, ticket + '.md')
+        if not os.path.exists(p):
+            return None
+        text = open(p).read()
+        # prefer the PR on the authoritative handoff line, not a sibling PR cited in a comment
+        for line in text.splitlines():
+            if ('PR opened' in line or 'Complete —' in line) and 'pull/' in line:
+                m = re.search(r'pull/(\d+)', line)
+                if m:
+                    return m.group(1)
+        nums = re.findall(r'pull/(\d+)', text)
+        return nums[-1] if nums else None
+    def journal_reason(ticket, prefix):
+        p = os.path.join(JOURNALS, ticket + '.md')
+        if os.path.exists(p):
+            hits = [l for l in open(p).read().splitlines() if prefix in l]
+            if hits:
+                return hits[-1].split(prefix, 1)[1].strip()
+        return ''
+    def alive(ticket):
+        # verify the PID's command still matches this ticket — PIDs get recycled, so existence alone lies
+        pidf = os.path.join(LOGS, ticket + '.pid')
+        if os.path.exists(pidf):
+            try:
+                pid = int(open(pidf).read().strip())
+                os.kill(pid, 0)
+                cmd = subprocess.run(['ps', '-p', str(pid), '-o', 'command='], capture_output=True, text=True).stdout
+                if 'claude' in cmd and re.search(re.escape(ticket) + r'(?!\d)', cmd):
+                    return True
+            except Exception:
+                pass
+        try:
+            r = subprocess.run(['pgrep', '-fl', 'permission-mode acceptEdits -p'], capture_output=True, text=True)
+            return any(re.search(re.escape(ticket) + r'(?!\d)', line) for line in r.stdout.splitlines())
+        except Exception:
+            return False
+    def sentinel(log):
+        try:
+            txt = open(log).read()
+        except Exception:
+            return None
+        ms = re.findall(r'::STATUS::\s*(done|needs-input|blocked)\b\s*[—-]*\s*(.*)', txt)
+        return ms[-1] if ms else None
+    def last(log):
+        return time.strftime('%m-%d %H:%M', time.localtime(os.path.getmtime(log)))
+    tb = taskbook_state()
+    logs = sorted(glob.glob(os.path.join(LOGS, '*.out')))
+    if not logs:
+        print(f'No agent logs ({LOGS}/*.out) found.')
+        raise SystemExit
+    done = []
+    for log in logs:
+        t = os.path.basename(log)[:-4]
+        st = tb.get(t, {})
+        if st.get('done'):
+            done.append((t, journal_pr(t)))
+            continue
+        if alive(t):
+            print(f'🟢 {t:12} RUNNING')
+            continue
+        se = sentinel(log)
+        # taskbook is authoritative for terminal states; sentinel/heuristic are fallback for agents that did not record
+        if st.get('needs_input'):
+            reason = journal_reason(t, 'Needs input — ') or (se[1] if se else '')
+            print(f'⏸️  {t:12} NEEDS YOU  {reason} (last {last(log)}) → cd {t} && claude -c')
+            continue
+        if st.get('blocked'):
+            reason = journal_reason(t, 'Blocked — ') or (se[1] if se else '')
+            print(f'⛔ {t:12} BLOCKED    {reason} (last {last(log)}) → cd {t} && claude -c')
+            continue
+        if se:
+            state, detail = se
+            if state == 'needs-input':
+                print(f'⏸️  {t:12} NEEDS YOU  {detail} (last {last(log)}) → cd {t} && claude -c')
+            elif state == 'blocked':
+                print(f'⛔ {t:12} BLOCKED    {detail} (last {last(log)}) → cd {t} && claude -c')
+            elif state == 'done':
+                print(f'✅ {t:12} DONE?      {detail}  (sentinel says done but taskbook does not — run tb-ticket complete {t})')
+            else:
+                print(f'⚪ {t:12} {state:10} {detail} (last {last(log)})')
+            continue
+        txt = open(log).read()
+        if re.search(r'github\.com/\S+/pull/\d+', txt):
+            url = re.findall(r'https://github\.com/\S+/pull/\d+', txt)[-1]
+            print(f'✅ {t:12} DONE?      {url}  (PR in log but taskbook not complete — run tb-ticket complete {t})')
+        elif re.search(r'requires approval|please approve|how would you like to proceed|blocked on|requires permission', txt, re.I):
+            print(f'⏸️  {t:12} NEEDS YOU  (last {last(log)}) → cd {t} && claude -c')
+        else:
+            print(f'⚪ {t:12} STOPPED    (last {last(log)}) → tail {log}')
+    if done:
+        labels = ', '.join(t + (f' (PR #{pr})' if pr else '') for t, pr in done)
+        print(f'— {len(done)} done: {labels}  → `just sweep` to archive merged')
+
+# archive run artifacts (.out/.pid) for tickets that are taskbook-complete AND whose
+# PR is MERGED, moving them from .agent-logs/ into .agent-archive/. Reversible (move,
+# not delete). A taskbook-complete ticket whose PR is still open/draft is kept, so you
+# never lose an in-flight review. Also removes the merged ticket's git worktree — but
+# ONLY if it is perfectly clean (no uncommitted or untracked changes); any dirt keeps
+# the worktree and reports it.
+sweep:
+    #!/usr/bin/env python3
+    import glob, json, os, re, subprocess, shutil
+    STORAGE = os.path.expanduser('~/.taskbook/storage/storage.json')
+    JOURNALS = os.path.expanduser('~/.taskbook-journals')
+    LOGS, REPO, ARCHIVE = '.agent-logs', 'getditto/ditto', '.agent-archive'
+    def taskbook_done():
+        out = set()
+        try:
+            d = json.load(open(STORAGE))
+        except Exception:
+            return out
+        for v in d.values():
+            if isinstance(v, dict) and v.get('_isTask') and v.get('isComplete'):
+                m = re.match(r'([A-Z]+-\d+)', v.get('description', ''))
+                if m:
+                    out.add(m.group(1))
+        return out
+    def journal_pr(ticket):
+        p = os.path.join(JOURNALS, ticket + '.md')
+        if not os.path.exists(p):
+            return None
+        text = open(p).read()
+        # prefer the PR on the authoritative handoff line, not a sibling PR cited in a comment
+        for line in text.splitlines():
+            if ('PR opened' in line or 'Complete —' in line) and 'pull/' in line:
+                m = re.search(r'pull/(\d+)', line)
+                if m:
+                    return m.group(1)
+        nums = re.findall(r'pull/(\d+)', text)
+        return nums[-1] if nums else None
+    def pr_state(ticket, num):
+        # returns 'merged' | 'unmerged' | 'mismatch' | None(gh error).
+        # 'mismatch' guards the destructive move: the journal PR# must belong to THIS ticket
+        # (Linear branch carries the ticket id, e.g. alycda/sdks-3976-...), not a sibling cited in a comment.
+        try:
+            r = subprocess.run(['gh', 'pr', 'view', num, '--repo', REPO, '--json', 'state,headRefName'], capture_output=True, text=True)
+            if r.returncode != 0:
+                return None
+            d = json.loads(r.stdout)
+            if ticket.lower() not in (d.get('headRefName') or '').lower():
+                return 'mismatch'
+            return 'merged' if d.get('state') == 'MERGED' else 'unmerged'
+        except Exception:
+            return None
+    done = taskbook_done()
+    archived, kept, removed_wt, kept_wt = [], [], [], []
+    for log in sorted(glob.glob(os.path.join(LOGS, '*.out'))):
+        t = os.path.basename(log)[:-4]
+        if t not in done:
+            continue
+        pr = journal_pr(t)
+        if not pr:
+            kept.append(f'{t}: complete but no PR# in journal — kept')
+            continue
+        s = pr_state(t, pr)
+        if s is None:
+            kept.append(f'{t}: PR #{pr} state unknown (gh failed) — kept')
+            continue
+        if s == 'mismatch':
+            kept.append(f'{t}: journal PR #{pr} does not belong to {t} — kept')
+            continue
+        if s != 'merged':
+            kept.append(f'{t}: PR #{pr} not merged yet — kept')
+            continue
+        os.makedirs(ARCHIVE, exist_ok=True)
+        for ext in ('.out', '.pid'):
+            src = os.path.join(LOGS, t + ext)
+            if os.path.exists(src):
+                shutil.move(src, os.path.join(ARCHIVE, t + ext))
+        archived.append(f'{t} (PR #{pr})')
+        # strict worktree removal: only when the worktree is perfectly clean (no dirt at all)
+        if os.path.isdir(t):
+            stt = subprocess.run(['git', '-C', t, 'status', '--porcelain'], capture_output=True, text=True)
+            if stt.returncode != 0:
+                kept_wt.append(f'{t}: worktree status check failed — left in place')
+            elif stt.stdout.strip():
+                kept_wt.append(f'{t}: worktree has local changes — left in place (just del {t} to remove)')
+            else:
+                rm = subprocess.run(['git', '-C', 'main', 'worktree', 'remove', os.path.abspath(t)], capture_output=True, text=True)
+                if rm.returncode == 0:
+                    removed_wt.append(t)
+                else:
+                    kept_wt.append(f'{t}: worktree remove failed ({rm.stderr.strip()[:60]}) — left in place')
+    for k in kept + kept_wt:
+        print('•', k)
+    print(f'📦 archived to {ARCHIVE}/: ' + ', '.join(archived) if archived else 'Nothing to archive.')
+    if removed_wt:
+        print('🌳 worktrees removed (were clean): ' + ', '.join(removed_wt))
+
+kb title profile wt:
+    hermes kanban create {{title}} --assignee {{profile}} --workspace dir:./{{wt}}
+
+# pass data to claude from a file
+hey-claude data prompt:
+    cat {{data}} | claude -p {{prompt}}
+
+# create new branch from main
+new ticket branch:
+    git worktree add -b {{branch}} {{ticket}} main
+
+# checkout existing branch
+old ticket branch:
+    git worktree add {{ticket}} {{branch}}
+
+del ticket:
+    git worktree remove {{ticket}}
+
+# Reclaim space by deleting git-ignored build artifacts in a worktree.
+# Scoped to target/ (cargo workspace output), sdks/, downstream/, and crates/
+# so root-level .envrc.override, .jj/, and .direnv/ are preserved. Removes only
+# ignored files (target/debug/, Xcode DerivedData/, .xcframework/, node_modules/,
+# etc.) — tracked files are never touched. Re-runnable; rebuild when you need
+# the artifacts back.
+clean dir='main':
+    cd {{dir}} && git clean -fdX -- target/ sdks/ downstream/ crates/
+
+rerun id:
+    gh run rerun {{id}}
+
+[working-directory: 'main']
+build:
+    make build-mac
+
+build-all dir='main':
+    cd {{dir}}
+    make build-mac && make build-ios && make build-flutter 
+
+[working-directory: 'main']
+build-wasm:
+    make -C examples/carsapp wasm
+
+[working-directory: 'main']
+build-flutter:
+    make build-flutter-apple
+
+test-flutter dir:
+    cd {{dir}} && ./sdks/flutter/run.sh ci test --targets native
+
+devices:
+    flutter devices
+
+# Copy expensive FFI build from main worktree to specified worktree
+copy ticket:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Copying FFI build from main to {{ticket}}..."
+
+    # Find the Rust target directory in main
+    MAIN_TARGET="main/target"
+    if [ ! -d "$MAIN_TARGET" ]; then
+        echo "Error: main/target directory not found. Build FFI in main first with 'just build'"
+        exit 1
+    fi
+
+    # Create target directory in destination worktree
+    mkdir -p "{{ticket}}/target"
+
+    # Copy the entire target directory (includes all architectures and profiles)
+    echo "Copying target directory..."
+    rsync -a --progress "$MAIN_TARGET/" "{{ticket}}/target/"
+
+    echo "✓ FFI build copied to {{ticket}}/target"
+
+    # Copy Flutter binaries if they exist
+    if [ -d "main/sdks/flutter/ditto_live/macos/DittoCore.xcframework" ]; then
+        echo "Copying Flutter macOS binaries..."
+        mkdir -p "{{ticket}}/sdks/flutter/ditto_live/macos"
+        rsync -a main/sdks/flutter/ditto_live/macos/DittoCore.xcframework/ "{{ticket}}/sdks/flutter/ditto_live/macos/DittoCore.xcframework/"
+        echo "✓ Flutter macOS binaries copied"
+    fi
+
+    if [ -d "main/sdks/flutter/ditto_live/ios/DittoCore.xcframework" ]; then
+        echo "Copying Flutter iOS binaries..."
+        mkdir -p "{{ticket}}/sdks/flutter/ditto_live/ios"
+        rsync -a main/sdks/flutter/ditto_live/ios/DittoCore.xcframework/ "{{ticket}}/sdks/flutter/ditto_live/ios/DittoCore.xcframework/"
+        echo "✓ Flutter iOS binaries copied"
+    fi
+
+# Copy WASM builds specifically from main worktree to specified worktree
+copy-wasm ticket:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Copying WASM builds from main to {{ticket}}..."
+
+    # Copy carsapp WASM build
+    if [ -f "main/examples/carsapp/wasm/carsapp.js" ]; then
+        echo "Copying carsapp WASM..."
+        mkdir -p "{{ticket}}/examples/carsapp/wasm"
+        cp -v main/examples/carsapp/wasm/carsapp.js "{{ticket}}/examples/carsapp/wasm/"
+        cp -v main/examples/carsapp/wasm/carsapp.wasm "{{ticket}}/examples/carsapp/wasm/"
+        echo "✓ Carsapp WASM copied"
+    else
+        echo "Warning: main/examples/carsapp/wasm/carsapp.js not found"
+        echo "Build WASM in main first with: cd main && make -C examples/carsapp wasm"
+    fi
+
+    # Copy vendor dependencies (cJSON, etc.)
+    if [ -d "main/examples/carsapp/vendor" ]; then
+        echo "Copying vendor dependencies..."
+        mkdir -p "{{ticket}}/examples/carsapp"
+        rsync -a main/examples/carsapp/vendor/ "{{ticket}}/examples/carsapp/vendor/"
+        echo "✓ Vendor dependencies copied"
+    fi
+
+    # Copy local JS SDK build (v5.x) - requires full build for ditto.es6.js
+    if [ -d "main/sdks/js/build/package/web" ]; then
+        echo "Copying local Ditto JS SDK (v5.x)..."
+        mkdir -p "{{ticket}}/examples/carsapp/wasm/ditto"
+        rsync -a main/sdks/js/build/package/web/ "{{ticket}}/examples/carsapp/wasm/ditto/"
+        echo "✓ Local JS SDK copied"
+    elif [ -d "main/examples/carsapp/wasm/ditto" ]; then
+        echo "Copying Ditto WASM files from wasm/ditto..."
+        mkdir -p "{{ticket}}/examples/carsapp/wasm"
+        rsync -a main/examples/carsapp/wasm/ditto/ "{{ticket}}/examples/carsapp/wasm/ditto/"
+        echo "✓ Ditto WASM files copied"
+    else
+        echo "Warning: No JS SDK build found. Build it with: cd main/sdks/js && npx jake build:web variants=web"
+    fi
+
+    echo "✓ WASM builds copied to {{ticket}}"
+
+# Run WASM Playwright tests in specified worktree (copies builds first)
+test-wasm ticket:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running WASM Playwright tests in {{ticket}}..."
+
+    # Copy WASM builds if not present
+    if [ ! -f "{{ticket}}/examples/carsapp/wasm/carsapp.js" ]; then
+        echo "WASM build not found, copying from main..."
+        just copy-wasm {{ticket}}
+    fi
+
+    # Install Playwright if not already installed
+    if [ ! -d "{{ticket}}/examples/carsapp/wasm/tests/node_modules" ]; then
+        echo "Installing Playwright..."
+        cd "{{ticket}}/examples/carsapp/wasm/tests" && npm install
+    fi
+
+    # Run tests
+    echo "Running Playwright tests..."
+    cd "{{ticket}}/examples/carsapp/wasm/tests" && npm test
+
+    echo "✓ WASM tests completed!"
+
+# Install Playwright in specified worktree
+install-playwright ticket:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Installing Playwright in {{ticket}}..."
+    cd "{{ticket}}/examples/carsapp/wasm/tests"
+    npm install
+    npx playwright install --with-deps chromium
+    echo "✓ Playwright installed in {{ticket}}"
+
+push dir:
+    cd {{dir}} && git push --no-verify
+
+# ---------------------------------------------------------------------------
+# Prebuilt libdittoffi fetch (mirrors PR #22526 — local until that PR lands)
+#
+# Resolves a published version from crates.io (override with DITTO_VERSION),
+# downloads the prebuilt static lib from software.ditto.live, and caches it
+# at ~/.cache/ditto/libdittoffi/{version}/{target}/ so all worktrees on the
+# same version share one download. Use `just env <dir>` to print the shell
+# exports needed to use the cached binary with plain cargo from a worktree.
+# ---------------------------------------------------------------------------
+
+host_target := `rustc --print host-tuple`
+base_url    := "https://software.ditto.live/rust/Ditto"
+cache_root  := home_directory() / ".cache" / "ditto" / "libdittoffi"
+
+# Resolve the best published libdittoffi version for a worktree.
+# Order: exact patch → closest major.minor (incl. prereleases) → same-major stable.
+# Override with DITTO_VERSION=x.y.z. dir defaults to 'main'.
+resolve-version dir='main':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ -n "${DITTO_VERSION:-}" ]]; then
+        echo "$DITTO_VERSION"
+        exit 0
+    fi
+    python3 - "{{dir}}" <<'PY'
+    import json, re, sys
+    from pathlib import Path
+    from urllib.request import Request, urlopen
+
+    dir_arg = sys.argv[1]
+    cargo_path = Path(dir_arg) / "sdks" / "rust" / "dittolive-ditto" / "Cargo.toml"
+    m = re.search(r'version\s*=\s*"(\d+)\.(\d+)\.(\d+)', cargo_path.read_text())
+    if not m:
+        sys.exit(f"error: could not parse version from {cargo_path}")
+
+    major, minor, patch = m.group(1), m.group(2), m.group(3)
+    exact         = f"{major}.{minor}.{patch}"
+    minor_prefix  = f"{major}.{minor}."
+    major_prefix  = f"{major}."
+    stable        = re.compile(r"^\d+\.\d+\.\d+$")
+
+    req = Request(
+        "https://crates.io/api/v1/crates/dittolive-ditto/versions",
+        headers={"User-Agent": "ditto-justfile"},
+    )
+    versions = json.load(urlopen(req))["versions"]  # newest-first
+    published = {v["num"] for v in versions if not v.get("yanked")}
+
+    if exact in published:
+        print(exact); sys.exit(0)
+    for v in versions:
+        if not v.get("yanked") and v["num"].startswith(minor_prefix):
+            print(v["num"]); sys.exit(0)
+    for v in versions:
+        if not v.get("yanked") and v["num"].startswith(major_prefix) and stable.match(v["num"]):
+            print(v["num"]); sys.exit(0)
+    sys.exit(
+        f"error: no published libdittoffi found for {major}.{minor}.x or {major}.x\n"
+        f"Build locally with: cd {dir_arg} && make build-mac (or appropriate make build-*)"
+    )
+    PY
+
+# Print resolved version, host target, and download URL for a worktree
+info dir='main':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version=$(just resolve-version {{dir}})
+    echo "worktree    : {{dir}}"
+    echo "sdk_version : $version"
+    echo "host_target : {{host_target}}"
+    echo "cache_dir   : {{cache_root}}/$version/{{host_target}}"
+    echo "fetch_url   : {{base_url}}/$version/{{host_target}}/release/libdittoffi.a"
+
+# Print shell exports for using the cached binary with plain cargo.
+# Usage: eval "$(just env <dir>)" && cd <dir> && cargo check --manifest-path sdks/rust/dittolive-ditto/Cargo.toml
+env dir='main':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version=$(just resolve-version {{dir}})
+    echo "export DITTOFFI_SEARCH_PATH={{cache_root}}/$version/{{host_target}}"
+    echo "export DITTO_LOCAL_BUILD=0"
+
+# Fetch prebuilt libdittoffi.a for the host platform (no-op if cached)
+fetch dir='main':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version=$(just resolve-version {{dir}})
+    cache_dir="{{cache_root}}/$version/{{host_target}}"
+    if [[ -f "$cache_dir/libdittoffi.a" ]]; then
+        echo "Already cached: $cache_dir/libdittoffi.a"
+        exit 0
+    fi
+    mkdir -p "$cache_dir"
+    curl -fL --progress-bar \
+        "{{base_url}}/$version/{{host_target}}/release/libdittoffi.a" \
+        -o "$cache_dir/libdittoffi.a"
+    echo "Saved to $cache_dir/libdittoffi.a"
+
+# Fetch prebuilt libdittoffi.a for a specific target triple (no-op if cached)
+# Usage: just fetch-target x86_64-unknown-linux-gnu [dir]
+fetch-target target dir='main':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version=$(just resolve-version {{dir}})
+    cache_dir="{{cache_root}}/$version/{{target}}"
+    if [[ -f "$cache_dir/libdittoffi.a" ]]; then
+        echo "Already cached: $cache_dir/libdittoffi.a"
+        exit 0
+    fi
+    mkdir -p "$cache_dir"
+    curl -fL --progress-bar \
+        "{{base_url}}/$version/{{target}}/release/libdittoffi.a" \
+        -o "$cache_dir/libdittoffi.a"
+    echo "Saved to $cache_dir/libdittoffi.a"
+
+# Fetch for Linux x86_64 (common Docker/CI target)
+fetch-linux dir='main':
+    just fetch-target x86_64-unknown-linux-gnu {{dir}}
+
+# cargo check inside <dir> using the fetched host prebuilt.
+# Note: sdks/rust/ is a separate Cargo workspace from the repo root, so
+# `-p dittolive-ditto` won't work from the root manifest. Use --manifest-path:
+#   just cargo-check main --manifest-path sdks/rust/dittolive-ditto/Cargo.toml
+cargo-check dir *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just fetch {{dir}}
+    version=$(just resolve-version {{dir}})
+    cd {{dir}}
+    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/{{host_target}}" \
+        cargo check {{args}}
+
+# cargo build inside <dir> using the fetched host prebuilt
+cargo-build dir *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just fetch {{dir}}
+    version=$(just resolve-version {{dir}})
+    cd {{dir}}
+    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/{{host_target}}" \
+        cargo build {{args}}
+
+# cargo test inside <dir> using the fetched host prebuilt
+cargo-test dir *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just fetch {{dir}}
+    version=$(just resolve-version {{dir}})
+    cd {{dir}}
+    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/{{host_target}}" \
+        cargo test {{args}}
+
+# ---------------------------------------------------------------------------
+# Flutter sanity-check helpers — sample any Dart-only SDK fix against a stock
+# published ditto_live without rebuilding native FFI artifacts. Pattern used
+# for SDKS-1888 spinner-canary validation (PR #22347).
+#
+# Workflow:
+#   1. just pub-patch ditto_live 5.0.0-rc.1 /tmp/ditto_live_patched
+#   2. Edit files inside /tmp/ditto_live_patched (cherry-pick the Dart fix)
+#   3. Add to the consuming app's pubspec.yaml:
+#        dependency_overrides:
+#          ditto_live:
+#            path: /tmp/ditto_live_patched
+#   4. just flutter-record-sim <flutter-app-dir> <sim-id> /tmp/after.mp4 &
+#   5. Tap the FAB / exercise the UI, then kill the recordVideo PID printed.
+# ---------------------------------------------------------------------------
+
+pub_cache := home_directory() / ".puro" / "shared" / "pub_cache" / "hosted" / "pub.dev"
+
+# Copy a published pub.dev package to a writable directory for in-place patching.
+# Use to sanity-check a Dart-only SDK fix against the stock native artifacts that
+# already ship with that version, avoiding a full FFI rebuild. Skips the copy if
+# <dst> already exists so re-runs are idempotent.
+pub-patch package version dst:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    src="{{pub_cache}}/{{package}}-{{version}}"
+    if [ ! -d "$src" ]; then
+        echo "error: $src not found. Run 'flutter pub get' in a project that depends on {{package}}: {{version}} first." >&2
+        exit 1
+    fi
+    if [ -e "{{dst}}" ]; then
+        echo "{{dst}} already exists — refusing to overwrite. Delete it first if you want a fresh copy." >&2
+        exit 1
+    fi
+    mkdir -p "$(dirname "{{dst}}")"
+    cp -R "$src" "{{dst}}"
+    chmod -R u+w "{{dst}}"
+    echo "✓ {{package}}@{{version}} → {{dst}} (writable, patch in place)"
+
+# Run a Flutter app on a booted iOS Simulator and start a screen recording in
+# parallel. The recording writes to <out>; kill the printed PID to stop it.
+# Useful for capturing UI-behavior evidence (e.g. main-thread blocking).
+flutter-record-sim dir sim out:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! xcrun simctl list devices booted | grep -q "{{sim}}"; then
+        echo "error: simulator {{sim}} is not booted. Boot one with: xcrun simctl boot {{sim}} && open -a Simulator" >&2
+        exit 1
+    fi
+    rm -f "{{out}}"
+    xcrun simctl io "{{sim}}" recordVideo --codec h264 "{{out}}" &
+    rec_pid=$!
+    echo "recordVideo PID: $rec_pid (writing to {{out}})"
+    echo "Stop with: kill $rec_pid"
+    cd "{{dir}}" && flutter run -d "{{sim}}" --debug
+
+# Check whether the main build cache is stale (default: stale if > 7 days)
+fresh-check days='7':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    paths=(
+        "main/target"
+        "main/sdks/flutter/ditto_live/macos/DittoCore.xcframework"
+        "main/sdks/flutter/ditto_live/ios/DittoCore.xcframework"
+        "main/sdks/cocoa/build"
+    )
+    threshold_sec=$(( {{days}} * 86400 ))
+    now=$(date +%s)
+    stale=0; missing=0; fresh=0
+    oldest_mtime=$now
+    for p in "${paths[@]}"; do
+        if [ ! -e "$p" ]; then
+            printf "  %-8s %s\n" "MISSING" "$p"
+            missing=$((missing+1)); continue
+        fi
+        mtime=$(stat -f %m "$p")
+        [ "$mtime" -lt "$oldest_mtime" ] && oldest_mtime=$mtime
+        age_days=$(( (now - mtime) / 86400 ))
+        if [ $((now - mtime)) -gt $threshold_sec ]; then
+            printf "  %-8s %s  (%dd)\n" "STALE" "$p" "$age_days"
+            stale=$((stale+1))
+        else
+            printf "  %-8s %s  (%dd)\n" "FRESH" "$p" "$age_days"
+            fresh=$((fresh+1))
+        fi
+    done
+    if [ -e main/.git ]; then
+        new_commits=$(cd main && git log --since="@$oldest_mtime" --oneline 2>/dev/null | wc -l | tr -d ' ')
+        [ "$new_commits" -gt 0 ] && echo "  $new_commits new commit(s) on main since the cache was last touched"
+    fi
+    echo
+    if [ $stale -gt 0 ] || [ $missing -gt 0 ]; then
+        echo "Cache is stale ($stale stale, $missing missing, $fresh fresh). Run: just freshen"
+        exit 1
+    fi
+    echo "Cache is fresh."
+
+# Clean rebuild of the main build cache from scratch (rerun weekly)
+freshen:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd main
+    rm -rf target sdks/flutter/ditto_live/macos/DittoCore.xcframework sdks/flutter/ditto_live/ios/DittoCore.xcframework sdks/cocoa/build
+    make build-mac
+    make build-ios
+    make build-flutter
+    date "+✓ Build cache rebuilt at %Y-%m-%d %H:%M"
+
+kanban issue cycle:
+    hermes kanban create "[{{cycle}}] {{issue}}" --idempotency-key {{issue}}
+
+my-notes:
+    tb -l notes
