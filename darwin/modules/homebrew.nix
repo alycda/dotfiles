@@ -26,6 +26,7 @@ _:
       "pcre2"
       "sem-cli"         # Semantic Diff (ataraxy-labs/sem)
       "swig@4.2.1"      # Ditto
+      "worktrunk" # git worktree management for parallel AI agent workflows
       "z3"              # Ditto
     ];
 
