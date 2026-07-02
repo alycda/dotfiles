@@ -1,0 +1,34 @@
+{
+  "_comment": [
+    "Trimmed capture of ~/.claude.json (2026-07-01). The live file is Claude Code",
+    "runtime state (76 keys: caches, per-project session metrics, account/machine",
+    "IDs, the full worktree directory map) and must NOT be tracked verbatim in a",
+    "public repo. Only the durable, restore-worthy config is captured here.",
+    "HACKMD_API_TOKEN is redacted — restore it from a secret store (agenix /",
+    "1Password); the same token is also configured in Claude Desktop's",
+    "claude_desktop_config.json.",
+    "projectMcpServers is a reference section (not a real ~/.claude.json key):",
+    "the deduped per-project MCP servers found across the live file's projects",
+    "map. Re-add per project with `claude mcp add`."
+  ],
+  "mcpServers": {
+    "hackmd": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "hackmd-mcp"],
+      "env": {
+        "HACKMD_API_TOKEN": "<REDACTED>"
+      }
+    }
+  },
+  "projectMcpServers": {
+    "linear-server": { "type": "http", "url": "https://mcp.linear.app/mcp" },
+    "notion": { "type": "http", "url": "https://mcp.notion.com/mcp" },
+    "slack": {
+      "type": "http",
+      "url": "https://mcp.slack.com/mcp",
+      "oauth": { "callbackPort": 3118, "clientId": "1601185624273.8899143856786" }
+    },
+    "dart": { "type": "stdio", "command": "dart", "args": ["mcp-server"], "env": {} }
+  }
+}
