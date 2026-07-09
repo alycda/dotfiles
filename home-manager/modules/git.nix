@@ -13,6 +13,14 @@
     };
   };
 
+  # The agenix mount script symlinks secretsDir into place with `ln -sfn` but
+  # does not create its parent. On a fresh account ~/.local/share does not
+  # exist yet, so the first activation decrypts secrets and then fails to link
+  # them (observed on the dotfiles-ci VM, 2026-07-09). Ensure the parent early.
+  home.activation.ensureAgenixSecretsDirParent = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run mkdir -p "$HOME/.local/share"
+  '';
+
   programs.git = {
     enable = true;
 

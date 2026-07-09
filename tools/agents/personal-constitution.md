@@ -76,7 +76,3 @@ This is a working draft. Re-interrogate it on the same cadence as my permanent n
 
 ### why a bee?
 The bee comes from SCAD, my alma mater — its mascot, Art T. Bee. The "shouldn't be able to fly, flies anyway" framing is the school's own (Paula Wallace, World Bee Day, May 2025).
-
----
-
-https://hackmd.io/@alyda/BySssxZGGx

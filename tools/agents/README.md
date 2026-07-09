@@ -8,7 +8,11 @@ This replaces the old "public HackMD note as the runtime source" pattern, which
 had recurring failure modes: rate-limited fetches, models reasoning away
 "read this URL first", re-fetching stable context, and exposing the shape of the
 behavioral control surface publicly. HackMD can remain a read-mostly mirror for
-sharing; it is no longer the canonical runtime source.
+sharing; it is no longer the canonical runtime source. Mirror links live here
+(non-runtime docs), never inside the layer files themselves — the layers are
+runtime prompt content and must not carry remote-source pointers:
+
+- Personal constitution mirror: <https://hackmd.io/@alyda/BySssxZGGx>
 
 See issue [#40](https://github.com/alycda/dotfiles/issues/40).
 
@@ -42,7 +46,11 @@ private overlay authoritative on conflict.
   `path` — the plaintext lives in the agenix runtime dir, **not** the Nix store,
 - creates Claude include symlinks under `~/.claude/includes/` pointing at the
   `~/.agents/` paths (out-of-store symlinks, so decryption/edits flow through one
-  place).
+  place),
+- idempotently appends the `@includes/agents-*.md` imports to
+  `~/.claude/CLAUDE.md` so Claude actually loads the layers,
+- symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
+  natively.
 
 > **Store-safety invariant:** never `builtins.readFile` the overlay or generate a
 > store path containing decrypted instructions. The plaintext only ever exists at
@@ -65,7 +73,9 @@ Decryption on a machine requires the private identity at
 
 ## Surface integration
 
-- **Claude Code.** Add local imports to your `CLAUDE.md` (never a URL):
+- **Claude Code.** Managed — no manual step. Activation idempotently appends
+  these local imports (never a URL) to `~/.claude/CLAUDE.md`, after the
+  include symlinks exist (same pattern as the outbound-comment gate):
 
   ```md
   @includes/agents-company-values.md
@@ -73,12 +83,15 @@ Decryption on a machine requires the private identity at
   @includes/agents-instructions.private.md
   ```
 
-  The `~/.claude/includes/*` symlinks are created by the module. On a fresh
-  machine the private include may briefly dangle until agenix decrypts during
-  activation — that is expected and resolves after the first switch.
+  On a fresh machine the private include may briefly dangle until agenix
+  decrypts during activation — that is expected; Claude Code skips
+  unresolvable imports and the public layers still load.
 
-- **Codex / GPT-native.** Point the tool at `~/.agents/AGENTS.md` (its native
-  path), or prepend the file contents into the system/developer prompt.
+- **Codex / GPT-native.** Managed — the module symlinks `~/.codex/AGENTS.md`
+  (Codex's native path) to `~/.agents/AGENTS.md`. A pre-existing hand-edited
+  `~/.codex/AGENTS.md` is adopted as `AGENTS.md.hm-backup`
+  (`home-manager.backupFileExtension`); fold anything you still need from it
+  into the layers or the private overlay.
 
 - **API / CI wrappers.** Concatenate the local file contents directly into the
   system prompt. Do **not** instruct the model to fetch HackMD from CI/API paths
@@ -99,7 +112,8 @@ Decryption on a machine requires the private identity at
 1. Clone dotfiles and ensure the age identity exists at `~/.age/personal-key.txt`.
 2. Run a home-manager switch. Public layers deploy immediately; the overlay
    decrypts to `~/.agents/instructions.private.md`.
-3. Verify: `ls -l ~/.agents ~/.claude/includes` and `just agents-capsule`.
+3. Verify: `ls -l ~/.agents ~/.claude/includes ~/.codex/AGENTS.md`,
+   `grep agents- ~/.claude/CLAUDE.md`, and `just agents-capsule`.
 
 ## Non-goals
 

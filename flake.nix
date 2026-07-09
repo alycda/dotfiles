@@ -82,6 +82,9 @@
               home-manager = {
                 useGlobalPkgs = true;
                 useUserPackages = true;
+                # Adopt pre-existing hand-edited files (e.g. ~/.codex/AGENTS.md)
+                # as *.hm-backup instead of failing activation.
+                backupFileExtension = "hm-backup";
                 extraSpecialArgs = { inherit nix-vscode-extensions; };
                 users.${username} = {
                   imports = [

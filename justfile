@@ -86,10 +86,13 @@ agents-capsule:
     printf 'Source: alycda/dotfiles + private overlay\n'
     printf 'Generated: %s\n' "$(date +%Y-%m-%d)"
     printf 'Version/hash: %s\n' "$(git -C {{justfile_directory()}} rev-parse --short HEAD 2>/dev/null || echo unknown)"
-    for f in company-values.md personal-constitution.md instructions.private.md; do
+    # AGENTS.md first: the capsule must carry the entrypoint's precedence and
+    # composition contract, not just the layer bodies. Its @import lines are
+    # dropped — inert in a paste, and the layers are inlined right below.
+    for f in AGENTS.md company-values.md personal-constitution.md instructions.private.md; do
       if [ -f "$agents/$f" ]; then
         printf '\n<!-- %s -->\n\n' "$f"
-        cat "$agents/$f"
+        sed '/^@/d' "$agents/$f"
       fi
     done
 

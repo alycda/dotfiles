@@ -1,9 +1,10 @@
 # Agent Instructions (canonical entrypoint)
 
-Canonical, cross-agent instruction surface. Codex/GPT-native tools read
-`AGENTS.md` directly; Claude-oriented tools reach the same content through a
-`CLAUDE.md` shim (`@AGENTS.md`) or through `~/.claude/includes/` symlinks. Keep
-substantive instructions in the layers below, not inline here — this file is the
+Canonical, cross-agent instruction surface. Codex/GPT-native tools read this
+file directly (deployed at `~/.agents/AGENTS.md`, symlinked from
+`~/.codex/AGENTS.md`); Claude-oriented tools load the same layers through
+managed `@includes/` imports in `~/.claude/CLAUDE.md`. Keep substantive
+instructions in the layers below, not inline here — this file is the
 composition point, not the content.
 
 ## Layers (lowest to highest precedence)
@@ -18,12 +19,20 @@ conflicts with the public layers.
 
 ## Composition
 
-For Claude surfaces (which expand `@path` imports relative to this file):
+Public layers (home-anchored paths, so they resolve no matter where this file
+is read from — `~/.agents/`, `~/.codex/`, or a paste):
 
-@company-values.md
-@personal-constitution.md
-@instructions.private.md
+@~/.agents/company-values.md
+@~/.agents/personal-constitution.md
 
-On a fresh machine the private overlay may be absent (identity not yet present).
-That is expected — proceed with the public layers rather than fetching anything
-remote. See `README.md` for the deploy, decrypt, and capsule flows.
+Surfaces that don't expand `@` imports: read those two local files, in that
+order.
+
+**Private overlay.** When `~/.agents/instructions.private.md` exists, load it
+too; it is authoritative where it conflicts with the public layers. Claude
+surfaces get it via a managed import in `~/.claude/CLAUDE.md`, so it is
+deliberately **not** imported here — on a fresh machine (age identity not yet
+restored) the file is absent, and this public entrypoint must still load
+cleanly on surfaces that treat missing imports as fatal. If the overlay is
+absent: proceed with the public layers; never fetch anything remote to
+substitute for it. See `README.md` for the deploy, decrypt, and capsule flows.
