@@ -1,0 +1,57 @@
+{
+  "//": [
+    "Codex PreToolUse hook gate: mechanical never-post enforcement for the",
+    "drafting arm (codex-side counterpart of tools/claude/rules/outbound-comment-gate.md).",
+    "",
+    "INSTALL (once, interactive): merge the PreToolUse entries below into the",
+    "codex hooks config (see `/hooks` inside codex, or hooks.json per",
+    "https://learn.chatgpt.com/docs/hooks), then trust the definition when",
+    "codex prompts. Codex trust is hash-pinned: any edit to a hook requires",
+    "re-trust, which is exactly the tamper-evidence we want. Never run with",
+    "--dangerously-bypass-hook-trust.",
+    "",
+    "STEP 1 — PROBE (run first, once): enable only the `probe-log` entry and do",
+    "one real `ticket-drafts-run`. Then inspect ~/.agents/outbox/hook-probe.log:",
+    "if Linear/Calendar connector tool names appear, connector calls ARE",
+    "hook-visible -> enable the deny entry and record hook_gate_active=true",
+    "(export TICKET_DRAFTS_HOOK_GATE=true in the wrapper environment).",
+    "If they do NOT appear, connectors bypass hooks -> record the finding in",
+    "the bundle README + triage doc and promote the frozen-snapshot increment;",
+    "set TICKET_DRAFTS_HOOK_GATE=false so run records carry honest provenance.",
+    "",
+    "The matcher regex is written against Linear MUTATION tool-name shapes",
+    "(create/update/delete/save comment|issue|attachment). Verify actual tool",
+    "names from the probe log and tighten the regex to what is real before",
+    "trusting the deny hook. Field names below follow the documented",
+    "hooks.json shape; confirm against `/hooks` on the installed codex version",
+    "(0.143.0 at authoring time) during install."
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "comment": "probe-log: records every tool name codex attempts; never blocks",
+        "matcher": ".*",
+        "enabled": false,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '\"\\(now|todate) \\(.tool_name // .toolName // \"unknown\")\"' >> \"$HOME/.agents/outbox/hook-probe.log\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "comment": "never-post-linear: deny any Linear mutation tool call",
+        "matcher": "(?i)linear.*(create|update|delete|save|add|post)|(create|update|delete|save|add|post).*(comment|issue|attachment).*linear",
+        "enabled": true,
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"decision\":\"block\",\"reason\":\"never-post invariant: the drafting arm outputs text only; posting happens exclusively through ticket-drafts-review after human approval\"}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
