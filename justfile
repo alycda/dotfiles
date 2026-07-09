@@ -75,3 +75,25 @@ _nix-check file:
 _login:
     gh auth login --web
     claude login
+
+# Assemble the combined agent instruction capsule (public layers + local overlay)
+[group('agents')]
+agents-capsule:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    agents="$HOME/.agents"
+    printf 'Agent instruction capsule\n'
+    printf 'Source: alycda/dotfiles + private overlay\n'
+    printf 'Generated: %s\n' "$(date +%Y-%m-%d)"
+    printf 'Version/hash: %s\n' "$(git -C {{justfile_directory()}} rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    for f in company-values.md personal-constitution.md instructions.private.md; do
+      if [ -f "$agents/$f" ]; then
+        printf '\n<!-- %s -->\n\n' "$f"
+        cat "$agents/$f"
+      fi
+    done
+
+# Copy the compiled capsule to the clipboard (macOS pbcopy)
+[group('agents')]
+agents-copy:
+    just agents-capsule | pbcopy && echo "Copied agent capsule to clipboard"
