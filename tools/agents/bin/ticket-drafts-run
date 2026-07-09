@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+# ticket-drafts-run — drafting arm of the daily-ticket-status-drafts harness.
+#
+# Modes:
+#   (default)        daily batch (F1): draft for all active tickets
+#   --ticket <ID>    single ticket (F2): skips the daily gates
+#   --dry-run        validation: auth preflight + codex context run, records
+#                    land in the outbox marked dry_run (review ignores them)
+#   --repo <path>    dotfiles checkout for the rage secret fallback
+#
+# Default-red: exit 0 only when the outbox gained pending drafts or an
+# evidence-carrying skip record. Every failure gets a distinct reason:
+#   auth | connector | rate-limit | timeout | malformed-output | incomplete
+#   | evidence-free-skip | placeholder-secret
+# (an `incomplete` run still writes its valid drafts, marked partial_run).
+#
+# The agent never writes files (codex runs with a read-only sandbox) and never
+# posts (see hooks/never-post-linear.json). This wrapper owns all outbox writes.
+set -euo pipefail
+
+SENTINEL="AGENTS-TASK-PLACEHOLDER-SENTINEL"
+TASK="daily-ticket-status-drafts"
+OUTBOX="$HOME/.agents/outbox/$TASK"
+AGENIX_DIR="$HOME/.local/share/agenix"
+AGE_KEY="$HOME/.age/personal-key.txt"
+
+TICKET=""
+DRY_RUN=0
+REPO=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --ticket) TICKET="${2:?--ticket needs an ID}"; shift 2 ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    --repo) REPO="${2:?--repo needs a path}"; shift 2 ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+RUN_ID="$(date +%H%M%S)-$$"
+RUN_DATE="$(date +%F)"
+mkdir -p "$OUTBOX"
+
+red() { # reason, message
+  local reason="$1" msg="$2"
+  jq -n --arg reason "$reason" --arg msg "$msg" --arg run_id "$RUN_ID" \
+    --arg date "$RUN_DATE" --argjson dry "$([ "$DRY_RUN" = 1 ] && echo true || echo false)" \
+    '{kind:"run", status:"red", reason:$reason, message:$msg, run_id:$run_id,
+      run_date:$date, dry_run:$dry, hook_gate_active:(env.TICKET_DRAFTS_HOOK_GATE // "unknown"),
+      created_at:(now|todate)}' \
+    > "$OUTBOX/$RUN_DATE-run-$RUN_ID.json"
+  echo "RED ($reason): $msg" >&2
+  exit 1
+}
+
+# --- secret resolution: agenix runtime path first, rage fallback -------------
+# Decrypted content lives only in shell variables; never written to disk here.
+resolve_secret() { # name -> stdout
+  local name="$1"
+  if [ -r "$AGENIX_DIR/$name" ]; then
+    cat "$AGENIX_DIR/$name"
+    return
+  fi
+  local repo="$REPO"
+  [ -n "$repo" ] || repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." 2>/dev/null && pwd)"
+  local cipher="$repo/secrets/personal/$name.age"
+  if [ -r "$AGE_KEY" ] && [ -r "$cipher" ]; then
+    rage -d -i "$AGE_KEY" "$cipher"
+    return
+  fi
+  echo "cannot resolve secret '$name': no $AGENIX_DIR/$name and no usable rage fallback (key: $AGE_KEY, cipher: $cipher)" >&2
+  return 1
+}
+
+# --- validate ticket argument early ------------------------------------------
+if [ -n "$TICKET" ] && ! printf '%s' "$TICKET" | grep -Eq '^[A-Z][A-Z0-9]*-[0-9]+$'; then
+  red "malformed-output" "invalid ticket id format: $TICKET"
+fi
+
+# --- preflight: codex present + logged in (R7 / AE5) --------------------------
+command -v codex >/dev/null 2>&1 || red "auth" "codex CLI not found on PATH"
+if ! codex login status >/dev/null 2>&1; then
+  red "auth" "codex login status reports not logged in"
+fi
+
+# --- resolve + sentinel-check the prompt --------------------------------------
+# Resolution order: deployed agenix path (post-activation) > agenix runtime dir
+# > rage fallback against the repo ciphertext.
+PROMPT_BODY=""
+if [ -r "$HOME/.agents/tasks/$TASK/prompt.md" ]; then
+  PROMPT_BODY="$(cat "$HOME/.agents/tasks/$TASK/prompt.md")"
+else
+  PROMPT_BODY="$(resolve_secret ticket-drafts-prompt || true)"
+fi
+[ -n "$PROMPT_BODY" ] || red "placeholder-secret" "prompt secret unresolvable (agenix path and rage fallback both failed)"
+if printf '%s' "$PROMPT_BODY" | grep -qF "$SENTINEL"; then
+  red "placeholder-secret" "prompt secret is the committed placeholder — run: agenix -e secrets/personal/ticket-drafts-prompt.age"
+fi
+
+# --- locate the output schema --------------------------------------------------
+SCHEMA=""
+for cand in \
+  "$HOME/.agents/tasks/$TASK/output-schema.json" \
+  "${REPO:+$REPO/tools/agents/tasks/$TASK/output-schema.json}" \
+  "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/tasks/$TASK/output-schema.json"; do
+  [ -n "$cand" ] && [ -r "$cand" ] && SCHEMA="$cand" && break
+done
+[ -n "$SCHEMA" ] || red "malformed-output" "output-schema.json not found (deploy the bundle or pass --repo)"
+
+# --- compose the run prompt ----------------------------------------------------
+MODE_NOTE="Daily batch mode: apply every step including the calendar (PTO/holiday) gate and the already-commented-today check."
+if [ -n "$TICKET" ]; then
+  MODE_NOTE="Single-ticket mode: draft ONLY for ticket $TICKET. Skip the calendar gate and the already-commented-today check."
+fi
+if [ "$DRY_RUN" = 1 ]; then
+  MODE_NOTE="$MODE_NOTE This is a DRY RUN for pipeline validation: perform the real context gathering (calendar + Linear reads) but emit at most one draft."
+fi
+
+FULL_PROMPT="$PROMPT_BODY
+
+---
+$MODE_NOTE
+Return ONLY the JSON described by the output schema. Set skip.reason=connector-error with details in skip.evidence if ANY tool/connector call fails — never report no-active-tickets when a tool failed. Set complete=false honestly if you could not consider every active ticket; your valid drafts are still kept. NEVER post, create, or modify anything in Linear or any other system: you draft text as output only."
+
+# --- invoke codex ---------------------------------------------------------------
+LASTMSG="$(mktemp -t ticket-drafts-lastmsg)"
+SCRATCH="$(mktemp -d -t ticket-drafts-work)"
+trap 'rm -rf "$SCRATCH"' EXIT
+
+TIMEOUT_SECS="${TICKET_DRAFTS_TIMEOUT:-600}"
+CODEX_ARGS=(exec --skip-git-repo-check -s read-only -C "$SCRATCH"
+  --output-schema "$SCHEMA" -o "$LASTMSG" --color never -)
+CODEX_RC=0
+if command -v timeout >/dev/null 2>&1; then
+  printf '%s' "$FULL_PROMPT" \
+    | timeout "$TIMEOUT_SECS" codex "${CODEX_ARGS[@]}" >/dev/null 2>"$SCRATCH/stderr" || CODEX_RC=$?
+else
+  # macOS pre-activation path (no coreutils timeout): background watchdog
+  printf '%s' "$FULL_PROMPT" \
+    | codex "${CODEX_ARGS[@]}" >/dev/null 2>"$SCRATCH/stderr" & CODEX_PID=$!
+  ( sleep "$TIMEOUT_SECS" && kill "$CODEX_PID" 2>/dev/null ) >/dev/null 2>&1 & WATCHDOG=$!
+  wait "$CODEX_PID" || CODEX_RC=$?
+  kill "$WATCHDOG" 2>/dev/null || true
+fi
+unset PROMPT_BODY FULL_PROMPT
+
+if [ "$CODEX_RC" = 124 ] || [ "$CODEX_RC" = 143 ]; then
+  red "timeout" "codex exec exceeded ${TIMEOUT_SECS}s"
+fi
+if grep -qiE 'rate.?limit|plan limit|usage limit' "$SCRATCH/stderr" 2>/dev/null; then
+  red "rate-limit" "$(tail -1 "$SCRATCH/stderr")"
+fi
+if [ "$CODEX_RC" != 0 ] && [ ! -s "$LASTMSG" ]; then
+  red "malformed-output" "codex exec exited $CODEX_RC with no final message ($(tail -1 "$SCRATCH/stderr" 2>/dev/null || echo 'no stderr'))"
+fi
+
+# --- validate output against the contract ---------------------------------------
+preserve_raw() { cp "$LASTMSG" "$OUTBOX/$RUN_DATE-raw-$RUN_ID.json" 2>/dev/null || true; }
+
+jq -e . "$LASTMSG" >/dev/null 2>&1 || { preserve_raw; red "malformed-output" "final message is not valid JSON (raw preserved)"; }
+RESULT="$(jq -r '.result // empty' "$LASTMSG")"
+case "$RESULT" in drafts|skip) ;; *) preserve_raw; red "malformed-output" "result must be drafts|skip (raw preserved)";; esac
+
+COMPLETE="$(jq -r '.complete' "$LASTMSG")"
+N_DRAFTS="$(jq -r '.drafts // [] | length' "$LASTMSG")"
+
+write_draft_records() { # marker: "" or partial
+  local partial="$1" i ticket existing
+  for i in $(seq 0 $((N_DRAFTS - 1))); do
+    ticket="$(jq -r ".drafts[$i].ticket_id" "$LASTMSG")"
+    printf '%s' "$ticket" | grep -Eq '^[A-Z][A-Z0-9]*-[0-9]+$' || continue
+    # supersede: transition today's existing pending record(s) for this ticket
+    for existing in "$OUTBOX/$RUN_DATE-$ticket-"*.json; do
+      [ -e "$existing" ] || continue
+      if [ "$(jq -r '.state' "$existing" 2>/dev/null)" = "pending" ]; then
+        jq '.state = "superseded" | .superseded_at = (now|todate)' "$existing" > "$existing.tmp" && mv "$existing.tmp" "$existing"
+      fi
+    done
+    jq -n --arg date "$RUN_DATE" --arg run_id "$RUN_ID" --slurpfile msg "$LASTMSG" --argjson i "$i" \
+      --argjson partial "$([ -n "$partial" ] && echo true || echo false)" \
+      --argjson dry "$([ "$DRY_RUN" = 1 ] && echo true || echo false)" \
+      '{kind:"draft", schema_version:1, task:"daily-ticket-status-drafts",
+        ticket_id:$msg[0].drafts[$i].ticket_id, ticket_title:$msg[0].drafts[$i].ticket_title,
+        draft_text:$msg[0].drafts[$i].body, movement_summary:($msg[0].drafts[$i].movement_summary // null),
+        state:"pending", run_id:$run_id, run_date:$date, partial_run:$partial, dry_run:$dry,
+        calendar_checked:$msg[0].calendar_checked,
+        hook_gate_active:(env.TICKET_DRAFTS_HOOK_GATE // "unknown"),
+        created_at:(now|todate)}' \
+      > "$OUTBOX/$RUN_DATE-$ticket-$RUN_ID.json"
+  done
+}
+
+if [ "$RESULT" = "skip" ]; then
+  REASON="$(jq -r '.skip.reason // empty' "$LASTMSG")"
+  EVIDENCE="$(jq -r '.skip.evidence // empty' "$LASTMSG")"
+  [ "$REASON" = "connector-error" ] && { preserve_raw; red "connector" "agent reported connector failure: $EVIDENCE"; }
+  { [ -z "$REASON" ] || [ -z "$EVIDENCE" ]; } && { preserve_raw; red "evidence-free-skip" "skip without reason+evidence (raw preserved)"; }
+  jq -n --arg date "$RUN_DATE" --arg run_id "$RUN_ID" --arg reason "$REASON" --arg evidence "$EVIDENCE" \
+    --argjson calendar "$(jq '.calendar_checked' "$LASTMSG")" \
+    --argjson dry "$([ "$DRY_RUN" = 1 ] && echo true || echo false)" \
+    '{kind:"skip", status:"green", reason:$reason, evidence:$evidence, run_id:$run_id,
+      run_date:$date, calendar_checked:$calendar, dry_run:$dry, created_at:(now|todate)}' \
+    > "$OUTBOX/$RUN_DATE-skip-$RUN_ID.json"
+  echo "GREEN (skip: $REASON) — $EVIDENCE"
+  exit 0
+fi
+
+# result = drafts
+if [ "$N_DRAFTS" = 0 ]; then
+  preserve_raw
+  red "evidence-free-skip" "result=drafts with zero drafts and no skip record (raw preserved)"
+fi
+if [ "$COMPLETE" != "true" ]; then
+  write_draft_records partial
+  preserve_raw
+  red "incomplete" "run attested complete=false; $N_DRAFTS draft(s) preserved as pending (partial_run)"
+fi
+write_draft_records ""
+echo "GREEN — $N_DRAFTS pending draft(s) in $OUTBOX ($RUN_DATE, run $RUN_ID)$([ "$DRY_RUN" = 1 ] && echo ' [dry-run]')"
