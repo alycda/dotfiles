@@ -15,6 +15,7 @@ in
     # directly. In a container you use VS Code Remote: the GUI runs on the host
     # and connects in, so `code` is never needed inside.
     ./dev/nix-lang.nix
+    ./tools/agents.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
     ./tools/gh-dash.nix
