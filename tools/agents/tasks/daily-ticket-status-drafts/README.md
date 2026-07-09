@@ -42,7 +42,10 @@ mechanical PreToolUse deny on Linear mutations (see below).
    `agenix -e secrets/personal/linear-api-key.age` (single line, no quotes).
 3. Hook gate: install and trust `hooks/never-post-linear.json` per the
    comments in that file (codex requires interactive trust of the exact hook
-   definition once; re-trust on any change — tamper-evident by design).
+   definition once; re-trust on any change — tamper-evident by design). After
+   the probe step, record the outcome in
+   `~/.agents/tasks/daily-ticket-status-drafts/hook-gate-state` (`true` or
+   `false`) — the wrapper stamps it into every record as `hook_gate_active`.
 4. Without a darwin-rebuild the scripts still work: they fall back to
    `rage -d -i ~/.age/personal-key.txt` against this repo's ciphertexts. After
    activation (home-manager module `agent-tasks.nix`), secrets resolve from

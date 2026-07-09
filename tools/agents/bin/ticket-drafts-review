@@ -45,20 +45,25 @@ log_decision() { # ticket, record, action, extra-json
     '{ts:(now|todate), ticket:$ticket, record:$record, action:$action, extra:$extra}' >> "$DECISIONS"
 }
 
-update_record() { # file, jq-program
+update_record() { # file, jq-program, [extra jq args...]
   local f="$1" prog="$2"
-  jq "$prog" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+  shift 2
+  jq "$@" "$prog" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
 }
 
 state_of() { jq -r '.state // empty' "$1" 2>/dev/null; }
 
 # --- lazy expiry pass (R10): spike stale pendings; post_failed exempt ---------
+# dry_run records are validation noise: spiked silently, never logged as
+# decisions (decisions.jsonl is the A/B dataset).
 for f in "$OUTBOX"/*.json; do
   [ -e "$f" ] || continue
   [ "$(jq -r '.kind // empty' "$f")" = "draft" ] || continue
   if [ "$(state_of "$f")" = "pending" ] && [ "$(jq -r '.run_date' "$f")" != "$TODAY" ]; then
     update_record "$f" '.state = "spiked" | .spiked_at = (now|todate)'
-    log_decision "$(jq -r '.ticket_id' "$f")" "$(basename "$f")" "spike" null
+    if [ "$(jq -r '.dry_run // false' "$f")" != "true" ]; then
+      log_decision "$(jq -r '.ticket_id' "$f")" "$(basename "$f")" "spike" null
+    fi
   fi
 done
 
@@ -74,8 +79,11 @@ collect() { # state, date-filter(optional "today")
     printf '%s\n' "$f"
   done
 }
+# Retry surface: post_failed AND approved — an interrupt/decline between
+# approval and post completion leaves state=approved, which must resurface
+# (frozen text exists) rather than becoming invisible.
 FAILED=()
-while IFS= read -r line; do [ -n "$line" ] && FAILED+=("$line"); done < <(collect post_failed)
+while IFS= read -r line; do [ -n "$line" ] && FAILED+=("$line"); done < <(collect post_failed; collect approved)
 PENDING=()
 while IFS= read -r line; do [ -n "$line" ] && PENDING+=("$line"); done < <(collect pending today)
 
@@ -123,10 +131,12 @@ resolve_key() {
 LINEAR_KEY="$(resolve_key)" || exit 1
 
 gql() { # query, variables-json -> response body (key via fd, never argv)
+  local vars="${2:-}"
+  [ -n "$vars" ] || vars='{}'
   curl -sS --fail-with-body --max-time 30 \
     -H "Content-Type: application/json" \
     -H @<(printf 'Authorization: %s\n' "$LINEAR_KEY") \
-    -d "$(jq -n --arg q "$1" --argjson v "${2:-{}}" '{query:$q, variables:$v}')" \
+    -d "$(jq -n --arg q "$1" --argjson v "$vars" '{query:$q, variables:$v}')" \
     "$LINEAR_API"
 }
 
@@ -152,8 +162,10 @@ post_record() { # record-file -> 0 posted, 1 failed-ambiguous, 2 rejected
   uuid="$(printf '%s' "$resp" | jq -r '.data.issue.id // empty')"
   [ -n "$uuid" ] || { echo "  ticket $ticket not found on Linear"; return 2; }
   statename="$(printf '%s' "$resp" | jq -r '.data.issue.state.name')"
-  commented_today="$(printf '%s' "$resp" | jq -r --arg today "$TODAY" \
-    '[.data.issue.comments.nodes[] | select(.user.isMe == true and (.createdAt | startswith($today)))] | length')"
+  # "today" = within the last 24h — createdAt is UTC and a local-date prefix
+  # match misses evening comments that cross the UTC day boundary.
+  commented_today="$(printf '%s' "$resp" | jq -r \
+    '[.data.issue.comments.nodes[] | select(.user.isMe == true and ((now - (.createdAt | fromdateiso8601)) < 86400))] | length')"
   match="$(printf '%s' "$resp" | jq -r --arg body "$frozen" \
     '[.data.issue.comments.nodes[] | select(.user.isMe == true and .body == $body)] | length')"
 
@@ -188,11 +200,11 @@ review_one() { # record-file, is_retry
   local f="$1" retry="${2:-0}" ticket title text action edited
   # concurrent-run protection: re-read state before acting
   local st; st="$(state_of "$f")"
-  if [ "$retry" = 1 ] && [ "$st" != "post_failed" ]; then return; fi
+  if [ "$retry" = 1 ] && [ "$st" != "post_failed" ] && [ "$st" != "approved" ]; then return; fi
   if [ "$retry" = 0 ] && [ "$st" != "pending" ]; then return; fi
 
   ticket="$(jq -r '.ticket_id' "$f")"; title="$(jq -r '.ticket_title' "$f")"
-  echo; echo "=== $ticket — $title $([ "$retry" = 1 ] && echo '[RETRY of failed post — frozen text]')"
+  echo; echo "=== $ticket — $title $([ "$retry" = 1 ] && echo "[RETRY: $st — frozen text]")"
   if [ "$retry" = 1 ]; then
     text="$(jq -r '.final_text' "$f")"
   else
@@ -218,16 +230,18 @@ review_one() { # record-file, is_retry
   read -r -p "[a]pprove / [e]dit-then-approve / [d]eny / [s]kip: " action
   case "$action" in
     a)
-      jq --arg t "$text" '.state = "approved" | .final_text = $t | .decided_at = (now|todate)' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+      # shellcheck disable=SC2016  # $t is a jq variable, not shell
+      update_record "$f" '.state = "approved" | .final_text = $t | .decided_at = (now|todate)' --arg t "$text"
       log_decision "$ticket" "$(basename "$f")" "approve" null
       post_record "$f" || true ;;
     e)
-      edited="$(mktemp -t ticket-draft-edit)"
+      edited="$(mktemp "${TMPDIR:-/tmp}/ticket-draft-edit.XXXXXX")"
       printf '%s\n' "$text" > "$edited"
       "${EDITOR:-vi}" "$edited"
       text="$(cat "$edited")"; rm -f "$edited"
       [ -n "$text" ] || { echo "  empty edit — skipped."; return; }
-      jq --arg t "$text" '.state = "approved" | .final_text = $t | .edited = true | .decided_at = (now|todate)' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+      # shellcheck disable=SC2016  # $t is a jq variable, not shell
+      update_record "$f" '.state = "approved" | .final_text = $t | .edited = true | .decided_at = (now|todate)' --arg t "$text"
       log_decision "$ticket" "$(basename "$f")" "edit-approve" null
       post_record "$f" || true ;;
     d)

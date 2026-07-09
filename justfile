@@ -106,7 +106,8 @@ agents-copy:
 ticket-drafts:
     #!/usr/bin/env bash
     set -euo pipefail
-    bin="$(command -v ticket-drafts-run || echo {{justfile_directory()}}/tools/agents/bin/ticket-drafts-run)"
+    bin="{{justfile_directory()}}/tools/agents/bin/ticket-drafts-run"
+    [ -x "$bin" ] || bin="$(command -v ticket-drafts-run)"
     "$bin" --repo {{justfile_directory()}}
 
 # Draft a status comment for one ticket, skipping the daily gates (F2)
@@ -114,13 +115,15 @@ ticket-drafts:
 ticket-drafts-one TICKET:
     #!/usr/bin/env bash
     set -euo pipefail
-    bin="$(command -v ticket-drafts-run || echo {{justfile_directory()}}/tools/agents/bin/ticket-drafts-run)"
-    "$bin" --ticket {{TICKET}} --repo {{justfile_directory()}}
+    bin="{{justfile_directory()}}/tools/agents/bin/ticket-drafts-run"
+    [ -x "$bin" ] || bin="$(command -v ticket-drafts-run)"
+    "$bin" --ticket {{quote(TICKET)}} --repo {{justfile_directory()}}
 
 # Review pending drafts: approve/edit/deny each; the only path that posts to Linear (F3)
 [group('agents')]
 ticket-drafts-review:
     #!/usr/bin/env bash
     set -euo pipefail
-    bin="$(command -v ticket-drafts-review || echo {{justfile_directory()}}/tools/agents/bin/ticket-drafts-review)"
+    bin="{{justfile_directory()}}/tools/agents/bin/ticket-drafts-review"
+    [ -x "$bin" ] || bin="$(command -v ticket-drafts-review)"
     "$bin" --repo {{justfile_directory()}}

@@ -38,12 +38,19 @@ done
 
 RUN_ID="$(date +%H%M%S)-$$"
 RUN_DATE="$(date +%F)"
+DRY_JSON="$([ "$DRY_RUN" = 1 ] && echo true || echo false)"
 mkdir -p "$OUTBOX"
+
+# Hook-gate provenance: the probe/install flow (see the task bundle's hooks/
+# README) records its outcome in this state file; env var overrides for tests.
+HOOK_STATE_FILE="$HOME/.agents/tasks/$TASK/hook-gate-state"
+TICKET_DRAFTS_HOOK_GATE="${TICKET_DRAFTS_HOOK_GATE:-$(cat "$HOOK_STATE_FILE" 2>/dev/null || echo unknown)}"
+export TICKET_DRAFTS_HOOK_GATE
 
 red() { # reason, message
   local reason="$1" msg="$2"
   jq -n --arg reason "$reason" --arg msg "$msg" --arg run_id "$RUN_ID" \
-    --arg date "$RUN_DATE" --argjson dry "$([ "$DRY_RUN" = 1 ] && echo true || echo false)" \
+    --arg date "$RUN_DATE" --argjson dry "$DRY_JSON" \
     '{kind:"run", status:"red", reason:$reason, message:$msg, run_id:$run_id,
       run_date:$date, dry_run:$dry, hook_gate_active:(env.TICKET_DRAFTS_HOOK_GATE // "unknown"),
       created_at:(now|todate)}' \
@@ -97,10 +104,13 @@ if printf '%s' "$PROMPT_BODY" | grep -qF "$SENTINEL"; then
 fi
 
 # --- locate the output schema --------------------------------------------------
+# An explicit --repo wins (prompt and schema form one contract; a checkout run
+# must not pair a fresh prompt with a stale deployed schema), then the
+# home-manager-deployed copy, then checkout-relative as a last resort.
 SCHEMA=""
 for cand in \
-  "$HOME/.agents/tasks/$TASK/output-schema.json" \
   "${REPO:+$REPO/tools/agents/tasks/$TASK/output-schema.json}" \
+  "$HOME/.agents/tasks/$TASK/output-schema.json" \
   "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/tasks/$TASK/output-schema.json"; do
   [ -n "$cand" ] && [ -r "$cand" ] && SCHEMA="$cand" && break
 done
@@ -122,8 +132,9 @@ $MODE_NOTE
 Return ONLY the JSON described by the output schema. Set skip.reason=connector-error with details in skip.evidence if ANY tool/connector call fails — never report no-active-tickets when a tool failed. Set complete=false honestly if you could not consider every active ticket; your valid drafts are still kept. NEVER post, create, or modify anything in Linear or any other system: you draft text as output only."
 
 # --- invoke codex ---------------------------------------------------------------
-LASTMSG="$(mktemp -t ticket-drafts-lastmsg)"
-SCRATCH="$(mktemp -d -t ticket-drafts-work)"
+# Portable mktemp (GNU coreutils rejects -t templates without X's)
+LASTMSG="$(mktemp "${TMPDIR:-/tmp}/ticket-drafts-lastmsg.XXXXXX")"
+SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/ticket-drafts-work.XXXXXX")"
 trap 'rm -rf "$SCRATCH"' EXIT
 
 TIMEOUT_SECS="${TICKET_DRAFTS_TIMEOUT:-600}"
@@ -146,11 +157,15 @@ unset PROMPT_BODY FULL_PROMPT
 if [ "$CODEX_RC" = 124 ] || [ "$CODEX_RC" = 143 ]; then
   red "timeout" "codex exec exceeded ${TIMEOUT_SECS}s"
 fi
-if grep -qiE 'rate.?limit|plan limit|usage limit' "$SCRATCH/stderr" 2>/dev/null; then
-  red "rate-limit" "$(tail -1 "$SCRATCH/stderr")"
-fi
-if [ "$CODEX_RC" != 0 ] && [ ! -s "$LASTMSG" ]; then
-  red "malformed-output" "codex exec exited $CODEX_RC with no final message ($(tail -1 "$SCRATCH/stderr" 2>/dev/null || echo 'no stderr'))"
+# Only consult stderr chatter when the run actually failed — incidental
+# "usage limit" log lines on a successful run must not fabricate a red.
+if [ "$CODEX_RC" != 0 ]; then
+  if grep -qiE 'rate.?limit|plan limit|usage limit' "$SCRATCH/stderr" 2>/dev/null; then
+    red "rate-limit" "$(tail -1 "$SCRATCH/stderr")"
+  fi
+  if [ ! -s "$LASTMSG" ]; then
+    red "malformed-output" "codex exec exited $CODEX_RC with no final message ($(tail -1 "$SCRATCH/stderr" 2>/dev/null || echo 'no stderr'))"
+  fi
 fi
 
 # --- validate output against the contract ---------------------------------------
@@ -163,11 +178,15 @@ case "$RESULT" in drafts|skip) ;; *) preserve_raw; red "malformed-output" "resul
 COMPLETE="$(jq -r '.complete' "$LASTMSG")"
 N_DRAFTS="$(jq -r '.drafts // [] | length' "$LASTMSG")"
 
+WRITTEN=0
 write_draft_records() { # marker: "" or partial
   local partial="$1" i ticket existing
   for i in $(seq 0 $((N_DRAFTS - 1))); do
     ticket="$(jq -r ".drafts[$i].ticket_id" "$LASTMSG")"
-    printf '%s' "$ticket" | grep -Eq '^[A-Z][A-Z0-9]*-[0-9]+$' || continue
+    if ! printf '%s' "$ticket" | grep -Eq '^[A-Z][A-Z0-9]*-[0-9]+$'; then
+      echo "WARNING: dropping draft with invalid ticket id '$ticket'" >&2
+      continue
+    fi
     # supersede: transition today's existing pending record(s) for this ticket
     for existing in "$OUTBOX/$RUN_DATE-$ticket-"*.json; do
       [ -e "$existing" ] || continue
@@ -177,7 +196,7 @@ write_draft_records() { # marker: "" or partial
     done
     jq -n --arg date "$RUN_DATE" --arg run_id "$RUN_ID" --slurpfile msg "$LASTMSG" --argjson i "$i" \
       --argjson partial "$([ -n "$partial" ] && echo true || echo false)" \
-      --argjson dry "$([ "$DRY_RUN" = 1 ] && echo true || echo false)" \
+      --argjson dry "$DRY_JSON" \
       '{kind:"draft", schema_version:1, task:"daily-ticket-status-drafts",
         ticket_id:$msg[0].drafts[$i].ticket_id, ticket_title:$msg[0].drafts[$i].ticket_title,
         draft_text:$msg[0].drafts[$i].body, movement_summary:($msg[0].drafts[$i].movement_summary // null),
@@ -186,6 +205,7 @@ write_draft_records() { # marker: "" or partial
         hook_gate_active:(env.TICKET_DRAFTS_HOOK_GATE // "unknown"),
         created_at:(now|todate)}' \
       > "$OUTBOX/$RUN_DATE-$ticket-$RUN_ID.json"
+    WRITTEN=$((WRITTEN + 1))
   done
 }
 
@@ -196,7 +216,7 @@ if [ "$RESULT" = "skip" ]; then
   { [ -z "$REASON" ] || [ -z "$EVIDENCE" ]; } && { preserve_raw; red "evidence-free-skip" "skip without reason+evidence (raw preserved)"; }
   jq -n --arg date "$RUN_DATE" --arg run_id "$RUN_ID" --arg reason "$REASON" --arg evidence "$EVIDENCE" \
     --argjson calendar "$(jq '.calendar_checked' "$LASTMSG")" \
-    --argjson dry "$([ "$DRY_RUN" = 1 ] && echo true || echo false)" \
+    --argjson dry "$DRY_JSON" \
     '{kind:"skip", status:"green", reason:$reason, evidence:$evidence, run_id:$run_id,
       run_date:$date, calendar_checked:$calendar, dry_run:$dry, created_at:(now|todate)}' \
     > "$OUTBOX/$RUN_DATE-skip-$RUN_ID.json"
@@ -212,7 +232,12 @@ fi
 if [ "$COMPLETE" != "true" ]; then
   write_draft_records partial
   preserve_raw
-  red "incomplete" "run attested complete=false; $N_DRAFTS draft(s) preserved as pending (partial_run)"
+  red "incomplete" "run attested complete=false; $WRITTEN draft(s) preserved as pending (partial_run)"
 fi
 write_draft_records ""
-echo "GREEN — $N_DRAFTS pending draft(s) in $OUTBOX ($RUN_DATE, run $RUN_ID)$([ "$DRY_RUN" = 1 ] && echo ' [dry-run]')"
+if [ "$WRITTEN" = 0 ]; then
+  preserve_raw
+  red "malformed-output" "all $N_DRAFTS draft(s) had invalid ticket ids — nothing written (raw preserved)"
+fi
+[ "$WRITTEN" = "$N_DRAFTS" ] || echo "WARNING: wrote $WRITTEN of $N_DRAFTS drafts (invalid ticket ids dropped; raw not preserved on green)" >&2
+echo "GREEN — $WRITTEN pending draft(s) in $OUTBOX ($RUN_DATE, run $RUN_ID)$([ "$DRY_RUN" = 1 ] && echo ' [dry-run]')"
