@@ -17,4 +17,9 @@ in
   # Private agent-instruction overlay (issue #40). Decrypted only on local
   # machines to ~/.agents/instructions.private.md; never committed as plaintext.
   "personal/agent-instructions.age".publicKeys = [ alyssa ];
+
+  # daily-ticket-status-drafts task (agent-tasks harness). Committed content is
+  # a sentinel placeholder; scripts refuse to run until replaced via agenix -e.
+  "personal/ticket-drafts-prompt.age".publicKeys = [ alyssa ];
+  "personal/linear-api-key.age".publicKeys = [ alyssa ];
 }

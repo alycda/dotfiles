@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "daily-ticket-status-drafts run result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["result", "calendar_checked", "complete", "tickets_considered", "drafts", "skip"],
+  "properties": {
+    "result": {
+      "type": "string",
+      "enum": ["drafts", "skip"]
+    },
+    "calendar_checked": {
+      "description": "Whether the PTO/holiday calendar check was actually performed. False means the calendar was unreachable; drafting proceeds fail-open and this flag is surfaced at review.",
+      "type": "boolean"
+    },
+    "complete": {
+      "description": "Self-attestation that every active ticket was considered. Set false honestly when the run could not cover the full list; valid drafts from an incomplete run are still written (marked partial_run) so honesty is never punished.",
+      "type": "boolean"
+    },
+    "tickets_considered": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ticket_id", "disposition"],
+        "properties": {
+          "ticket_id": { "type": "string" },
+          "disposition": {
+            "type": "string",
+            "enum": ["drafted", "already-commented-today", "no-movement", "error"]
+          },
+          "note": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "drafts": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ticket_id", "ticket_title", "body"],
+        "properties": {
+          "ticket_id": { "type": "string" },
+          "ticket_title": { "type": "string" },
+          "body": { "type": "string" },
+          "movement_summary": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "skip": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["reason", "evidence"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": ["holiday", "pto", "no-movement", "no-active-tickets", "connector-error"]
+        },
+        "evidence": {
+          "description": "Concrete support for the skip: which calendar events / which tickets were seen. An evidence-free skip is treated as a failed run by the wrapper.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}
