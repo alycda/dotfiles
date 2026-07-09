@@ -100,3 +100,27 @@ agents-capsule:
 [group('agents')]
 agents-copy:
     just agents-capsule | pbcopy && echo "Copied agent capsule to clipboard"
+
+# Draft status comments for all active Linear tickets (daily-ticket-status-drafts, F1)
+[group('agents')]
+ticket-drafts:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bin="$(command -v ticket-drafts-run || echo {{justfile_directory()}}/tools/agents/bin/ticket-drafts-run)"
+    "$bin" --repo {{justfile_directory()}}
+
+# Draft a status comment for one ticket, skipping the daily gates (F2)
+[group('agents')]
+ticket-drafts-one TICKET:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bin="$(command -v ticket-drafts-run || echo {{justfile_directory()}}/tools/agents/bin/ticket-drafts-run)"
+    "$bin" --ticket {{TICKET}} --repo {{justfile_directory()}}
+
+# Review pending drafts: approve/edit/deny each; the only path that posts to Linear (F3)
+[group('agents')]
+ticket-drafts-review:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    bin="$(command -v ticket-drafts-review || echo {{justfile_directory()}}/tools/agents/bin/ticket-drafts-review)"
+    "$bin" --repo {{justfile_directory()}}
