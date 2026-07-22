@@ -13,9 +13,19 @@ _:
     };
 
     # Custom taps
+    # Homebrew 6.0 enables HOMEBREW_REQUIRE_TAP_TRUST by default: loading a
+    # formula from an untrusted third-party tap aborts activation, so declare
+    # trust here instead of imperative per-machine `brew trust`.
     taps = [
-      "cirruslabs/cli"
-      "getditto/build-infra"
+      {
+        name = "cirruslabs/cli";
+        trusted = true;
+      }
+      {
+        name = "getditto/build-infra";
+        clone_target = "git@github.com:getditto/homebrew-build-infra.git";
+        trusted = true;
+      }
     ];
 
     # Formulae (CLI packages)
