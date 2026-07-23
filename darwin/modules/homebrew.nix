@@ -51,7 +51,7 @@ _:
       "chromedriver"    # Ditto
       "codex"           # Ditto
       "cmux"
-      "logseq"
+      "logseq-og" # classic file/markdown Logseq; plain "logseq" is now the 2.0 DB version
       "muteme"
       "notion"
       "obsidian"

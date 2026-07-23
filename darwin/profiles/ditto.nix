@@ -34,7 +34,7 @@
     "/Applications/Slack.app"
     "/Applications/Brave Browser.app"
     # "/Applications/Workflowy.app"
-    "/Applications/Logseq.app"
+    "/Applications/Logseq-OG.app"
     "/Applications/Visual Studio Code.app"
     # Google Drive
     # Speediness
