@@ -48,10 +48,12 @@ _:
       "brave-browser"
       "claude"
       "clocker"
+      "chatgpt"         # Ditto
       "chromedriver"    # Ditto
       "codex"           # Ditto
       "cmux"
       "logseq-og" # classic file/markdown Logseq; plain "logseq" is now the 2.0 DB version
+      "loom"
       "muteme"
       "notion"
       "obsidian"
