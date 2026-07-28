@@ -45,6 +45,10 @@ in
       # but only wired for Claude here; other runtimes follow later.
       ".claude/skills/html-deck".source = skillSource "html-deck";
 
+      # cf-now — private file sharing from Cloudflare R2 via pre-signed URLs.
+      # Wired for Claude only for now, same as html-deck.
+      ".claude/skills/cf-now".source = skillSource "cf-now";
+
       # jujutsu — operate in jj repos without git muscle memory. Progressive
       # disclosure: SKILL.md carries the mental model and agent rules, with
       # references/ loaded on demand (command mapping, gitignore recovery,
