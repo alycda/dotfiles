@@ -102,21 +102,39 @@ Specific changes:
 dotfiles/
 ├── darwin/                 # nix-darwin (macOS system config)
 │   ├── configuration.nix   # Shared darwin config
+│   ├── modules/
+│   │   └── homebrew.nix    # Homebrew taps/casks/brews
 │   └── profiles/           # Machine-specific configs
-│       ├── alyssa.nix      # Personal machine
-│       └── ditto.nix       # Work machine
+│       └── ditto.nix       # Work machine (the only darwinConfiguration)
 ├── home-manager/           # User-level configuration
 │   ├── modules/
-│   │   ├── common.nix      # Shared across all profiles
-│   │   ├── dev/            # Development tool modules
+│   │   ├── common.nix      # Shared across all profiles (no GUI)
+│   │   ├── git.nix
+│   │   ├── dev/            # Language tooling modules
 │   │   │   ├── nix-lang.nix
 │   │   │   └── rust.nix
-│   │   └── ide/            # IDE configurations
-│   │       └── vscode/
+│   │   ├── ide/            # IDE configurations
+│   │   │   ├── vscode.nix
+│   │   │   └── vscode-profiles/  # base, jujutsu, rust
+│   │   └── tools/          # cheat, helix, gh-dash, agents,
+│   │       │               #   agent-skills, claude-code
+│   │       └── ...
 │   └── profiles/           # User profiles
-│       ├── dev.nix         # Devcontainer profile
+│       ├── code.nix        # macOS "code" user
+│       ├── dev.nix         # Devcontainer / codespaces profile
 │       ├── home.nix        # Personal profile
 │       └── work.nix        # Work profile
+├── lib/
+│   └── core-packages.nix   # Packages shared by devShells + home-manager
+├── tools/                  # Non-Nix tool content wired in by modules/tools/*
+│   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
+│   ├── cheat/              # Cheatsheets + cheatpath config
+│   ├── claude/             # Claude rules
+│   └── helix/              # Helix config
+├── secrets/                # agenix/ragenix age-encrypted secrets
+├── docker/                 # 2012 MBP container notes + entrypoint
+├── Dockerfile              # x86_64 dev image
+├── justfile                # Task Runner recipes
 └── flake.nix               # Flake configuration
 ```
 
@@ -157,10 +175,25 @@ dotfiles/
 - Opt-in via profile imports
 - Keep focused and composable
 
+**Tool modules** (`home-manager/modules/tools/*`):
+- Wire non-Nix tool *content* from the top-level `tools/` directory into the
+  home (cheat cheatsheets, helix config, the agent-instruction overlay, etc.)
+- Keeps editable plaintext config in `tools/` while the module handles
+  installation, symlinks, and activation
+
 **Profile-specific** (`home-manager/profiles/*.nix`):
 - Machine or context-specific packages
 - Import relevant modules
 - Keep minimal - prefer modules
+
+### Shared package lists (`lib/core-packages.nix`)
+
+`lib/core-packages.nix` is a single `pkgs: [ ... ]` list imported by **both**
+the flake's devShells and home-manager. This is deliberate: the ephemeral
+`nix develop` shell and the persistent home-manager environment install the
+same core CLI tools, so `cheat`, `jj`, `just`, `gh`, etc. behave identically
+whether you're in a throwaway shell or a switched profile. Add a
+universally-needed CLI tool here rather than duplicating it in both places.
 
 ### Configuration Conflicts to Avoid
 
@@ -282,4 +315,4 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-04-17 - Added CI checks section documenting statix/deadnix rules after empty_pattern failure in PR #20*
+*Last updated: 2026-07-28 - Synced Repository Structure with reality (lib/, tools/, secrets/, docker/, modules/tools/) and documented the shared `lib/core-packages.nix` pattern*

@@ -4,25 +4,36 @@ These are my dotfiles, managed by [Nix](https://nixos.org/), [Nix-Darwin](https:
 
 ```
 dotfiles/
-├── darwin/
+├── darwin/                 # nix-darwin (macOS system config)
+|   ├── modules/
+|   |   └── homebrew.nix
 |   ├── profiles/
-|   |   ├── alyssa.nix
 |   |   └── ditto.nix
 |   └── configuration.nix
 ├── home-manager/
 |   ├── modules/
-|   |   ├── ide/vscode  # extensions & settings
-|   |   └── common.nix
-|   └── profiles/
-|       ├── dev.nix     # for devcontainers
-|       ├── home.nix
-|       └── work.nix
-├── .devcontainer.json  # Nix Package Manager
-├── .gitignore          # Nix artifacts
+|   |   ├── dev/            # language tooling (nix-lang, rust)
+|   |   ├── ide/vscode*     # extensions & settings
+|   |   ├── tools/          # cheat, helix, gh-dash, agents, claude-code
+|   |   ├── common.nix      # shared CLI tools (no GUI)
+|   |   └── git.nix
+|   └── profiles/           # code, dev (devcontainer), home, work
+├── lib/
+|   └── core-packages.nix   # packages shared by devShells + home-manager
+├── tools/                  # non-Nix tool content
+|   ├── agents/             # agent-instruction overlay (AGENTS.md, ...)
+|   ├── cheat/              # cheatsheets + cheatpath config
+|   ├── claude/             # Claude rules
+|   └── helix/              # helix config
+├── secrets/                # agenix/ragenix encrypted secrets
+├── docker/                 # 2012 MBP container notes + entrypoint
+├── Dockerfile              # x86_64 dev image
+├── .devcontainer.json      # Nix Package Manager
+├── .gitignore              # Nix artifacts
 ├── flake.lock
-├── flake.nix           # Home Manager config
-├── justfile            # Task Runner recipes
-└── README.md           
+├── flake.nix               # Home Manager + darwin config
+├── justfile                # Task Runner recipes
+└── README.md
 ```
 
 ### Quickstart
@@ -125,6 +136,10 @@ As long as you have docker or an [ephemeral environment in the cloud](https://ep
 |-----------|------|---------|
 | `darwin/` | nix-darwin | macOS system config (dock, defaults, homebrew)
 | `home-manager/` | Home Manager | User packages and dotfiles (cross-platform)
+| `lib/` | Nix | `core-packages.nix`, imported by both devShells and home-manager so ephemeral `nix develop` and persistent profiles stay consistent
+| `tools/` | (plain files) | Non-Nix tool content wired in by modules: `agents/` instruction overlay, `cheat/` cheatsheets, `claude/` rules, `helix/` config
+| `secrets/` | agenix/ragenix | age-encrypted secrets (git config, private agent overlay)
+| `docker/` + `Dockerfile` | Docker | x86_64 dev image for a frozen 2012 MacBook Pro (see `docker/CLAUDE.md`)
 
 This keeps package management declarative and reproducible across environments.
 
