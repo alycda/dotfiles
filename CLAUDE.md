@@ -245,6 +245,15 @@ benefit (same reasoning as the "no GUI in common.nix" rule). Only universal,
 lightweight CLIs belong here; a heavy personal tool goes in the desktop profiles'
 `packages` (e.g. `taskbook`, whose Node closure lives in `home.nix`/`work.nix`).
 
+### Shared package lists (`lib/core-packages.nix`)
+
+`lib/core-packages.nix` is a single `pkgs: [ ... ]` list imported by **both**
+the flake's devShells and home-manager. This is deliberate: the ephemeral
+`nix develop` shell and the persistent home-manager environment install the
+same core CLI tools, so `cheat`, `jj`, `just`, `gh`, etc. behave identically
+whether you're in a throwaway shell or a switched profile. Add a
+universally-needed CLI tool here rather than duplicating it in both places.
+
 ### Configuration Conflicts to Avoid
 
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
