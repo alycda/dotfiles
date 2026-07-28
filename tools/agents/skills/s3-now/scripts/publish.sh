@@ -58,13 +58,22 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-case "$EXPIRES_RAW" in
-  *m) EXPIRES=$(( ${EXPIRES_RAW%m} * 60 )) ;;
-  *h) EXPIRES=$(( ${EXPIRES_RAW%h} * 3600 )) ;;
-  *d) EXPIRES=$(( ${EXPIRES_RAW%d} * 86400 )) ;;
-  *[!0-9]*) die "bad --expires value: $EXPIRES_RAW (use seconds or Nm/Nh/Nd)" ;;
-  *)  EXPIRES="$EXPIRES_RAW" ;;
-esac
+# Parse --expires with a strict regex FIRST — never feed unvalidated input to
+# $(( )). Bash runs command substitution on array subscripts inside arithmetic,
+# so a glob like *m) matching `a[$(touch x)]m` would execute it. Requiring
+# ^digits + optional single unit also rejects negatives, empties, and `abcm`.
+if [[ "$EXPIRES_RAW" =~ ^([0-9]+)([mhd]?)$ ]]; then
+  _n="${BASH_REMATCH[1]}"
+  case "${BASH_REMATCH[2]}" in
+    m)  EXPIRES=$(( _n * 60 )) ;;
+    h)  EXPIRES=$(( _n * 3600 )) ;;
+    d)  EXPIRES=$(( _n * 86400 )) ;;
+    "") EXPIRES="$_n" ;;
+  esac
+else
+  die "bad --expires value: $EXPIRES_RAW (use seconds or Nm/Nh/Nd)"
+fi
+(( EXPIRES >= 1 )) || die "--expires must be a positive duration"
 (( EXPIRES > 604800 )) && die "--expires exceeds the 7-day S3 pre-sign cap"
 
 if ! "${AWSP[@]}" sts get-caller-identity >/dev/null 2>&1; then
@@ -97,9 +106,21 @@ fi
 
 if $UNPUBLISH; then
   [[ -n "$SLUG" ]] || die "--unpublish requires --slug"
-  KEY="$(state_get_key "$SLUG")"
-  PREFIX="${KEY%/*}"
-  [[ -n "$KEY" ]] || { PREFIX="$SLUG"; }
+  # This is the revocation path — it must fail CLOSED. State lives in the
+  # working directory, so unpublishing from a different dir than you published
+  # from means state is absent; the old fallback (PREFIX="$SLUG") then rm'd a
+  # nonexistent prefix, which exits 0 and reports success while the object —
+  # ephemeral uploads live at tmp/$SLUG/, the default — stays live. Probe the
+  # live bucket for the real prefix (tmp/ first, then the bare permanent slug),
+  # the same way --presign resolves its key, and refuse to claim success unless
+  # an object was actually there.
+  PREFIX=""
+  for _cand in "tmp/$SLUG" "$SLUG"; do
+    FOUND="$("${AWSP[@]}" s3api list-objects-v2 --bucket "$BUCKET" --prefix "$_cand/" \
+      --max-items 1 --output json | jq -r '.Contents[0].Key // empty')"
+    [[ -n "$FOUND" ]] && { PREFIX="$_cand"; break; }
+  done
+  [[ -n "$PREFIX" ]] || die "no upload found for slug '$SLUG' — nothing to unpublish"
   "${AWSP[@]}" s3 rm "s3://$BUCKET/$PREFIX/" --recursive --only-show-errors
   [[ -f "$STATE" ]] && jq --arg s "$SLUG" 'del(.publishes[$s])' "$STATE" > "$STATE.tmp" \
     && mv "$STATE.tmp" "$STATE"
