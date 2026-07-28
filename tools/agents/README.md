@@ -47,10 +47,12 @@ private overlay authoritative on conflict.
 - creates Claude include symlinks under `~/.claude/includes/` pointing at the
   `~/.agents/` paths (out-of-store symlinks, so decryption/edits flow through one
   place),
-- idempotently appends the `@includes/agents-*.md` imports to
-  `~/.claude/CLAUDE.md` so Claude actually loads the layers,
 - symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
   natively.
+
+The `@includes/agents-*.md` import lines that make Claude load the layers now
+live in the fully-tracked `~/.claude/CLAUDE.md` (see below), not in an
+activation-time append.
 
 > **Store-safety invariant:** never `builtins.readFile` the overlay or generate a
 > store path containing decrypted instructions. The plaintext only ever exists at
@@ -73,19 +75,31 @@ Decryption on a machine requires the private identity at
 
 ## Surface integration
 
-- **Claude Code.** Managed — no manual step. Activation idempotently appends
-  these local imports (never a URL) to `~/.claude/CLAUDE.md`, after the
-  include symlinks exist (same pattern as the outbound-comment gate):
+- **Claude Code.** Managed — no manual step. `~/.claude/CLAUDE.md` is now fully
+  tracked at `tools/claude/CLAUDE.md` and deployed as a read-only store symlink
+  by `home-manager/modules/tools/claude-code.nix`. It is the Claude-surface twin
+  of this `AGENTS.md`: a composition point that carries the local imports (never
+  a URL) —
 
   ```md
   @includes/agents-company-values.md
   @includes/agents-personal-constitution.md
   @includes/agents-instructions.private.md
+  @rules/outbound-comment-gate.md
   ```
 
-  On a fresh machine the private include may briefly dangle until agenix
-  decrypts during activation — that is expected; Claude Code skips
+  — plus any Claude-Code-only public instructions. This replaces the old
+  append-on-activation scripts. Because the file is a store symlink, edit
+  `tools/claude/CLAUDE.md` (or the layers / overlay) and switch, rather than
+  hand-editing `~/.claude/CLAUDE.md`; a pre-existing hand-edited file is adopted
+  as `CLAUDE.md.hm-backup`. On a fresh machine the private include may briefly
+  dangle until agenix decrypts — that is expected; Claude Code skips
   unresolvable imports and the public layers still load.
+
+  Decide the **public/secret split** here: portable instructions belong in the
+  layers (so Codex and the Desktop capsule inherit them too), sensitive ones in
+  the encrypted overlay, and only Claude-Code-specific public mechanics directly
+  in `tools/claude/CLAUDE.md`.
 
 - **Codex / GPT-native.** Managed — the module symlinks `~/.codex/AGENTS.md`
   (Codex's native path) to `~/.agents/AGENTS.md`. A pre-existing hand-edited

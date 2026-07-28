@@ -8,7 +8,7 @@
 # Canonical surface: ~/.agents/AGENTS.md. Claude-oriented tools reach the same
 # files through ~/.claude/includes/ symlinks; Codex loads it via a managed
 # ~/.codex/AGENTS.md symlink. See tools/agents/README.md.
-{ config, lib, ... }:
+{ config, ... }:
 let
   agentsDir = "${config.home.homeDirectory}/.agents";
   # Out-of-store symlinks so the Claude includes track the live ~/.agents files
@@ -35,24 +35,12 @@ in
     ".codex/AGENTS.md".source = oosLink "${agentsDir}/AGENTS.md";
   };
 
-  # Claude actually loads the layers through these imports. Same idempotent
-  # append pattern (and same ordering rationale) as claudeOutboundCommentGate
-  # in ../claude-code.nix: only append after linkGeneration so the include
-  # symlinks the lines point at already exist. The private include may dangle
-  # until agenix decrypts the overlay; Claude Code skips unresolvable imports,
-  # so the public layers still load.
-  home.activation.claudeAgentsImports = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-    claudeMd="$HOME/.claude/CLAUDE.md"
-    run mkdir -p "$HOME/.claude"
-    for importLine in \
-      "@includes/agents-company-values.md" \
-      "@includes/agents-personal-constitution.md" \
-      "@includes/agents-instructions.private.md"; do
-      if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
-        run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"
-      fi
-    done
-  '';
+  # Claude loads these layers through @includes/ import lines that now live in
+  # the tracked ~/.claude/CLAUDE.md (tools/claude/CLAUDE.md, deployed by
+  # ../claude-code.nix) rather than being appended at activation. The include
+  # symlinks above are the resolution targets for those lines; the private
+  # include may dangle until agenix decrypts the overlay, and Claude Code skips
+  # unresolvable imports, so the public layers still load on a fresh machine.
 
   # Private overlay: agenix decrypts the ciphertext and exposes the plaintext at
   # this stable home path. Using a per-secret `path` keeps the decrypted file in
