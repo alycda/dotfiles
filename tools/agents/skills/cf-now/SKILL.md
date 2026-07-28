@@ -183,10 +183,18 @@ single-file output publishes as-is.
 ## R2 compatibility notes
 
 - All AWS CLI calls target the R2 S3 endpoint via `--endpoint-url` and
-  `--region auto`; the scripts read both from `~/.cfnow/config.json`.
+  `--region auto`; the scripts read both from `~/.cfnow/config.json`. Per
+  Cloudflare's S3 docs, `auto` is the R2 region (empty/`us-east-1` also alias
+  to it), and presigning against `<account>.r2.cloudflarestorage.com` with
+  `region: auto` is the documented path — so the pre-signed host resolves.
 - The scripts export `AWS_REQUEST_CHECKSUM_CALCULATION=when_required` (and the
   matching response var) so AWS CLI v2's newer default integrity checksums
-  don't trip R2's uploads — a known incompatibility that otherwise surfaces as
-  a `400 Bad Request` / `XAmzContentSHA256Mismatch` on `cp`/`sync`.
+  don't trip R2 — a known incompatibility that otherwise surfaces as a
+  `400 Bad Request` / `XAmzContentSHA256Mismatch` on `cp`/`sync` (and R2's
+  `PutBucketLifecycleConfiguration` rejects checksum headers outright).
+- `setup.sh` reads the lifecycle rule back with
+  `get-bucket-lifecycle-configuration` and refuses to write config if it
+  didn't apply — so "ephemeral by default" can never silently become
+  "permanent forever" from a payload R2 quietly ignored.
 - If a presign ever produces an unreachable host, force path-style addressing:
   `aws configure set s3.addressing_style path --profile alyssa-r2`.

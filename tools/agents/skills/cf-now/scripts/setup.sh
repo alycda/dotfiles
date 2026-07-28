@@ -72,6 +72,19 @@ fi
     }]
   }' >/dev/null
 
+# Read the rule back and hard-fail if it didn't take. Without this, a payload
+# R2 doesn't accept could no-op silently, making "ephemeral by default" a lie —
+# every upload would then live forever. Verifying here turns that into a loud
+# setup-time error instead of a surprise weeks later.
+if ! "${AWSP[@]}" s3api get-bucket-lifecycle-configuration --bucket "$BUCKET" \
+     --output json 2>/dev/null \
+     | jq -e '.Rules[]? | select(.ID == "expire-tmp" and .Status == "Enabled")' >/dev/null; then
+  die "lifecycle rule 'expire-tmp' did not apply — R2 rejected or ignored the payload. \
+'Ephemeral by default' cannot be guaranteed; refusing to write config. \
+Check the PutBucketLifecycleConfiguration format against the current R2 S3 API."
+fi
+echo "lifecycle verified: tmp/ prefix expires after 7 days" >&2
+
 mkdir -p "$CONFIG_DIR"
 jq -n \
   --arg profile "$PROFILE" --arg region "$REGION" --arg bucket "$BUCKET" \
