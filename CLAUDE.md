@@ -212,12 +212,16 @@ that user own the Homebrew prefix. (Lesson from PR #35.)
 - Import relevant modules
 - Keep minimal - prefer modules
 - **But don't over-modularize.** "Prefer modules" is not "build a bespoke
-  per-tool module for every addition." A single trivial package belongs in
-  `lib/core-packages.nix` (or a profile's `packages`), not a hand-written module
-  justified by a speculative "the future swap will be one file." PR #44 built a
-  full `modules/tools/taskbook.nix`; it was closed in favor of a two-line add to
-  `lib/core-packages.nix`. Reach for the simplest placement first; promote to a
-  module when there's real config/composition to own.
+  per-tool module for every addition." A single trivial package belongs in a
+  profile's `packages` (or `lib/core-packages.nix` if it's a universal
+  lightweight CLI — see below), not a hand-written module justified by a
+  speculative "the future swap will be one file." PR #44 built a full
+  `modules/tools/taskbook.nix`; it was rightly closed in favor of a plain package
+  add. Reach for the simplest placement first; promote to a module only when
+  there's real config/composition to own. (Note: taskbook first landed in
+  `lib/core-packages.nix`, but that list is inherited by the headless container —
+  so it now lives in the desktop profiles instead. Simplest ≠ core-packages when
+  the tool carries a heavy runtime closure.)
 
 **devShell ↔ home-manager boundary:** when both a flake devShell and
 home-manager can provide the same tool, let the devShell ship only the *minimal*
@@ -233,6 +237,13 @@ the flake's devShells and home-manager. This is deliberate: the ephemeral
 same core CLI tools, so `cheat`, `jj`, `just`, `gh`, etc. behave identically
 whether you're in a throwaway shell or a switched profile. Add a
 universally-needed CLI tool here rather than duplicating it in both places.
+
+**Keep it lean.** Because `common.nix` imports this list into *every* profile —
+including the headless `dev`/x86 devcontainer — and the devShells pull it too, a
+heavy closure here bloats the disk-constrained 2012 MBP image for no container
+benefit (same reasoning as the "no GUI in common.nix" rule). Only universal,
+lightweight CLIs belong here; a heavy personal tool goes in the desktop profiles'
+`packages` (e.g. `taskbook`, whose Node closure lives in `home.nix`/`work.nix`).
 
 ### Configuration Conflicts to Avoid
 
@@ -412,10 +423,11 @@ nix profile install nixpkgs#deadnix && deadnix --fail .
 nix flake check --all-systems
 ```
 
-⚠️ **`just lint` is not exact parity with CI for deadnix.** The justfile runs
-`deadnix -- .` (report-only), but CI runs `deadnix --fail .` — a green `just ci`
-can still fail CI on dead code. Run `deadnix --fail .` (or `just ci` after
-fixing the justfile) if unused bindings are a risk. (Gap introduced in PR #14.)
+**Keep `just lint` at parity with CI.** deadnix only exits non-zero with `--fail`,
+so both the justfile (`lint-deadnix`) and CI must pass it — otherwise a green
+`just ci` silently diverges from CI on dead code. (This drifted for a while:
+the justfile ran report-only `deadnix -- .` while CI ran `--fail .`; realigned
+so `just ci` is a trustworthy pre-push gate.)
 
 Note the CI workflow pins its GitHub Actions to `@main` and historically leaned
 on the now-sunset `magic-nix-cache-action`; treat floating action refs and that

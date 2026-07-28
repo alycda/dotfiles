@@ -13,6 +13,7 @@
     homeDirectory = "/Users/alyssaevans";
 
     packages = with pkgs; [
+      taskbook # interim CLI task manager; desktop-only (Node closure, not for containers)
       cocoapods # for flutter (to be removed soon)
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
       teleport # kubectl

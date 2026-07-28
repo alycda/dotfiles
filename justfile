@@ -19,10 +19,10 @@ lint: lint-statix lint-deadnix
 lint-statix:
     nix run nixpkgs#statix -- check .
 
-# Check for unused code with deadnix
+# Check for unused code with deadnix (--fail to match CI, which uses --fail)
 [group('lint')]
 lint-deadnix:
-    nix run nixpkgs#deadnix -- .
+    nix run nixpkgs#deadnix -- --fail .
 
 # Run all CI checks locally (lint + flake check)
 [group('lint')]
