@@ -4,6 +4,7 @@
 {
   imports = [
     ../modules/ide/vscode.nix
+    ../modules/tools/taskbook.nix
   ];
 
   home = {
