@@ -113,3 +113,20 @@ directives. Wired into `status.sh` (so the agent sees it on every status)
 and into a daily 08:30 Signal reminder (`com.alyssa.ledger-duedates`).
 Dismiss a handled item with a substring line in `~/ledger-ingest/paid.txt`
 — statements are static, so paid items otherwise nag forever.
+
+## Pre-push secret scan (repo-wide)
+
+`tools/githooks/pre-push` blocks pushes whose ADDED lines contain credentials
+**or account-shaped digit runs**. Enable it once per clone:
+
+    git config core.hooksPath tools/githooks
+
+It scans every commit in the push, not just the tip — fixing a secret in a
+later commit does not remove it from the history you are about to publish,
+which is exactly how a bank account number reached this public repo once.
+GitHub's own secret scanning would not have caught it: an account number
+matches no partner pattern, because it is an identifier rather than a
+credential.
+
+False positives go in `.secretscanignore` (one ERE per line, matched against
+`path:line`). Deliberate override: `SKIP_SECRET_SCAN=1 git push`.
