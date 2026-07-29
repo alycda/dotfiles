@@ -33,6 +33,21 @@ git operations never corrupt jj state.
 | Terminal slides | `presenterm` | — |
 | Terminal recording | `asciinema` | — |
 
+## Interactive fuzzy finding
+
+Prefer `tv` (television) for interactive selection — it exposes typed
+*channels* rather than one stream. Reach for the custom channels first, then
+the built-ins:
+
+- `tv jj-log` — pick a `jj` change (previews `jj show`); prefer this over the
+  built-in `git-log` channel, since work here happens in `jj`.
+- `tv cheat` — pick a cheatsheet (previews its body).
+- Built-ins when they fit: `tv files`, `tv text`, `tv shell-history`.
+
+Fallbacks, in order: `fzf` if `tv` isn't installed; a plain `rg`/`grep` +
+manual pick if neither is. (These channels are defined in the fzf/television
+work — until that lands, `tv` may be absent; fall back and say so.)
+
 ## Language toolchains
 
 - **Rust**: `rustup`-managed toolchain; `bacon` for background checks; `clippy`
