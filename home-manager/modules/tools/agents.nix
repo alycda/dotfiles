@@ -20,6 +20,10 @@ in
   home.file = {
     ".agents/AGENTS.md".source = ../../../tools/agents/AGENTS.md;
     ".agents/company-values.md".source = ../../../tools/agents/company-values.md;
+    ".agents/persona-core.md".source = ../../../tools/agents/persona-core.md;
+    # Full constitution stays deployed for on-demand reads (AGENTS.md points at
+    # it) and for the Claude include below — it's just no longer in the default
+    # composition for context-constrained surfaces.
     ".agents/personal-constitution.md".source = ../../../tools/agents/personal-constitution.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
