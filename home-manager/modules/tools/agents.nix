@@ -21,11 +21,13 @@ in
     ".agents/AGENTS.md".source = ../../../tools/agents/AGENTS.md;
     ".agents/company-values.md".source = ../../../tools/agents/company-values.md;
     ".agents/personal-constitution.md".source = ../../../tools/agents/personal-constitution.md;
+    ".agents/preferred-tooling.md".source = ../../../tools/agents/preferred-tooling.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.
     ".claude/includes/agents-company-values.md".source = oosLink "${agentsDir}/company-values.md";
     ".claude/includes/agents-personal-constitution.md".source = oosLink "${agentsDir}/personal-constitution.md";
+    ".claude/includes/agents-preferred-tooling.md".source = oosLink "${agentsDir}/preferred-tooling.md";
     ".claude/includes/agents-instructions.private.md".source = oosLink "${agentsDir}/instructions.private.md";
 
     # Codex entrypoint: Codex loads ~/.codex/AGENTS.md natively. Symlink it to
@@ -47,6 +49,7 @@ in
     for importLine in \
       "@includes/agents-company-values.md" \
       "@includes/agents-personal-constitution.md" \
+      "@includes/agents-preferred-tooling.md" \
       "@includes/agents-instructions.private.md"; do
       if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
         run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"

@@ -11,7 +11,9 @@ composition point, not the content.
 
 1. **Company values** — public, work-context baseline.
 2. **Personal constitution** — public, durable personal principles.
-3. **Private overlay** — rage/age-encrypted, decrypted only on local machines,
+3. **Preferred tooling** — public, operational defaults for terminal work
+   (prefer-with-fallback tool choices).
+4. **Private overlay** — rage/age-encrypted, decrypted only on local machines,
    never committed as plaintext and never read into the Nix store.
 
 Later layers refine earlier ones. The private overlay is authoritative where it
@@ -24,8 +26,9 @@ is read from — `~/.agents/`, `~/.codex/`, or a paste):
 
 @~/.agents/company-values.md
 @~/.agents/personal-constitution.md
+@~/.agents/preferred-tooling.md
 
-Surfaces that don't expand `@` imports: read those two local files, in that
+Surfaces that don't expand `@` imports: read those three local files, in that
 order.
 
 **Private overlay.** When `~/.agents/instructions.private.md` exists, load it
