@@ -1,79 +1,154 @@
 #!/usr/bin/env bash
-# Upcoming/overdue obligations — the "don't let a one-off payment slip" check.
-# Sources (all local, no model):
-#   1. statement text extracts in import/*.txt  → due date + minimum + past-due
-#   2. ledger `note` directives with future dates (main.beancount + YYYY/)
-# Prints a dated list; used by status.sh and the daily Signal reminder.
+# duedates.sh — SILENT unless a payment is genuinely unhandled.
+#
+# Rewritten 2026-07-29. The previous version scraped a due date out of every
+# statement sitting in import/ and reported it. Once four years of statements
+# were loaded for the reconciliation, that meant 100+ permanently-"overdue"
+# lines, every one of them already paid or on autopay. Eleven lines, one of
+# which mattered. A reminder that cries wolf gets muted, and then the line that
+# mattered is lost with it.
+#
+# It now alerts ONLY when a payment looks unhandled:
+#   * the newest statement for an account has a due date within HORIZON days
+#   * AND the ledger has no payment covering it
+#   * OR the covering entry is tagged #unscheduled (Alyssa's marker for
+#     "forecast exists but not actually set up with the bank")
+#
+# Suppressed:
+#   * statements that say autopay ("WILL BE DEDUCTED" / "#autopay" in ledger)
+#   * superseded statements — only the NEWEST per account is considered
+#   * anything already covered by a real ledger payment entry
+#
+# Always surfaced (these are deliberate, hand-written reminders):
+#   * future-dated `note` directives falling inside the horizon
+#
+# Exit 0 = nothing to say (and nothing is sent).
 set -uo pipefail
 LEDGER=/Users/alyssa/ledger
-DAYS="${1:-45}"
+BIN=/Users/alyssa/ledger-ingest
+HORIZON="${1:-10}"
+QUIET="${QUIET:-0}"          # QUIET=1 → print only, never notify
+date +%s > "$BIN/.duedates-heartbeat"
 
-/usr/bin/python3 - "$LEDGER" "$DAYS" <<'PY'
+OUT=$(/usr/bin/python3 - "$LEDGER" "$HORIZON" <<'PY'
 import datetime, glob, os, re, sys
 
-ledger, days = sys.argv[1], int(sys.argv[2])
+ledger, horizon = sys.argv[1], int(sys.argv[2])
 today = datetime.date.today()
-horizon = today + datetime.timedelta(days=days)
-rows = []
+limit = today + datetime.timedelta(days=horizon)
 
-# 1. statement extracts: due date, minimum, past due
+# statement-filename prefix -> ledger account
+ACCOUNTS = [
+    (re.compile(r'^heloc-'),                      "Liabilities:Credit:NavyFederal:HELOC"),
+    (re.compile(r'^PDF document'),                "Liabilities:Credit:Alyssa:Paypal"),
+    (re.compile(r'^\d{2}-\d{2}-\d{4}$'),          "Liabilities:Credit:HomeDepot"),
+    (re.compile(r'^[a-z]+_\d{4}_monthly_statement$'), "Liabilities:Credit:NavyFederal:Visa:GoRewards"),
+]
+def account_for(name):
+    for rx, acct in ACCOUNTS:
+        if rx.search(name):
+            return acct
+    return None
+
+def parse_date(s):
+    for fmt in ("%m/%d/%Y", "%m/%d/%y"):
+        try: return datetime.datetime.strptime(s, fmt).date()
+        except ValueError: pass
+    return None
+
+# ---- newest statement per account, with its due date -----------------------
+latest = {}
 for path in glob.glob(os.path.join(ledger, "import", "*.txt")):
+    name = os.path.basename(path)[:-8] if path.endswith(".pdf.txt") else os.path.basename(path)[:-4]
+    acct = account_for(name)
+    if not acct:
+        continue
     t = open(path, errors="replace").read()
-    name = os.path.basename(path)[:-4]
-    m = re.search(r"Payment Due Date\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4})", t, re.I)
+    m = re.search(r'Payment Due Date\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4})', t, re.I)
     if not m:
         continue
-    try:
-        mm, dd, yy = [int(x) for x in m.group(1).split("/")]
-        due = datetime.date(yy + 2000 if yy < 100 else yy, mm, dd)
-    except ValueError:
+    due = parse_date(m.group(1))
+    if not due:
         continue
-    minp = re.search(r"Minimum Payment Due\s*\$?([0-9,]+\.[0-9]{2})", t, re.I)
-    past = re.search(r"Past Due Amount\s*\$?([0-9,]+\.[0-9]{2})", t, re.I)
-    bits = []
-    if minp: bits.append("min $" + minp.group(1))
-    if past and past.group(1) not in ("0.00", "0"): bits.append("PAST DUE $" + past.group(1))
-    rows.append((due, f"statement {name}", ", ".join(bits) or "due"))
+    # NOTE: `$ 466.46` (space after the $) broke the old regex and silently
+    # dropped every HELOC amount, printing a bare "due".
+    mp = re.search(r'Minimum Payment Due\s*\$?\s*([0-9,]+\.[0-9]{2})', t, re.I)
+    past = re.search(r'Past Due Amount\s*\$?\s*([0-9,]+\.[0-9]{2})', t, re.I)
+    autopay = bool(re.search(r'WILL BE DEDUCTED|AUTOMATIC PAYMENT|AUTOPAY', t, re.I))
+    rec = dict(name=name, due=due, acct=acct, autopay=autopay,
+               minp=float(mp.group(1).replace(',', '')) if mp else None,
+               past=float(past.group(1).replace(',', '')) if past else 0.0)
+    if acct not in latest or due > latest[acct]["due"]:
+        latest[acct] = rec
 
-# 2. ledger notes dated ahead (reminders Alyssa writes into the ledger)
-note_re = re.compile(r'^(\d{4}-\d{2}-\d{2})\s+note\s+(\S+)\s+"(.*)"')
-# Scan every ledger file, not just main + yearly transactions: rate/promo
-# notes live in per-topic files (rates.beancount) and were being missed.
-files = sorted(set(glob.glob(os.path.join(ledger, "*.beancount"))
-                   + glob.glob(os.path.join(ledger, "20*", "*.beancount"))))
-for f in files:
-    try:
-        for line in open(f, errors="replace"):
-            m = note_re.match(line.strip())
-            if not m:
-                continue
-            d = datetime.date.fromisoformat(m.group(1))
-            if today <= d <= horizon:
-                rows.append((d, m.group(2).split(":")[-1], m.group(3)[:90]))
-    except OSError:
-        pass
+# ---- ledger payments per account (any flag, incl. # forecasts) -------------
+pay = {}
+notes = []
+blk = re.compile(r'\n(?=\d{4}-\d{2}-\d{2} [*!#] )')
+for f in glob.glob(os.path.join(ledger, "**", "*.beancount"), recursive=True):
+    if ".bak-" in f or ".reconcile." in f:
+        continue
+    try: txt = open(f, errors="replace").read()
+    except OSError: continue
+    for line in txt.split("\n"):
+        nm = re.match(r'^(\d{4}-\d{2}-\d{2})\s+note\s+(\S+)\s+"(.*)"', line.strip())
+        if nm:
+            d = datetime.date.fromisoformat(nm.group(1))
+            if today <= d <= limit:
+                notes.append((d, nm.group(2).split(":")[-1], nm.group(3)))
+    for b in blk.split(txt):
+        h = re.match(r'^(\d{4}-\d{2}-\d{2}) ([*!#]) ', b)
+        if not h: continue
+        try: d = datetime.date.fromisoformat(h.group(1))
+        except ValueError: continue
+        tags = set(re.findall(r'#([A-Za-z0-9_-]+)', b.split("\n")[0]))
+        for a in set(re.findall(r'^\s+!?(Liabilities:[A-Za-z0-9:]+)', b, re.M)):
+            # a payment REDUCES a liability: positive amount on the liability leg
+            amt = re.search(re.escape(a) + r'\s+([\d,]+\.?\d*) USD', b)
+            if not amt: continue
+            pay.setdefault(a, []).append((d, tags, float(amt.group(1).replace(',', ''))))
 
-# dismissals: one substring per line in ~/ledger-ingest/paid.txt suppresses a row
-try:
-    dismissed = [l.strip() for l in open("/Users/alyssa/ledger-ingest/paid.txt") if l.strip() and not l.startswith("#")]
-except OSError:
-    dismissed = []
-rows = [r for r in rows if not any(d in f"{r[0]} {r[1]} {r[2]}" for d in dismissed)]
+# ---- decide ----------------------------------------------------------------
+alerts = []
+for acct, r in sorted(latest.items()):
+    # PAST DUE is already a problem — report it regardless of the horizon.
+    # (A balance that is past due today should not wait for its next due date
+    # to come within N days before anyone hears about it.)
+    if r["past"] > 0:
+        alerts.append((today, acct.split(":")[-1],
+                       "PAST DUE $%.2f as of stmt %s — next min $%s due %s" %
+                       (r["past"], r["name"],
+                        ("%.2f" % r["minp"]) if r["minp"] else "?", r["due"])))
+    if r["due"] > limit:
+        continue                       # not yet within the horizon
+    if r["autopay"]:
+        continue                       # the statement says it deducts itself
+    covering = [p for p in pay.get(acct, [])
+                if r["due"] - datetime.timedelta(days=35) <= p[0] <= r["due"] + datetime.timedelta(days=5)]
+    unscheduled = [p for p in covering if "unscheduled" in p[1]]
+    autopaid    = [p for p in covering if "autopay" in p[1]]
+    if autopaid:
+        continue
+    amt = ("$%.2f" % r["minp"]) if r["minp"] else "amount unknown"
+    if not covering:
+        alerts.append((r["due"], acct.split(":")[-1],
+                       "NO PAYMENT IN LEDGER — min %s due %s (stmt %s)" % (amt, r["due"], r["name"])))
+    elif unscheduled:
+        alerts.append((r["due"], acct.split(":")[-1],
+                       "payment is #unscheduled — min %s due %s" % (amt, r["due"])))
 
-# Only recent history is actionable. import/ now holds every statement back to
-# 2022 (the reconciliation batch), and without this window the daily reminder
-# reports 100+ statements from 2022-2025 as "OVERDUE" -- noise that would get
-# the whole notification muted.
-STALE_AFTER_DAYS = 60
-floor = today - datetime.timedelta(days=STALE_AFTER_DAYS)
-rows = [r for r in rows if r[0] >= floor]
-overdue = [r for r in rows if r[0] < today or "PAST DUE" in r[2]]
-soon = [r for r in rows if today <= r[0] <= horizon and r not in overdue]
-if not overdue and not soon:
-    print(f"No obligations found in the next {days} days.")
-for label, group in (("OVERDUE / ACTION NEEDED", overdue), (f"NEXT {days} DAYS", soon)):
-    if group:
-        print(f"== {label} ==")
-        for d, who, what in sorted(group):
-            print(f"  {d}  {who:<28} {what}")
+for d, who, what in notes:
+    alerts.append((d, who, what))
+
+if not alerts:
+    sys.exit(0)
+print("Ledger — %d item(s) need attention in the next %d days:" % (len(alerts), horizon))
+for d, who, what in sorted(alerts):
+    print("  %s  %-22s %s" % (d, who[:22], what[:150]))
 PY
+)
+rc=$?
+[ -z "$OUT" ] && exit 0
+echo "$OUT"
+[ "$QUIET" = "1" ] && exit 0
+"$BIN/notify.sh" "$OUT" || true
