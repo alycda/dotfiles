@@ -54,6 +54,23 @@ work — until that lands, `tv` may be absent; fall back and say so.)
   for lints. rust-analyzer and rustfmt come from rustup — never install them
   standalone (they conflict).
 
+## Datastores
+
+For **new** services, prefer:
+
+- **Relational**: Postgres (via Supabase) — not MySQL.
+- **Key–value / cache**: KeyDB — the migration target away from Redis/Upstash.
+  It's redis-protocol compatible, so `redis-cli` and existing clients still
+  work.
+
+SQLite is not deprecated: it remains the right choice for local, embedded, and
+single-file state (e.g. the Hermes kanban), and the `tv sqlite` channel stays.
+The preference is about what backs a *new networked service*, not about
+ripping SQLite out of things that are well-served by it.
+
+Connection strings are secrets: keep them in agenix / `sessionVariables`
+(`$DATABASE_URL`, `$REDIS_URL`), never in tracked files.
+
 ## Reach for Nix to summon tools
 
 When a preferred tool isn't on `PATH` but `nix` is, prefer an ephemeral Nix
