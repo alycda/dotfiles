@@ -15,6 +15,24 @@ absent in sandboxes that ship only `git`; when it is, use `git` directly. This
 is safe: jj is git-backed, so the repository is a normal git repo underneath and
 git operations never corrupt jj state.
 
+### Commit history is how I learn and review your steps
+
+Whichever tool you're holding, treat commit history as a deliverable, not a
+byproduct. I learn bottom-up — from the concrete steps — and history is the
+record of yours: it's how I review what an agent did after the fact, and how I
+learn from work I didn't watch happen. Concretely:
+
+- **Commit as you go, atomically.** One logical change per commit; if the
+  description needs "and", split it. Never batch a session into one blob
+  commit at the end — that erases the steps I'd review.
+- **Describe first, then code.** Put the intent on record before the diff
+  exists (`jj new -m "what I'm about to do"`; in git, commit early with a real
+  message and amend as the change firms up).
+- **Messages explain why**, not just what: the problem, the alternative you
+  didn't take, what you learned. A wrong turn followed by a fix is valuable
+  history when it teaches something — keep it; squash only true "oops" fixups
+  with no learning value.
+
 ## Command-line defaults
 
 | Task | Prefer | Fall back to |
