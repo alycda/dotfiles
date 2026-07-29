@@ -130,3 +130,22 @@ credential.
 
 False positives go in `.secretscanignore` (one ERE per line, matched against
 `path:line`). Deliberate override: `SKIP_SECRET_SCAN=1 git push`.
+
+## Artifacts land in an Obsidian vault (fixed 2026-07-29)
+
+The gateway mounts an **Obsidian vault** at `/artifacts`:
+
+    ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Hermes
+
+It previously mounted `com~apple~CloudDocs/Hermes`, which is a *different iCloud
+container* and is not inside any vault — so agent markdown never appeared in
+Obsidian on the phone, which was the whole point of writing it there. Obsidian
+on iOS only sees vaults under `iCloud~md~obsidian/Documents/`.
+
+A standalone `Hermes` vault was chosen over a folder inside an existing vault so
+that nothing an agent writes can reach the personal notes (Claudia alone has
+~3,170 files). Add it once as a vault on the phone.
+
+`/artifacts` remains the ONLY host path outside `ledger/import` the agent can
+write to, and the ledger skill still just says "write deliverables to
+/artifacts" — no skill change was needed, only the mount.

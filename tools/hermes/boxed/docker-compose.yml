@@ -24,13 +24,11 @@ services:
       - "127.0.0.1:9119:9119"   # dashboard
     volumes:
       - ./state:/opt/data
-      # Canonical skills from dotfiles (tools/agents/skills) — tracked, so a
-      # fresh machine gets them without an imperative `skills install`.
-      - /Users/alyssa/dotfiles/tools/agents/skills:/opt/data/skills/dotfiles:ro
-      # All agent deliverables (markdown reports etc.) land here → iCloud →
-      # Alyssa's Obsidian. The ONLY host-visible write path besides the
+      # All agent deliverables land in an OBSIDIAN VAULT so they open on
+      # the iPhone. CloudDocs/Hermes was not inside a vault, which is why
+      # nothing ever showed up in Obsidian. The ONLY host-visible write path besides the
       # draft service's /ledger/import.
-      - /Users/alyssa/Library/Mobile Documents/com~apple~CloudDocs/Hermes:/artifacts
+      - /Users/alyssa/Library/Mobile Documents/iCloud~md~obsidian/Documents/Hermes:/artifacts
     networks:
       - default
       - signal
