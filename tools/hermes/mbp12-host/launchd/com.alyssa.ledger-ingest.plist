@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.alyssa.ledger-ingest</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/Users/alyssa/ledger-ingest/ingest.sh</string>
+    </array>
+    <key>WatchPaths</key>
+    <array>
+      <string>/Users/alyssa/Library/Mobile Documents/com~apple~CloudDocs/3282/import</string>
+    </array>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>StandardOutPath</key>
+    <string>/Users/alyssa/ledger-ingest/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/alyssa/ledger-ingest/launchd.err.log</string>
+  </dict>
+</plist>
