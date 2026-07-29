@@ -3,6 +3,7 @@
 pkgs: with pkgs; [
   asciinema
   bat
+  eza
   ripgrep
   jujutsu
   just
