@@ -4,7 +4,6 @@
 {
   imports = [
     ../modules/ide/vscode.nix
-    ../modules/tools/agent-skills.nix
   ];
 
   home = {

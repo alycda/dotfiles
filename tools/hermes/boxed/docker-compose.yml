@@ -1,0 +1,96 @@
+name: hermes-boxed
+
+# Containment: the agent lives here with NO host shell, NO docker socket,
+# NO ~/ledger mount (gateway) / read-only + import-only-write (draft runner).
+# Ledger operations go through the host MCP broker (127.0.0.1:8643, bearer
+# token) or read-only fava (:5001) — both via host.docker.internal.
+
+services:
+  gateway:
+    image: nousresearch/hermes-agent:latest
+    container_name: hermes-boxed
+    command: ["gateway", "run"]
+    environment:
+      - HERMES_UID=501
+      - HERMES_GID=20
+      - HERMES_INFERENCE_PROVIDER=custom
+      - HERMES_DASHBOARD=1
+      - HERMES_DASHBOARD_INSECURE=1  # gate opt-in; host publish is loopback-only and
+                                     # the untrusted draft service is network-isolated      # supervise dashboard alongside gateway (one
+                                # container — a separate dashboard container
+                                # deadlocks on the shared state's s6 log locks)
+    ports:
+      - "127.0.0.1:8642:8642"   # gateway HTTP API for hermes-workspace UI
+      - "127.0.0.1:9119:9119"   # dashboard
+    volumes:
+      - ./state:/opt/data
+      # Canonical skills from dotfiles (tools/agents/skills) — tracked, so a
+      # fresh machine gets them without an imperative `skills install`.
+      - /Users/alyssa/dotfiles/tools/agents/skills:/opt/data/skills/dotfiles:ro
+      # All agent deliverables (markdown reports etc.) land here → iCloud →
+      # Alyssa's Obsidian. The ONLY host-visible write path besides the
+      # draft service's /ledger/import.
+      - /Users/alyssa/Library/Mobile Documents/com~apple~CloudDocs/Hermes:/artifacts
+    networks:
+      - default
+      - signal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # One-shot bookkeeper runs (untrusted PDF text goes to this agent, so it is
+  # the MOST contained: repo read-only, writes possible ONLY in import/).
+  draft:
+    image: nousresearch/hermes-agent:latest
+    profiles: ["tools"]
+    environment:
+      - HERMES_UID=501
+      - HERMES_GID=20
+      - HERMES_INFERENCE_PROVIDER=custom
+    volumes:
+      # OWN minimal state (Venice creds only): sharing ./state with the live
+      # gateway deadlocks s6 log locks AND would let the untrusted-input
+      # runner read Signal creds, API_SERVER_KEY, and the broker token.
+      - ./state-draft:/opt/data
+      - /Users/alyssa/ledger:/ledger:ro
+      - /Users/alyssa/ledger/import:/ledger/import:rw
+    networks:
+      - draftnet   # isolated: no route to gateway/workspace/dashboard
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Workspace UI — docker runtime (the native-node path was only ever a
+  # Catalina *build* workaround; the published image runs fine). Auth to the
+  # gateway via the shared secret in workspace.env (HERMES_API_TOKEN ==
+  # gateway's API_SERVER_KEY).
+  workspace:
+    image: ghcr.io/outsourc-e/hermes-workspace:latest
+    container_name: hermes-workspace
+    env_file: [./workspace.env]
+    environment:
+      HERMES_HOME: /home/workspace/.hermes
+      HERMES_WORKSPACE_DIR: /workspace
+      HERMES_API_URL: http://gateway:8642
+      HERMES_DASHBOARD_URL: http://gateway:9119
+    volumes:
+      - hermes-workspace-files:/workspace
+      - hermes-workspace-home:/home/workspace/.hermes
+    ports:
+      - "0.0.0.0:3000:3000"   # LAN-visible; HERMES_PASSWORD gates it
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+volumes:
+  hermes-workspace-files:
+    external: true
+    name: hermes-workspace_hermes-workspace-files
+  hermes-workspace-home:
+    external: true
+    name: hermes-workspace_hermes-workspace-home
+
+networks:
+  draftnet: {}
+  signal:
+    external: true
+    name: signal-cli_default
