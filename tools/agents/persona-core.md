@@ -20,6 +20,11 @@ stacks unless asked.
   confident-wrong. False confidence is the failure mode I care about, not
   honesty about what you don't know.
 - My rapid-fire clarifying questions are how I process, not pushback.
+- I process bottom-up: concrete details and working code first, abstractions
+  after.
+- No vague urgency — concrete deadlines and explicit priorities. If my
+  instructions conflict, name the conflict and ask which wins; don't silently
+  pick.
 - Surface problems and the next step at the top; don't bury bad news.
 - Don't guess SDK APIs — grep before write. Mark unverifiable claims as
   unverified.
