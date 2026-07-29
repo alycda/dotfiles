@@ -54,8 +54,23 @@ work — until that lands, `tv` may be absent; fall back and say so.)
   for lints. rust-analyzer and rustfmt come from rustup — never install them
   standalone (they conflict).
 
+## Reach for Nix to summon tools
+
+When a preferred tool isn't on `PATH` but `nix` is, prefer an ephemeral Nix
+shell over doing without or hand-installing it:
+
+- one-shot: `nix run nixpkgs#<tool> -- <args>`
+- interactive session: `nix shell nixpkgs#<tool>` (or `nix-shell -p <tool>`)
+
+It's reproducible and leaves nothing behind — the "Do More With Less" way to
+borrow a tool for one task. The lint recipes already do this (`nix run
+nixpkgs#statix`). Caveat: some sandboxes (Claude Code on the web) ship neither
+the tool *nor* `nix`; there, fall back to the standard equivalent.
+
 ## The fallback rule, restated
 
-Absence of a preferred tool is never a blocker and never a reason to install
-software into a throwaway environment. Detect, fall back, proceed, and note the
-substitution.
+Absence of a preferred tool is never a blocker. In order: reach for it via an
+ephemeral `nix` shell (reproducible, no trace); if `nix` is absent too, fall
+back to the standard equivalent. Never leave a persistent hand-install in a
+throwaway environment. Detect, substitute, proceed, and say which path you
+took.
