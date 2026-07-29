@@ -18,8 +18,20 @@ ts() { date "+%Y-%m-%d %H:%M:%S"; }
 log() { echo "$(ts) $*" >> "$LOG"; }
 
 shopt -s nullglob
-for pdf in "$INBOX"/*.pdf "$INBOX"/*.PDF; do
-  base=$(basename "$pdf")
+# Subfolders let a second account coexist despite identical filenames. NFCU
+# names every statement "<month>_<year>_monthly_statement.pdf" for BOTH the
+# credit card and the home equity line, so dropping HELOC statements in the
+# top level collides and gets skipped. Put them in e.g. import/heloc/ and they
+# are stored prefixed ("heloc-june_2026_...") with the folder as a class hint.
+for pdf in "$INBOX"/*.pdf "$INBOX"/*.PDF "$INBOX"/*/*.pdf "$INBOX"/*/*.PDF; do
+  rel="${pdf#$INBOX/}"
+  hint=""
+  if [[ "$rel" == */* ]]; then
+    hint="${rel%%/*}"
+    base="${hint}-$(basename "$pdf")"
+  else
+    base=$(basename "$pdf")
+  fi
   side="$INBOX/.$base.class"
   [ -e "$side" ] && continue
 
@@ -75,6 +87,9 @@ print(t[:4000])
     *Schwab*)                           class=schwab ;;
   esac
   [ -z "$text" ] && class=unreadable-or-image-only
+  # an explicit subfolder beats content sniffing (HELOC statements otherwise
+  # look enough like the card's to be misfiled)
+  [ -n "$hint" ] && class="$hint"
   echo "$class" > "$side"
   log "$base -> $class"
 

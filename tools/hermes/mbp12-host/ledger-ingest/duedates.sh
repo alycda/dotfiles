@@ -60,6 +60,13 @@ except OSError:
     dismissed = []
 rows = [r for r in rows if not any(d in f"{r[0]} {r[1]} {r[2]}" for d in dismissed)]
 
+# Only recent history is actionable. import/ now holds every statement back to
+# 2022 (the reconciliation batch), and without this window the daily reminder
+# reports 100+ statements from 2022-2025 as "OVERDUE" -- noise that would get
+# the whole notification muted.
+STALE_AFTER_DAYS = 60
+floor = today - datetime.timedelta(days=STALE_AFTER_DAYS)
+rows = [r for r in rows if r[0] >= floor]
 overdue = [r for r in rows if r[0] < today or "PAST DUE" in r[2]]
 soon = [r for r in rows if today <= r[0] <= horizon and r not in overdue]
 if not overdue and not soon:

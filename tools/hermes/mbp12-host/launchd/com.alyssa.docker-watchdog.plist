@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.alyssa.docker-watchdog</string>
+  <key>ProgramArguments</key>
+  <array><string>/Users/alyssa/ledger-ingest/docker-watchdog.sh</string></array>
+  <key>StartInterval</key><integer>600</integer>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>/Users/alyssa/ledger-ingest/docker-watchdog.out</string>
+  <key>StandardErrorPath</key><string>/Users/alyssa/ledger-ingest/docker-watchdog.out</string>
+</dict>
+</plist>
