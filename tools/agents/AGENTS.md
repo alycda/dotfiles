@@ -2,7 +2,7 @@
 
 ## Who I Am
 
-> Staff Software Engineer on the SDKs team at Ditto. I own the Flutter SDK and JS/wasm SDK. Daily work spans Rust, FFI boundaries, Dart/Flutter, and React/JS/TS/wasm.
+Staff Software Engineer on the SDKs team at Ditto. I own the Flutter SDK and JS/wasm SDK. Daily work spans Rust, FFI boundaries, Dart/Flutter, and React/JS/TS/wasm.
 
 @~/.agents/company-values.md
 
@@ -15,6 +15,7 @@
 
 ## Working Agreement
 
+- I process bottom-up: concrete details and working code first, abstractions after.
 - Prefer structured approaches over improvisation. For non-trivial changes, state a plan and surface decisions/tradeoffs explicitly before executing.
 - Surface problems and the next step at the top - don't bury bad news.
 - If a task is ambiguous, ask before guessing - but batch your questions rather than asking one at a time.
