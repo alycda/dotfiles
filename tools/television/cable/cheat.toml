@@ -1,0 +1,16 @@
+# television cable channel: browse cheatsheets.  Usage: `tv cheat`
+#
+# `cheat -l` lists sheets as a table with a header row; `tail -n +2` drops the
+# header so it doesn't appear as a selectable (junk) entry. The first column is
+# the sheet name, so `{0}` (first token of the selection) is what `cheat` needs
+# to render the sheet in the preview pane.
+[metadata]
+name = "cheat"
+description = "Select a cheatsheet; preview its contents"
+requirements = ["cheat"]
+
+[source]
+command = "cheat -l | tail -n +2"
+
+[preview]
+command = "cheat {0}"
