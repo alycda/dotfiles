@@ -1,0 +1,73 @@
+# Flox environment mirroring devShells.default (flake.nix) + lib/core-packages.nix.
+#
+# This is the Flox translation of the flake's default devShell: same core CLI
+# tools, same cheat + helix wiring, expressed as TOML instead of Nix. See
+# docs/flox-exploration.md for the full investigation and what does NOT
+# translate (ragenix, overlays, home-manager config).
+#
+# NOTE: authored by hand in a sandbox where the Flox installer was unreachable,
+# so there is no manifest.lock yet - the first `flox activate` (or `flox edit`)
+# on a machine with Flox installed will resolve and lock it against the catalog.
+
+version = 1
+
+[install]
+# --- lib/core-packages.nix ------------------------------------------------
+asciinema.pkg-path = "asciinema"
+bat.pkg-path = "bat"
+eza.pkg-path = "eza"
+ripgrep.pkg-path = "ripgrep"
+jujutsu.pkg-path = "jujutsu"
+just.pkg-path = "just"
+jq.pkg-path = "jq"
+gh.pkg-path = "gh"
+rage.pkg-path = "rage"
+taskbook.pkg-path = "taskbook"
+tmux.pkg-path = "tmux"
+
+# --- devShells.tools (cheatShell in flake.nix) ------------------------------
+# The flake wraps cheat with wrapProgram to bake in CHEAT_CONFIG_PATH; Flox has
+# no wrapper/overlay mechanism, so the same effect comes from [hook] + [vars].
+cheat.pkg-path = "cheat"
+helix.pkg-path = "helix"
+
+# --- deliberately absent ----------------------------------------------------
+# ragenix: flake-only (github:yaxitech/ragenix), not in nixpkgs, so it is not
+#   in the Flox catalog. Options: keep `nix run github:yaxitech/ragenix`, or
+#   package it via a Flox nix-expression build and publish to a private catalog.
+# claude-code: core profiles get it from the sadjow/claude-code-nix overlay for
+#   fresher releases; Flox manifests have no overlay concept. The catalog does
+#   carry nixpkgs' claude-code, at nixpkgs freshness.
+
+[vars]
+EDITOR = "hx"
+
+[hook]
+# Runs once in bash on activation. Exported vars are visible to [profile] and
+# the activated shell. Replaces conf.nix (pkgs.writeText) - the config is
+# generated into the per-environment cache dir instead of the Nix store, but
+# still points at the same plaintext cheatsheets in tools/cheat/.
+on-activate = '''
+  export CHEAT_CONFIG_PATH="$FLOX_ENV_CACHE/cheat-conf.yml"
+  cat > "$CHEAT_CONFIG_PATH" <<EOF
+editor: hx
+colorize: true
+style: monokai
+formatter: terminal256
+pager: bat --paging=auto
+cheatpaths:
+  - name: community
+    path: $FLOX_ENV_PROJECT/tools/cheat/cheatsheets/community
+    tags: [ community ]
+    readonly: true
+  - name: personal
+    path: $FLOX_ENV_PROJECT/tools/cheat/cheatsheets/personal
+    tags: [ personal ]
+    readonly: true
+EOF
+'''
+
+[options]
+# Same matrix as `supportedSystems` in flake.nix - but resolved per-system by
+# the catalog instead of via forAllSystems boilerplate.
+systems = ["aarch64-darwin", "x86_64-darwin", "aarch64-linux", "x86_64-linux"]
