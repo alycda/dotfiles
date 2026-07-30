@@ -6,7 +6,7 @@
     ../modules/ide/vscode.nix
     ../modules/dev/rust.nix
     ../modules/tools/agent-skills.nix
-    ../modules/tools/hackmd.nix
+    ../modules/tools/hackmd-work.nix
   ];
 
   home = {
