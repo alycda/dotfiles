@@ -17,4 +17,8 @@ in
   # Private agent-instruction overlay (issue #40). Decrypted only on local
   # machines to ~/.agents/instructions.private.md; never committed as plaintext.
   "personal/agent-instructions.age".publicKeys = [ alyssa ];
+
+  # HackMD API token, decrypted to ~/.local/share/agenix/hackmd-api-token
+  # (wired in home-manager/modules/tools/hackmd.nix).
+  "personal/hackmd-api-token.age".publicKeys = [ alyssa ];
 }
