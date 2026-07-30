@@ -18,7 +18,8 @@ in
   # machines to ~/.agents/instructions.private.md; never committed as plaintext.
   "personal/agent-instructions.age".publicKeys = [ alyssa ];
 
-  # HackMD API token, decrypted to ~/.config/hackmd/env in env-file format
-  # (wired in home-manager/modules/tools/hackmd.nix).
-  "personal/hackmd-api-token.age".publicKeys = [ alyssa ];
+  # HackMD API token (work account), decrypted to ~/.config/hackmd/env in
+  # env-file format (wired in home-manager/modules/tools/hackmd.nix, imported
+  # by the work profile).
+  "work/hackmd-api-token.age".publicKeys = [ alyssa ];
 }

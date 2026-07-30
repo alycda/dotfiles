@@ -5,7 +5,6 @@
   imports = [
     ../modules/ide/vscode.nix
     ../modules/tools/agent-skills.nix
-    ../modules/tools/hackmd.nix
   ];
 
   home = {
