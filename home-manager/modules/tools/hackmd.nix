@@ -6,5 +6,8 @@
 #   export HMD_API_ACCESS_TOKEN="$(cat ~/.local/share/agenix/hackmd-api-token)"
 _:
 {
-  age.secrets.hackmd-api-token.file = ../../../secrets/personal/hackmd-api-token.age;
-}
+  age.secrets.hackmd-api-token = {
+    file = ../../../secrets/work/hackmd-api-token.age;
+    path = "${config.home.homeDirectory}/.config/hackmd/env";
+    mode = "0600";
+};
