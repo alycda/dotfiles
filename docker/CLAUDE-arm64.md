@@ -8,10 +8,12 @@ full home-manager environment: the `alyssa@dev` closure is baked into the
 image and activated at container start. Dotfiles:
 https://github.com/alycda/dotfiles (its `Dockerfile` covers the build).
 
-Unlike the x86 sibling doc (`docker/CLAUDE.md`, a frozen 2012 MacBook Pro),
-there are no hardware or software ceilings here: the host is modern, the CPU
-is fast, and current Linux tooling runs natively. Do not assume the 2012
-MBP's constraints (OOM pressure, no AVX2, slow bind mounts) apply.
+There are no hardware or software ceilings here: the host is modern, the CPU
+is fast, and current Linux tooling runs natively. If you come across
+`docker/CLAUDE.md` in the dotfiles repo (e.g. under `/opt/dotfiles`), ignore
+it - it describes a different machine entirely (a frozen 2012 MacBook Pro:
+OOM pressure, no AVX2, slow bind mounts, old-software ceilings) and none of
+its constraints apply to this container.
 
 ## Layout and persistence
 
