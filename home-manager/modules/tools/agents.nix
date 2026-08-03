@@ -14,6 +14,12 @@ let
   # Out-of-store symlinks so the Claude includes track the live ~/.agents files
   # (and the *decrypted* overlay), not immutable store copies.
   oosLink = config.lib.file.mkOutOfStoreSymlink;
+  # Critic subagents: persona (frontmatter + enforcer instructions) canonical
+  # in tools/agents/, judged-against material appended beneath as layers.
+  # On-demand rubrics instead of always-loaded context — store-safe; only
+  # public files, never the private overlay.
+  mkCritic = persona: layers:
+    lib.concatStringsSep "\n" (map builtins.readFile ([ persona ] ++ layers));
 in
 {
   # Public layers, tracked in the repo, deployed verbatim.
@@ -31,17 +37,31 @@ in
     ".claude/includes/agents-personal-constitution-distilled.md".source = oosLink "${agentsDir}/personal-constitution-distilled.md";
     ".claude/includes/agents-instructions.private.md".source = oosLink "${agentsDir}/instructions.private.md";
 
-    # Constitution critic subagent: the full constitution as an on-demand
-    # rubric (every article carries a test and a failure signal) instead of
-    # ~7.5KB of always-loaded context. The persona (frontmatter + enforcer
-    # instructions) is canonical in tools/agents/constitution-critic.md; the
-    # judged material is appended from the public layers — store-safe; never
-    # reads the private overlay.
+    # constitution-critic: the full constitution (every article carries a
+    # test and a failure signal) as a judging rubric.
     ".claude/agents/constitution-critic.md".text =
-      builtins.readFile ../../../tools/agents/constitution-critic.md
-      + builtins.readFile ../../../tools/agents/personal-constitution.md
-      + "\n"
-      + builtins.readFile ../../../tools/agents/company-values.md;
+      mkCritic ../../../tools/agents/constitution-critic.md [
+        ../../../tools/agents/personal-constitution.md
+        ../../../tools/agents/company-values.md
+      ];
+
+    # code-critic: engineering rubrics (TigerStyle, NASA Power of Ten, Test
+    # Desiderata) for judging code, designs, and tests.
+    ".claude/agents/code-critic.md".text =
+      mkCritic ../../../tools/agents/code-critic.md [
+        ../../../tools/agents/rubrics/tiger-style.md
+        ../../../tools/agents/rubrics/power-of-ten.md
+        ../../../tools/agents/rubrics/test-desiderata.md
+      ];
+
+    # factory-critic: StrongDM Software Factory method for judging process
+    # (seed / validation harness / feedback loop), not code quality.
+    ".claude/agents/factory-critic.md".text =
+      mkCritic ../../../tools/agents/factory-critic.md [
+        ../../../tools/agents/rubrics/strongdm-principles.md
+        ../../../tools/agents/rubrics/strongdm-techniques.md
+        ../../../tools/agents/rubrics/strongdm-products.md
+      ];
 
     # Codex entrypoint: Codex loads ~/.codex/AGENTS.md natively. Symlink it to
     # the canonical file so a fresh activation wires Codex without a manual
