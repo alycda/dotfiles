@@ -76,6 +76,16 @@ _login:
     gh auth login --web
     claude login
 
+# Build the dev container image from this checkout
+[group('docker')]
+docker-build:
+    ./docker/dev.sh build-local
+
+# Run the dev container, mounting the current directory at /work
+[group('docker')]
+docker-run dir=invocation_directory():
+    ./docker/dev.sh run {{dir}}
+
 # Assemble the combined agent instruction capsule (public layers + local overlay)
 [group('agents')]
 agents-capsule:

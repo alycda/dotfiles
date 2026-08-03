@@ -160,8 +160,16 @@ docker build -t dev https://github.com/alycda/dotfiles.git && docker run -it --r
 
 Run it from whatever directory you want mounted at `/work`. Rebuilding after
 a flake change is the same one-liner again — there's no local checkout to
-keep in sync. If you *do* want a local checkout (e.g. to hack on the
-dotfiles from the host):
+keep in sync. The same flow, curl-able (`docker/dev.sh` is the single source
+of truth for the build/run commands; the `just docker-*` recipes delegate to
+it):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
+```
+
+If you *do* want a local checkout (e.g. to hack on the dotfiles from the
+host):
 
 ```sh
 git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
