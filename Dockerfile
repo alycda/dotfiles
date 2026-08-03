@@ -9,7 +9,10 @@
 # respects a mounted /root volume (Claude/gh auth, ssh, jj state persistence)
 # and the age identity key that ragenix needs to decrypt the git config.
 #
-# Bootstrap from nothing (https clone, no gh/ssh/Nix needed):
+# Bootstrap from nothing (no gh/ssh/Nix/git needed - Docker fetches the repo
+# itself via BuildKit's remote build context):
+#   docker build -t dev https://github.com/alycda/dotfiles.git
+# ...or from a local clone:
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
 #   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev

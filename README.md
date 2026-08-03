@@ -118,11 +118,20 @@ Verified end-to-end on a clean tart VM (macOS Tahoe base image), 2026-07-01.
     - What is [jujutsu](https://kubamartin.com/posts/introduction-to-the-jujutsu-vcs/)?
     - rebuild with `just` or `just _rebuild`
 
-### Plain Docker (no Nix, no VSCode, no gh)
+### Plain Docker (no Nix, no VSCode, no gh — not even git)
 
-For a machine (or user account) where all you have is https `git clone`,
-`curl`, and `docker` — e.g. a fresh non-admin user on a Mac whose Nix install
-belongs to another account:
+For a machine (or user account) where all you have is `docker` — e.g. a fresh
+non-admin user on a Mac whose Nix install belongs to another account. Docker
+fetches the repo itself (BuildKit remote build context over https):
+
+```sh
+docker build -t dev https://github.com/alycda/dotfiles.git && docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+```
+
+Run it from whatever directory you want mounted at `/work`. Rebuilding after
+a flake change is the same one-liner again — there's no local checkout to
+keep in sync. If you *do* want a local checkout (e.g. to hack on the
+dotfiles from the host):
 
 ```sh
 git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
