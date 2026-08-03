@@ -22,13 +22,16 @@ cp -f "/opt/dotfiles/docker/$claude_md" /root/.claude/CLAUDE.md 2>/dev/null || t
 if [ ! -e /root/.nix-profile ] || [ "$CURRENT" != "$BAKED" ]; then
   echo ">> activating home-manager generation ($(cat /opt/hm-profile 2>/dev/null || echo unknown))"
 
-  # The nixos/nix base image seeds root's profile with git-minimal (so nix can
-  # fetch git flakes). home-manager installs its own full git into that same
-  # profile, and the two collide on share/git-core/templates/info/exclude when
-  # the generation is assembled - blocking activation. We fetch the flake via
-  # `path:` (no git needed), so drop the base git-minimal first; the rest of
-  # the base profile (bash, openssh, curl, ...) is preserved and merges fine.
-  nix-env -e git-minimal 2>/dev/null || true
+  # The nixos/nix base image seeds root's profile with packages that collide
+  # with home-manager's own when the generation is assembled, blocking
+  # activation: git-minimal vs full git (share/git-core/.../info/exclude), and
+  # on newer/arm64 base images man-db vs home-manager's man (bin/accessdb).
+  # We fetch the flake via `path:` (no git needed) and HM provides man, so
+  # drop the base copies first; the rest of the base profile (bash, openssh,
+  # curl, ...) is preserved and merges fine.
+  for pkg in git-minimal man-db; do
+    nix-env -e "$pkg" 2>/dev/null || true
+  done
 
   export HOME_MANAGER_BACKUP_EXT=backup
   if ! /opt/hm-activation/activate; then
