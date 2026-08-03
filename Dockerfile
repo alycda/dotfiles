@@ -69,11 +69,14 @@ RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 # Outside /root so a mounted home volume can never shadow the flake
 COPY . /opt/dotfiles
 
-# TARGETARCH is set by BuildKit (arm64/amd64). The classic builder (Docker
-# 20.10 on the 2012 MBP) leaves it empty, which falls through to the x86
-# profile - exactly right for that machine. Override the auto-detection with
-# --build-arg HM_PROFILE=<name> if you ever need to cross a profile.
-ARG TARGETARCH
+# The profile is picked by asking the build container itself (uname -m), NOT
+# BuildKit's TARGETARCH: the legacy builder never sets TARGETARCH (it's still
+# what a fresh non-admin macOS user gets - buildx CLI plugins live per-user in
+# ~/.docker/cli-plugins - and it's all Docker 20.10 on the 2012 MBP has), and
+# an empty TARGETARCH here would silently build the x86 closure on an arm64
+# host. uname -m runs in the target platform's container under both builders,
+# so it's always the truth. Override with --build-arg HM_PROFILE=<name> if
+# you ever need to force a profile.
 ARG HM_PROFILE
 
 # Build the HM generation and root it at a stable path (GC-safe).
@@ -84,13 +87,14 @@ ARG HM_PROFILE
 # /root/.claude is a volume (claude-home) that shadows the baked copy, so the
 # entrypoint re-copies it on every start to keep it current; this seed covers
 # a fresh volume and runs without the claude-home mount.
-RUN profile="${HM_PROFILE:-$(case "$TARGETARCH" in arm64) echo 'alyssa@dev';; *) echo 'alyssa@dev-x86';; esac)}" \
+RUN arch="$(uname -m)" \
+ && profile="${HM_PROFILE:-$(case "$arch" in aarch64) echo 'alyssa@dev';; *) echo 'alyssa@dev-x86';; esac)}" \
  && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
  && echo "$profile" > /opt/hm-profile \
  && mkdir -p /root/.claude \
- && case "$TARGETARCH" in \
-      arm64) cp /opt/dotfiles/docker/CLAUDE-arm64.md /root/.claude/CLAUDE.md ;; \
-      *)     cp /opt/dotfiles/docker/CLAUDE.md       /root/.claude/CLAUDE.md ;; \
+ && case "$arch" in \
+      aarch64) cp /opt/dotfiles/docker/CLAUDE-arm64.md /root/.claude/CLAUDE.md ;; \
+      *)       cp /opt/dotfiles/docker/CLAUDE.md       /root/.claude/CLAUDE.md ;; \
     esac
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
