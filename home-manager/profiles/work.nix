@@ -1,12 +1,15 @@
 # ditto
-{ pkgs, lib, ... }:
+{ config, pkgs, lib, ... }:
 
 {
   imports = [
     ../modules/ide/vscode.nix
     ../modules/dev/rust.nix
-    ../modules/tools/agent-skills.nix
   ];
+
+  # Live-edit agent skills from the local checkout (module imported via
+  # common.nix; store-copy mode is the default elsewhere).
+  agentSkills.liveCheckout = "${config.home.homeDirectory}/dotfiles";
 
   home = {
     username = "alyssaevans";
