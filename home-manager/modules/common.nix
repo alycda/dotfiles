@@ -19,6 +19,7 @@ in
     ./tools/cheat.nix
     ./tools/claude-code.nix
     ./tools/gh-dash.nix
+    ./tools/git-worktree-clone.nix
     ./git.nix
     ./tools/helix.nix
   ];
