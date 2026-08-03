@@ -136,9 +136,12 @@ Decryption on a machine requires the private identity at
 - Do not over-centralize tool-specific behavior that belongs in Claude skills,
   Hermes profiles, or Codex-specific instructions.
 
-## Follow-up (not in this change)
+## Plugin catalog
 
-The plugin-distribution catalog discussed in issue #40's comments (declaring
-desired plugin state under `tools/agents/plugins/` rather than committing
-`.claude/plugins` caches) is a separate concern and intentionally left for a
-later increment.
+Desired Claude Code plugin state is declared in `plugins/catalog.json`
+(marketplaces + enabled plugins), never as a committed `~/.claude/plugins`
+cache — the shape discussed in issue #40's comments. Activation
+(`claude-code.nix`) deep-merges the catalog into `~/.claude/settings.json`
+(which stays unmanaged because Claude Code writes to it at runtime); Claude
+Code then fetches the marketplaces and installs enabled plugins itself on
+next startup.
