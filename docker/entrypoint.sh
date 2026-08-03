@@ -10,11 +10,17 @@ BAKED=$(readlink -f /opt/hm-activation)
 # (claude-home) so auth/.credentials.json survives devhome resets - but that
 # volume shadows the CLAUDE.md baked into the image, so refresh it from the
 # flake source on every start. Only touches CLAUDE.md, never the credentials.
+# The doc is per-architecture: the x86 one describes the frozen 2012 MBP, the
+# arm64 one a modern Apple Silicon host.
+case "$(uname -m)" in
+  aarch64) claude_md=CLAUDE-arm64.md ;;
+  *)       claude_md=CLAUDE.md ;;
+esac
 mkdir -p /root/.claude
-cp -f /opt/dotfiles/docker/CLAUDE.md /root/.claude/CLAUDE.md 2>/dev/null || true
+cp -f "/opt/dotfiles/docker/$claude_md" /root/.claude/CLAUDE.md 2>/dev/null || true
 
 if [ ! -e /root/.nix-profile ] || [ "$CURRENT" != "$BAKED" ]; then
-  echo ">> activating home-manager generation (alyssa@dev-x86)"
+  echo ">> activating home-manager generation ($(cat /opt/hm-profile 2>/dev/null || echo unknown))"
 
   # The nixos/nix base image seeds root's profile with git-minimal (so nix can
   # fetch git flakes). home-manager installs its own full git into that same

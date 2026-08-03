@@ -1,20 +1,23 @@
-# x86_64-linux devcontainer (e.g. Docker Desktop on the 2012 MBP).
+# Linux devcontainer image (x86_64 AND aarch64 - e.g. Docker Desktop on the
+# 2012 MBP, or on an Apple Silicon Mac where you can't/won't install Nix,
+# such as a non-admin macOS user).
 #
-# The home-manager closure for alyssa@dev-x86 is built INTO the image (slow,
-# once, at build time - network + CPU happen here, not at container start).
-# Activation runs at container start instead, so it respects a mounted /root
-# volume (Claude/gh auth, ssh, jj state persistence) and the age identity key
-# that ragenix needs to decrypt the git config.
+# The home-manager closure is built INTO the image (slow, once, at build
+# time - network + CPU happen here, not at container start). The profile is
+# picked by CPU architecture: arm64 builds alyssa@dev (aarch64-linux), amd64
+# builds alyssa@dev-x86. Activation runs at container start instead, so it
+# respects a mounted /root volume (Claude/gh auth, ssh, jj state persistence)
+# and the age identity key that ragenix needs to decrypt the git config.
 #
-# Build:  docker build -t dev-x86 .
+# Bootstrap from nothing (https clone, no gh/ssh/Nix needed):
+#   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
-#   docker run -it --rm \
-#     -v devhome:/root \
-#     -v claude-home:/root/.claude \
-#     -v "$PWD":/work -w /work \
+#   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+#
+# Optional extras for the run command (append before the image name):
+#   SSH agent forwarding (Docker Desktop for Mac):
 #     -v /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock \
-#     -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock \
-#     dev-x86
+#     -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
 #
 # claude-home keeps Claude's auth (~/.claude/.credentials.json) and config in
 # its own volume, nested under the devhome mount. This decouples your login from
@@ -40,7 +43,7 @@
 #   docker cp ./personal-key.txt <container>:/root/.age/personal-key.txt
 # It persists in devhome across --rm; exit and re-run to re-activate with it.
 #
-# Flake updates: rebuild the image (docker build -t dev-x86 .) and keep the
+# Flake updates: rebuild the image (docker build -t dev .) and keep the
 # devhome volume. The entrypoint re-activates only when the home profile is
 # missing or stale.
 #
@@ -63,18 +66,31 @@ RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 # Outside /root so a mounted home volume can never shadow the flake
 COPY . /opt/dotfiles
 
+# TARGETARCH is set by BuildKit (arm64/amd64). The classic builder (Docker
+# 20.10 on the 2012 MBP) leaves it empty, which falls through to the x86
+# profile - exactly right for that machine. Override the auto-detection with
+# --build-arg HM_PROFILE=<name> if you ever need to cross a profile.
+ARG TARGETARCH
+ARG HM_PROFILE
+
 # Build the HM generation and root it at a stable path (GC-safe).
 # "path:" forces the path fetcher - the image has no git for the git fetcher.
-RUN nix build "path:/opt/dotfiles#homeConfigurations.\"alyssa@dev-x86\".activationPackage" -o /opt/hm-activation
+# The chosen profile is recorded at /opt/hm-profile for the entrypoint, and
+# the matching container-env doc is baked in as Claude's user-level memory so
+# it applies regardless of which project is mounted at /work. At runtime
+# /root/.claude is a volume (claude-home) that shadows the baked copy, so the
+# entrypoint re-copies it on every start to keep it current; this seed covers
+# a fresh volume and runs without the claude-home mount.
+RUN profile="${HM_PROFILE:-$(case "$TARGETARCH" in arm64) echo 'alyssa@dev';; *) echo 'alyssa@dev-x86';; esac)}" \
+ && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
+ && echo "$profile" > /opt/hm-profile \
+ && mkdir -p /root/.claude \
+ && case "$TARGETARCH" in \
+      arm64) cp /opt/dotfiles/docker/CLAUDE-arm64.md /root/.claude/CLAUDE.md ;; \
+      *)     cp /opt/dotfiles/docker/CLAUDE.md       /root/.claude/CLAUDE.md ;; \
+    esac
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
-
-# Bake the container-env doc in as Claude's user-level memory, so it applies
-# regardless of which project is mounted at /work. At runtime /root/.claude is a
-# volume (claude-home) that shadows this baked copy, so the entrypoint re-copies
-# it from /opt/dotfiles on every start to keep it current; this COPY just seeds
-# a fresh volume and covers runs without the claude-home mount.
-COPY docker/CLAUDE.md /root/.claude/CLAUDE.md
 
 WORKDIR /work
 ENTRYPOINT ["/opt/dotfiles/docker/entrypoint.sh"]

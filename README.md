@@ -26,8 +26,8 @@ dotfiles/
 |   ├── claude/             # Claude rules
 |   └── helix/              # helix config
 ├── secrets/                # agenix/ragenix encrypted secrets
-├── docker/                 # 2012 MBP container notes + entrypoint
-├── Dockerfile              # x86_64 dev image
+├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
+├── Dockerfile              # multi-arch (x86_64 + arm64) dev image
 ├── .devcontainer.json      # Nix Package Manager
 ├── .gitignore              # Nix artifacts
 ├── flake.lock
@@ -61,6 +61,7 @@ You need ONE of these:
 | **Devcontainer** | Docker + VSCode with [Remote Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) | Exploring without installing Nix locally |
 | **[GitHub Codespaces](https://github.com/features/codespaces/)** | A GitHub account | Exploring in the cloud |
 | **Local Nix** | [Nix installed](https://nixos.org/download) | Already have Nix or want to install it |
+| **Plain Docker** | Just Docker (no VSCode, no Nix, no gh) | Locked-down machines — e.g. a non-admin macOS user |
 
 ### macOS setup (Darwin)
 
@@ -117,6 +118,24 @@ Verified end-to-end on a clean tart VM (macOS Tahoe base image), 2026-07-01.
     - What is [jujutsu](https://kubamartin.com/posts/introduction-to-the-jujutsu-vcs/)?
     - rebuild with `just` or `just _rebuild`
 
+### Plain Docker (no Nix, no VSCode, no gh)
+
+For a machine (or user account) where all you have is https `git clone`,
+`curl`, and `docker` — e.g. a fresh non-admin user on a Mac whose Nix install
+belongs to another account:
+
+```sh
+git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
+docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+```
+
+The build bakes the home-manager closure for your CPU into the image (arm64 →
+`alyssa@dev`, amd64 → `alyssa@dev-x86`) and activation happens at container
+start. `devhome` persists nix/jj/ssh state across `--rm`; `claude-home` keeps
+Claude Code auth in its own volume so a devhome reset never logs you out.
+Authenticate `gh` and `claude` once inside; see the `Dockerfile` header for
+ragenix keys, ssh-agent forwarding, and troubleshooting.
+
 ### Other (Flake) devShell (without Home Manager)
 
 - `nix develop github:alycda/dotfiles` or
@@ -139,7 +158,7 @@ As long as you have docker or an [ephemeral environment in the cloud](https://ep
 | `lib/` | Nix | `core-packages.nix`, imported by both devShells and home-manager so ephemeral `nix develop` and persistent profiles stay consistent
 | `tools/` | (plain files) | Non-Nix tool content wired in by modules: `agents/` instruction overlay, `cheat/` cheatsheets, `claude/` rules, `helix/` config
 | `secrets/` | agenix/ragenix | age-encrypted secrets (git config, private agent overlay)
-| `docker/` + `Dockerfile` | Docker | x86_64 dev image for a frozen 2012 MacBook Pro (see `docker/CLAUDE.md`)
+| `docker/` + `Dockerfile` | Docker | multi-arch dev image: born for a frozen 2012 MacBook Pro (x86, `docker/CLAUDE.md`), also the no-Nix bootstrap on Apple Silicon (arm64, `docker/CLAUDE-arm64.md`)
 
 This keeps package management declarative and reproducible across environments.
 
