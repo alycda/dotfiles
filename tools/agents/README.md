@@ -53,9 +53,10 @@ private overlay authoritative on conflict.
   constitution, not the full one (and removes the stale full-constitution
   import a previous generation may have appended),
 - generates the `constitution-critic` subagent at
-  `~/.claude/agents/constitution-critic.md` from the public layers, so the
-  full constitution (whose articles each carry a test and a failure signal)
-  is an on-demand judging rubric instead of always-loaded context,
+  `~/.claude/agents/constitution-critic.md` — persona canonical in
+  `tools/agents/constitution-critic.md`, with the public layers appended — so
+  the full constitution (whose articles each carry a test and a failure
+  signal) is an on-demand judging rubric instead of always-loaded context,
 - symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
   natively.
 

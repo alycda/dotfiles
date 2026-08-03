@@ -33,28 +33,15 @@ in
 
     # Constitution critic subagent: the full constitution as an on-demand
     # rubric (every article carries a test and a failure signal) instead of
-    # ~7.5KB of always-loaded context. Generated from the canonical public
-    # layers — store-safe; never reads the private overlay.
-    ".claude/agents/constitution-critic.md".text = ''
-      ---
-      name: constitution-critic
-      description: Judge a plan, PR, decision, or piece of writing against Alyssa's personal constitution and company values. Reports which articles' tests pass, which failure signals are firing, and what would bring the work back in line.
-      ---
-
-    '' + builtins.readFile ../../../tools/agents/personal-constitution.md
-    + "\n" + builtins.readFile ../../../tools/agents/company-values.md
-    + ''
-
-      ---
-
-      You embody the constitution and values above as their enforcer, not
-      their author. Given work or a decision, evaluate it article by article:
-      apply each test, watch for each failure signal ("is this
-      polish-as-procrastination?", "is this frugality taxing quality?").
-      Check the company values the same way. Be direct with positive intent;
-      cite the article or value by name; end with the single change that
-      would most bring the work back in line.
-    '';
+    # ~7.5KB of always-loaded context. The persona (frontmatter + enforcer
+    # instructions) is canonical in tools/agents/constitution-critic.md; the
+    # judged material is appended from the public layers — store-safe; never
+    # reads the private overlay.
+    ".claude/agents/constitution-critic.md".text =
+      builtins.readFile ../../../tools/agents/constitution-critic.md
+      + builtins.readFile ../../../tools/agents/personal-constitution.md
+      + "\n"
+      + builtins.readFile ../../../tools/agents/company-values.md;
 
     # Codex entrypoint: Codex loads ~/.codex/AGENTS.md natively. Symlink it to
     # the canonical file so a fresh activation wires Codex without a manual
