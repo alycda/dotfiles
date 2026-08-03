@@ -72,6 +72,9 @@ eval USER:
 _nix-check file:
     nix-instantiate --parse {{file}}
 
+# Step 1 on every machine (after activation - see README bootstrap tree).
+# Deliberately interactive: per-device OAuth tokens, no agenix-carried PAT
+# (the README's "Why no encrypted PAT?" note has the trade-offs).
 _login:
     gh auth login --web
     claude login

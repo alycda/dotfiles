@@ -69,7 +69,8 @@ flowchart TD
     Q2 -- no --> N1["install Nix, multi-user<br/>(issue #29 one-liner)"]
     N1 --> Q3{OS?}
     Q2 -- yes --> Q3
-    Q3 -- macOS --> D1["darwin-rebuild switch --flake .#ditto"]
+    Q3 -- macOS --> W1["⚠ ditto only: gh auth BEFORE the switch —<br/>brew bundle clones a private tap over https<br/>mid-activation"]
+    W1 --> D1["darwin-rebuild switch --flake .#ditto"]
     Q3 -- Linux --> D2["home-manager switch --flake .#alyssa@work-dev"]
 
     Q1 -- "no — new user on a set-up machine" --> Q4{"docker app installed globally?<br/>(OrbStack / Docker Desktop, admin's brew)"}
@@ -82,7 +83,24 @@ flowchart TD
     A1 --> Q6
     Q6 -- yes --> H1["home-manager switch --flake .#code<br/>⚠ blocked today: profile hardcodes user 'code'"]
     Q5 -- no --> A2[ask admin: install OrbStack or Nix]
+
+    D1 --> S1["STEP 1 — always: just _login<br/>(gh auth login --web + claude login)<br/>per-device OAuth, by design — see note below"]
+    D2 --> S1
+    C2 --> S1
+    H1 --> S1
 ```
+
+**Step 1 is always `just _login`** (gh + Claude, one recipe): each machine
+mints its own per-device OAuth tokens, revocable individually.
+
+> **Why no encrypted PAT?** agenix *could* carry a GitHub PAT
+> (`gh` honors `GH_TOKEN`; `gh auth login --with-token` reads one), which
+> would make gh work with zero ceremony the moment the age key is staged. I'm
+> aware of that path and chose against it: one token shared across machines
+> means shared blast radius and revoke-everywhere semantics, and fine-grained
+> PAT expiry turns the one-time per-machine login into a recurring
+> rotate-and-rekey chore. If you're adapting this repo, that path exists and
+> works — it's just not for me.
 
 You need ONE of these:
 
