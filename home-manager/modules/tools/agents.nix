@@ -21,12 +21,40 @@ in
     ".agents/AGENTS.md".source = ../../../tools/agents/AGENTS.md;
     ".agents/company-values.md".source = ../../../tools/agents/company-values.md;
     ".agents/personal-constitution.md".source = ../../../tools/agents/personal-constitution.md;
+    ".agents/personal-constitution-distilled.md".source = ../../../tools/agents/personal-constitution-distilled.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.
+    # Claude always-loads the *distilled* constitution; the full version is
+    # on-demand via the constitution-critic subagent below.
     ".claude/includes/agents-company-values.md".source = oosLink "${agentsDir}/company-values.md";
-    ".claude/includes/agents-personal-constitution.md".source = oosLink "${agentsDir}/personal-constitution.md";
+    ".claude/includes/agents-personal-constitution-distilled.md".source = oosLink "${agentsDir}/personal-constitution-distilled.md";
     ".claude/includes/agents-instructions.private.md".source = oosLink "${agentsDir}/instructions.private.md";
+
+    # Constitution critic subagent: the full constitution as an on-demand
+    # rubric (every article carries a test and a failure signal) instead of
+    # ~7.5KB of always-loaded context. Generated from the canonical public
+    # layers — store-safe; never reads the private overlay.
+    ".claude/agents/constitution-critic.md".text = ''
+      ---
+      name: constitution-critic
+      description: Judge a plan, PR, decision, or piece of writing against Alyssa's personal constitution and company values. Reports which articles' tests pass, which failure signals are firing, and what would bring the work back in line.
+      ---
+
+    '' + builtins.readFile ../../../tools/agents/personal-constitution.md
+    + "\n" + builtins.readFile ../../../tools/agents/company-values.md
+    + ''
+
+      ---
+
+      You embody the constitution and values above as their enforcer, not
+      their author. Given work or a decision, evaluate it article by article:
+      apply each test, watch for each failure signal ("is this
+      polish-as-procrastination?", "is this frugality taxing quality?").
+      Check the company values the same way. Be direct with positive intent;
+      cite the article or value by name; end with the single change that
+      would most bring the work back in line.
+    '';
 
     # Codex entrypoint: Codex loads ~/.codex/AGENTS.md natively. Symlink it to
     # the canonical file so a fresh activation wires Codex without a manual
@@ -44,9 +72,15 @@ in
   home.activation.claudeAgentsImports = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     claudeMd="$HOME/.claude/CLAUDE.md"
     run mkdir -p "$HOME/.claude"
+    # The full constitution moved behind the constitution-critic subagent;
+    # drop the stale always-loaded import a previous generation appended.
+    staleLine="@includes/agents-personal-constitution.md"
+    if [ -f "$claudeMd" ] && grep -qxF "$staleLine" "$claudeMd"; then
+      run sh -c 'grep -vxF "$1" "$2" > "$2.tmp" && mv "$2.tmp" "$2"' _ "$staleLine" "$claudeMd"
+    fi
     for importLine in \
       "@includes/agents-company-values.md" \
-      "@includes/agents-personal-constitution.md" \
+      "@includes/agents-personal-constitution-distilled.md" \
       "@includes/agents-instructions.private.md"; do
       if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
         run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"

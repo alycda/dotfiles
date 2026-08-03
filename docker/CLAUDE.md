@@ -108,7 +108,7 @@ Code, etc. all run fine. That's the point of the container.
 
 @includes/agents-company-values.md
 
-@includes/agents-personal-constitution.md
+@includes/agents-personal-constitution-distilled.md
 
 @includes/agents-instructions.private.md
 

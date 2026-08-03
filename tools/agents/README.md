@@ -23,6 +23,7 @@ See issue [#40](https://github.com/alycda/dotfiles/issues/40).
 | Canonical entrypoint | `AGENTS.md` | `~/.agents/AGENTS.md` | yes |
 | Company values | `company-values.md` | `~/.agents/company-values.md` | yes |
 | Personal constitution | `personal-constitution.md` | `~/.agents/personal-constitution.md` | yes |
+| Constitution (distilled) | `personal-constitution-distilled.md` | `~/.agents/personal-constitution-distilled.md` | yes |
 | Private overlay | `../../secrets/personal/agent-instructions.age` | `~/.agents/instructions.private.md` | **no — encrypted** |
 
 - **Two public layers.** `company-values.md` (work context) and
@@ -40,7 +41,7 @@ private overlay authoritative on conflict.
 
 `home-manager/modules/tools/agents.nix`:
 
-- copies the three public files to `~/.agents/`,
+- copies the public files to `~/.agents/`,
 - wires the encrypted overlay through agenix and exposes the **decrypted**
   plaintext at `~/.agents/instructions.private.md` via agenix's per-secret
   `path` — the plaintext lives in the agenix runtime dir, **not** the Nix store,
@@ -48,7 +49,13 @@ private overlay authoritative on conflict.
   `~/.agents/` paths (out-of-store symlinks, so decryption/edits flow through one
   place),
 - idempotently appends the `@includes/agents-*.md` imports to
-  `~/.claude/CLAUDE.md` so Claude actually loads the layers,
+  `~/.claude/CLAUDE.md` so Claude actually loads the layers — the *distilled*
+  constitution, not the full one (and removes the stale full-constitution
+  import a previous generation may have appended),
+- generates the `constitution-critic` subagent at
+  `~/.claude/agents/constitution-critic.md` from the public layers, so the
+  full constitution (whose articles each carry a test and a failure signal)
+  is an on-demand judging rubric instead of always-loaded context,
 - symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
   natively.
 
@@ -79,9 +86,12 @@ Decryption on a machine requires the private identity at
 
   ```md
   @includes/agents-company-values.md
-  @includes/agents-personal-constitution.md
+  @includes/agents-personal-constitution-distilled.md
   @includes/agents-instructions.private.md
   ```
+
+  The full constitution loads on demand instead: ask Claude to run the
+  `constitution-critic` agent against a plan, PR, or decision.
 
   On a fresh machine the private include may briefly dangle until agenix
   decrypts during activation — that is expected; Claude Code skips
