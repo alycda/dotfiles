@@ -54,6 +54,36 @@ You don't need all three. This repo leverages Home Manager with flakes in a [dev
 
 ## Getting started
 
+### Fastest path to a working environment
+
+Step 0 is always the same: stage the age personal key from an existing
+machine, or you get a working-but-anonymous environment (activation warns;
+no decrypted git identity, no private overlay). Then follow the tree:
+
+```mermaid
+flowchart TD
+    K0["STEP 0 — always: stage the age personal key<br/>~/.age/personal-key.txt from an existing machine<br/>(without it: no git identity, no private overlay)"]
+    K0 --> Q1{admin rights?}
+
+    Q1 -- "yes — fresh machine" --> Q2{nix installed?}
+    Q2 -- no --> N1["install Nix, multi-user<br/>(issue #29 one-liner)"]
+    N1 --> Q3{OS?}
+    Q2 -- yes --> Q3
+    Q3 -- macOS --> D1["darwin-rebuild switch --flake .#ditto"]
+    Q3 -- Linux --> D2["home-manager switch --flake .#alyssa@work-dev"]
+
+    Q1 -- "no — new user on a set-up machine" --> Q4{"docker app installed globally?<br/>(OrbStack / Docker Desktop, admin's brew)"}
+    Q4 -- yes --> C1["open -a OrbStack<br/>(daemon + CLI context for THIS user)"]
+    C1 --> C2["docker build -t dev https://github.com/alycda/dotfiles.git<br/>&& docker run -it --rm -v devhome:/root<br/>-v claude-home:/root/.claude -v $PWD:/work -w /work dev"]
+    C1 -.-> C3["alt: git clone https + VS Code devcontainer<br/>(needs the same daemon)"]
+    Q4 -- no --> Q5{"/nix exists? (global daemon)"}
+    Q5 -- yes --> Q6{"in nix-users group?<br/>(daemon socket is group-locked)"}
+    Q6 -- no --> A1["admin, once:<br/>sudo dseditgroup -o edit -a USER -t user nix-users"]
+    A1 --> Q6
+    Q6 -- yes --> H1["home-manager switch --flake .#code<br/>⚠ blocked today: profile hardcodes user 'code'"]
+    Q5 -- no --> A2[ask admin: install OrbStack or Nix]
+```
+
 You need ONE of these:
 
 | Option | What you need | Good for |
