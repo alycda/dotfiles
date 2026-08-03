@@ -18,9 +18,11 @@ in
     ./tools/agents.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
+    ./tools/fzf.nix
     ./tools/gh-dash.nix
-    ./git.nix
     ./tools/helix.nix
+    ./tools/television.nix
+    ./git.nix
   ];
 
   home = {
