@@ -2,6 +2,11 @@
 { pkgs, ... }:
 
 {
+  imports = [
+    ../modules/ide/vscode.nix
+    ../modules/tools/agent-skills.nix
+  ];
+
   home = {
     username = "alyssa";
     homeDirectory = "/Users/alyssa";

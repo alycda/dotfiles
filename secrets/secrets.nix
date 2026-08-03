@@ -13,4 +13,8 @@ let
 in
 {
   "personal/git-config.age".publicKeys = [ alyssa ];
+
+  # Private agent-instruction overlay (issue #40). Decrypted only on local
+  # machines to ~/.agents/instructions.private.md; never committed as plaintext.
+  "personal/agent-instructions.age".publicKeys = [ alyssa ];
 }

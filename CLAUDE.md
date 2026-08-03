@@ -102,21 +102,39 @@ Specific changes:
 dotfiles/
 ├── darwin/                 # nix-darwin (macOS system config)
 │   ├── configuration.nix   # Shared darwin config
+│   ├── modules/
+│   │   └── homebrew.nix    # Homebrew taps/casks/brews
 │   └── profiles/           # Machine-specific configs
-│       ├── alyssa.nix      # Personal machine
-│       └── ditto.nix       # Work machine
+│       └── ditto.nix       # Work machine (the only darwinConfiguration)
 ├── home-manager/           # User-level configuration
 │   ├── modules/
-│   │   ├── common.nix      # Shared across all profiles
-│   │   ├── dev/            # Development tool modules
+│   │   ├── common.nix      # Shared across all profiles (no GUI)
+│   │   ├── git.nix
+│   │   ├── dev/            # Language tooling modules
 │   │   │   ├── nix-lang.nix
 │   │   │   └── rust.nix
-│   │   └── ide/            # IDE configurations
-│   │       └── vscode/
+│   │   ├── ide/            # IDE configurations
+│   │   │   ├── vscode.nix
+│   │   │   └── vscode-profiles/  # base, jujutsu, rust
+│   │   └── tools/          # cheat, helix, gh-dash, agents,
+│   │       │               #   agent-skills, claude-code
+│   │       └── ...
 │   └── profiles/           # User profiles
-│       ├── dev.nix         # Devcontainer profile
+│       ├── code.nix        # macOS "code" user
+│       ├── dev.nix         # Devcontainer / codespaces profile
 │       ├── home.nix        # Personal profile
 │       └── work.nix        # Work profile
+├── lib/
+│   └── core-packages.nix   # Packages shared by devShells + home-manager
+├── tools/                  # Non-Nix tool content wired in by modules/tools/*
+│   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
+│   ├── cheat/              # Cheatsheets + cheatpath config
+│   ├── claude/             # Claude rules
+│   └── helix/              # Helix config
+├── secrets/                # agenix/ragenix age-encrypted secrets
+├── docker/                 # 2012 MBP container notes + entrypoint
+├── Dockerfile              # x86_64 dev image
+├── justfile                # Task Runner recipes
 └── flake.nix               # Flake configuration
 ```
 
@@ -144,16 +162,38 @@ dotfiles/
 - Core CLI tools everyone needs (ripgrep, helix, jj, just, gh)
 - Universal configurations
 - Imported by ALL profiles
+- **No GUI apps here.** `common.nix` is inherited by the headless `dev`
+  devcontainer too, so a heavy GUI closure (e.g. VS Code) gets built into the
+  x86 image for nothing - and on the disk-constrained 2012 MBP that overflows
+  Docker's disk mid-build. GUI editors belong in the desktop profiles
+  (`home.nix`, `work.nix`), which import `modules/ide/vscode.nix` directly.
+  In a container you use VS Code Remote: the GUI runs on the host and connects
+  in, so `code` is never needed inside.
 
 **Specialized modules** (`home-manager/modules/dev/*`):
 - Language-specific tooling (rust, nix, etc.)
 - Opt-in via profile imports
 - Keep focused and composable
 
+**Tool modules** (`home-manager/modules/tools/*`):
+- Wire non-Nix tool *content* from the top-level `tools/` directory into the
+  home (cheat cheatsheets, helix config, the agent-instruction overlay, etc.)
+- Keeps editable plaintext config in `tools/` while the module handles
+  installation, symlinks, and activation
+
 **Profile-specific** (`home-manager/profiles/*.nix`):
 - Machine or context-specific packages
 - Import relevant modules
 - Keep minimal - prefer modules
+
+### Shared package lists (`lib/core-packages.nix`)
+
+`lib/core-packages.nix` is a single `pkgs: [ ... ]` list imported by **both**
+the flake's devShells and home-manager. This is deliberate: the ephemeral
+`nix develop` shell and the persistent home-manager environment install the
+same core CLI tools, so `cheat`, `jj`, `just`, `gh`, etc. behave identically
+whether you're in a throwaway shell or a switched profile. Add a
+universally-needed CLI tool here rather than duplicating it in both places.
 
 ### Configuration Conflicts to Avoid
 
@@ -210,6 +250,51 @@ The User will decide if and when to run darwin-rebuild/home-manager switch (and 
 just --list
 ```
 
+## CI Checks
+
+CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs must pass before merging.
+
+### Lint job: `statix` + `deadnix`
+
+**statix** catches Nix anti-patterns. Rules that have caused failures:
+
+- **`empty_pattern`**: Never write `{ ... }:` when a module takes no named arguments — use `_:` instead.
+  ```nix
+  # ❌ statix flags this as empty_pattern
+  { ... }:
+  { programs.foo.enable = true; }
+
+  # ✅ correct
+  _:
+  { programs.foo.enable = true; }
+  ```
+
+- **`with` expressions**: Avoid `with pkgs;` — statix flags it. Use explicit `pkgs.` prefixes.
+
+**deadnix** finds unused bindings. Any argument listed in the function signature but never referenced in the body will fail CI:
+
+```nix
+# ❌ deadnix: lib is declared but never used
+{ pkgs, lib, ... }:
+{ environment.systemPackages = [ pkgs.git ]; }
+
+# ✅ correct — only declare what you use
+{ pkgs, ... }:
+{ environment.systemPackages = [ pkgs.git ]; }
+```
+
+### Check job: `nix flake check --all-systems`
+
+The flake must evaluate cleanly across all systems. This catches type errors, missing attributes, and evaluation failures.
+
+### Running linters locally before pushing
+
+```bash
+nix profile install nixpkgs#statix && statix check .
+nix profile install nixpkgs#deadnix && deadnix --fail .
+nix flake check --all-systems
+```
+
 ## Learning Resources
 
 When adding new Nix patterns or configurations, include links to:
@@ -230,4 +315,4 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-01-01 - Initial creation documenting jujutsu-first workflow and incremental learning commits*
+*Last updated: 2026-07-28 - Synced Repository Structure with reality (lib/, tools/, secrets/, docker/, modules/tools/) and documented the shared `lib/core-packages.nix` pattern*

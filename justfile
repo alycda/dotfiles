@@ -45,6 +45,11 @@ _rebuild-code:
 darwin-generations:
     darwin-rebuild --list-generations
 
+# requires sudo
+[group('darwin')]
+rollback-to generation:
+    darwin-rebuild --switch-generation {{generation}}
+
 # queries and lists all packages installed in the current user's profile
 _list-env:
     nix-env -qaP
@@ -70,3 +75,28 @@ _nix-check file:
 _login:
     gh auth login --web
     claude login
+
+# Assemble the combined agent instruction capsule (public layers + local overlay)
+[group('agents')]
+agents-capsule:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    agents="$HOME/.agents"
+    printf 'Agent instruction capsule\n'
+    printf 'Source: alycda/dotfiles + private overlay\n'
+    printf 'Generated: %s\n' "$(date +%Y-%m-%d)"
+    printf 'Version/hash: %s\n' "$(git -C {{justfile_directory()}} rev-parse --short HEAD 2>/dev/null || echo unknown)"
+    # AGENTS.md first: the capsule must carry the entrypoint's precedence and
+    # composition contract, not just the layer bodies. Its @import lines are
+    # dropped — inert in a paste, and the layers are inlined right below.
+    for f in AGENTS.md company-values.md personal-constitution.md instructions.private.md; do
+      if [ -f "$agents/$f" ]; then
+        printf '\n<!-- %s -->\n\n' "$f"
+        sed '/^@/d' "$agents/$f"
+      fi
+    done
+
+# Copy the compiled capsule to the clipboard (macOS pbcopy)
+[group('agents')]
+agents-copy:
+    just agents-capsule | pbcopy && echo "Copied agent capsule to clipboard"

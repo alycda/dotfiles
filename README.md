@@ -4,25 +4,36 @@ These are my dotfiles, managed by [Nix](https://nixos.org/), [Nix-Darwin](https:
 
 ```
 dotfiles/
-├── darwin/
+├── darwin/                 # nix-darwin (macOS system config)
+|   ├── modules/
+|   |   └── homebrew.nix
 |   ├── profiles/
-|   |   ├── alyssa.nix
 |   |   └── ditto.nix
 |   └── configuration.nix
 ├── home-manager/
 |   ├── modules/
-|   |   ├── ide/vscode  # extensions & settings
-|   |   └── common.nix
-|   └── profiles/
-|       ├── dev.nix     # for devcontainers
-|       ├── home.nix
-|       └── work.nix
-├── .devcontainer.json  # Nix Package Manager
-├── .gitignore          # Nix artifacts
+|   |   ├── dev/            # language tooling (nix-lang, rust)
+|   |   ├── ide/vscode*     # extensions & settings
+|   |   ├── tools/          # cheat, helix, gh-dash, agents, claude-code
+|   |   ├── common.nix      # shared CLI tools (no GUI)
+|   |   └── git.nix
+|   └── profiles/           # code, dev (devcontainer), home, work
+├── lib/
+|   └── core-packages.nix   # packages shared by devShells + home-manager
+├── tools/                  # non-Nix tool content
+|   ├── agents/             # agent-instruction overlay (AGENTS.md, ...)
+|   ├── cheat/              # cheatsheets + cheatpath config
+|   ├── claude/             # Claude rules
+|   └── helix/              # helix config
+├── secrets/                # agenix/ragenix encrypted secrets
+├── docker/                 # 2012 MBP container notes + entrypoint
+├── Dockerfile              # x86_64 dev image
+├── .devcontainer.json      # Nix Package Manager
+├── .gitignore              # Nix artifacts
 ├── flake.lock
-├── flake.nix           # Home Manager config
-├── justfile            # Task Runner recipes
-└── README.md           
+├── flake.nix               # Home Manager + darwin config
+├── justfile                # Task Runner recipes
+└── README.md
 ```
 
 ### Quickstart
@@ -55,11 +66,35 @@ You need ONE of these:
 
 `nix-darwin` manages macOS system configuration declaratively, including dock apps, system defaults (defaults write) and Homebrew packages.
 
-1. [Install Nix](https://nixos.org/download)
-1. Bootstrap `nix-darwin` (once)
-    - `nix run nix-darwin -- switch --flake .ditto` (work)
+Verified end-to-end on a clean tart VM (macOS Tahoe base image), 2026-07-01.
+
+1. [Install Nix](https://nixos.org/download) (official multi-user installer)
+1. Enable flakes — the official installer doesn't:
+    - `echo "experimental-features = nix-command flakes" | sudo tee -a /etc/nix/nix.conf`
+    - `sudo launchctl kickstart -k system/org.nixos.nix-daemon`
+1. Trust the third-party Homebrew taps (new `brew` requires this; also needed
+   once on existing machines after a brew update):
+    - `brew trust cirruslabs/cli getditto/build-infra`
+    - `getditto/build-infra` is **private** — `brew bundle` clones it over
+      https, so authenticate GitHub first (`gh auth login` + credential helper)
+      or pre-tap it from an SSH clone.
+1. Move aside the `/etc` files nix-darwin wants to own (first activation only):
+    - `for f in /etc/nix/nix.conf /etc/bashrc /etc/zshrc; do sudo mv "$f" "$f.before-nix-darwin"; done`
+1. Bootstrap `nix-darwin` (once) — build from this repo's pinned input rather
+   than `nix run nix-darwin` (which resolves upstream HEAD via the GitHub API:
+   version skew + rate-limited on shared IPs):
+    - `nix build .#darwinConfigurations.ditto.system`
+    - `sudo ./result/sw/bin/darwin-rebuild switch --flake .#ditto`
 1. Rebuild after changes
-    - `just _rebuild alyssa@work`
+    - `just _rebuild ditto` (the only `darwinConfiguration` is `ditto`;
+      `alyssa@*` names are Linux/devcontainer `homeConfigurations`)
+
+> Gotchas seen on a fresh machine: the user the flake hardcodes
+> (`alyssaevans`) must exist before switching; the Homebrew prefix must be
+> owned by that user (`sudo chown -R alyssaevans /opt/homebrew`) because
+> nix-darwin now runs `brew` as that user; `tailscale-app`'s pkg installer
+> fails inside VMs (system-extension approval) — expected in CI, fine on
+> hardware.
 
 ### Devcontainer (Linux sandboxed environment)
 
@@ -101,6 +136,10 @@ As long as you have docker or an [ephemeral environment in the cloud](https://ep
 |-----------|------|---------|
 | `darwin/` | nix-darwin | macOS system config (dock, defaults, homebrew)
 | `home-manager/` | Home Manager | User packages and dotfiles (cross-platform)
+| `lib/` | Nix | `core-packages.nix`, imported by both devShells and home-manager so ephemeral `nix develop` and persistent profiles stay consistent
+| `tools/` | (plain files) | Non-Nix tool content wired in by modules: `agents/` instruction overlay, `cheat/` cheatsheets, `claude/` rules, `helix/` config
+| `secrets/` | agenix/ragenix | age-encrypted secrets (git config, private agent overlay)
+| `docker/` + `Dockerfile` | Docker | x86_64 dev image for a frozen 2012 MacBook Pro (see `docker/CLAUDE.md`)
 
 This keeps package management declarative and reproducible across environments.
 

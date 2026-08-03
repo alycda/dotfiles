@@ -7,12 +7,21 @@ let
 in
 {
   imports = [
+    # Deliberately NOT ./ide/vscode.nix here. common.nix is inherited by every
+    # profile, including the headless `dev` devcontainer - and baking the VS Code
+    # GUI closure into the x86 image is pure dead weight that overflowed Docker's
+    # disk mid-build on the 2012 MBP (see PR #34). GUI editors belong in the
+    # desktop profiles (home.nix / work.nix), which import modules/ide/vscode.nix
+    # directly. In a container you use VS Code Remote: the GUI runs on the host
+    # and connects in, so `code` is never needed inside.
     ./dev/nix-lang.nix
-    ./git.nix
-    ./ide/vscode.nix
+    ./tools/agents.nix
     ./tools/cheat.nix
+    ./tools/claude-code.nix
     ./tools/fzf.nix
+    ./tools/gh-dash.nix
     ./tools/helix.nix
+    ./git.nix
   ];
 
   home = {
@@ -20,8 +29,8 @@ in
 
     # Core packages across all profiles
     # Note: helix is configured via ./tools/helix.nix (programs.helix)
-    # Note: claude-code CLI installed here (binary only, config not managed by home-manager)
-    packages = corePackages ++ [ pkgs.claude-code ];
+    # Note: claude-code CLI installed here (binary only; global rules managed by ./tools/claude-code.nix)
+    packages = corePackages ++ [ pkgs.claude-code pkgs.presenterm ];
 
     # Set helix as default editor
     sessionVariables = {
@@ -29,12 +38,15 @@ in
     };
   };
 
-  # Enable home-manager
-  programs.home-manager.enable = true;
+  programs = {
+    home-manager.enable = true;
 
-  # Enable direnv for project-specific environments
-  programs.direnv = {
-    enable = true;
-    nix-direnv.enable = true;
+    # Enable zsh so home-manager can inject shell hooks (e.g. direnv)
+    zsh.enable = true;
+
+    direnv = {
+      enable = true;
+      nix-direnv.enable = true;
+    };
   };
 }
