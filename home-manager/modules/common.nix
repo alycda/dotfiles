@@ -7,10 +7,11 @@ let
 in
 {
   imports = [
-    ./ide/vscode.nix
     ./dev/nix-lang.nix
-    ./tools/cheat.nix
     ./git.nix
+    ./ide/vscode.nix
+    ./tools/cheat.nix
+    ./tools/fzf.nix
     ./tools/helix.nix
   ];
 
