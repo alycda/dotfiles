@@ -17,7 +17,7 @@ This is a code-authored alternative to PPTX and to terminal tools like presenter
 ## Workflow
 
 1. **Get the content first.** If the user gave an outline, notes, or a topic, work from it. If the deck is thin on substance, ask for the spine: the one-sentence thesis, the audience, and roughly how many slides / how long the talk is. Don't invent technical claims — for the user's own domain (Rust, FFI, Ditto, CRDTs, SDK work), use what they give you and flag anything you're unsure of rather than fabricating.
-2. **Read the template.** Always start from `references/template.html`. It is the canonical design system and engine — copy it, don't reinvent it. Read it in full before editing so you use the real class names.
+2. **Read the template.** Always start from `template.html`. It is the canonical design system and engine — copy it, don't reinvent it. Read it in full before editing so you use the real class names.
 3. **Build the deck** by editing a copy of the template: replace the sample slides with real ones, keeping `data-slide="N"` sequential from 0. Reuse the component patterns (see below) rather than writing new CSS. Only add new CSS if a slide genuinely needs a layout the template doesn't cover.
 4. **Renumber.** Make sure `data-slide` indices are 0-based and contiguous, and the `<title>` reflects the deck. The JS derives counts automatically — don't hardcode totals.
 5. **Save to `/mnt/user-data/outputs/`** with a descriptive kebab-case filename (e.g. `production-ffi-at-scale.html`), then call `present_files`.
@@ -41,7 +41,7 @@ Ditto's real brand fonts are **Kairos Sans** (headlines) and **Aeonik Fono** (ey
 
 ## Components available in the template
 
-Each is shown working in `references/template.html`. Pick the ones that fit; delete the rest.
+Each is shown working in `template.html`. Pick the ones that fit; delete the rest.
 
 - **`.title-slide`** — opening slide with `.tag` eyebrow (bordered yellow), big `<h1>`, `.subtitle`, optional `.cta`, and a `.title-glow`.
 - **`.section-slide`** — centered divider; pairs with the diamond motif and `.section-sub`.

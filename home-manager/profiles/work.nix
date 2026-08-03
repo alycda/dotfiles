@@ -8,8 +8,11 @@
   ];
 
   # Live-edit agent skills from the local checkout (module imported via
-  # common.nix; store-copy mode is the default elsewhere).
-  agentSkills.liveCheckout = "${config.home.homeDirectory}/dotfiles";
+  # common.nix; store-copy mode is the default elsewhere). Darwin-gated:
+  # this profile is also instantiated as alyssa@work-dev on aarch64-linux,
+  # where ~/dotfiles does not exist and the store copy must win.
+  agentSkills.liveCheckout =
+    lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "${config.home.homeDirectory}/dotfiles";
 
   home = {
     username = "alyssaevans";

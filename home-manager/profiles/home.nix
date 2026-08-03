@@ -1,5 +1,5 @@
 # shesfast
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 {
   imports = [
@@ -7,8 +7,10 @@
   ];
 
   # Live-edit agent skills from the local checkout (module imported via
-  # common.nix; store-copy mode is the default elsewhere).
-  agentSkills.liveCheckout = "${config.home.homeDirectory}/dotfiles";
+  # common.nix; store-copy mode is the default elsewhere). Darwin-gated
+  # for symmetry with work.nix, which doubles as a Linux devcontainer.
+  agentSkills.liveCheckout =
+    lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "${config.home.homeDirectory}/dotfiles";
 
   home = {
     username = "alyssa";
