@@ -105,3 +105,11 @@ Code, etc. all run fine. That's the point of the container.
 - Host default shell is **bash 3.2**: no associative arrays, no `mapfile`,
   no `${var,,}`. BSD userland: `sed -i ''` not `sed -i`, no GNU-only flags.
 - Don't suggest memory-hungry host-side work; the host is already swapping.
+
+@includes/agents-company-values.md
+
+@includes/agents-personal-constitution.md
+
+@includes/agents-instructions.private.md
+
+@rules/outbound-comment-gate.md
