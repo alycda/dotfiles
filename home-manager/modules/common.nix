@@ -21,6 +21,7 @@ in
     ./tools/fzf.nix
     ./tools/gh-dash.nix
     ./tools/helix.nix
+    ./tools/television.nix
     ./git.nix
   ];
 

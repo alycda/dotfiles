@@ -25,11 +25,11 @@
   # repo. Edit the queries for real schemas. The redis channel is
   # endpoint-agnostic (Upstash now, KeyDB after migration) via redis-cli.
   xdg.configFile = {
-    "television/cable/jj-log.toml".source = ../../../tools/television/cable/jj-log.toml;
+    # "television/cable/jj-log.toml".source = ../../../tools/television/cable/jj-log.toml; # unverified
     "television/cable/cheat.toml".source = ../../../tools/television/cable/cheat.toml;
-    "television/cable/sqlite.toml".source = ../../../tools/television/cable/sqlite.toml;
-    "television/cable/postgres.toml".source = ../../../tools/television/cable/postgres.toml;
-    "television/cable/redis.toml".source = ../../../tools/television/cable/redis.toml;
+    # "television/cable/sqlite.toml".source = ../../../tools/television/cable/sqlite.toml; # unverified
+    # "television/cable/postgres.toml".source = ../../../tools/television/cable/postgres.toml; # unverified
+    # "television/cable/redis.toml".source = ../../../tools/television/cable/redis.toml; # unverified
   };
 
   # Wire `tv` into Ctrl+R for shell history as an fzf alternative
