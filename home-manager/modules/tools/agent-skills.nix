@@ -12,7 +12,11 @@
 #
 # Claude only for now. Hermes mounts (nested by category under ~/.hermes/)
 # land with the s3-now port (#43).
-{ config, lib, ... }:
+#
+# External skills (from skills.sh, pinned via the nix-skills flake input and
+# selected in lib/skills-sh.nix) always deploy from the store - liveCheckout
+# doesn't apply to them since their source isn't in this repo.
+{ config, lib, pkgs, ... }:
 let
   cfg = config.agentSkills;
   skillSource =
@@ -40,6 +44,15 @@ in
       # html-deck — self-contained single-file HTML slide decks. Tool-agnostic,
       # but only wired for Claude here; other runtimes follow later.
       ".claude/skills/html-deck".source = skillSource "html-deck";
+
+      # External skills from skills.sh (see lib/skills-sh.nix for pinning).
+      # Note: compound-engineering is deliberately NOT installed this way -
+      # it's already a Claude Code plugin via the catalog (#65), and its 38
+      # ce-* skills ship inside the plugin; installing them here too would
+      # duplicate every one of them in the skill picker.
+      ".claude/skills/here-now".source = pkgs.skills-sh.here-now;
+      ".claude/skills/supabase-postgres-best-practices".source =
+        pkgs.skills-sh.supabase-postgres-best-practices;
     };
   };
 }
