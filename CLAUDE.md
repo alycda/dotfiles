@@ -142,6 +142,12 @@ dotfiles/
 │   └── helix/              # Helix config
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
+├── docs/solutions/         # documented solutions to past problems - bugs, practices,
+│                           #   workflow patterns - by category, with YAML frontmatter
+│                           #   (module, tags, problem_type). Relevant when implementing
+│                           #   or debugging in an area one of them covers.
+├── CONCEPTS.md             # shared domain vocabulary (entities, named processes,
+│                           #   status concepts) with project-specific meaning
 ├── Dockerfile              # multi-arch (x86_64 + arm64) dev image
 ├── justfile                # Task Runner recipes
 └── flake.nix               # Flake configuration
@@ -236,6 +242,12 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
 2. **Rust-analyzer**: Don't install standalone - rustup provides it (conflicts otherwise)
 3. **Shell paths**: Use system shells (e.g., `terminal.integrated.defaultProfile.osx = "zsh"`) instead of nix-managed paths
+4. **Base-image package collisions**: The `nixos/nix` image ships its own populated `nix-env` profile in the container, so anything home-manager installs can collide with a package already there and abort activation. This has bitten three times (`git-minimal` #34, `man-db` #60, `bash` #74). Three remedies, chosen by who needs the program:
+   - **Ship none** — `programs.<x>.package = null` when you only wanted the module's *config* (see `home-manager/profiles/dev.nix`)
+   - **Remove the base copy** — the `nix-env -e` loop in `docker/entrypoint.sh`, when home-manager's version is genuinely required
+   - **`lib.hiPrio`** — only for collisions *within* home-manager's own closure; it cannot reach across nix-env profile elements
+
+   A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
 
 ## Migration Workflow
 
@@ -351,4 +363,4 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided)*
+*Last updated: 2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*

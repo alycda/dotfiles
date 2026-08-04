@@ -61,6 +61,21 @@
 #     predates that fix can be cleared with (the age key survives):
 #       docker run --rm -v devhome:/root alpine \
 #         sh -c 'rm -rf /root/.local/state/nix /root/.nix-profile /root/.nix-defexpr'
+#     Same signature, same fix, different package: "... man-db ... bin/accessdb"
+#     on newer/arm64 base images. Both are in the entrypoint's removal list.
+#   activation "conflict ... bin/bash" - LOOKS like the two above, is NOT fixed
+#     the same way. bash cannot be removed from the base profile: it is root's
+#     login shell in /etc/passwd and what /bin/sh resolves through. The fix is
+#     config-side - `programs.bash.package = null` in home-manager/profiles/
+#     dev.nix takes the module's config without its binary. If you hit this on a
+#     new package, decide by asking whether home-manager needs to *provide* the
+#     program or only configure it. See
+#     docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md
+#   container starts, prompt looks perfect, but claude/jj/rg are "command not
+#     found" - this is NOT a PATH problem. It is a failed activation: file
+#     linking runs before package installation, so the dotfiles land and
+#     home-manager-path never installs. Scroll up to the activation output and
+#     read the tail; the real error is buried above a wall of success lines.
 
 FROM nixos/nix:latest
 
@@ -101,4 +116,15 @@ ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 
 WORKDIR /work
 ENTRYPOINT ["/opt/dotfiles/docker/entrypoint.sh"]
-CMD ["bash", "-l"]
+# Land in zsh, not bash. home-manager configures zsh (starship, direnv, fzf
+# widgets, the tv Ctrl+R binding) and configures bash only as a fallback - but
+# this used to be `bash -l`, so none of that zsh config was ever sourced and the
+# prompt was a bare `bash-5.3#` (issue #15).
+#
+# Guarded rather than a plain ["zsh", "-l"]: zsh comes from the home-manager
+# profile, which the entrypoint activates just before exec'ing this. If that
+# activation fails (the usual cause is a missing ragenix identity - the
+# entrypoint prints recovery instructions for it), zsh does not exist, and an
+# unguarded exec would kill the container instantly - right when you need a
+# shell to fix it. Falling back to bash keeps those instructions actionable.
+CMD ["sh", "-c", "if command -v zsh >/dev/null 2>&1; then exec zsh -l; else exec bash -l; fi"]

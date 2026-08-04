@@ -27,8 +27,15 @@ if [ ! -e /root/.nix-profile ] || [ "$CURRENT" != "$BAKED" ]; then
   # activation: git-minimal vs full git (share/git-core/.../info/exclude), and
   # on newer/arm64 base images man-db vs home-manager's man (bin/accessdb).
   # We fetch the flake via `path:` (no git needed) and HM provides man, so
-  # drop the base copies first; the rest of the base profile (bash, openssh,
-  # curl, ...) is preserved and merges fine.
+  # drop the base copies first; the rest of the base profile (openssh, curl,
+  # ...) is preserved and merges fine.
+  #
+  # bash is deliberately NOT in this list even though it collides too. It is
+  # root's login shell in /etc/passwd and what /bin/sh resolves through, so
+  # removing it here would be pulling the rug out from under this very script.
+  # That collision is declined on the home-manager side instead
+  # (`programs.bash.package = null` in home-manager/profiles/dev.nix). Rule of
+  # thumb: strip here only when home-manager's version is genuinely required.
   for pkg in git-minimal man-db; do
     nix-env -e "$pkg" 2>/dev/null || true
   done

@@ -29,6 +29,34 @@ its constraints apply to this container.
 - This file is re-copied from `/opt/dotfiles/docker/CLAUDE-arm64.md` on every
   container start - edit it in the dotfiles repo, not here.
 
+## Troubleshooting startup
+
+The one failure worth recognising on sight, because it does not look like what
+it is:
+
+- **Prompt renders fine, but `claude` / `jj` / `rg` are "command not found".**
+  This is NOT a `PATH` problem, and no amount of inspecting `PATH` will explain
+  it. home-manager activation failed: file linking runs *before* package
+  installation, so the dotfiles landed (hence the working prompt) while
+  `home-manager-path` never installed. Scroll up to the activation output and
+  read its tail - the error sits under a wall of success lines. The entrypoint
+  deliberately does not abort on activation failure, which is why you get a
+  shell at all.
+- **The usual cause is a package collision.** The base image ships its own
+  populated `nix-env` profile, and anything home-manager installs can clash
+  with a package already in it (`Unable to build profile. There is a conflict
+  for the following files`). Confirm with `nix-env -q` - that list is the
+  hazard surface. Some are stripped at the entrypoint; `bash` deliberately is
+  not, because it is root's login shell. Full decision rule:
+  `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
+- **Recovery is a rebuild, not a repair.** Fix the config in the repo, rebuild
+  the image, and start a container; the entrypoint re-activates when the baked
+  generation differs from the volume's. Do not hand-patch the profile inside a
+  running container - the baked generation is what every restart converges back
+  to, so the patch evaporates.
+- If activation instead complains about age/agenix, the ragenix identity is
+  missing - the entrypoint prints the `docker cp` recovery command.
+
 ## Host notes
 
 - The host macOS user may be non-admin: don't suggest `sudo`, Homebrew
