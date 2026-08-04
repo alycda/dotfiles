@@ -42,7 +42,7 @@ Enabling a home-manager `programs.*` module can silently install a *package*, no
 
 Three instances, three remedies. Which one applies is decided by a single question: **does home-manager need to *provide* this program, or only to *configure* it?** bash is the first case where the base image's copy is load-bearing — it is root's login shell — so the established entrypoint trick could not be reused.
 
-Concretely: while wiring up a starship prompt (issue #15, PR #74), `programs.bash.enable = true` was added at `home-manager/modules/common.nix:57` so the container's fallback bash shell would pick up the starship and direnv hooks. The motivation was sound — `docker exec -it dev bash` lands in bash regardless of the Dockerfile `CMD`, because root's login shell in `/etc/passwd` is the base image's bash, and until then that shell got no home-manager config at all.
+Concretely: while wiring up a starship prompt (issue #15, PR #74), `programs.bash.enable = true` was added at `home-manager/modules/common.nix:64` so the container's fallback bash shell would pick up the starship and direnv hooks. The motivation was sound — `docker exec -it dev bash` lands in bash regardless of the Dockerfile `CMD`, because root's login shell in `/etc/passwd` is the base image's bash, and until then that shell got no home-manager config at all.
 
 The side effect was not. home-manager's bash module installs bash into the user environment:
 
@@ -96,7 +96,7 @@ A `nix build` of the activationPackage **succeeds** under the broken configurati
 
 **2. `lib.hiPrio` — right tool, wrong layer.**
 
-`lib.hiPrio pkgs.git` sits at `home-manager/modules/git.nix:35`, added during PR #34, and reaching for it here is the natural mistake. It cannot fix this collision — but not because it is useless. PR #34 contained *two different* git collisions living at two different layers:
+`lib.hiPrio pkgs.git` sits at `home-manager/modules/git.nix:42`, added during PR #34, and reaching for it here is the natural mistake. It cannot fix this collision — but not because it is useless. PR #34 contained *two different* git collisions living at two different layers:
 
 - **Inside home-manager's own `buildEnv`.** Full `git` 2.52.0 and a transitively-pulled `git-minimal` 2.51.2 both shipped `share/git-core/templates/info/exclude`, and the buildEnv refused to merge them. `hiPrio` genuinely fixes this — it tells buildEnv which of two *inner* packages wins.
 - **Between profile elements.** The base image's `git-minimal` versus the assembled `home-manager-path`. `hiPrio` cannot reach this one: `home-manager-path` is a single opaque element in root's nix-env profile, and the base image's package is another element beside it. A priority set on a package *inside* the buildEnv is invisible at the outer union. That collision is what the entrypoint prune fixed.
@@ -105,7 +105,7 @@ The bash collision is the second kind. So the rule is not "`hiPrio` is useless" 
 
 **3. Rejected: adding `bash-interactive` to the entrypoint's prune loop.**
 
-`docker/entrypoint.sh:32` already handles this class for other packages:
+`docker/entrypoint.sh:39` already handles this class for other packages:
 
 ```sh
   for pkg in git-minimal man-db; do
@@ -117,7 +117,7 @@ Adding `bash-interactive` is a one-word change and would have made the error go 
 
 - The removal target is the binary root's login shell in `/etc/passwd` points at, and that `/bin/sh` resolves through. Deleting it mid-entrypoint — from inside a shell script — to fix a problem the *consumer* side can decline is the wrong end of the pipe.
 - The loop exists for genuinely unavoidable conflicts: home-manager needs full `git` and provides its own `man`, so the base copies must go. Nothing here needs home-manager's bash.
-- The comment at `docker/entrypoint.sh:31` explicitly claims bash "is preserved and merges fine". That was true when written, and `programs.bash.enable = true` silently invalidated it. Extending the loop would have papered over an invariant break rather than restoring the invariant.
+- The comment above that loop used to list bash among the packages "preserved and merges fine". That was true when written, and `programs.bash.enable = true` silently invalidated it. Extending the loop would have papered over an invariant break rather than restoring the invariant. (That comment has since been corrected to say why bash is deliberately *not* in the list — so the wording quoted here is the pre-fix state, not what you will find in the file today.)
 
 ## Solution
 
@@ -196,7 +196,7 @@ So on darwin the config home-manager generates *requires* a bash newer than the 
 
 6. **If store hashes are unchanged across a rebuild, the conflict is persisted state, not the flake.** (session history) PR #34 lost several rounds to a stale-`flake.lock` theory; the decisive disproof was comparing `user-environment.drv` and `home-manager-path` hashes across a clean rebuild and finding them byte-for-byte identical.
 
-7. **When a comment states an invariant, treat changing it as part of the diff.** `docker/entrypoint.sh:31` asserts bash "is preserved and merges fine". A change that makes bash stop merging fine changes that comment's truth value whether or not it touches the file.
+7. **When a comment states an invariant, treat changing it as part of the diff.** The comment above the prune loop in `docker/entrypoint.sh` asserted that bash was among the packages "preserved and merges fine". A change that makes bash stop merging fine changes that comment's truth value whether or not it touches the file — so the comment is part of the change, and updating it belongs in the same diff.
 
 8. **Read activation output from the bottom.** "Prompt works, `command not found` for everything" is the fingerprint of a failed `installPackages` — check the tail of the activation log before debugging `PATH`.
 
