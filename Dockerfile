@@ -101,4 +101,15 @@ ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 
 WORKDIR /work
 ENTRYPOINT ["/opt/dotfiles/docker/entrypoint.sh"]
-CMD ["bash", "-l"]
+# Land in zsh, not bash. home-manager configures zsh (starship, direnv, fzf
+# widgets, the tv Ctrl+R binding) and configures bash only as a fallback - but
+# this used to be `bash -l`, so none of that zsh config was ever sourced and the
+# prompt was a bare `bash-5.3#` (issue #15).
+#
+# Guarded rather than a plain ["zsh", "-l"]: zsh comes from the home-manager
+# profile, which the entrypoint activates just before exec'ing this. If that
+# activation fails (the usual cause is a missing ragenix identity - the
+# entrypoint prints recovery instructions for it), zsh does not exist, and an
+# unguarded exec would kill the container instantly - right when you need a
+# shell to fix it. Falling back to bash keeps those instructions actionable.
+CMD ["sh", "-c", "if command -v zsh >/dev/null 2>&1; then exec zsh -l; else exec bash -l; fi"]
