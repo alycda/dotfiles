@@ -23,4 +23,5 @@ pkgs: with pkgs; [
   supabase-cli
   taskbook
   tmux
+  vhs # charmbracelet
 ]
