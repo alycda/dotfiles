@@ -15,12 +15,15 @@ in
     # directly. In a container you use VS Code Remote: the GUI runs on the host
     # and connects in, so `code` is never needed inside.
     ./dev/nix-lang.nix
+    ./tools/agent-skills.nix
     ./tools/agents.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
+    ./tools/fzf.nix
     ./tools/gh-dash.nix
-    ./git.nix
     ./tools/helix.nix
+    ./tools/television.nix
+    ./git.nix
   ];
 
   home = {

@@ -140,8 +140,8 @@ dotfiles/
 │   ├── claude/             # Claude rules
 │   └── helix/              # Helix config
 ├── secrets/                # agenix/ragenix age-encrypted secrets
-├── docker/                 # 2012 MBP container notes + entrypoint
-├── Dockerfile              # x86_64 dev image
+├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
+├── Dockerfile              # multi-arch (x86_64 + arm64) dev image
 ├── justfile                # Task Runner recipes
 └── flake.nix               # Flake configuration
 ```

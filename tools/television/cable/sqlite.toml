@@ -1,0 +1,20 @@
+# television cable channel: browse rows in a SQLite database.  Usage: `tv sqlite`
+#
+# EXAMPLE — edit the table/column names for your db, then point $TV_SQLITE_DB
+# at the file. Kept even though new services prefer Postgres/KeyDB: local
+# SQLite still backs embedded things (e.g. the Hermes kanban).
+#
+# `{0}` is the first whitespace-delimited token of the selection (the id), fed
+# to the preview query. Injection note: `{0}` is interpolated straight into
+# SQL — fine for browsing your own data, but keep the source's first column a
+# numeric/opaque id, never free text.
+[metadata]
+name = "sqlite"
+description = "Select a row from a SQLite table; preview the full row"
+requirements = ["sqlite3"]
+
+[source]
+command = "sqlite3 -readonly ${TV_SQLITE_DB:-app.db} 'SELECT id, title FROM tasks ORDER BY id DESC'"
+
+[preview]
+command = "sqlite3 -readonly ${TV_SQLITE_DB:-app.db} 'SELECT * FROM tasks WHERE id = {0}'"

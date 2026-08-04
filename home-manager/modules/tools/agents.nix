@@ -14,6 +14,12 @@ let
   # Out-of-store symlinks so the Claude includes track the live ~/.agents files
   # (and the *decrypted* overlay), not immutable store copies.
   oosLink = config.lib.file.mkOutOfStoreSymlink;
+  # Critic subagents: persona (frontmatter + enforcer instructions) canonical
+  # in tools/agents/, judged-against material appended beneath as layers.
+  # On-demand rubrics instead of always-loaded context — store-safe; only
+  # public files, never the private overlay.
+  mkCritic = persona: layers:
+    lib.concatStringsSep "\n" (map builtins.readFile ([ persona ] ++ layers));
 in
 {
   # Public layers, tracked in the repo, deployed verbatim.
@@ -22,13 +28,42 @@ in
     ".agents/company-values.md".source = ../../../tools/agents/company-values.md;
     ".agents/personal-constitution.md".source = ../../../tools/agents/personal-constitution.md;
     ".agents/preferred-tooling.md".source = ../../../tools/agents/preferred-tooling.md;
+    ".agents/personal-constitution-distilled.md".source = ../../../tools/agents/personal-constitution-distilled.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.
+    # Claude always-loads the *distilled* constitution; the full version is
+    # on-demand via the constitution-critic subagent below.
     ".claude/includes/agents-company-values.md".source = oosLink "${agentsDir}/company-values.md";
-    ".claude/includes/agents-personal-constitution.md".source = oosLink "${agentsDir}/personal-constitution.md";
     ".claude/includes/agents-preferred-tooling.md".source = oosLink "${agentsDir}/preferred-tooling.md";
+    ".claude/includes/agents-personal-constitution-distilled.md".source = oosLink "${agentsDir}/personal-constitution-distilled.md";
     ".claude/includes/agents-instructions.private.md".source = oosLink "${agentsDir}/instructions.private.md";
+
+    # constitution-critic: the full constitution (every article carries a
+    # test and a failure signal) as a judging rubric.
+    ".claude/agents/constitution-critic.md".text =
+      mkCritic ../../../tools/agents/constitution-critic.md [
+        ../../../tools/agents/personal-constitution.md
+        ../../../tools/agents/company-values.md
+      ];
+
+    # code-critic: engineering rubrics (TigerStyle, NASA Power of Ten, Test
+    # Desiderata) for judging code, designs, and tests.
+    ".claude/agents/code-critic.md".text =
+      mkCritic ../../../tools/agents/code-critic.md [
+        ../../../tools/agents/rubrics/tiger-style.md
+        ../../../tools/agents/rubrics/power-of-ten.md
+        ../../../tools/agents/rubrics/test-desiderata.md
+      ];
+
+    # factory-critic: StrongDM Software Factory method for judging process
+    # (seed / validation harness / feedback loop), not code quality.
+    ".claude/agents/factory-critic.md".text =
+      mkCritic ../../../tools/agents/factory-critic.md [
+        ../../../tools/agents/rubrics/strongdm-principles.md
+        ../../../tools/agents/rubrics/strongdm-techniques.md
+        ../../../tools/agents/rubrics/strongdm-products.md
+      ];
 
     # Codex entrypoint: Codex loads ~/.codex/AGENTS.md natively. Symlink it to
     # the canonical file so a fresh activation wires Codex without a manual
@@ -46,10 +81,16 @@ in
   home.activation.claudeAgentsImports = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     claudeMd="$HOME/.claude/CLAUDE.md"
     run mkdir -p "$HOME/.claude"
+    # The full constitution moved behind the constitution-critic subagent;
+    # drop the stale always-loaded import a previous generation appended.
+    staleLine="@includes/agents-personal-constitution.md"
+    if [ -f "$claudeMd" ] && grep -qxF "$staleLine" "$claudeMd"; then
+      run sh -c 'grep -vxF "$1" "$2" > "$2.tmp" && mv "$2.tmp" "$2"' _ "$staleLine" "$claudeMd"
+    fi
     for importLine in \
       "@includes/agents-company-values.md" \
-      "@includes/agents-personal-constitution.md" \
       "@includes/agents-preferred-tooling.md" \
+      "@includes/agents-personal-constitution-distilled.md" \
       "@includes/agents-instructions.private.md"; do
       if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
         run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"

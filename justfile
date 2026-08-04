@@ -72,9 +72,22 @@ eval USER:
 _nix-check file:
     nix-instantiate --parse {{file}}
 
+# Step 1 on every machine (after activation - see README bootstrap tree).
+# Deliberately interactive: per-device OAuth tokens, no agenix-carried PAT
+# (the README's "Why no encrypted PAT?" note has the trade-offs).
 _login:
     gh auth login --web
     claude login
+
+# Build the dev container image from this checkout
+[group('docker')]
+docker-build:
+    ./docker/dev.sh build-local
+
+# Run the dev container, mounting the current directory at /work
+[group('docker')]
+docker-run dir=invocation_directory():
+    ./docker/dev.sh run {{dir}}
 
 # Assemble the combined agent instruction capsule (public layers + local overlay)
 [group('agents')]
