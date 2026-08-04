@@ -27,6 +27,7 @@ in
     ".agents/AGENTS.md".source = ../../../tools/agents/AGENTS.md;
     ".agents/company-values.md".source = ../../../tools/agents/company-values.md;
     ".agents/personal-constitution.md".source = ../../../tools/agents/personal-constitution.md;
+    ".agents/preferred-tooling.md".source = ../../../tools/agents/preferred-tooling.md;
     ".agents/personal-constitution-distilled.md".source = ../../../tools/agents/personal-constitution-distilled.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
@@ -34,6 +35,7 @@ in
     # Claude always-loads the *distilled* constitution; the full version is
     # on-demand via the constitution-critic subagent below.
     ".claude/includes/agents-company-values.md".source = oosLink "${agentsDir}/company-values.md";
+    ".claude/includes/agents-preferred-tooling.md".source = oosLink "${agentsDir}/preferred-tooling.md";
     ".claude/includes/agents-personal-constitution-distilled.md".source = oosLink "${agentsDir}/personal-constitution-distilled.md";
     ".claude/includes/agents-instructions.private.md".source = oosLink "${agentsDir}/instructions.private.md";
 
@@ -87,6 +89,7 @@ in
     fi
     for importLine in \
       "@includes/agents-company-values.md" \
+      "@includes/agents-preferred-tooling.md" \
       "@includes/agents-personal-constitution-distilled.md" \
       "@includes/agents-instructions.private.md"; do
       if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
