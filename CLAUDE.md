@@ -8,13 +8,21 @@ This document provides guidance for Claude Code when working with this dotfiles 
 
 The commit history should tell a story of exploration, problem-solving, and evolution. Favor meaningful, incremental commits over large squashes when they help illustrate the "why" behind decisions.
 
-## Version Control: Jujutsu First
+## Version Control: Prefer Jujutsu
 
-**Always use `jj` (Jujutsu) commands, not `git` commands.**
+**Prefer `jj` (Jujutsu) over `git` — but fall back to `git` when `jj` isn't installed.**
+
+`jj` is the default in this repo: reach for it first. It is *not* universally
+available, though — ephemeral sandboxes (Claude Code on the web, CI runners,
+fresh containers) frequently ship only `git`. When `jj` is missing, use `git`
+directly rather than failing or trying to install it, and say which you used.
+This is safe: jj is git-backed, so the working tree is a normal git repository
+underneath and git operations never corrupt jj state.
 
 ### Critical: Always Check Current State First
 
-**BEFORE making any changes, ALWAYS run `jj status` or `jj st` to see:**
+**BEFORE making any changes, ALWAYS check state first — `jj status` (or
+`git status` when `jj` isn't available) — to see:**
 - Which commit you're currently on (the working copy `@`)
 - What files have been modified
 - The parent commit
