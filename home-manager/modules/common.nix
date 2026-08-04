@@ -22,6 +22,7 @@ in
     ./tools/fzf.nix
     ./tools/gh-dash.nix
     ./tools/helix.nix
+    ./tools/starship.nix
     ./tools/television.nix
     ./git.nix
   ];
@@ -45,6 +46,15 @@ in
 
     # Enable zsh so home-manager can inject shell hooks (e.g. direnv)
     zsh.enable = true;
+
+    # ...and bash, so those hooks exist there too. The container's root shell in
+    # /etc/passwd is the base image's bash, so `docker exec -it dev bash` lands
+    # in bash no matter what the Dockerfile CMD says - and until now that shell
+    # got NO home-manager config at all (hence the bare `bash-5.3#`). Enabling
+    # it makes bash a real fallback rather than a dead end: home-manager writes
+    # ~/.bash_profile -> ~/.profile + ~/.bashrc, which is what picks up starship
+    # and direnv. Cheap: bash is already in the closure.
+    bash.enable = true;
 
     direnv = {
       enable = true;
