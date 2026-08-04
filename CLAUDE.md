@@ -125,7 +125,8 @@ dotfiles/
 │       ├── home.nix        # Personal profile
 │       └── work.nix        # Work profile
 ├── lib/
-│   └── core-packages.nix   # Packages shared by devShells + home-manager
+│   ├── core-packages.nix   # Packages shared by devShells + home-manager
+│   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
 │   ├── cheat/              # Cheatsheets + cheatpath config
@@ -194,6 +195,33 @@ the flake's devShells and home-manager. This is deliberate: the ephemeral
 same core CLI tools, so `cheat`, `jj`, `just`, `gh`, etc. behave identically
 whether you're in a throwaway shell or a switched profile. Add a
 universally-needed CLI tool here rather than duplicating it in both places.
+
+### External agent skills (`lib/skills-sh.nix`)
+
+Skills from [skills.sh](https://www.skills.sh/) install declaratively through
+the `nix-skills` flake input ([sudosubin/nix-skills](https://github.com/sudosubin/nix-skills),
+an auto-refreshed index that pins rev+hash for every published skill repo).
+
+**Do not apply nix-skills' overlay.** Forcing any single `pkgs.skills.*`
+attribute parses all ~48MB of index JSON and materializes a 480k-entry
+attrset — measured at ~65s wall / 3.6GB peak RSS per evaluation (2026-08-04).
+Since agent-skills.nix is in common.nix, that cost would hit every switch and
+every configuration in `nix flake check --all-systems`.
+
+Instead, `lib/skills-sh.nix` reads only the per-first-letter data shard for
+each source repo and calls upstream's `buildSkill` directly — byte-identical
+derivations at ~1s eval cost. It's exposed as `pkgs.skills-sh.<name>` via an
+overlay wired in both `flake.nix` (mkHome) and `darwin/configuration.nix`,
+and consumed by `home-manager/modules/tools/agent-skills.nix`.
+
+- **Add a skill**: new `mkSkill` entry in `lib/skills-sh.nix` + a
+  `home.file` line in agent-skills.nix
+- **Update pins**: `nix flake update nix-skills` (pins can lag upstream HEAD
+  by days-to-weeks — they move when the index re-resolves the repo)
+- **Plugins are not skills**: anything shipped as a Claude Code plugin
+  (e.g. compound-engineering) belongs in
+  `tools/agents/plugins/catalog.json`, not here — a plugin already carries
+  its skills, so installing them via nix-skills too would duplicate them
 
 ### Configuration Conflicts to Avoid
 
@@ -315,4 +343,4 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-07-28 - Synced Repository Structure with reality (lib/, tools/, secrets/, docker/, modules/tools/) and documented the shared `lib/core-packages.nix` pattern*
+*Last updated: 2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided)*
