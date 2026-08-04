@@ -3,6 +3,10 @@
 pkgs: with pkgs; [
   asciinema
   bat
+  # curl + file: ubiquitous CLI primitives; also the runtime deps the
+  # here.now agent-skill's publish.sh shells out to (alongside jq).
+  curl
+  file
   eza
   ripgrep
   jujutsu
