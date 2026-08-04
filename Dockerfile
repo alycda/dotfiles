@@ -61,6 +61,21 @@
 #     predates that fix can be cleared with (the age key survives):
 #       docker run --rm -v devhome:/root alpine \
 #         sh -c 'rm -rf /root/.local/state/nix /root/.nix-profile /root/.nix-defexpr'
+#     Same signature, same fix, different package: "... man-db ... bin/accessdb"
+#     on newer/arm64 base images. Both are in the entrypoint's removal list.
+#   activation "conflict ... bin/bash" - LOOKS like the two above, is NOT fixed
+#     the same way. bash cannot be removed from the base profile: it is root's
+#     login shell in /etc/passwd and what /bin/sh resolves through. The fix is
+#     config-side - `programs.bash.package = null` in home-manager/profiles/
+#     dev.nix takes the module's config without its binary. If you hit this on a
+#     new package, decide by asking whether home-manager needs to *provide* the
+#     program or only configure it. See
+#     docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md
+#   container starts, prompt looks perfect, but claude/jj/rg are "command not
+#     found" - this is NOT a PATH problem. It is a failed activation: file
+#     linking runs before package installation, so the dotfiles land and
+#     home-manager-path never installs. Scroll up to the activation output and
+#     read the tail; the real error is buried above a wall of success lines.
 
 FROM nixos/nix:latest
 

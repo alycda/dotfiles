@@ -7,10 +7,18 @@ host CANNOT run current Claude Code: Nix itself requires macOS 14+ (host is on
 1.0.56 with max compatibility ~1.0.93. The container IS the modern toolchain;
 the host is frozen. Dotfiles: https://github.com/alycda/dotfiles (its
 `Dockerfile` + `docker/CLAUDE.md` cover the container build). PR #34 *fixed* the
-two startup pitfalls this image used to hit, so you should not see them: the
-entrypoint now auto-drops the base image's `git-minimal` (it collided with
+two startup pitfalls this image used to hit, so you should not see those two:
+the entrypoint now auto-drops the base image's `git-minimal` (it collided with
 home-manager's full git), and the documented run command no longer mounts a
 volume over `/nix`.
+
+That fix is specific to those two, not to the class. The base image ships its
+own populated `nix-env` profile, and each refresh of it can seed a new package
+that collides with home-manager's — `man-db` did, then `bash` did, and the bash
+one is *not* fixed by the entrypoint mechanism above. If activation dies on a
+`conflict for the following files` error, see the Troubleshooting block in the
+`Dockerfile` and
+`docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`.
 
 ## Hardware (verified 2026-06-11)
 
