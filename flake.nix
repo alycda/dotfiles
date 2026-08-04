@@ -28,9 +28,16 @@
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Pinned index of skills.sh agent skills; consumed selectively via
+    # lib/skills-sh.nix (see that file for why we don't use its overlay)
+    nix-skills = {
+      url = "github:sudosubin/nix-skills";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, claude-code-nix, ... }:
+  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, claude-code-nix, nix-skills, ... }:
     let
       # Systems supported for devShells
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -49,6 +56,7 @@
           overlays = [
             nix-vscode-extensions.overlays.default
             claude-code-nix.overlays.default
+            (import ./lib/skills-sh.nix nix-skills)
           ];
         };
 
@@ -69,7 +77,7 @@
         darwin.lib.darwinSystem {
           inherit system;
 
-          specialArgs = { inherit nix-vscode-extensions claude-code-nix; };
+          specialArgs = { inherit nix-vscode-extensions claude-code-nix nix-skills; };
 
           modules = [
             ./darwin/configuration.nix
