@@ -52,6 +52,12 @@ _:
       "chromedriver"    # Ditto
       "codex"           # Ditto
       "cmux"
+      # Nerd Font for starship's nerd-font-symbols preset (home-manager/modules/
+      # tools/starship.nix). Glyphs are resolved by the terminal emulator, so
+      # this also covers the prompt inside the container - that prompt is drawn
+      # by the host terminal. Installing it is not enough: select it as the font
+      # in Warp's settings, or you get tofu boxes.
+      "font-jetbrains-mono-nerd-font"
       "logseq-og" # classic file/markdown Logseq; plain "logseq" is now the 2.0 DB version
       "loom"
       "muteme"
