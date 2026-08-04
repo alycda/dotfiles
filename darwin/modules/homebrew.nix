@@ -56,7 +56,7 @@ _:
       # tools/starship.nix). Glyphs are resolved by the terminal emulator, so
       # this also covers the prompt inside the container - that prompt is drawn
       # by the host terminal. Installing it is not enough: select it as the font
-      # in Warp's settings, or you get tofu boxes.
+      # in the terminal's own settings (cmux), or you get tofu boxes.
       "font-jetbrains-mono-nerd-font"
       "logseq-og" # classic file/markdown Logseq; plain "logseq" is now the 2.0 DB version
       "loom"
@@ -69,7 +69,9 @@ _:
       "rustdesk" 
       "tailscale-app"   # Ditto
       "visual-studio-code"
-      "warp"
+      # "warp" # replaced by cmux as the daily terminal. Left commented rather
+      # than deleted because onActivation.cleanup = "zap" means re-adding it is
+      # a fresh install with no settings - worth seeing that it was a choice.
       "workflowy"
     ];
   };

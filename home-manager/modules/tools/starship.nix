@@ -19,7 +19,7 @@ _:
 # icons). Glyphs are resolved by the *terminal emulator*, not by anything Nix
 # installs into the shell - so:
 #   - darwin: the font ships via the homebrew cask in darwin/modules/homebrew.nix,
-#     but you still have to select it in the terminal's own settings (Warp).
+#     but you still have to select it in the terminal's own settings (cmux).
 #   - container: there is no font in here at all. The prompt is drawn by
 #     whatever terminal on the HOST you opened the container from, so it's that
 #     terminal's font that has to be patched.
