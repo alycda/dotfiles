@@ -53,7 +53,14 @@ in
     # got NO home-manager config at all (hence the bare `bash-5.3#`). Enabling
     # it makes bash a real fallback rather than a dead end: home-manager writes
     # ~/.bash_profile -> ~/.profile + ~/.bashrc, which is what picks up starship
-    # and direnv. Cheap: bash is already in the closure.
+    # and direnv.
+    #
+    # NOT free in the container, despite appearances: this module also installs
+    # bashInteractive, which collides with the bash the nixos/nix base image
+    # already has in root's nix-env profile and aborts activation outright. The
+    # dev profile therefore sets `programs.bash.package = null` to take the
+    # config without the binary - see home-manager/profiles/dev.nix and
+    # docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md.
     bash.enable = true;
 
     direnv = {
