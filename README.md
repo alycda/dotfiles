@@ -222,7 +222,7 @@ As long as you have docker or an [ephemeral environment in the cloud](https://ep
 | `home-manager/` | Home Manager | User packages and dotfiles (cross-platform)
 | `lib/` | Nix | `core-packages.nix`, imported by both devShells and home-manager so ephemeral `nix develop` and persistent profiles stay consistent
 | `tools/` | (plain files) | Non-Nix tool content wired in by modules: `agents/` instruction overlay, `cheat/` cheatsheets, `claude/` rules, `helix/` config
-| `secrets/` | agenix/ragenix | age-encrypted secrets (git config, private agent overlay)
+| `secrets/` | agenix/ragenix | age-encrypted secrets, split by account: `personal/` (git config, private agent overlay), `work/`
 | `docker/` + `Dockerfile` | Docker | multi-arch dev image: born for a frozen 2012 MacBook Pro (x86, `docker/CLAUDE.md`), also the no-Nix bootstrap on Apple Silicon (arm64, `docker/CLAUDE-arm64.md`)
 
 This keeps package management declarative and reproducible across environments.

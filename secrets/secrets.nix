@@ -17,4 +17,12 @@ in
   # Private agent-instruction overlay (issue #40). Decrypted only on local
   # machines to ~/.agents/instructions.private.md; never committed as plaintext.
   "personal/agent-instructions.age".publicKeys = [ alyssa ];
+
+  # Linear API key for the `linear` MCP server. Work and personal Linear
+  # accounts issue separate keys, so the *directory* carries the identity:
+  # add "personal/linear-api-key.age" alongside when the personal key is
+  # minted, and neither filename has to grow a suffix. Committed ARMORED
+  # (`rage -a`) - see the note in this secret's home-manager wiring for why
+  # binary blobs do not reliably survive the trip into a commit.
+  "work/linear-api-key.age".publicKeys = [ alyssa ];
 }

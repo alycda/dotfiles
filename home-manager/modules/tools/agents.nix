@@ -106,4 +106,27 @@ in
     file = ../../../secrets/personal/agent-instructions.age;
     path = "${agentsDir}/instructions.private.md";
   };
+
+  # Linear API key for the `linear` MCP server. No `path` override on purpose:
+  # the default is "${age.secretsDir}/${name}", i.e.
+  # ~/.local/share/agenix/linear-api-key-work, which is exactly where the
+  # server's headersHelper looks. Activation therefore replaces the manual
+  # `just linear-key-set` step - the key arrives with the generation, so a
+  # fresh container has a working Linear MCP without a paste-the-key ritual.
+  #
+  # The attribute keeps the -work suffix the *file* no longer needs. Which
+  # Linear account a key belongs to is a directory in secrets/, but agenix
+  # secret names are one flat namespace and the decrypted filename comes from
+  # the name - so secrets/work/ and a future secrets/personal/ copy of the
+  # same-named file still need distinct attributes here.
+  #
+  # The ciphertext is committed ARMORED (`rage -a`). A binary .age blob is
+  # valid on disk but does not survive every path it takes to get into a
+  # commit; armor is plain ASCII, so it diffs, reviews, and round-trips
+  # intact. Converting binary -> armor needs no key: age armor is just the
+  # same ciphertext PEM-wrapped, so `{ echo BEGIN; base64 -w64 blob; echo END; }`
+  # is a lossless transform on an already-encrypted file.
+  age.secrets.linear-api-key-work = {
+    file = ../../../secrets/work/linear-api-key.age;
+  };
 }
