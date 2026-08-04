@@ -45,6 +45,17 @@ in
       # but only wired for Claude here; other runtimes follow later.
       ".claude/skills/html-deck".source = skillSource "html-deck";
 
+      # jujutsu — operate in jj repos without git muscle memory. Progressive
+      # disclosure: SKILL.md carries the mental model and agent rules, with
+      # references/ loaded on demand (command mapping, gitignore recovery,
+      # version deltas). Pinned to jj v0.43.
+      ".claude/skills/jujutsu".source = skillSource "jujutsu";
+
+      # jj-extract-gitignores — retroactively roll .gitignore additions back
+      # into named in-between commits after the ancestor that needed them.
+      # Narrow companion to the jujutsu skill above.
+      ".claude/skills/jj-extract-gitignores".source = skillSource "jj-extract-gitignores";
+      
       # External skills from skills.sh (see lib/skills-sh.nix for pinning).
       # Note: compound-engineering is deliberately NOT installed this way -
       # it's already a Claude Code plugin via the catalog (#65), and its 38
