@@ -33,7 +33,10 @@
   outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, claude-code-nix, ... }:
     let
       # Systems supported for devShells
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      # x86_64-darwin dropped: nixpkgs 26.11 removed support for it, and every
+      # config here targets aarch64-darwin or Linux (the 2012 MBP runs the
+      # x86_64-linux devcontainer, not a native darwin shell).
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
       # For standalone home-manager (Linux/devcontainers/non-sudo macOS)
