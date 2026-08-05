@@ -91,6 +91,18 @@
         # magenta = hash, green = refs/date, cyan = author.
         l = "log --color --graph --format='%C(magenta)%h%Creset %s %C(cyan)<%an>%Creset' -n 20 --abbrev-commit";
         lg = "log --color --graph --format='%C(magenta)%h%Creset -%C(green)%d%Creset %s %C(yellow)(%cr) %C(cyan)<%an>%Creset' --abbrev-commit";
+
+        # `since` is the primitive: everything I authored in a time window,
+        # across all refs rather than just the current branch — in a colocated
+        # jj repo the day's work is usually sitting on anonymous heads that
+        # plain `git log` would never show.
+        #   git since "2 weeks ago"
+        since = ''!f() { git log --all --author="$(git config user.email)" --since="''${1:-1 day ago}" --format='%C(magenta)%h%Creset %C(green)%cr%Creset %s' --abbrev-commit; }; f'';
+
+        # `yesterday` is that primitive with a working-day default: one day
+        # back, except on Monday (date +%u = 1), where it reaches back three
+        # to pick up Friday. Pass a window to override it.
+        yesterday = ''!f() { d=1; [ "$(date +%u)" = 1 ] && d=3; git since "''${1:-$d days ago}"; }; f'';
       };
     };
   };
