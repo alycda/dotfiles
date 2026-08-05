@@ -160,5 +160,30 @@ in
     cloudflare-api-token = {
       file = ../../../secrets/personal/cloudflare-api-token.age;
     };
+
+    # R2 credentials for cf-now (#47). These take `path` overrides because the
+    # consumer is the AWS CLI, which reads two fixed locations and accepts no
+    # override short of $AWS_SHARED_CREDENTIALS_FILE / $AWS_CONFIG_FILE. With
+    # these in place `aws --profile alyssa-r2` works with no flags at all - the
+    # endpoint and region come from the config file - and cf-now's
+    # `aws configure set` setup step disappears.
+    #
+    # Carried before the consumer exists, the same bet as
+    # linear-api-key-personal above: cf-now is still an unmerged PR, but a
+    # credential that lives only in a container's runtime dir dies with the
+    # container, and minting R2 tokens again is a trip back to the dashboard.
+    #
+    # NOTE these arrive only where an installer actually runs. On the container
+    # that is modules/agenix-activation.nix, imported by profiles/dev.nix;
+    # ragenix's own systemd unit never fires there.
+    r2-credentials = {
+      file = ../../../secrets/personal/r2-credentials.age;
+      path = "${config.home.homeDirectory}/.aws/credentials";
+    };
+
+    r2-config = {
+      file = ../../../secrets/personal/r2-config.age;
+      path = "${config.home.homeDirectory}/.aws/config";
+    };
   };
 }
