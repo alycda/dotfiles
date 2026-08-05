@@ -21,6 +21,7 @@ pkgs: with pkgs; [
   python3
   rage
   ragenix
+  sed
   supabase-cli
   taskbook
   tmux
