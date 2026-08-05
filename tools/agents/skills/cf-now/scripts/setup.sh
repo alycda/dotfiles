@@ -14,7 +14,7 @@ export AWS_RESPONSE_CHECKSUM_VALIDATION="${AWS_RESPONSE_CHECKSUM_VALIDATION:-whe
 PROFILE="${CFNOW_PROFILE:-alyssa-r2}"
 REGION="auto"                       # R2 always uses the 'auto' region
 ACCOUNT_ID="${CF_ACCOUNT_ID:-}"
-BUCKET="${CFNOW_BUCKET:-cfnow}"
+BUCKET="${CFNOW_BUCKET:-cf-now}"
 CONFIG_DIR="$HOME/.cfnow"
 CONFIG="$CONFIG_DIR/config.json"
 
@@ -38,9 +38,13 @@ ENDPOINT="https://${ACCOUNT_ID}.r2.cloudflarestorage.com"
 
 AWSP=(aws --profile "$PROFILE" --region "$REGION" --endpoint-url "$ENDPOINT" --output json)
 
-# R2 has no STS; a ListBuckets call is the cheapest auth probe.
+# R2 has no STS; a ListBuckets call is the cheapest auth probe. Account-level
+# on purpose here, unlike publish.sh's bucket-scoped probe: this script creates
+# the bucket and writes its lifecycle rule, so it needs Admin Read & Write
+# regardless, and a token with that can list buckets. Probing account-level
+# also fails early with a clear message instead of dying at create-bucket.
 if ! "${AWSP[@]}" s3api list-buckets >/dev/null 2>&1; then
-  die "not authenticated. Configure the R2 token creds for profile '$PROFILE' (see SKILL.md → Authentication)"
+  die "not authenticated, or the token lacks Admin Read & Write (needed to create the bucket and set its lifecycle rule). To run with an Object-scoped token instead, create the bucket and its tmp/ rule in the dashboard and skip this script — see SKILL.md → Authentication"
 fi
 echo "account: $ACCOUNT_ID  profile: $PROFILE  region: $REGION  endpoint: $ENDPOINT" >&2
 

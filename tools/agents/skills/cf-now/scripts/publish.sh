@@ -82,9 +82,21 @@ fi
 (( EXPIRES >= 1 )) || die "--expires must be a positive duration"
 (( EXPIRES > 604800 )) && die "--expires exceeds the 7-day R2 pre-sign cap"
 
-# R2 has no STS; a ListBuckets call is the cheapest auth probe.
-if ! "${AWSP[@]}" s3api list-buckets >/dev/null 2>&1; then
-  die "not authenticated. Configure the R2 token creds for profile '$PROFILE' (see SKILL.md → Authentication)"
+# R2 has no STS, so the auth probe is an ordinary call. It must be a
+# *bucket-scoped* one: ListBuckets is an account-level operation, and an R2
+# token scoped to specific buckets - the least privilege this script needs, and
+# what SKILL.md now recommends minting - cannot make it. Probing with
+# ListBuckets reported "not authenticated" on a token that could read, write,
+# delete and pre-sign in the target bucket perfectly well (verified against a
+# live Object Read & Write token, 2026-08-05). An auth probe demanding broader
+# rights than the tool itself is backwards.
+#
+# HeadBucket also fails closed for the case that actually matters: R2 answers
+# AccessDenied rather than NoSuchBucket for a bucket outside the token's scope,
+# so a wrong bucket name and a wrong scope are indistinguishable here - hence
+# naming both possibilities in the error.
+if ! "${AWSP[@]}" s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1; then
+  die "cannot reach bucket '$BUCKET' with profile '$PROFILE' — check the bucket name, and that the R2 token is scoped to it (see SKILL.md → Authentication)"
 fi
 
 state_get_key() {

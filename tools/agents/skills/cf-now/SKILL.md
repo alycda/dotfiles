@@ -58,11 +58,11 @@ You cannot do this for them.
 ## One-time setup
 
 ```bash
-CF_ACCOUNT_ID=<account-id> ./scripts/setup.sh   # defaults: profile alyssa-r2, bucket cfnow
+CF_ACCOUNT_ID=<account-id> ./scripts/setup.sh   # defaults: profile alyssa-r2, bucket cf-now
 ./scripts/setup.sh --account-id ID --profile OTHER --bucket OTHER
 ```
 
-Idempotent. Creates a private R2 bucket `cfnow` and a lifecycle rule expiring
+Idempotent. Creates a private R2 bucket `cf-now` and a lifecycle rule expiring
 the `tmp/` prefix after 7 days. R2 buckets are **private by default** — there
 is no public r2.dev URL and no custom domain unless one is explicitly attached,
 so (unlike S3) there is no public-access-block to set. Writes
