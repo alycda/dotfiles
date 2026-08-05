@@ -9,7 +9,7 @@ severity: high
 symptoms:
   - "`home-manager switch` reports success, the generation links, and no error mentions agenix at all - but a declared `age.secrets` file is simply not on disk"
   - "~/.agents/instructions.private.md missing despite `age.secrets.agent-instructions` declaring exactly that path, leaving ~/.claude/includes/agents-instructions.private.md a dangling symlink"
-  - "`@includes/agents-instructions.private.md` in ~/.claude/CLAUDE.md is a dead import, so agents read the file every session and silently never receive the private overlay"
+  - "`@includes/agents-instructions.private.md` in ~/.claude/CLAUDE.md is a dead import - agents read that line every session and resolve nothing"
   - "switch output contains 'User systemd daemon not running. Skipping reload.' - the only visible hint, and it looks unrelated"
   - "`config.home.activation` contains no agenix entry; `config.systemd.user.services` contains exactly one, named agenix"
   - "`nix-store -r <agenix-home-manager-mount-secrets>` fails with 'no substituter that can build it' - the mount script is not even in the container's closure"
@@ -41,9 +41,18 @@ The only evidence is absence. `~/.agents/instructions.private.md` was declared
 with a `path` override and never existed, which made
 `~/.claude/includes/agents-instructions.private.md` a dangling symlink and the
 `@includes/agents-instructions.private.md` line in `~/.claude/CLAUDE.md` a dead
-import. Every agent session read that CLAUDE.md and quietly got no private
-overlay. This went unnoticed for months because a missing include renders
-identically to an empty one.
+import. It went unnoticed because a missing include renders identically to an
+empty one.
+
+How much was actually lost there is worth stating precisely, because the
+severity of this entry does not rest on it: that secret currently decrypts to a
+placeholder ("a harmless placeholder shipped so Home Manager activation
+works"), so no real private instruction content was going missing. What was
+broken is the *delivery mechanism*, and the same mechanism carries credentials
+that are not placeholders - the Cloudflare API token behind the
+`cloudflare-bindings` connector and the R2 credentials behind cf-now. Judge
+this by what fails to arrive next, not by what happened to be in the one secret
+that exposed it.
 
 ## Root cause
 
