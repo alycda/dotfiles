@@ -19,6 +19,7 @@ in
     ./tools/agents.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
+    ./tools/claude-mcp.nix
     ./tools/fzf.nix
     ./tools/gh-dash.nix
     ./tools/helix.nix
