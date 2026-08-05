@@ -343,6 +343,16 @@ nix profile install nixpkgs#deadnix && deadnix --fail .
 nix flake check --all-systems
 ```
 
+### Entity diff (informational, non-blocking)
+
+`.github/workflows/entity-diff.yml` runs [Sem](https://github.com/Ataraxy-Labs/sem)'s
+GitHub Action on every PR. It posts a sticky PR comment listing which
+functions, classes, and methods changed (entity-level diff via tree-sitter,
+not line-by-line) — useful for scanning what actually changed in a module
+without reading the full diff. It's display-only: no config, no API keys,
+and it never fails the build, so it doesn't gate merging alongside the
+lint/check jobs above.
+
 ## Learning Resources
 
 When adding new Nix patterns or configurations, include links to:
