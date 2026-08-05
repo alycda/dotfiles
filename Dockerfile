@@ -1,20 +1,26 @@
-# x86_64-linux devcontainer (e.g. Docker Desktop on the 2012 MBP).
+# Linux devcontainer image (x86_64 AND aarch64 - e.g. Docker Desktop on the
+# 2012 MBP, or on an Apple Silicon Mac where you can't/won't install Nix,
+# such as a non-admin macOS user).
 #
-# The home-manager closure for alyssa@dev-x86 is built INTO the image (slow,
-# once, at build time - network + CPU happen here, not at container start).
-# Activation runs at container start instead, so it respects a mounted /root
-# volume (Claude/gh auth, ssh, jj state persistence) and the age identity key
-# that ragenix needs to decrypt the git config.
+# The home-manager closure is built INTO the image (slow, once, at build
+# time - network + CPU happen here, not at container start). The profile is
+# picked by CPU architecture: arm64 builds alyssa@dev (aarch64-linux), amd64
+# builds alyssa@dev-x86. Activation runs at container start instead, so it
+# respects a mounted /root volume (Claude/gh auth, ssh, jj state persistence)
+# and the age identity key that ragenix needs to decrypt the git config.
 #
-# Build:  docker build -t dev-x86 .
+# Bootstrap from nothing (no gh/ssh/Nix/git needed - Docker fetches the repo
+# itself via BuildKit's remote build context):
+#   docker build -t dev https://github.com/alycda/dotfiles.git
+# ...or from a local clone:
+#   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
-#   docker run -it --rm \
-#     -v devhome:/root \
-#     -v claude-home:/root/.claude \
-#     -v "$PWD":/work -w /work \
+#   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+#
+# Optional extras for the run command (append before the image name):
+#   SSH agent forwarding (Docker Desktop for Mac):
 #     -v /run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock \
-#     -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock \
-#     dev-x86
+#     -e SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
 #
 # claude-home keeps Claude's auth (~/.claude/.credentials.json) and config in
 # its own volume, nested under the devhome mount. This decouples your login from
@@ -40,7 +46,7 @@
 #   docker cp ./personal-key.txt <container>:/root/.age/personal-key.txt
 # It persists in devhome across --rm; exit and re-run to re-activate with it.
 #
-# Flake updates: rebuild the image (docker build -t dev-x86 .) and keep the
+# Flake updates: rebuild the image (docker build -t dev .) and keep the
 # devhome volume. The entrypoint re-activates only when the home profile is
 # missing or stale.
 #
@@ -55,6 +61,21 @@
 #     predates that fix can be cleared with (the age key survives):
 #       docker run --rm -v devhome:/root alpine \
 #         sh -c 'rm -rf /root/.local/state/nix /root/.nix-profile /root/.nix-defexpr'
+#     Same signature, same fix, different package: "... man-db ... bin/accessdb"
+#     on newer/arm64 base images. Both are in the entrypoint's removal list.
+#   activation "conflict ... bin/bash" - LOOKS like the two above, is NOT fixed
+#     the same way. bash cannot be removed from the base profile: it is root's
+#     login shell in /etc/passwd and what /bin/sh resolves through. The fix is
+#     config-side - `programs.bash.package = null` in home-manager/profiles/
+#     dev.nix takes the module's config without its binary. If you hit this on a
+#     new package, decide by asking whether home-manager needs to *provide* the
+#     program or only configure it. See
+#     docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md
+#   container starts, prompt looks perfect, but claude/jj/rg are "command not
+#     found" - this is NOT a PATH problem. It is a failed activation: file
+#     linking runs before package installation, so the dotfiles land and
+#     home-manager-path never installs. Scroll up to the activation output and
+#     read the tail; the real error is buried above a wall of success lines.
 
 FROM nixos/nix:latest
 
@@ -63,19 +84,47 @@ RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 # Outside /root so a mounted home volume can never shadow the flake
 COPY . /opt/dotfiles
 
+# The profile is picked by asking the build container itself (uname -m), NOT
+# BuildKit's TARGETARCH: the legacy builder never sets TARGETARCH (it's still
+# what a fresh non-admin macOS user gets - buildx CLI plugins live per-user in
+# ~/.docker/cli-plugins - and it's all Docker 20.10 on the 2012 MBP has), and
+# an empty TARGETARCH here would silently build the x86 closure on an arm64
+# host. uname -m runs in the target platform's container under both builders,
+# so it's always the truth. Override with --build-arg HM_PROFILE=<name> if
+# you ever need to force a profile.
+ARG HM_PROFILE
+
 # Build the HM generation and root it at a stable path (GC-safe).
 # "path:" forces the path fetcher - the image has no git for the git fetcher.
-RUN nix build "path:/opt/dotfiles#homeConfigurations.\"alyssa@dev-x86\".activationPackage" -o /opt/hm-activation
+# The chosen profile is recorded at /opt/hm-profile for the entrypoint, and
+# the matching container-env doc is baked in as Claude's user-level memory so
+# it applies regardless of which project is mounted at /work. At runtime
+# /root/.claude is a volume (claude-home) that shadows the baked copy, so the
+# entrypoint re-copies it on every start to keep it current; this seed covers
+# a fresh volume and runs without the claude-home mount.
+RUN arch="$(uname -m)" \
+ && profile="${HM_PROFILE:-$(case "$arch" in aarch64) echo 'alyssa@dev';; *) echo 'alyssa@dev-x86';; esac)}" \
+ && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
+ && echo "$profile" > /opt/hm-profile \
+ && mkdir -p /root/.claude \
+ && case "$arch" in \
+      aarch64) cp /opt/dotfiles/docker/CLAUDE-arm64.md /root/.claude/CLAUDE.md ;; \
+      *)       cp /opt/dotfiles/docker/CLAUDE.md       /root/.claude/CLAUDE.md ;; \
+    esac
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 
-# Bake the container-env doc in as Claude's user-level memory, so it applies
-# regardless of which project is mounted at /work. At runtime /root/.claude is a
-# volume (claude-home) that shadows this baked copy, so the entrypoint re-copies
-# it from /opt/dotfiles on every start to keep it current; this COPY just seeds
-# a fresh volume and covers runs without the claude-home mount.
-COPY docker/CLAUDE.md /root/.claude/CLAUDE.md
-
 WORKDIR /work
 ENTRYPOINT ["/opt/dotfiles/docker/entrypoint.sh"]
-CMD ["bash", "-l"]
+# Land in zsh, not bash. home-manager configures zsh (starship, direnv, fzf
+# widgets, the tv Ctrl+R binding) and configures bash only as a fallback - but
+# this used to be `bash -l`, so none of that zsh config was ever sourced and the
+# prompt was a bare `bash-5.3#` (issue #15).
+#
+# Guarded rather than a plain ["zsh", "-l"]: zsh comes from the home-manager
+# profile, which the entrypoint activates just before exec'ing this. If that
+# activation fails (the usual cause is a missing ragenix identity - the
+# entrypoint prints recovery instructions for it), zsh does not exist, and an
+# unguarded exec would kill the container instantly - right when you need a
+# shell to fix it. Falling back to bash keeps those instructions actionable.
+CMD ["sh", "-c", "if command -v zsh >/dev/null 2>&1; then exec zsh -l; else exec bash -l; fi"]

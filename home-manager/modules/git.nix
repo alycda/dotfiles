@@ -32,6 +32,13 @@
     # hiPrio makes buildEnv prefer the full git deterministically. To find and
     # remove the actual git-minimal source instead, build the profile and run:
     #   nix why-depends <profile> <git-minimal-store-path>
+    #
+    # Scope note: hiPrio only settles collisions INSIDE this closure's buildEnv,
+    # which is the case above. It cannot resolve a collision between separate
+    # nix-env profile elements (home-manager-path vs a package the base image
+    # installed) - priority set on an inner package is invisible at the outer
+    # union. For that layer see docker/entrypoint.sh and
+    # docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md.
     package = lib.hiPrio pkgs.git;
 
     settings = {

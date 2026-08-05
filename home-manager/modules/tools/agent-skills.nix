@@ -1,25 +1,69 @@
 # Cross-tool agent skills (issue #40 shape: canonical declared content in the
 # repo, each runtime mounts it natively). Skill sources live under
-# tools/agents/skills/; out-of-store symlinks so skill edits land in the
-# runtime without a rebuild.
+# tools/agents/skills/.
 #
-# Imported by the desktop profiles (home.nix / work.nix), NOT common.nix: the
-# oosSymlink targets assume the repo checkout at ~/dotfiles, which doesn't
-# hold in the dev devcontainer (workspace mount path) — links would dangle
-# silently there.
+# Two deployment modes, selected per profile via agentSkills.liveCheckout:
+#  - null (default): skills deploy from the store snapshot the flake was built
+#    from. No path assumptions, so the module is safe in common.nix and the
+#    dev devcontainer (which previously couldn't import it: the oosSymlink
+#    target assumed a checkout at ~/dotfiles and dangled silently elsewhere).
+#  - a path string: out-of-store symlinks into that live checkout, so skill
+#    edits land in the runtime without a rebuild — the desktop dev loop.
 #
-# Claude only for now. Hermes mounts (nested by category under ~/.hermes/) land
-# in a follow-up once more skills are ported.
-{ config, ... }:
+# Claude only for now. Hermes mounts (nested by category under ~/.hermes/)
+# land with the s3-now port (#43).
+#
+# External skills (from skills.sh, pinned via the nix-skills flake input and
+# selected in lib/skills-sh.nix) always deploy from the store - liveCheckout
+# doesn't apply to them since their source isn't in this repo.
+{ config, lib, pkgs, ... }:
 let
-  homeDir = config.home.homeDirectory;
-  agentsSkills = "${homeDir}/dotfiles/tools/agents/skills";
-  oosSymlink = config.lib.file.mkOutOfStoreSymlink;
+  cfg = config.agentSkills;
+  skillSource =
+    name:
+    if cfg.liveCheckout != null then
+      config.lib.file.mkOutOfStoreSymlink "${cfg.liveCheckout}/tools/agents/skills/${name}"
+    else
+      ../../../tools/agents/skills + "/${name}";
 in
 {
-  home.file = {
-    # html-deck — self-contained single-file HTML slide decks. Tool-agnostic,
-    # but only wired for Claude here; other runtimes follow later.
-    ".claude/skills/html-deck".source = oosSymlink "${agentsSkills}/html-deck";
+  options.agentSkills.liveCheckout = lib.mkOption {
+    type = lib.types.nullOr lib.types.str;
+    default = null;
+    example = "/Users/alyssa/dotfiles";
+    description = ''
+      Absolute path to a live dotfiles checkout. When set, skills are
+      out-of-store symlinks into it and edits land without a rebuild.
+      When null, skills deploy from the store — portable to machines
+      without a checkout at any particular path.
+    '';
+  };
+
+  config = {
+    home.file = {
+      # html-deck — self-contained single-file HTML slide decks. Tool-agnostic,
+      # but only wired for Claude here; other runtimes follow later.
+      ".claude/skills/html-deck".source = skillSource "html-deck";
+
+      # jujutsu — operate in jj repos without git muscle memory. Progressive
+      # disclosure: SKILL.md carries the mental model and agent rules, with
+      # references/ loaded on demand (command mapping, gitignore recovery,
+      # version deltas). Pinned to jj v0.43.
+      ".claude/skills/jujutsu".source = skillSource "jujutsu";
+
+      # jj-extract-gitignores — retroactively roll .gitignore additions back
+      # into named in-between commits after the ancestor that needed them.
+      # Narrow companion to the jujutsu skill above.
+      ".claude/skills/jj-extract-gitignores".source = skillSource "jj-extract-gitignores";
+      
+      # External skills from skills.sh (see lib/skills-sh.nix for pinning).
+      # Note: compound-engineering is deliberately NOT installed this way -
+      # it's already a Claude Code plugin via the catalog (#65), and its 38
+      # ce-* skills ship inside the plugin; installing them here too would
+      # duplicate every one of them in the skill picker.
+      ".claude/skills/here-now".source = pkgs.skills-sh.here-now;
+      ".claude/skills/supabase-postgres-best-practices".source =
+        pkgs.skills-sh.supabase-postgres-best-practices;
+    };
   };
 }

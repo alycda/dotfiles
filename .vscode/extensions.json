@@ -1,5 +1,8 @@
 {
     "recommendations": [
-        "eamodio.gitlens" // ONLY for github.dev web editor, unfortunately requires sign-in and is overkill but works
+        "eamodio.gitlens", // ONLY for github.dev web editor, unfortunately requires sign-in and is overkill but works
+        // "jjk.jjk", // set git.enabled = false for local development
+        "ms-vscode-remote.remote-containers", // needed for .devcontainer.json
+        // "visualjj.visualjj" // preferred over git for local development
     ]
 }

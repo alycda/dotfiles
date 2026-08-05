@@ -14,6 +14,12 @@ let
   # Out-of-store symlinks so the Claude includes track the live ~/.agents files
   # (and the *decrypted* overlay), not immutable store copies.
   oosLink = config.lib.file.mkOutOfStoreSymlink;
+  # Critic subagents: persona (frontmatter + enforcer instructions) canonical
+  # in tools/agents/, judged-against material appended beneath as layers.
+  # On-demand rubrics instead of always-loaded context — store-safe; only
+  # public files, never the private overlay.
+  mkCritic = persona: layers:
+    lib.concatStringsSep "\n" (map builtins.readFile ([ persona ] ++ layers));
 in
 {
   # Public layers, tracked in the repo, deployed verbatim.
@@ -21,12 +27,43 @@ in
     ".agents/AGENTS.md".source = ../../../tools/agents/AGENTS.md;
     ".agents/company-values.md".source = ../../../tools/agents/company-values.md;
     ".agents/personal-constitution.md".source = ../../../tools/agents/personal-constitution.md;
+    ".agents/preferred-tooling.md".source = ../../../tools/agents/preferred-tooling.md;
+    ".agents/personal-constitution-distilled.md".source = ../../../tools/agents/personal-constitution-distilled.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.
+    # Claude always-loads the *distilled* constitution; the full version is
+    # on-demand via the constitution-critic subagent below.
     ".claude/includes/agents-company-values.md".source = oosLink "${agentsDir}/company-values.md";
-    ".claude/includes/agents-personal-constitution.md".source = oosLink "${agentsDir}/personal-constitution.md";
+    ".claude/includes/agents-preferred-tooling.md".source = oosLink "${agentsDir}/preferred-tooling.md";
+    ".claude/includes/agents-personal-constitution-distilled.md".source = oosLink "${agentsDir}/personal-constitution-distilled.md";
     ".claude/includes/agents-instructions.private.md".source = oosLink "${agentsDir}/instructions.private.md";
+
+    # constitution-critic: the full constitution (every article carries a
+    # test and a failure signal) as a judging rubric.
+    ".claude/agents/constitution-critic.md".text =
+      mkCritic ../../../tools/agents/constitution-critic.md [
+        ../../../tools/agents/personal-constitution.md
+        ../../../tools/agents/company-values.md
+      ];
+
+    # code-critic: engineering rubrics (TigerStyle, NASA Power of Ten, Test
+    # Desiderata) for judging code, designs, and tests.
+    ".claude/agents/code-critic.md".text =
+      mkCritic ../../../tools/agents/code-critic.md [
+        ../../../tools/agents/rubrics/tiger-style.md
+        ../../../tools/agents/rubrics/power-of-ten.md
+        ../../../tools/agents/rubrics/test-desiderata.md
+      ];
+
+    # factory-critic: StrongDM Software Factory method for judging process
+    # (seed / validation harness / feedback loop), not code quality.
+    ".claude/agents/factory-critic.md".text =
+      mkCritic ../../../tools/agents/factory-critic.md [
+        ../../../tools/agents/rubrics/strongdm-principles.md
+        ../../../tools/agents/rubrics/strongdm-techniques.md
+        ../../../tools/agents/rubrics/strongdm-products.md
+      ];
 
     # Codex entrypoint: Codex loads ~/.codex/AGENTS.md natively. Symlink it to
     # the canonical file so a fresh activation wires Codex without a manual
@@ -44,9 +81,16 @@ in
   home.activation.claudeAgentsImports = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     claudeMd="$HOME/.claude/CLAUDE.md"
     run mkdir -p "$HOME/.claude"
+    # The full constitution moved behind the constitution-critic subagent;
+    # drop the stale always-loaded import a previous generation appended.
+    staleLine="@includes/agents-personal-constitution.md"
+    if [ -f "$claudeMd" ] && grep -qxF "$staleLine" "$claudeMd"; then
+      run sh -c 'grep -vxF "$1" "$2" > "$2.tmp" && mv "$2.tmp" "$2"' _ "$staleLine" "$claudeMd"
+    fi
     for importLine in \
       "@includes/agents-company-values.md" \
-      "@includes/agents-personal-constitution.md" \
+      "@includes/agents-preferred-tooling.md" \
+      "@includes/agents-personal-constitution-distilled.md" \
       "@includes/agents-instructions.private.md"; do
       if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
         run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"
@@ -54,12 +98,56 @@ in
     done
   '';
 
-  # Private overlay: agenix decrypts the ciphertext and exposes the plaintext at
-  # this stable home path. Using a per-secret `path` keeps the decrypted file in
-  # the agenix runtime dir (symlinked here) and out of the Nix store. Identity
-  # and secretsDir are configured in ../git.nix; this only adds the secret.
-  age.secrets.agent-instructions = {
-    file = ../../../secrets/personal/agent-instructions.age;
-    path = "${agentsDir}/instructions.private.md";
+  # Identity and secretsDir are configured in ../git.nix; this only adds
+  # secrets. One attrset rather than three `age.secrets.<name> =` statements:
+  # statix's repeated_keys fires at the third, and the grouping matches
+  # `home.file` above.
+  age.secrets = {
+    # Private overlay: agenix decrypts the ciphertext and exposes the plaintext
+    # at this stable home path. Using a per-secret `path` keeps the decrypted
+    # file in the agenix runtime dir (symlinked here) and out of the Nix store.
+    agent-instructions = {
+      file = ../../../secrets/personal/agent-instructions.age;
+      path = "${agentsDir}/instructions.private.md";
+    };
+
+    # Linear API key for the `linear` MCP server. No `path` override on purpose:
+    # the default is "${age.secretsDir}/${name}", i.e.
+    # ~/.local/share/agenix/linear-api-key-work, which is exactly where the
+    # server's headersHelper looks. Activation therefore replaces the manual
+    # `just linear-key-set` step - the key arrives with the generation, so a
+    # fresh container has a working Linear MCP without a paste-the-key ritual.
+    #
+    # The attributes keep the account suffix the *files* no longer need. Which
+    # Linear account a key belongs to is a directory in secrets/, but agenix
+    # secret names are one flat namespace and the decrypted filename comes from
+    # the name - so secrets/work/ and secrets/personal/ carry the same filename
+    # while still needing distinct attributes here.
+    #
+    # The ciphertext is committed ARMORED (`rage -a`). A binary .age blob is
+    # valid on disk but does not survive every path it takes to get into a
+    # commit; armor is plain ASCII, so it diffs, reviews, and round-trips
+    # intact. Converting binary -> armor needs no key: age armor is just the
+    # same ciphertext PEM-wrapped, so `{ echo BEGIN; base64 -w64 blob; echo END; }`
+    # is a lossless transform on an already-encrypted file.
+    linear-api-key-work = {
+      file = ../../../secrets/work/linear-api-key.age;
+    };
+
+    # The personal-account counterpart. Carried, not consumed: nothing reads
+    # ~/.local/share/agenix/linear-api-key-personal today. The `linear` MCP
+    # server lives in the work tree, and both paths that authenticate it - its
+    # headersHelper and that tree's .envrc export of $LINEAR_API_KEY - name the
+    # -work file explicitly. So adding this secret delivers the value without
+    # changing which Linear account any agent talks to.
+    #
+    # Carrying it before there is a consumer is the point. A key that exists
+    # only in a container's runtime dir dies with the container; encrypted here
+    # it survives, and pointing a personal tree at it later is one
+    # $LINEAR_API_KEY_FILE away rather than a trip back to linear.app to mint a
+    # replacement.
+    linear-api-key-personal = {
+      file = ../../../secrets/personal/linear-api-key.age;
+    };
   };
 }
