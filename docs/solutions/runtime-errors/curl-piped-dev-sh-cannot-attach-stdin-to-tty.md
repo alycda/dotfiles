@@ -73,31 +73,61 @@ run_container() {
     -v devhome:/root \
     -v claude-home:/root/.claude \
     -v "$dir":/work -w /work \
+    ...
     "$IMAGE"
 
-  if [ -t 0 ]; then
-    exec docker run -it "$@"
-  elif (true </dev/tty) 2>/dev/null; then
-    exec docker run -it "$@" </dev/tty
+  if in_foreground; then
+    if [ -t 0 ]; then
+      exec docker run -it "$@"
+    elif (true </dev/tty) 2>/dev/null; then
+      exec docker run -it "$@" </dev/tty
+    fi
   fi
-  # ...no terminal anywhere: explain, exit 1
+  # ...no terminal we may use: render the command from "$@", exit 1
 }
 ```
+
+(The flag list is elided above on purpose — read `docker/dev.sh` for the
+current one. A copy of it here is a copy that goes stale; see Prevention.)
 
 Three cases, in order:
 
 1. **stdin is already a terminal** (`sh docker/dev.sh run`, `just docker-run`) —
    unchanged behaviour.
-2. **stdin is a pipe but a controlling terminal exists** (`curl | sh`) — redirect
-   the container's stdin from `/dev/tty`. `-it` is then honest: docker's client
-   really does have a terminal to relay.
-3. **No terminal at all** (CI, cron, `nohup`) — print the ready-to-paste
-   `docker run` command and exit 1. Dropping to `docker run -i` without `-t`
-   would "work" only in the sense that the shell would read EOF from the closed
-   pipe and exit instantly; a silent no-op container is worse than a message.
+2. **stdin is a pipe but a usable controlling terminal exists** (`curl | sh`) —
+   redirect the container's stdin from `/dev/tty`. `-it` is then honest:
+   docker's client really does have a terminal to relay.
+3. **No terminal we may use** — print the ready-to-paste `docker run` command
+   and exit 1. Dropping to `docker run -i` without `-t` would "work" only in
+   the sense that the shell would read EOF from the closed pipe and exit
+   instantly; a silent no-op container is worse than a message.
+
+Case 3 covers two different situations, and conflating them was a bug in the
+first version of this fix. **No controlling terminal at all** (cron, CI, a
+`setsid` daemon) is the obvious one. **A terminal we are not allowed to use**
+is the subtle one: a backgrounded or job-controlled invocation *keeps* its
+controlling terminal, so `[ -t 0 ]` and an open of `/dev/tty` both still
+succeed — and then `docker run -it` reads the tty and calls `tcsetattr` from a
+non-foreground process group, takes `SIGTTIN`/`SIGTTOU`, and stops the job
+silently. That silent stop is the exact failure the loud message exists to
+replace, so the foreground check gates *both* terminal branches:
+
+```sh
+in_foreground() {
+  [ "$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')" \
+    = "$(ps -o tpgid= -p $$ 2>/dev/null | tr -d ' ')" ]
+}
+```
+
+`nohup` is *not* an example of case 3: it ignores SIGHUP but keeps the
+controlling terminal and the foreground group, so `nohup sh dev.sh run` takes
+branch 1 and works.
 
 Extracting `run_container` also removed the duplicated `docker run` invocation
-that `run` and `up` each carried, which is how the two could have drifted.
+that `run` and `up` each carried, which is how the two could have drifted. The
+fallback message is rendered from the same `"$@"` those branches exec, for the
+same reason — an earlier version hand-wrote the command a second time and it
+promptly went stale when a flag was added above it.
 
 ### Details that matter in the probe
 
@@ -112,19 +142,28 @@ both halves are load-bearing:
   containers and daemonised sessions that have *no* controlling terminal; the
   open is what fails there (`ENXIO`), so only an actual open distinguishes
   case 2 from case 3.
+- **Opening is still not permission.** The open succeeds for a backgrounded
+  job, which is why `in_foreground` above exists. Openability answers "is there
+  a terminal"; the pgid/tpgid comparison answers "may I use it".
 
 ## Verification
 
-With a stub `docker` on `PATH` that reports whether its stdin is a tty, all
-three cases were exercised under `sh`, `dash` and `bash` — case 2 reproduced
-with `script -qec "cat dev.sh | sh -s -- run"`, which supplies a controlling
-terminal while stdin stays a pipe, i.e. exactly the user-reported shape:
+With a stub `docker` on `PATH` that reports whether its stdin is a tty, every
+invocation shape below was exercised under `sh`, `dash` and `bash`. Case 2 is
+reproduced with `script -qec "cat dev.sh | sh -s -- run"`, which supplies a
+controlling terminal while stdin stays a pipe — exactly the reported shape:
 
-| invocation | branch | stdin seen by docker |
+| invocation | branch | outcome |
 |---|---|---|
-| `sh dev.sh run` under a pty | 1 | tty |
-| `cat dev.sh \| sh -s -- run` under a pty | 2 | tty |
-| `cat dev.sh \| sh -s -- run`, no pty | 3 | (refused with instructions) |
+| `sh dev.sh run` under a pty | 1 | docker gets a tty |
+| `cat dev.sh \| sh -s -- run` under a pty | 2 | docker gets a tty via `/dev/tty` |
+| `cat dev.sh \| sh -s -- run`, no pty | 3 | refused with instructions |
+| `bash -im -c 'sh dev.sh run & wait'` (backgrounded, pty exists) | 3 | refused, instead of stopping on SIGTTIN |
+| `setsid sh dev.sh run` (no controlling terminal) | 3 | refused with instructions |
+
+The stub is four lines and worth rebuilding when you touch this function:
+`printf 'DOCKER: %s\n' "$*"; [ -t 0 ] && echo "stdin: tty" || echo "stdin: not a tty"`
+on `PATH` ahead of the real `docker`.
 
 ## Prevention
 
@@ -132,13 +171,21 @@ terminal while stdin stays a pipe, i.e. exactly the user-reported shape:
   interactively — `docker run -it`, `ssh -t`, a `read` prompt, `sudo` asking for
   a password — needs `< /dev/tty`, because the pipe owns fd 0 for the script's
   whole lifetime.
+- **"Has a terminal" and "may use the terminal" are different questions.** Both
+  `[ -t 0 ]` and an open of `/dev/tty` answer only the first. A guard that stops
+  at the first question sends backgrounded jobs into a silent SIGTTIN stop —
+  the failure mode the guard was written to replace.
 - **Test the delivery mechanism, not just the script.** `sh docker/dev.sh up`
   from a terminal passes while `curl … | sh -s -- up` fails; only the second is
   what the README tells people to run. Pipe it locally (`cat script | sh -s --
-  …`) before publishing a curl-able command.
-- **Keep the run invocation in one function.** `run` and `up` had byte-identical
-  `docker run` blocks; a fix applied to one and not the other is the obvious
-  next bug.
+  …`) before publishing a curl-able command. Background it too.
+- **Keep the run invocation in one function, and render every copy from it.**
+  `run` and `up` had byte-identical `docker run` blocks; a fix applied to one
+  and not the other is the obvious next bug. The same applies to *printed*
+  copies: the fallback message hand-wrote the command and went stale one commit
+  later when `--network host` was added. Rendering it from `"$@"` makes that
+  class of drift unrepresentable. Prose copies (README, this file) cannot be
+  rendered, so they should point at the script instead of repeating its flags.
 
 ## Related
 
