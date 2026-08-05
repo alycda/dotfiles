@@ -18,8 +18,18 @@ in
   # machines to ~/.agents/instructions.private.md; never committed as plaintext.
   "personal/agent-instructions.age".publicKeys = [ alyssa ];
 
-  # HackMD API token, decrypted to ~/.config/hackmd/env in env-file format.
-  # Two accounts, one per machine profile (see hackmd-{work,personal}.nix):
+  # Linear API key for the `linear` MCP server. Work and personal Linear
+  # accounts issue separate keys, so the *directory* carries the identity and
+  # neither filename grows a suffix. Committed ARMORED (`rage -a`) - see the
+  # note in these secrets' home-manager wiring for why binary blobs do not
+  # reliably survive the trip into a commit.
+  "work/linear-api-key.age".publicKeys = [ alyssa ];
+  "personal/linear-api-key.age".publicKeys = [ alyssa ];
+
+  # HackMD API token, decrypted to ~/.config/hackmd/env in env-file format and
+  # sourced at spawn time by the MCP launcher in hackmd-mcp.nix. Same
+  # directory-carries-the-identity convention as the Linear keys above; one
+  # account per machine profile (see hackmd-{work,personal}.nix):
   #   work profile  -> hackmd-work.nix
   #   home profile  -> hackmd-personal.nix
   "work/hackmd-api-token.age".publicKeys = [ alyssa ];

@@ -8,13 +8,21 @@ This document provides guidance for Claude Code when working with this dotfiles 
 
 The commit history should tell a story of exploration, problem-solving, and evolution. Favor meaningful, incremental commits over large squashes when they help illustrate the "why" behind decisions.
 
-## Version Control: Jujutsu First
+## Version Control: Prefer Jujutsu
 
-**Always use `jj` (Jujutsu) commands, not `git` commands.**
+**Prefer `jj` (Jujutsu) over `git` — but fall back to `git` when `jj` isn't installed.**
+
+`jj` is the default in this repo: reach for it first. It is *not* universally
+available, though — ephemeral sandboxes (Claude Code on the web, CI runners,
+fresh containers) frequently ship only `git`. When `jj` is missing, use `git`
+directly rather than failing or trying to install it, and say which you used.
+This is safe: jj is git-backed, so the working tree is a normal git repository
+underneath and git operations never corrupt jj state.
 
 ### Critical: Always Check Current State First
 
-**BEFORE making any changes, ALWAYS run `jj status` or `jj st` to see:**
+**BEFORE making any changes, ALWAYS check state first — `jj status` (or
+`git status` when `jj` isn't available) — to see:**
 - Which commit you're currently on (the working copy `@`)
 - What files have been modified
 - The parent commit
@@ -125,17 +133,22 @@ dotfiles/
 │       ├── home.nix        # Personal profile
 │       └── work.nix        # Work profile
 ├── lib/
-│   └── core-packages.nix   # Packages shared by devShells + home-manager
+│   ├── core-packages.nix   # Packages shared by devShells + home-manager
+│   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
 │   └── helix/              # Helix config
 ├── secrets/                # agenix/ragenix age-encrypted secrets
-├── docs/solutions/         # documented fixes to past problems, by category,
-│                           #   with YAML frontmatter (module, tags, problem_type)
-├── docker/                 # 2012 MBP container notes + entrypoint
-├── Dockerfile              # x86_64 dev image
+├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
+├── docs/solutions/         # documented solutions to past problems - bugs, practices,
+│                           #   workflow patterns - by category, with YAML frontmatter
+│                           #   (module, tags, problem_type). Relevant when implementing
+│                           #   or debugging in an area one of them covers.
+├── CONCEPTS.md             # shared domain vocabulary (entities, named processes,
+│                           #   status concepts) with project-specific meaning
+├── Dockerfile              # multi-arch (x86_64 + arm64) dev image
 ├── justfile                # Task Runner recipes
 └── flake.nix               # Flake configuration
 ```
@@ -197,11 +210,44 @@ same core CLI tools, so `cheat`, `jj`, `just`, `gh`, etc. behave identically
 whether you're in a throwaway shell or a switched profile. Add a
 universally-needed CLI tool here rather than duplicating it in both places.
 
+### External agent skills (`lib/skills-sh.nix`)
+
+Skills from [skills.sh](https://www.skills.sh/) install declaratively through
+the `nix-skills` flake input ([sudosubin/nix-skills](https://github.com/sudosubin/nix-skills),
+an auto-refreshed index that pins rev+hash for every published skill repo).
+
+**Do not apply nix-skills' overlay.** Forcing any single `pkgs.skills.*`
+attribute parses all ~48MB of index JSON and materializes a 480k-entry
+attrset — measured at ~65s wall / 3.6GB peak RSS per evaluation (2026-08-04).
+Since agent-skills.nix is in common.nix, that cost would hit every switch and
+every configuration in `nix flake check --all-systems`.
+
+Instead, `lib/skills-sh.nix` reads only the per-first-letter data shard for
+each source repo and calls upstream's `buildSkill` directly — byte-identical
+derivations at ~1s eval cost. It's exposed as `pkgs.skills-sh.<name>` via an
+overlay wired in both `flake.nix` (mkHome) and `darwin/configuration.nix`,
+and consumed by `home-manager/modules/tools/agent-skills.nix`.
+
+- **Add a skill**: new `mkSkill` entry in `lib/skills-sh.nix` + a
+  `home.file` line in agent-skills.nix
+- **Update pins**: `nix flake update nix-skills` (pins can lag upstream HEAD
+  by days-to-weeks — they move when the index re-resolves the repo)
+- **Plugins are not skills**: anything shipped as a Claude Code plugin
+  (e.g. compound-engineering) belongs in
+  `tools/agents/plugins/catalog.json`, not here — a plugin already carries
+  its skills, so installing them via nix-skills too would duplicate them
+
 ### Configuration Conflicts to Avoid
 
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
 2. **Rust-analyzer**: Don't install standalone - rustup provides it (conflicts otherwise)
 3. **Shell paths**: Use system shells (e.g., `terminal.integrated.defaultProfile.osx = "zsh"`) instead of nix-managed paths
+4. **Base-image package collisions**: The `nixos/nix` image ships its own populated `nix-env` profile in the container, so anything home-manager installs can collide with a package already there and abort activation. This has bitten three times (`git-minimal` #34, `man-db` #60, `bash` #74). Three remedies, chosen by who needs the program:
+   - **Ship none** — `programs.<x>.package = null` when you only wanted the module's *config* (see `home-manager/profiles/dev.nix`)
+   - **Remove the base copy** — the `nix-env -e` loop in `docker/entrypoint.sh`, when home-manager's version is genuinely required
+   - **`lib.hiPrio`** — only for collisions *within* home-manager's own closure; it cannot reach across nix-env profile elements
+
+   A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
 
 ## Migration Workflow
 
@@ -273,6 +319,24 @@ CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs
 
 - **`with` expressions**: Avoid `with pkgs;` — statix flags it. Use explicit `pkgs.` prefixes.
 
+- **`repeated_keys`**: Fires on the **third** assignment sharing a dotted prefix, not the second. Two `foo.a = …; foo.b = …;` statements sit green indefinitely; whoever appends `foo.c = …` gets the failure. That threshold is the whole trap — the breaking change looks purely additive, and the two lines that made it inevitable were already merged and passing. Nest under one attrset instead.
+  ```nix
+  # ❌ repeated_keys — legal Nix, but the third `age.secrets.` fails the lint job
+  age.secrets.agent-instructions = { ... };
+  age.secrets.linear-api-key-work = { ... };
+  age.secrets.linear-api-key-personal = { ... };
+
+  # ✅ correct
+  age.secrets = {
+    agent-instructions = { ... };
+    linear-api-key-work = { ... };
+    linear-api-key-personal = { ... };
+  };
+  ```
+  Hit in #79 adding a third agenix secret. When a repeated prefix reaches two,
+  consider collapsing it then — the next person to add one is otherwise doing
+  an unrelated refactor inside their own change.
+
 **deadnix** finds unused bindings. Any argument listed in the function signature but never referenced in the body will fail CI:
 
 ```nix
@@ -297,6 +361,16 @@ nix profile install nixpkgs#deadnix && deadnix --fail .
 nix flake check --all-systems
 ```
 
+### Entity diff (informational, non-blocking)
+
+`.github/workflows/entity-diff.yml` runs [Sem](https://github.com/Ataraxy-Labs/sem)'s
+GitHub Action on every PR. It posts a sticky PR comment listing which
+functions, classes, and methods changed (entity-level diff via tree-sitter,
+not line-by-line) — useful for scanning what actually changed in a module
+without reading the full diff. It's display-only: no config, no API keys,
+and it never fails the build, so it doesn't gate merging alongside the
+lint/check jobs above.
+
 ## Learning Resources
 
 When adding new Nix patterns or configurations, include links to:
@@ -317,4 +391,6 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-07-28 - Synced Repository Structure with reality (lib/, tools/, secrets/, docker/, modules/tools/) and documented the shared `lib/core-packages.nix` pattern*
+*Last updated: 2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
+
+*2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*

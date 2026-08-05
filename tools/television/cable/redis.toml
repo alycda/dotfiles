@@ -1,0 +1,21 @@
+# television cable channel: browse keys in a Redis-protocol store. Usage: `tv redis`
+#
+# EXAMPLE. Endpoint-agnostic — the same redis-cli drives Upstash (today) and
+# KeyDB (after the planned migration) and any local server; just point
+# $REDIS_URL at it (`rediss://…` for Upstash's TLS endpoint). Keep the URL in
+# the environment (agenix / sessionVariables), not in this file.
+#
+# `--scan` is cursor-based and safe on large keyspaces; `KEYS '*'` would block
+# the server and is deliberately avoided. The preview assumes string values
+# (`GET`); for other types swap in `TYPE {0}` and dispatch to HGETALL / LRANGE
+# / SMEMBERS as your data requires.
+[metadata]
+name = "redis"
+description = "Select a key from a Redis/KeyDB/Upstash store; preview its value"
+requirements = ["redis-cli"]
+
+[source]
+command = "redis-cli -u \"$REDIS_URL\" --scan"
+
+[preview]
+command = "redis-cli -u \"$REDIS_URL\" GET {0}"
