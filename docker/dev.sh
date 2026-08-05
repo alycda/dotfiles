@@ -46,6 +46,7 @@ run_container() {
     -v devhome:/root \
     -v claude-home:/root/.claude \
     -v "$dir":/work -w /work \
+    --network host \
     "$IMAGE"
 
   if [ -t 0 ]; then
