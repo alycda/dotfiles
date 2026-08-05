@@ -56,8 +56,9 @@
 #     pipe, not a tty (classically `curl ... | sh`, where the script inherits
 #     the curl pipe on fd 0). The image built fine; only the run failed. Add
 #     `< /dev/tty` to the docker run command to hand it the controlling
-#     terminal - docker/dev.sh does this for you, so prefer it over a
-#     hand-written docker run when bootstrapping through a pipe.
+#     terminal - docker/dev.sh does this for you (PR #86), so prefer it over a
+#     hand-written docker run when bootstrapping through a pipe. Full write-up:
+#     docs/solutions/runtime-errors/curl-piped-dev-sh-cannot-attach-stdin-to-tty.md
 #   "no space left on device" - Docker Desktop's disk is full. Reclaim with
 #     docker image prune          # drops dangling images (e.g. old dev-x86 builds)
 #     docker builder prune        # drops stale build cache

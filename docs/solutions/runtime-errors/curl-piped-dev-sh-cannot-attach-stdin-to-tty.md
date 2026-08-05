@@ -142,6 +142,7 @@ terminal while stdin stays a pipe, i.e. exactly the user-reported shape:
 
 ## Related
 
+- PR #86 — where the report and the fix live.
 - `docker/dev.sh` — the single source of truth for build/run; `just docker-*`
   and the README curl one-liner both go through it.
 - `Dockerfile` header troubleshooting block — carries a short version of this
