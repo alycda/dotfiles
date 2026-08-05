@@ -41,10 +41,57 @@
     # docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md.
     package = lib.hiPrio pkgs.git;
 
+    # Recovered from two surviving sources, both from 2025 — everything older
+    # than that is genuinely lost (no .gitconfig exists in any repo on the
+    # account, and no gist predates 2025-01):
+    #   - gist "Git Config" 27e511ca5806a9cd7f2e823d6e306d98 (5 revisions,
+    #     2025-01 .. 2025-06): the short aliases, pull.rebase, log.date
+    #   - alycda/nix-dotfiles vcs/_git/config (this repo's WIP predecessor):
+    #     the curated `l` / `lg` graph formats, `s`, `remotes`
+    # Deliberately NOT carried over from those sources:
+    #   - core.editor = "code --wait": git already honours $EDITOR, which is
+    #     hx here. Hard-coding VS Code breaks the editor in every headless
+    #     context (this container, CI, ssh).
+    #   - core.ignorecase = true: that is a property of the filesystem, which
+    #     git detects on its own. Forcing it true on a case-sensitive one
+    #     (Linux, i.e. this container) makes git conflate paths that differ
+    #     only in case and miss renames between them.
+    ignores = [
+      ".jj" # colocated repos: jj's own dir is never git's business
+      ".notes/"
+    ];
+
     settings = {
       include.path = "${config.home.homeDirectory}/.local/share/agenix/git-config";
       init.defaultBranch = "main";
+      log.date = "relative";
+      pull.rebase = true;
       push.autoSetupRemote = true;
+
+      # Bare clones come back with no fetch refspec, so `git fetch` in a
+      # worktree checked out from one silently updates nothing. Setting the
+      # stock refspec globally fixes that; normal clones already write this
+      # value locally, where it wins anyway.
+      remote.origin.fetch = "+refs/heads/*:refs/remotes/origin/*";
+
+      alias = {
+        br = "branch";
+        branches = "branch -a";
+        co = "checkout";
+        cp = "cherry-pick";
+        s = "status -s";
+        st = "status";
+        remotes = "remote -v";
+        wip = "commit -m WIP";
+        ca = "commit --amend --no-edit";
+
+        # The two curated history views. `l` is the quick glance (last 20,
+        # no refs, no dates); `lg` is the full read, with decorations and
+        # relative times. Colours are positional, so they stay scannable:
+        # magenta = hash, green = refs/date, cyan = author.
+        l = "log --color --graph --format='%C(magenta)%h%Creset %s %C(cyan)<%an>%Creset' -n 20 --abbrev-commit";
+        lg = "log --color --graph --format='%C(magenta)%h%Creset -%C(green)%d%Creset %s %C(yellow)(%cr) %C(cyan)<%an>%Creset' --abbrev-commit";
+      };
     };
   };
 }
