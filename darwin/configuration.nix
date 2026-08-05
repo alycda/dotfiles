@@ -1,4 +1,4 @@
-{ pkgs, nix-vscode-extensions, claude-code-nix, ... }:
+{ pkgs, nix-vscode-extensions, claude-code-nix, nix-skills, ... }:
 
 {
   # Nix package manager settings
@@ -22,6 +22,7 @@
   nixpkgs.overlays = [
     nix-vscode-extensions.overlays.default
     claude-code-nix.overlays.default
+    (import ../lib/skills-sh.nix nix-skills)
   ];
 
   # macOS system defaults

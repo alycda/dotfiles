@@ -1,0 +1,20 @@
+# television cable channel: browse rows in Postgres (e.g. Supabase). Usage: `tv postgres`
+#
+# EXAMPLE — edit the table/column names for your schema. The connection comes
+# from $DATABASE_URL in the environment; do NOT put a Supabase connection
+# string in this file — keep it in agenix / sessionVariables. For Supabase,
+# $DATABASE_URL is the pooled connection string (port 6543) for a quick CLI.
+#
+# `-At -F' '` = unaligned, tuples-only, space-separated, so the first field is
+# a clean id for `{0}`. Same injection caveat as the sqlite channel: keep the
+# first selected column an opaque id.
+[metadata]
+name = "postgres"
+description = "Select a row from a Postgres/Supabase table; preview it expanded"
+requirements = ["psql"]
+
+[source]
+command = "psql \"$DATABASE_URL\" -At -F' ' -c 'SELECT id, email FROM users ORDER BY id DESC'"
+
+[preview]
+command = "psql \"$DATABASE_URL\" -x -c 'SELECT * FROM users WHERE id = {0}'"

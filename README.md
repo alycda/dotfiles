@@ -26,8 +26,8 @@ dotfiles/
 |   ├── claude/             # Claude rules
 |   └── helix/              # helix config
 ├── secrets/                # agenix/ragenix encrypted secrets
-├── docker/                 # 2012 MBP container notes + entrypoint
-├── Dockerfile              # x86_64 dev image
+├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
+├── Dockerfile              # multi-arch (x86_64 + arm64) dev image
 ├── .devcontainer.json      # Nix Package Manager
 ├── .gitignore              # Nix artifacts
 ├── flake.lock
@@ -54,6 +54,54 @@ You don't need all three. This repo leverages Home Manager with flakes in a [dev
 
 ## Getting started
 
+### Fastest path to a working environment
+
+Step 0 is always the same: stage the age personal key from an existing
+machine, or you get a working-but-anonymous environment (activation warns;
+no decrypted git identity, no private overlay). Then follow the tree:
+
+```mermaid
+flowchart TD
+    K0["STEP 0 — always: stage the age personal key<br/>~/.age/personal-key.txt from an existing machine<br/>(without it: no git identity, no private overlay)"]
+    K0 --> Q1{admin rights?}
+
+    Q1 -- "yes — fresh machine" --> Q2{nix installed?}
+    Q2 -- no --> N1["install Nix, multi-user<br/>(issue #29 one-liner)"]
+    N1 --> Q3{OS?}
+    Q2 -- yes --> Q3
+    Q3 -- macOS --> W1["⚠ ditto only: gh auth BEFORE the switch —<br/>brew bundle clones a private tap over https<br/>mid-activation"]
+    W1 --> D1["darwin-rebuild switch --flake .#ditto"]
+    Q3 -- Linux --> D2["home-manager switch --flake .#alyssa@work-dev"]
+
+    Q1 -- "no — new user on a set-up machine" --> Q4{"docker app installed globally?<br/>(OrbStack / Docker Desktop, admin's brew)"}
+    Q4 -- yes --> C1["open -a OrbStack<br/>(daemon + CLI context for THIS user)"]
+    C1 --> C2["docker build -t dev https://github.com/alycda/dotfiles.git<br/>&& docker run -it --rm -v devhome:/root<br/>-v claude-home:/root/.claude -v $PWD:/work -w /work dev"]
+    C1 -.-> C3["alt: git clone https + VS Code devcontainer<br/>(needs the same daemon)"]
+    Q4 -- no --> Q5{"/nix exists? (global daemon)"}
+    Q5 -- yes --> Q6{"in nix-users group?<br/>(daemon socket is group-locked)"}
+    Q6 -- no --> A1["admin, once:<br/>sudo dseditgroup -o edit -a USER -t user nix-users"]
+    A1 --> Q6
+    Q6 -- yes --> H1["home-manager switch --flake .#code<br/>⚠ blocked today: profile hardcodes user 'code'"]
+    Q5 -- no --> A2[ask admin: install OrbStack or Nix]
+
+    D1 --> S1["STEP 1 — always: just _login<br/>(gh auth login --web + claude login)<br/>per-device OAuth, by design — see note below"]
+    D2 --> S1
+    C2 --> S1
+    H1 --> S1
+```
+
+**Step 1 is always `just _login`** (gh + Claude, one recipe): each machine
+mints its own per-device OAuth tokens, revocable individually.
+
+> **Why no encrypted PAT?** agenix *could* carry a GitHub PAT
+> (`gh` honors `GH_TOKEN`; `gh auth login --with-token` reads one), which
+> would make gh work with zero ceremony the moment the age key is staged. I'm
+> aware of that path and chose against it: one token shared across machines
+> means shared blast radius and revoke-everywhere semantics, and fine-grained
+> PAT expiry turns the one-time per-machine login into a recurring
+> rotate-and-rekey chore. If you're adapting this repo, that path exists and
+> works — it's just not for me.
+
 You need ONE of these:
 
 | Option | What you need | Good for |
@@ -61,6 +109,7 @@ You need ONE of these:
 | **Devcontainer** | Docker + VSCode with [Remote Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) | Exploring without installing Nix locally |
 | **[GitHub Codespaces](https://github.com/features/codespaces/)** | A GitHub account | Exploring in the cloud |
 | **Local Nix** | [Nix installed](https://nixos.org/download) | Already have Nix or want to install it |
+| **Plain Docker** | Just Docker (no VSCode, no Nix, no gh) | Locked-down machines — e.g. a non-admin macOS user |
 
 ### macOS setup (Darwin)
 
@@ -117,6 +166,41 @@ Verified end-to-end on a clean tart VM (macOS Tahoe base image), 2026-07-01.
     - What is [jujutsu](https://kubamartin.com/posts/introduction-to-the-jujutsu-vcs/)?
     - rebuild with `just` or `just _rebuild`
 
+### Plain Docker (no Nix, no VSCode, no gh — not even git)
+
+For a machine (or user account) where all you have is `docker` — e.g. a fresh
+non-admin user on a Mac whose Nix install belongs to another account. Docker
+fetches the repo itself (BuildKit remote build context over https):
+
+```sh
+docker build -t dev https://github.com/alycda/dotfiles.git && docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+```
+
+Run it from whatever directory you want mounted at `/work`. Rebuilding after
+a flake change is the same one-liner again — there's no local checkout to
+keep in sync. The same flow, curl-able (`docker/dev.sh` is the single source
+of truth for the build/run commands; the `just docker-*` recipes delegate to
+it):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
+```
+
+If you *do* want a local checkout (e.g. to hack on the dotfiles from the
+host):
+
+```sh
+git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
+docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+```
+
+The build bakes the home-manager closure for your CPU into the image (arm64 →
+`alyssa@dev`, amd64 → `alyssa@dev-x86`) and activation happens at container
+start. `devhome` persists nix/jj/ssh state across `--rm`; `claude-home` keeps
+Claude Code auth in its own volume so a devhome reset never logs you out.
+Authenticate `gh` and `claude` once inside; see the `Dockerfile` header for
+ragenix keys, ssh-agent forwarding, and troubleshooting.
+
 ### Other (Flake) devShell (without Home Manager)
 
 - `nix develop github:alycda/dotfiles` or
@@ -138,8 +222,8 @@ As long as you have docker or an [ephemeral environment in the cloud](https://ep
 | `home-manager/` | Home Manager | User packages and dotfiles (cross-platform)
 | `lib/` | Nix | `core-packages.nix`, imported by both devShells and home-manager so ephemeral `nix develop` and persistent profiles stay consistent
 | `tools/` | (plain files) | Non-Nix tool content wired in by modules: `agents/` instruction overlay, `cheat/` cheatsheets, `claude/` rules, `helix/` config
-| `secrets/` | agenix/ragenix | age-encrypted secrets (git config, private agent overlay)
-| `docker/` + `Dockerfile` | Docker | x86_64 dev image for a frozen 2012 MacBook Pro (see `docker/CLAUDE.md`)
+| `secrets/` | agenix/ragenix | age-encrypted secrets, split by account: `personal/` (git config, private agent overlay), `work/`
+| `docker/` + `Dockerfile` | Docker | multi-arch dev image: born for a frozen 2012 MacBook Pro (x86, `docker/CLAUDE.md`), also the no-Nix bootstrap on Apple Silicon (arm64, `docker/CLAUDE-arm64.md`)
 
 This keeps package management declarative and reproducible across environments.
 
