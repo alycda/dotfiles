@@ -15,7 +15,7 @@
 # ...or from a local clone:
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
-#   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+#   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work --network host dev
 #
 # Optional extras for the run command (append before the image name):
 #   SSH agent forwarding (Docker Desktop for Mac):
