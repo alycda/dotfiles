@@ -2,6 +2,12 @@
 { pkgs, ... }:
 
 {
+  # ragenix mounts secrets from a systemd user service, and this container has
+  # no user systemd daemon - so every age.secrets entry silently never arrives.
+  # Container-scoped on purpose; darwin has its own working installer. See the
+  # module header and docs/solutions/config-errors/.
+  imports = [ ../modules/agenix-activation.nix ];
+
   home = {
     username = "root";
     homeDirectory = "/root";
