@@ -18,6 +18,12 @@ _:
     # trust here instead of imperative per-machine `brew trust`.
     taps = [
       {
+        # Ataraxy Labs entity-level git stack (weave, inspect below; sem comes
+        # from core as sem-cli). See the entity-level-git agent skill.
+        name = "ataraxy-labs/tap";
+        trusted = true;
+      }
+      {
         name = "cirruslabs/cli";
         trusted = true;
       }
@@ -30,6 +36,8 @@ _:
 
     # Formulae (CLI packages)
     brews = [
+      "ataraxy-labs/tap/inspect" # Entity-level PR review triage (ataraxy-labs/inspect)
+      "ataraxy-labs/tap/weave"   # Entity-level merge driver (ataraxy-labs/weave)
       "cirruslabs/cli/tart" # Ditto - VM management
       "envelope"
       "hunk"
