@@ -9,6 +9,10 @@ pkgs: with pkgs; [
   curl
   file
   eza
+  # hunk: review-first terminal diff viewer. Was a Homebrew brew, which meant
+  # it only ever existed on the Mac - nixpkgs carries the same version and
+  # supports aarch64/x86_64 on both Linux and Darwin, so it belongs here.
+  hunk
   ripgrep
   jujutsu
   just
