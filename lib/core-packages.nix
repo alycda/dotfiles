@@ -3,6 +3,7 @@
 pkgs: with pkgs; [
   asciinema
   bat
+  codecrafters-cli
   # curl + file: ubiquitous CLI primitives; also the runtime deps the
   # here.now agent-skill's publish.sh shells out to (alongside jq).
   curl
