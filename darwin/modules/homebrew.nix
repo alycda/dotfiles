@@ -59,7 +59,8 @@ _:
     brews = [
       "envchain"      # Keychain-backed secrets as env vars
       "envelope"
-      "hunk"
+      # hunk - moved to lib/core-packages.nix; nixpkgs has it, so it no longer
+      # needs a brew and now reaches the Linux containers too
       "kondo"           # Clean build artifacts
       "pcre2"
       "sem-cli"         # Semantic Diff (ataraxy-labs/sem)
