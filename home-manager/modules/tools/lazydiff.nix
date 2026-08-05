@@ -3,6 +3,9 @@
 { lib, pkgs, ... }:
 
 let
+  # Note: `lazydiff --version` reports 0.1.0-alpha.16 from this tag - upstream
+  # didn't bump the internal string for the alpha.17 release. The pin is right;
+  # don't "fix" it by chasing the number the binary prints.
   version = "0.1.0-alpha.17";
 
   # Prebuilt release assets keyed by nix system. Linux uses the static musl

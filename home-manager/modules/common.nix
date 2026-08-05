@@ -22,6 +22,7 @@ in
     ./tools/fzf.nix
     ./tools/gh-dash.nix
     ./tools/helix.nix
+    ./tools/lazydiff.nix
     ./tools/starship.nix
     ./tools/television.nix
     ./git.nix
