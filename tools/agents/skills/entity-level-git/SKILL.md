@@ -19,10 +19,13 @@ allowed-tools: Bash(sem *), Bash(weave *), Bash(weave-cli *), Bash(inspect *), B
 
 Three sibling tools from [Ataraxy Labs](https://github.com/Ataraxy-Labs) that
 share one mental model: parse code with tree-sitter into **entities**
-(functions, classes, methods) and operate on those instead of lines. ~28
-languages each. The payoff for an agent is precision per token: "function X
-changed, and these callers depend on it" instead of reading whole files to
-reconstruct that yourself.
+(functions, classes, methods) and operate on those instead of lines. Language
+coverage is broad but uneven — sem ~32, weave ~28, inspect ~19; the mainstream
+languages (Rust, TS/JS, Python, Go, Java, C/C++) are covered everywhere, and
+files a tool can't parse degrade gracefully (weave falls back to line merge).
+The payoff for an agent is precision per token: "function X changed, and these
+callers depend on it" instead of reading whole files to reconstruct that
+yourself.
 
 | Tool | Replaces | One-liner |
 |---|---|---|
@@ -66,7 +69,7 @@ Notes:
 - `sem setup` rewires `git diff` output globally and `sem unsetup` reverts it.
   That mutates the user's git config: **propose it, never run it unprompted.**
 - `sem mcp` serves these as MCP tools (`sem_impact`, `sem_context`, `sem_diff`,
-  `sem_entities`, `sem_blame`, `sem_log`). If an `sem` MCP server is already
+  `sem_entities`, `sem_blame`, `sem_log`). If a `sem` MCP server is already
   registered in the session, prefer its tools over shelling out.
 - **In the dotfiles repo, CI already posts a sticky sem entity-diff comment on
   every PR** (`.github/workflows/entity-diff.yml`, `Ataraxy-Labs/sem/action`).
