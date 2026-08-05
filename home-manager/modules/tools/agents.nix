@@ -149,5 +149,16 @@ in
     linear-api-key-personal = {
       file = ../../../secrets/personal/linear-api-key.age;
     };
+
+    # Cloudflare API token for the `cloudflare-bindings` connector declared in
+    # ./claude-mcp.nix. No `path` override, for the same reason as the Linear
+    # work key: the default "${age.secretsDir}/${name}" is
+    # ~/.local/share/agenix/cloudflare-api-token, which is precisely where that
+    # module's headersHelper looks. The attribute name is therefore load-bearing
+    # - renaming it silently unauthenticates the connector rather than failing
+    # a build, because the helper emits {} for a missing file by design.
+    cloudflare-api-token = {
+      file = ../../../secrets/personal/cloudflare-api-token.age;
+    };
   };
 }

@@ -25,4 +25,12 @@ in
   # reliably survive the trip into a commit.
   "work/linear-api-key.age".publicKeys = [ alyssa ];
   "personal/linear-api-key.age".publicKeys = [ alyssa ];
+
+  # Cloudflare API token for the `cloudflare-bindings` MCP connector. Personal
+  # only - there is no work Cloudflare account - so unlike the Linear keys this
+  # name needs no directory to disambiguate it. Also ARMORED, for the reason
+  # above. NOT the credential cf-now uses: R2's S3 API takes a separate R2 API
+  # token (an access-key/secret pair minted in the R2 dashboard), and the two
+  # are not interchangeable in either direction.
+  "personal/cloudflare-api-token.age".publicKeys = [ alyssa ];
 }
