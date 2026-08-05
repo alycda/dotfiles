@@ -34,7 +34,7 @@
 
   # Wire `tv` into Ctrl+R for shell history as an fzf alternative
   # Remove or adjust if using fzf.nix alongside this module
-  programs.zsh.initExtra = ''
+  programs.zsh.initContent = ''
     tv_history() {
       local selected
       selected=$(tv shell-history 2>/dev/null)

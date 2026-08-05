@@ -18,13 +18,15 @@
     ];
 
     # Ctrl+T file picker
-    fileWidgetCommand = "rg --files --hidden --follow --glob '!.git'";
-    fileWidgetOptions = [
-      "--preview 'bat --style=numbers,changes --color=always --line-range=:300 {}'"
-    ];
+    fileWidget = {
+      command = "rg --files --hidden --follow --glob '!.git'";
+      options = [
+        "--preview 'bat --style=numbers,changes --color=always --line-range=:300 {}'"
+      ];
+    };
 
     # Alt+C directory picker
-    changeDirWidgetOptions = [
+    changeDirWidget.options = [
       "--preview 'ls -la {}'"
     ];
   };
