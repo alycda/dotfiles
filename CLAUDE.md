@@ -283,10 +283,23 @@ just docs-serve    # live reload at 127.0.0.1:1111
 just docs-build    # one-shot build into site/public
 ```
 
-CI (`.github/workflows/pages.yml`) runs the same two commands via `nix shell`,
-so local and CI builds use the same Zola. It is path-filtered to `docs/`,
-`CONCEPTS.md`, and `site/` — a Nix-only change never triggers a redeploy — and
-PRs build without publishing.
+**Zola comes from the `docs` devShell, never from `nix shell nixpkgs#zola`.**
+That second form resolves against the *machine's flake registry*, not this
+repo's `flake.lock`, so two machines can build the same commit with different
+Zola versions. That bit immediately: the site was authored against 0.19, whose
+`[markdown]` schema (`highlight_code`, `highlight_themes_css`) 0.22 rejects
+outright — CI failed on config the local build accepted. Both `just` and
+`.github/workflows/pages.yml` now go through `nix develop .#docs`, so a version
+bump can only arrive via `flake.lock`, where it shows up in a diff.
+
+Zola 0.22 moved syntax highlighting to `[markdown.highlighting]` with
+`style = "class"` and a `light_theme`/`dark_theme` pair, and theme names now
+come from [giallo](https://github.com/getzola/giallo) (`gruvbox-light-medium`,
+not `gruvbox-light`). It generates `giallo-light.css` / `giallo-dark.css` into
+`site/static/`; those are artifacts and gitignored.
+
+CI is path-filtered to `docs/`, `CONCEPTS.md`, and `site/` — a Nix-only change
+never triggers a redeploy — and PRs build without publishing.
 
 ### Configuration Conflicts to Avoid
 

@@ -37,13 +37,14 @@ jobs:
 
       - uses: DeterminateSystems/nix-installer-action@main
 
-      # Both tools come from nixpkgs rather than a marketplace action, so the
-      # versions CI builds with are the versions `just docs-build` uses.
+      # Both steps run in the flake's own devShell, so CI and `just docs-build`
+      # get the Zola pinned in flake.lock rather than whatever each machine's
+      # registry resolves to.
       - name: Collect docs/ into the Zola content tree
-        run: nix shell nixpkgs#python3Packages.pyyaml -c python3 site/bin/collect.py .
+        run: nix develop .#docs --command python3 site/bin/collect.py .
 
       - name: Build with Zola
-        run: nix shell nixpkgs#zola -c zola --root site build
+        run: nix develop .#docs --command zola --root site build
 
       - uses: actions/upload-pages-artifact@v3
         with:

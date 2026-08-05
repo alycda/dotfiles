@@ -11,8 +11,8 @@ site/content/
 site/data/
 site/public/
 site/static/processed_images/
-# Written by zola on every build from config.toml's highlight_themes_css
-site/static/syntax-*.css
+# Written by zola on every build from [markdown.highlighting]
+site/static/giallo-*.css
 
 
 

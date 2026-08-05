@@ -165,6 +165,21 @@
         {
           tools = cheatShell;
 
+          # Docs site toolchain. Deliberately a shell rather than `nix shell
+          # nixpkgs#zola` in the justfile: that form resolves against the
+          # machine's flake registry, so a local build and a CI build can get
+          # different Zola versions. That is not hypothetical — it shipped a
+          # config using 0.19's [markdown] schema that 0.22 rejects. Pinning
+          # to this flake's nixpkgs makes local and CI the same by
+          # construction, and a version bump arrives through flake.lock where
+          # it is visible in a diff.
+          docs = pkgs.mkShell {
+            packages = [
+              pkgs.zola
+              (pkgs.python3.withPackages (ps: [ ps.pyyaml ]))
+            ];
+          };
+
           default = pkgs.mkShell {
             inputsFrom = [ cheatShell ];
             # helix inherited from cheatShell (basic, for cheat's $EDITOR)

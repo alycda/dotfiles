@@ -6,8 +6,10 @@
   <title>{% block title %}{{ config.title }}{% endblock %}</title>
   <meta name="description" content="{% block description %}{{ config.description }}{% endblock %}">
   <link rel="stylesheet" href="{{ get_url(path='main.css') | safe }}">
-  <link rel="stylesheet" href="{{ get_url(path='syntax-light.css') | safe }}" media="(prefers-color-scheme: light)">
-  <link rel="stylesheet" href="{{ get_url(path='syntax-dark.css') | safe }}" media="(prefers-color-scheme: dark)">
+  {# Filenames are giallo's, not ours — zola 0.22 generates one stylesheet per
+     configured theme in [markdown.highlighting]. #}
+  <link rel="stylesheet" href="{{ get_url(path='giallo-light.css') | safe }}" media="(prefers-color-scheme: light)">
+  <link rel="stylesheet" href="{{ get_url(path='giallo-dark.css') | safe }}" media="(prefers-color-scheme: dark)">
   <link rel="alternate" type="application/atom+xml" title="{{ config.title }}" href="{{ get_url(path='atom.xml') | safe }}">
 </head>
 <body>

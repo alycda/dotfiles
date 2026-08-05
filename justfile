@@ -92,17 +92,17 @@ docker-run dir=invocation_directory():
 # Regenerate site/content and site/data from docs/ + CONCEPTS.md
 [group('docs')]
 docs-collect:
-    nix shell nixpkgs#python3Packages.pyyaml -c python3 site/bin/collect.py .
+    nix develop .#docs --command python3 site/bin/collect.py .
 
 # Build the static site into site/public
 [group('docs')]
 docs-build: docs-collect
-    nix shell nixpkgs#zola -c zola --root site build
+    nix develop .#docs --command zola --root site build
 
 # Serve the site locally with live reload (http://127.0.0.1:1111)
 [group('docs')]
 docs-serve: docs-collect
-    nix shell nixpkgs#zola -c zola --root site serve
+    nix develop .#docs --command zola --root site serve
 
 # Vendor the webfonts. Optional: main.scss falls back to faces already present
 # on most machines, so the site is fully styled without ever running this.
