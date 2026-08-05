@@ -371,6 +371,15 @@ without reading the full diff. It's display-only: no config, no API keys,
 and it never fails the build, so it doesn't gate merging alongside the
 lint/check jobs above.
 
+Sem is also installed locally (`sem-cli` via homebrew), alongside its
+siblings weave (entity-level merge driver) and inspect (review triage) from
+the same Ataraxy Labs stack. Usage guidance lives in the
+`entity-level-git` skill (`tools/agents/skills/entity-level-git/`), not
+here — tool-specific depth belongs in on-demand skills, with only a
+compact pointer in the always-loaded `tools/agents/preferred-tooling.md`.
+Since CI already posts the sem entity diff on every PR, don't post
+duplicate entity-diff comments.
+
 ## Learning Resources
 
 When adding new Nix patterns or configurations, include links to:
@@ -391,6 +400,8 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
+*Last updated: 2026-08-05 - Added the Ataraxy Labs entity-level git stack (sem/weave/inspect). Decision: full usage went into the on-demand `entity-level-git` skill rather than always-loaded instructions — the agents README's "don't over-centralize tool-specific behavior" non-goal — with only a compact table in `preferred-tooling.md` and a CI cross-reference here*
+
+*2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 
 *2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*

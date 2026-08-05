@@ -55,7 +55,15 @@ in
       # into named in-between commits after the ancestor that needed them.
       # Narrow companion to the jujutsu skill above.
       ".claude/skills/jj-extract-gitignores".source = skillSource "jj-extract-gitignores";
-      
+
+      # entity-level-git — the Ataraxy Labs stack (sem, weave, inspect):
+      # entity diffs/blame/impact, semantic merge driver, structural-risk
+      # review triage. When to reach for each, agent guardrails (setup
+      # commands mutate config — propose, don't run), and fallbacks for
+      # sandboxes where none are installed.
+      ".claude/skills/entity-level-git".source = skillSource "entity-level-git";
+
+
       # External skills from skills.sh (see lib/skills-sh.nix for pinning).
       # Note: compound-engineering is deliberately NOT installed this way -
       # it's already a Claude Code plugin via the catalog (#65), and its 38
