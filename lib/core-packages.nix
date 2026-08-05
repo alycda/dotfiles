@@ -2,6 +2,7 @@
 # This ensures consistency between ephemeral shells and persistent environments
 pkgs: with pkgs; [
   asciinema
+  awk
   bat
   codecrafters-cli
   # curl + file: ubiquitous CLI primitives; also the runtime deps the
