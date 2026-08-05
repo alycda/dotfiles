@@ -132,6 +132,8 @@ dotfiles/
 │   ├── claude/             # Claude rules
 │   └── helix/              # Helix config
 ├── secrets/                # agenix/ragenix age-encrypted secrets
+├── docs/solutions/         # documented fixes to past problems, by category,
+│                           #   with YAML frontmatter (module, tags, problem_type)
 ├── docker/                 # 2012 MBP container notes + entrypoint
 ├── Dockerfile              # x86_64 dev image
 ├── justfile                # Task Runner recipes
