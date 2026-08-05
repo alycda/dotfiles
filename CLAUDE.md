@@ -319,6 +319,24 @@ CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs
 
 - **`with` expressions**: Avoid `with pkgs;` — statix flags it. Use explicit `pkgs.` prefixes.
 
+- **`repeated_keys`**: Fires on the **third** assignment sharing a dotted prefix, not the second. Two `foo.a = …; foo.b = …;` statements sit green indefinitely; whoever appends `foo.c = …` gets the failure. That threshold is the whole trap — the breaking change looks purely additive, and the two lines that made it inevitable were already merged and passing. Nest under one attrset instead.
+  ```nix
+  # ❌ repeated_keys — legal Nix, but the third `age.secrets.` fails the lint job
+  age.secrets.agent-instructions = { ... };
+  age.secrets.linear-api-key-work = { ... };
+  age.secrets.linear-api-key-personal = { ... };
+
+  # ✅ correct
+  age.secrets = {
+    agent-instructions = { ... };
+    linear-api-key-work = { ... };
+    linear-api-key-personal = { ... };
+  };
+  ```
+  Hit in #79 adding a third agenix secret. When a repeated prefix reaches two,
+  consider collapsing it then — the next person to add one is otherwise doing
+  an unrelated refactor inside their own change.
+
 **deadnix** finds unused bindings. Any argument listed in the function signature but never referenced in the body will fail CI:
 
 ```nix
@@ -373,4 +391,6 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*
+*Last updated: 2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
+
+*2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*

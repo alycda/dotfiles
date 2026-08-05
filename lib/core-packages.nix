@@ -21,7 +21,12 @@ pkgs: with pkgs; [
   python3
   rage
   ragenix
-  sed
+  # GNU sed. The attribute is `gnused`, not `sed` - the latter is undefined and
+  # fails evaluation, not just the build. Genuinely missing here rather than
+  # assumed present: `coreutils-full` is in the base image's nix-env profile,
+  # but sed is its own GNU package, so nothing else supplies it (and nothing
+  # else collides with it either).
+  gnused
   supabase-cli
   taskbook
   tmux
