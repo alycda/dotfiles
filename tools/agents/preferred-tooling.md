@@ -33,6 +33,24 @@ learn from work I didn't watch happen. Concretely:
   history when it teaches something — keep it; squash only true "oops" fixups
   with no learning value.
 
+### Entity-level git: sem, weave, inspect
+
+When the question about a change is *semantic*, prefer the Ataraxy Labs
+entity-level tools (tree-sitter entities instead of lines) over raw git:
+
+| Question | Prefer | Fall back to |
+|---|---|---|
+| What changed, structurally? | `sem diff` | `git diff` |
+| What breaks if I change X? | `sem impact X` | `rg` callers + reading |
+| Who last touched this function? | `sem blame <file>` | `git blame` |
+| Merge conflict (esp. parallel agents) | `weave` / `jj resolve --tool weave` | manual resolution |
+| Where's the risk in this big diff/PR? | `inspect diff` / `inspect pr` | reading the full diff |
+
+Full usage, guardrails (`sem setup`/`weave setup` mutate config — propose,
+don't run), and jj integration live in the **entity-level-git** skill. None
+are in nixpkgs, so the nix-summon trick below doesn't apply; in sandboxes
+fall back to the git equivalent and say so.
+
 ## Command-line defaults
 
 | Task | Prefer | Fall back to |
