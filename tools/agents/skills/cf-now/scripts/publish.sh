@@ -119,7 +119,18 @@ presign() {
 }
 
 if $LIST; then
-  "${AWSP[@]}" s3 ls "s3://$BUCKET/" --recursive | awk '{print $1, $2, $4}'
+  # jq, not awk: aws and jq are already hard dependencies (need_cmd above),
+  # awk never was - so on a host without it `--list` died with a raw
+  # "awk: command not found" rather than this script's own error. The dev
+  # container has no awk at all (no gawk, mawk or busybox either), which is
+  # how this surfaced.
+  #
+  # list-objects-v2 over `s3 ls` while here: it returns structured JSON
+  # instead of human-formatted columns that a positional field parse can
+  # silently misread, and `.Contents[]?` yields nothing on an empty bucket -
+  # where --query with --output text would print the literal "None".
+  "${AWSP[@]}" s3api list-objects-v2 --bucket "$BUCKET" --output json \
+    | jq -r '.Contents[]? | [.LastModified, .Key] | @tsv'
   exit 0
 fi
 
