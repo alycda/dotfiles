@@ -15,12 +15,16 @@ in
     # directly. In a container you use VS Code Remote: the GUI runs on the host
     # and connects in, so `code` is never needed inside.
     ./dev/nix-lang.nix
+    ./tools/agent-skills.nix
     ./tools/agents.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
+    ./tools/fzf.nix
     ./tools/gh-dash.nix
-    ./git.nix
     ./tools/helix.nix
+    ./tools/starship.nix
+    ./tools/television.nix
+    ./git.nix
   ];
 
   home = {
@@ -42,6 +46,22 @@ in
 
     # Enable zsh so home-manager can inject shell hooks (e.g. direnv)
     zsh.enable = true;
+
+    # ...and bash, so those hooks exist there too. The container's root shell in
+    # /etc/passwd is the base image's bash, so `docker exec -it dev bash` lands
+    # in bash no matter what the Dockerfile CMD says - and until now that shell
+    # got NO home-manager config at all (hence the bare `bash-5.3#`). Enabling
+    # it makes bash a real fallback rather than a dead end: home-manager writes
+    # ~/.bash_profile -> ~/.profile + ~/.bashrc, which is what picks up starship
+    # and direnv.
+    #
+    # NOT free in the container, despite appearances: this module also installs
+    # bashInteractive, which collides with the bash the nixos/nix base image
+    # already has in root's nix-env profile and aborts activation outright. The
+    # dev profile therefore sets `programs.bash.package = null` to take the
+    # config without the binary - see home-manager/profiles/dev.nix and
+    # docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md.
+    bash.enable = true;
 
     direnv = {
       enable = true;

@@ -23,6 +23,7 @@ See issue [#40](https://github.com/alycda/dotfiles/issues/40).
 | Canonical entrypoint | `AGENTS.md` | `~/.agents/AGENTS.md` | yes |
 | Company values | `company-values.md` | `~/.agents/company-values.md` | yes |
 | Personal constitution | `personal-constitution.md` | `~/.agents/personal-constitution.md` | yes |
+| Constitution (distilled) | `personal-constitution-distilled.md` | `~/.agents/personal-constitution-distilled.md` | yes |
 | Private overlay | `../../secrets/personal/agent-instructions.age` | `~/.agents/instructions.private.md` | **no — encrypted** |
 
 - **Two public layers.** `company-values.md` (work context) and
@@ -40,7 +41,7 @@ private overlay authoritative on conflict.
 
 `home-manager/modules/tools/agents.nix`:
 
-- copies the three public files to `~/.agents/`,
+- copies the public files to `~/.agents/`,
 - wires the encrypted overlay through agenix and exposes the **decrypted**
   plaintext at `~/.agents/instructions.private.md` via agenix's per-secret
   `path` — the plaintext lives in the agenix runtime dir, **not** the Nix store,
@@ -48,7 +49,16 @@ private overlay authoritative on conflict.
   `~/.agents/` paths (out-of-store symlinks, so decryption/edits flow through one
   place),
 - idempotently appends the `@includes/agents-*.md` imports to
-  `~/.claude/CLAUDE.md` so Claude actually loads the layers,
+  `~/.claude/CLAUDE.md` so Claude actually loads the layers — the *distilled*
+  constitution, not the full one (and removes the stale full-constitution
+  import a previous generation may have appended),
+- generates the critic subagents under `~/.claude/agents/` — persona files
+  canonical in `tools/agents/*-critic.md`, judged-against material appended
+  as layers — so full rubrics load on demand instead of always:
+  `constitution-critic` (personal constitution + company values),
+  `code-critic` (TigerStyle, NASA Power of Ten, Test Desiderata from
+  `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
+  principles/techniques/products, judging process rather than code),
 - symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
   natively.
 
@@ -79,9 +89,12 @@ Decryption on a machine requires the private identity at
 
   ```md
   @includes/agents-company-values.md
-  @includes/agents-personal-constitution.md
+  @includes/agents-personal-constitution-distilled.md
   @includes/agents-instructions.private.md
   ```
+
+  The full constitution loads on demand instead: ask Claude to run the
+  `constitution-critic` agent against a plan, PR, or decision.
 
   On a fresh machine the private include may briefly dangle until agenix
   decrypts during activation — that is expected; Claude Code skips
@@ -123,9 +136,12 @@ Decryption on a machine requires the private identity at
 - Do not over-centralize tool-specific behavior that belongs in Claude skills,
   Hermes profiles, or Codex-specific instructions.
 
-## Follow-up (not in this change)
+## Plugin catalog
 
-The plugin-distribution catalog discussed in issue #40's comments (declaring
-desired plugin state under `tools/agents/plugins/` rather than committing
-`.claude/plugins` caches) is a separate concern and intentionally left for a
-later increment.
+Desired Claude Code plugin state is declared in `plugins/catalog.json`
+(marketplaces + enabled plugins), never as a committed `~/.claude/plugins`
+cache — the shape discussed in issue #40's comments. Activation
+(`claude-code.nix`) deep-merges the catalog into `~/.claude/settings.json`
+(which stays unmanaged because Claude Code writes to it at runtime); Claude
+Code then fetches the marketplaces and installs enabled plugins itself on
+next startup.
