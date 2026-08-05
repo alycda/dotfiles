@@ -34,6 +34,38 @@ Dockerfile header in the repo.
 USAGE
 }
 
+# `docker run -it` demands a terminal on stdin. Piping this script into sh -
+# the documented curl bootstrap - makes stdin the curl pipe, and docker aborts
+# with "cannot attach stdin to a TTY-enabled container because stdin is not a
+# terminal". The controlling terminal is still reachable as /dev/tty in that
+# case (the pipeline runs in a terminal; only fd 0 was taken), so borrow it for
+# the container instead of demanding the caller reshape their command line.
+run_container() {
+  dir="${1:-$PWD}"
+  set -- --rm \
+    -v devhome:/root \
+    -v claude-home:/root/.claude \
+    -v "$dir":/work -w /work \
+    "$IMAGE"
+
+  if [ -t 0 ]; then
+    exec docker run -it "$@"
+  elif (true </dev/tty) 2>/dev/null; then
+    exec docker run -it "$@" </dev/tty
+  fi
+
+  # No terminal anywhere: cron, CI, nohup. An interactive dev shell is not a
+  # thing we can start here, and `docker run` without -it would just take EOF
+  # and exit. Say so rather than failing inside docker.
+  cat >&2 <<USAGE
+dev.sh: no terminal available, so the container's shell has nothing to attach to.
+The image is built; start it from an interactive terminal with:
+  docker run -it --rm -v devhome:/root -v claude-home:/root/.claude \\
+    -v "\$PWD":/work -w /work $IMAGE
+USAGE
+  exit 1
+}
+
 cmd="${1:-}"
 [ $# -gt 0 ] && shift
 
@@ -45,19 +77,11 @@ case "$cmd" in
     docker build -t "$IMAGE" "$(dirname "$0")/.."
     ;;
   run)
-    exec docker run -it --rm \
-      -v devhome:/root \
-      -v claude-home:/root/.claude \
-      -v "${1:-$PWD}":/work -w /work \
-      "$IMAGE"
+    run_container "${1:-$PWD}"
     ;;
   up)
     docker build -t "$IMAGE" "$REPO_URL${1:+#$1}"
-    exec docker run -it --rm \
-      -v devhome:/root \
-      -v claude-home:/root/.claude \
-      -v "$PWD":/work -w /work \
-      "$IMAGE"
+    run_container "$PWD"
     ;;
   ''|-h|--help|help)
     usage

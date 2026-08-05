@@ -51,6 +51,13 @@
 # missing or stale.
 #
 # Troubleshooting:
+#   "cannot attach stdin to a TTY-enabled container because stdin is not a
+#     terminal" - `docker run -it` was invoked from a process whose stdin is a
+#     pipe, not a tty (classically `curl ... | sh`, where the script inherits
+#     the curl pipe on fd 0). The image built fine; only the run failed. Add
+#     `< /dev/tty` to the docker run command to hand it the controlling
+#     terminal - docker/dev.sh does this for you, so prefer it over a
+#     hand-written docker run when bootstrapping through a pipe.
 #   "no space left on device" - Docker Desktop's disk is full. Reclaim with
 #     docker image prune          # drops dangling images (e.g. old dev-x86 builds)
 #     docker builder prune        # drops stale build cache
