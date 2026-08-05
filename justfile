@@ -99,10 +99,10 @@ docs-collect:
 docs-build: docs-collect
     nix develop .#docs --command zola --root site build
 
-# Serve the site locally with live reload (http://127.0.0.1:1111)
+# Serve the site locally with live reload (http://127.0.0.1:9652)
 [group('docs')]
 docs-serve: docs-collect
-    nix develop .#docs --command zola --root site serve
+    nix develop .#docs --command zola --root site serve --port 9652
 
 # Vendor the webfonts. Optional: main.scss falls back to faces already present
 # on most machines, so the site is fully styled without ever running this.

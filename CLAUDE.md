@@ -279,7 +279,7 @@ site is fully styled with zero webfont bytes. `just docs-fonts` documents how
 to add the real ones.
 
 ```bash
-just docs-serve    # live reload at 127.0.0.1:1111
+just docs-serve    # live reload at 127.0.0.1:9652
 just docs-build    # one-shot build into site/public
 ```
 
