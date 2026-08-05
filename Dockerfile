@@ -84,6 +84,12 @@
 #     linking runs before package installation, so the dotfiles land and
 #     home-manager-path never installs. Scroll up to the activation output and
 #     read the tail; the real error is buried above a wall of success lines.
+#   VS Code Dev Containers fails with "Shell server terminated (code: 126)" and
+#     "openat etc/passwd: path escapes from parent" - the container itself is
+#     fine (`docker run` works); it is `docker exec` that cannot follow the base
+#     image's absolute /etc/passwd -> /nix/store symlink. Fixed below by
+#     materializing /etc/{passwd,group,shadow}; if you see it again, check that
+#     RUN survived. Reads like a volume/permissions bug and is neither.
 
 FROM nixos/nix:latest
 
@@ -118,6 +124,33 @@ RUN arch="$(uname -m)" \
  && profile="${HM_PROFILE:-$(case "$arch" in aarch64) echo 'alyssa@dev';; *) echo 'alyssa@dev-x86';; esac)}" \
  && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
  && echo "$profile" > /opt/hm-profile
+
+# Materialize /etc/{passwd,group,shadow} as regular files.
+#
+# The nixos/nix base image ships them as ABSOLUTE symlinks into the store
+# (/etc/passwd -> /nix/store/...-base-system/etc/passwd). That is fine for
+# anything running inside the container - the symlinks resolve - but it breaks
+# `docker exec` under OrbStack, and with it every VS Code Dev Containers
+# session, which is the whole point of this image:
+#
+#   Shell server terminated (code: 126, signal: null)
+#   openat etc/passwd: path escapes from parent
+#
+# The exec path resolves the user's entry from the host side, rooted at the
+# container rootfs, using openat2 with RESOLVE_BENEATH semantics - which
+# rejects absolute symlinks outright (they "escape" their parent) rather than
+# re-rooting them the way RESOLVE_IN_ROOT would. `docker run` takes a different
+# code path and is unaffected, so the container starts cleanly and only the
+# first `docker exec` fails, making this look like a volume or permissions bug.
+#
+# Copying the content into place is inert - same bytes, same lookups, and the
+# store paths stay where they are. Nothing here adds users, so these files are
+# static for the life of the image.
+RUN for f in passwd group shadow; do \
+      if [ -L "/etc/$f" ]; then cp -L "/etc/$f" "/tmp/$f" && mv -f "/tmp/$f" "/etc/$f"; fi; \
+    done \
+ && chmod 0644 /etc/passwd /etc/group \
+ && chmod 0600 /etc/shadow
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 
