@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Concepts — {{ config.title }}{% endblock %}
+{% block description %}{{ section.description }}{% endblock %}
+
+{% block content %}
+{% set data = load_data(path="data/concepts.toml") %}
+<div class="wrap">
+  <header class="pagehead">
+    <h1>Concepts</h1>
+    <div class="pagehead__lede">
+      <p>
+        Shared vocabulary for this repo — entities, named processes, and status
+        concepts that mean something specific here. Essays cite these by number:
+        a <span class="eref">[E01]</span> in a sentence resolves to an entry below.
+      </p>
+      <p class="pagehead__source">
+        Generated from <code>CONCEPTS.md</code>. Edit the glossary there; this page follows.
+      </p>
+    </div>
+  </header>
+
+  <ol class="glossary">
+    {% for concept in data.concepts %}
+    <li class="glossary__item" id="{{ concept.id | lower }}">
+      <p class="glossary__id"><a href="#{{ concept.id | lower }}">[{{ concept.id }}]</a></p>
+      <div class="glossary__body">
+        <h2 class="glossary__name">{{ concept.name }}</h2>
+        {% if concept.group %}<p class="glossary__group">{{ concept.group }}</p>{% endif %}
+        <p class="glossary__def">{{ concept.definition }}</p>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+{% endblock content %}

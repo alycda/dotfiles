@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ config.title }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}{{ config.description }}{% endblock %}">
+  <link rel="stylesheet" href="{{ get_url(path='main.css') | safe }}">
+  <link rel="stylesheet" href="{{ get_url(path='syntax-light.css') | safe }}" media="(prefers-color-scheme: light)">
+  <link rel="stylesheet" href="{{ get_url(path='syntax-dark.css') | safe }}" media="(prefers-color-scheme: dark)">
+  <link rel="alternate" type="application/atom+xml" title="{{ config.title }}" href="{{ get_url(path='atom.xml') | safe }}">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="masthead">
+    <a class="masthead__home" href="{{ get_url(path='/') | safe }}">{{ config.title }}</a>
+    <nav class="masthead__nav">
+      <a href="{{ get_url(path='@/essays/_index.md') | safe }}">Essays</a>
+      <a href="{{ get_url(path='@/solutions/_index.md') | safe }}">Solutions</a>
+      <a href="{{ get_url(path='@/concepts/_index.md') | safe }}">Concepts</a>
+      <a href="{{ config.extra.repo_url }}">Source</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="colophon">
+    <div class="colophon__index">
+      <h2>Index</h2>
+      <ul>
+        <li><a href="{{ get_url(path='@/essays/_index.md') | safe }}">Essays</a></li>
+        <li><a href="{{ get_url(path='@/solutions/_index.md') | safe }}">Solutions</a></li>
+        <li><a href="{{ get_url(path='@/concepts/_index.md') | safe }}">Concepts</a></li>
+        <li><a href="{{ get_url(path='atom.xml') | safe }}">Feed</a></li>
+      </ul>
+    </div>
+    <p class="colophon__note">
+      Built from <a href="{{ config.extra.repo_url }}">the repository it describes</a>.
+      Sources are markdown in <code>docs/</code>; this is what Zola makes of them.
+    </p>
+  </footer>
+</body>
+</html>

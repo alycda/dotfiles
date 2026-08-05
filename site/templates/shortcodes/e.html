@@ -1,0 +1,12 @@
+{#- Inline entity reference: {{ e(name="Base profile") }} renders [E04] linked
+    to the glossary. Falls back to the bare name if CONCEPTS.md has no such
+    entry, so a renamed concept degrades to plain text instead of failing the
+    build — but the missing link is visible in review. -#}
+{%- set data = load_data(path="data/concepts.toml") -%}
+{%- set found = data.concepts | filter(attribute="name", value=name) -%}
+{%- if found | length > 0 -%}
+{%- set concept = found | first -%}
+<a class="eref" href="{{ get_url(path='@/concepts/_index.md') | safe }}#{{ concept.id | lower }}" title="{{ concept.definition | truncate(length=160) }}">[{{ concept.id }}]</a>
+{%- else -%}
+<span class="eref eref--missing" title="No entry in CONCEPTS.md">[{{ name }}?]</span>
+{%- endif -%}

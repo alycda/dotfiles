@@ -1,0 +1,62 @@
+{# Shared fragments. Kept in one place so an essay card, a solution card and a
+   taxonomy listing cannot drift apart visually. #}
+
+{% macro chips(page) %}
+  {%- set tags = page.taxonomies.tags | default(value=[]) -%}
+  {%- if tags | length > 0 -%}
+  <ul class="chips">
+    {%- for tag in tags %}
+    <li><a href="{{ get_taxonomy_url(kind='tags', name=tag) | safe }}">{{ tag }}</a></li>
+    {%- endfor %}
+  </ul>
+  {%- endif -%}
+{% endmacro chips %}
+
+{% macro meta_line(page) %}
+  <p class="meta">
+    {%- if page.date %}<time datetime="{{ page.date }}">{{ page.date | date(format='%B %Y') }}</time>{% endif -%}
+    {%- if page.reading_time %} <span class="meta__sep">·</span> {{ page.reading_time }} min read{% endif -%}
+    {%- if page.extra.severity %} <span class="meta__sep">·</span> <span class="sev sev--{{ page.extra.severity }}">{{ page.extra.severity }}</span>{% endif -%}
+  </p>
+{% endmacro meta_line %}
+
+{% macro card(page) %}
+  <li class="card">
+    <h3 class="card__title"><a href="{{ page.permalink | safe }}">{{ page.title }}</a></h3>
+    {{ self::meta_line(page=page) }}
+    {%- if page.extra.excerpt %}
+    <p class="card__excerpt">{{ page.extra.excerpt }}</p>
+    {%- elif page.description %}
+    <p class="card__excerpt">{{ page.description }}</p>
+    {%- endif %}
+    {{ self::chips(page=page) }}
+  </li>
+{% endmacro card %}
+
+{# Definitions for every concept an essay declares in its `concepts:`
+   frontmatter. This is the half of the [E01] device that makes it more than
+   decoration: the reference resolves to real, shared vocabulary. #}
+{% macro entity_definitions(page) %}
+  {%- set names = page.extra.concepts | default(value=[]) -%}
+  {%- if names | length > 0 -%}
+  {%- set data = load_data(path="data/concepts.toml") -%}
+  <aside class="entities">
+    <h2 class="entities__title">Referenced entities</h2>
+    <dl>
+      {%- for name in names -%}
+      {%- set found = data.concepts | filter(attribute="name", value=name) -%}
+      {%- for concept in found %}
+      <div class="entities__row" id="ref-{{ concept.id | lower }}">
+        <dt><span class="eref">[{{ concept.id }}]</span> {{ concept.name }}</dt>
+        <dd>{{ concept.definition }}</dd>
+      </div>
+      {%- endfor -%}
+      {%- endfor %}
+    </dl>
+    <p class="entities__note">
+      Defined in <a href="{{ get_url(path='@/concepts/_index.md') | safe }}">Concepts</a>,
+      which is generated from <code>CONCEPTS.md</code> in the repo.
+    </p>
+  </aside>
+  {%- endif -%}
+{% endmacro entity_definitions %}

@@ -5,6 +5,15 @@ result-*
 # Ignore automatically generated direnv output
 .direnv
 
+# Zola site build artifacts. content/ and data/ are GENERATED from docs/ and
+# CONCEPTS.md by site/bin/collect.py — author in docs/, never in site/content/.
+site/content/
+site/data/
+site/public/
+site/static/processed_images/
+# Written by zola on every build from config.toml's highlight_themes_css
+site/static/syntax-*.css
+
 
 
 # General
