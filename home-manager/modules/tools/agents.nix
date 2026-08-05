@@ -98,35 +98,56 @@ in
     done
   '';
 
-  # Private overlay: agenix decrypts the ciphertext and exposes the plaintext at
-  # this stable home path. Using a per-secret `path` keeps the decrypted file in
-  # the agenix runtime dir (symlinked here) and out of the Nix store. Identity
-  # and secretsDir are configured in ../git.nix; this only adds the secret.
-  age.secrets.agent-instructions = {
-    file = ../../../secrets/personal/agent-instructions.age;
-    path = "${agentsDir}/instructions.private.md";
-  };
+  # Identity and secretsDir are configured in ../git.nix; this only adds
+  # secrets. One attrset rather than three `age.secrets.<name> =` statements:
+  # statix's repeated_keys fires at the third, and the grouping matches
+  # `home.file` above.
+  age.secrets = {
+    # Private overlay: agenix decrypts the ciphertext and exposes the plaintext
+    # at this stable home path. Using a per-secret `path` keeps the decrypted
+    # file in the agenix runtime dir (symlinked here) and out of the Nix store.
+    agent-instructions = {
+      file = ../../../secrets/personal/agent-instructions.age;
+      path = "${agentsDir}/instructions.private.md";
+    };
 
-  # Linear API key for the `linear` MCP server. No `path` override on purpose:
-  # the default is "${age.secretsDir}/${name}", i.e.
-  # ~/.local/share/agenix/linear-api-key-work, which is exactly where the
-  # server's headersHelper looks. Activation therefore replaces the manual
-  # `just linear-key-set` step - the key arrives with the generation, so a
-  # fresh container has a working Linear MCP without a paste-the-key ritual.
-  #
-  # The attribute keeps the -work suffix the *file* no longer needs. Which
-  # Linear account a key belongs to is a directory in secrets/, but agenix
-  # secret names are one flat namespace and the decrypted filename comes from
-  # the name - so secrets/work/ and a future secrets/personal/ copy of the
-  # same-named file still need distinct attributes here.
-  #
-  # The ciphertext is committed ARMORED (`rage -a`). A binary .age blob is
-  # valid on disk but does not survive every path it takes to get into a
-  # commit; armor is plain ASCII, so it diffs, reviews, and round-trips
-  # intact. Converting binary -> armor needs no key: age armor is just the
-  # same ciphertext PEM-wrapped, so `{ echo BEGIN; base64 -w64 blob; echo END; }`
-  # is a lossless transform on an already-encrypted file.
-  age.secrets.linear-api-key-work = {
-    file = ../../../secrets/work/linear-api-key.age;
+    # Linear API key for the `linear` MCP server. No `path` override on purpose:
+    # the default is "${age.secretsDir}/${name}", i.e.
+    # ~/.local/share/agenix/linear-api-key-work, which is exactly where the
+    # server's headersHelper looks. Activation therefore replaces the manual
+    # `just linear-key-set` step - the key arrives with the generation, so a
+    # fresh container has a working Linear MCP without a paste-the-key ritual.
+    #
+    # The attributes keep the account suffix the *files* no longer need. Which
+    # Linear account a key belongs to is a directory in secrets/, but agenix
+    # secret names are one flat namespace and the decrypted filename comes from
+    # the name - so secrets/work/ and secrets/personal/ carry the same filename
+    # while still needing distinct attributes here.
+    #
+    # The ciphertext is committed ARMORED (`rage -a`). A binary .age blob is
+    # valid on disk but does not survive every path it takes to get into a
+    # commit; armor is plain ASCII, so it diffs, reviews, and round-trips
+    # intact. Converting binary -> armor needs no key: age armor is just the
+    # same ciphertext PEM-wrapped, so `{ echo BEGIN; base64 -w64 blob; echo END; }`
+    # is a lossless transform on an already-encrypted file.
+    linear-api-key-work = {
+      file = ../../../secrets/work/linear-api-key.age;
+    };
+
+    # The personal-account counterpart. Carried, not consumed: nothing reads
+    # ~/.local/share/agenix/linear-api-key-personal today. The `linear` MCP
+    # server lives in the work tree, and both paths that authenticate it - its
+    # headersHelper and that tree's .envrc export of $LINEAR_API_KEY - name the
+    # -work file explicitly. So adding this secret delivers the value without
+    # changing which Linear account any agent talks to.
+    #
+    # Carrying it before there is a consumer is the point. A key that exists
+    # only in a container's runtime dir dies with the container; encrypted here
+    # it survives, and pointing a personal tree at it later is one
+    # $LINEAR_API_KEY_FILE away rather than a trip back to linear.app to mint a
+    # replacement.
+    linear-api-key-personal = {
+      file = ../../../secrets/personal/linear-api-key.age;
+    };
   };
 }
