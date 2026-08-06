@@ -55,7 +55,13 @@ in
       # into named in-between commits after the ancestor that needed them.
       # Narrow companion to the jujutsu skill above.
       ".claude/skills/jj-extract-gitignores".source = skillSource "jj-extract-gitignores";
-      
+
+      # zettelkasten — smart-notes workflow (fleeting → literature → permanent
+      # notes). Draft bootstrap; to be merged with the locally-initialized
+      # version. Literature-note discipline doubles as the source-material
+      # copyright policy's enforcement (alycda/project#1).
+      ".claude/skills/zettelkasten".source = skillSource "zettelkasten";
+
       # External skills from skills.sh (see lib/skills-sh.nix for pinning).
       # Note: compound-engineering is deliberately NOT installed this way -
       # it's already a Claude Code plugin via the catalog (#65), and its 38
