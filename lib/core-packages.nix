@@ -15,6 +15,7 @@ pkgs: with pkgs; [
   just
   jq
   gh
+  nodejs
   # postgresql
   # Python 3 for agent-plugin tooling: compound-engineering's bundled
   # validators and session-history scripts are stdlib-only python3 and
