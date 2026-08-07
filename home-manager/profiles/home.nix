@@ -12,7 +12,7 @@
   # Points at the git checkout on this machine (~/dotfiles is the retired
   # pre-conversion checkout, kept aside; the live one is under ~/Desktop).
   agentSkills.liveCheckout =
-    lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "${config.home.homeDirectory}/Desktop/alycda/dotfiles";
+    lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "${config.home.homeDirectory}/dotfiles";
 
   home = {
     username = "alyssa";

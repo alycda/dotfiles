@@ -110,7 +110,6 @@
       # macOS systems (use darwin-rebuild)
       darwinConfigurations = {
         "ditto" = mkDarwin "aarch64-darwin" "alyssaevans" "ditto" "work";
-        # personal laptop (Shesfast)
         "shesfast" = mkDarwin "aarch64-darwin" "alyssa" "shesfast" "home";
       };
 
