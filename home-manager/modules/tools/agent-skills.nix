@@ -55,7 +55,13 @@ in
       # into named in-between commits after the ancestor that needed them.
       # Narrow companion to the jujutsu skill above.
       ".claude/skills/jj-extract-gitignores".source = skillSource "jj-extract-gitignores";
-      
+
+      # commit-craft — Chris Beams' seven rules for commit messages, plus the
+      # jj-side workflow (`jj describe` → bookmark → push). Completes the pair
+      # with the jujutsu skill above: that one covers moving around a jj repo,
+      # this one covers what to write when a change becomes a commit.
+      ".claude/skills/commit-craft".source = skillSource "commit-craft";
+
       # External skills from skills.sh (see lib/skills-sh.nix for pinning).
       # Note: compound-engineering is deliberately NOT installed this way -
       # it's already a Claude Code plugin via the catalog (#65), and its 38
