@@ -2,7 +2,7 @@
 # This ensures consistency between ephemeral shells and persistent environments
 pkgs: with pkgs; [
   asciinema
-  awk
+  gawk
   bat
   codecrafters-cli
   # curl + file: ubiquitous CLI primitives; also the runtime deps the
@@ -15,6 +15,7 @@ pkgs: with pkgs; [
   just
   jq
   gh
+  nodejs
   # postgresql
   # Python 3 for agent-plugin tooling: compound-engineering's bundled
   # validators and session-history scripts are stdlib-only python3 and
