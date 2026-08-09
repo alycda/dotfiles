@@ -28,7 +28,6 @@ _:
     # provides them (common.nix / core-packages): asciinema, gh, helix, jj,
     # node. Their brew copies get zapped and the nix ones take over.
     brews = [
-      "bazelisk"
       "cirruslabs/cli/tart" # VM management
       "docker" # CLI only; the daemon is OrbStack (cask below)
       "kondo" # Clean build artifacts
