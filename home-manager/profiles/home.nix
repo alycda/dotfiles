@@ -9,8 +9,6 @@
   # Live-edit agent skills from the local checkout (module imported via
   # common.nix; store-copy mode is the default elsewhere). Darwin-gated
   # for symmetry with work.nix, which doubles as a Linux devcontainer.
-  # Points at the git checkout on this machine (~/dotfiles is the retired
-  # pre-conversion checkout, kept aside; the live one is under ~/Desktop).
   agentSkills.liveCheckout =
     lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "${config.home.homeDirectory}/dotfiles";
 
