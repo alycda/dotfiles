@@ -56,6 +56,11 @@ in
       # Narrow companion to the jujutsu skill above.
       ".claude/skills/jj-extract-gitignores".source = skillSource "jj-extract-gitignores";
 
+      # zettelkasten — smart-notes workflow (fleeting → literature → permanent
+      # notes). Draft bootstrap; to be merged with the locally-initialized
+      # version. Literature-note discipline doubles as the source-material
+      # copyright policy's enforcement (alycda/project#1).
+      ".claude/skills/zettelkasten".source = skillSource "zettelkasten";
       # commit-craft — Chris Beams' seven rules for commit messages, plus the
       # jj-side workflow (`jj describe` → bookmark → push). Completes the pair
       # with the jujutsu skill above: that one covers moving around a jj repo,
