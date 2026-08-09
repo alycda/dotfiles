@@ -73,10 +73,7 @@
       };
 
       # For nix-darwin + home-manager (macOS)
-      mkDarwin = system: darwinProfile: homeProfile:
-        let
-          username = "alyssaevans";
-        in
+      mkDarwin = system: username: darwinProfile: homeProfile:
         darwin.lib.darwinSystem {
           inherit system;
 
@@ -112,7 +109,8 @@
     {
       # macOS systems (use darwin-rebuild)
       darwinConfigurations = {
-        "ditto" = mkDarwin "aarch64-darwin" "ditto" "work";
+        "ditto" = mkDarwin "aarch64-darwin" "alyssaevans" "ditto" "work";
+        "shesfast" = mkDarwin "aarch64-darwin" "alyssa" "shesfast" "home";
       };
 
       # Linux/devcontainer systems (use home-manager)
