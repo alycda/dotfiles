@@ -25,4 +25,25 @@ in
   # reliably survive the trip into a commit.
   "work/linear-api-key.age".publicKeys = [ alyssa ];
   "personal/linear-api-key.age".publicKeys = [ alyssa ];
+
+  # Cloudflare API token for the `cloudflare-bindings` MCP connector. Personal
+  # only - there is no work Cloudflare account - so unlike the Linear keys this
+  # name needs no directory to disambiguate it. Also ARMORED, for the reason
+  # above. NOT the credential cf-now uses: R2's S3 API takes a separate R2 API
+  # token (an access-key/secret pair minted in the R2 dashboard), and the two
+  # are not interchangeable in either direction.
+  "personal/cloudflare-api-token.age".publicKeys = [ alyssa ];
+
+  # R2 credentials for the cf-now skill (#47), as two *files* rather than two
+  # values: decrypted, each is a valid aws config/credentials ini that agenix
+  # drops into ~/.aws, which removes cf-now's `aws configure set` setup step
+  # entirely. Split the way the AWS CLI splits them - keys in `credentials`,
+  # everything else in `config` - because the two use different profile header
+  # syntax (`[alyssa-r2]` vs `[profile alyssa-r2]`) and merging them silently
+  # yields a profile the CLI cannot find.
+  #
+  # r2-config holds no credential. It is encrypted because it embeds the
+  # Cloudflare account ID in the endpoint URL, and this repo is public.
+  "personal/r2-credentials.age".publicKeys = [ alyssa ];
+  "personal/r2-config.age".publicKeys = [ alyssa ];
 }
