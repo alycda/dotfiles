@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% import "macros/bits.html" as bits %}
+
+{% block title %}{{ page.title }} — {{ config.title }}{% endblock %}
+{% block description %}{{ page.extra.excerpt | default(value=page.description) | default(value=config.description) }}{% endblock %}
+
+{% block content %}
+<article class="essay">
+  <div class="wrap">
+    <p class="crumb"><a href="{{ get_url(path='@/essays/_index.md') | safe }}">← All essays</a></p>
+
+    <header class="essay__head">
+      <h1>{{ page.title }}</h1>
+      {{ bits::meta_line(page=page) }}
+      {% if page.extra.excerpt %}<p class="essay__lede">{{ page.extra.excerpt }}</p>{% endif %}
+      {% if page.taxonomies.tags %}
+      <div class="filed">
+        <span class="filed__label">Filed under</span>
+        {{ bits::chips(page=page) }}
+      </div>
+      {% endif %}
+    </header>
+
+    {# `counts` numbers the h2s as § 01, § 02 … in CSS. The markdown source
+       stays plain `## Heading`, so the numbering is presentation and nothing
+       in docs/ has to know about it. #}
+    <div class="prose counts">
+      {{ page.content | safe }}
+    </div>
+
+    {{ bits::entity_definitions(page=page) }}
+
+    {% if page.extra.further_reading %}
+    <aside class="further">
+      <h2>Further reading</h2>
+      <ul>
+        {% for item in page.extra.further_reading %}
+        {% if item.path %}{% set href = get_url(path=item.path) %}{% else %}{% set href = item.url %}{% endif %}
+        <li>
+          <a href="{{ href | safe }}">{{ item.text }}</a>
+          {%- if item.note %} — {{ item.note | markdown(inline=true) | safe }}{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </aside>
+    {% endif %}
+
+    <nav class="nextprev">
+      {% if page.earlier %}
+      <a class="nextprev__item" href="{{ page.earlier.permalink | safe }}">
+        <span class="nextprev__label">Previous essay</span>
+        <span class="nextprev__title">{{ page.earlier.title }}</span>
+      </a>
+      {% endif %}
+      {% if page.later %}
+      <a class="nextprev__item nextprev__item--next" href="{{ page.later.permalink | safe }}">
+        <span class="nextprev__label">Next essay</span>
+        <span class="nextprev__title">{{ page.later.title }}</span>
+      </a>
+      {% endif %}
+    </nav>
+  </div>
+</article>
+{% endblock content %}

@@ -1,0 +1,65 @@
+name: Pages
+
+on:
+  push:
+    branches: [main, master]
+    # The site is generated from docs/ + CONCEPTS.md, so a Nix-only change
+    # never needs a redeploy.
+    paths:
+      - "docs/**"
+      - "CONCEPTS.md"
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "CONCEPTS.md"
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a run in progress finish rather than cancelling it mid-deploy.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      # Both steps run in the flake's own devShell, so CI and `just docs-build`
+      # get the Zola pinned in flake.lock rather than whatever each machine's
+      # registry resolves to.
+      - name: Collect docs/ into the Zola content tree
+        run: nix develop .#docs --command python3 site/bin/collect.py .
+
+      - name: Build with Zola
+        run: nix develop .#docs --command zola --root site build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/public
+
+  # PRs build but do not publish — the artifact upload above is enough to
+  # catch a broken template or an unresolvable internal link.
+  deploy:
+    name: Deploy to Pages
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

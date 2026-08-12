@@ -89,6 +89,29 @@ docker-build:
 docker-run dir=invocation_directory():
     ./docker/dev.sh run {{dir}}
 
+# Regenerate site/content and site/data from docs/ + CONCEPTS.md
+[group('docs')]
+docs-collect:
+    nix develop .#docs --command python3 site/bin/collect.py .
+
+# Build the static site into site/public
+[group('docs')]
+docs-build: docs-collect
+    nix develop .#docs --command zola --root site build
+
+# Serve the site locally with live reload (http://127.0.0.1:9652)
+[group('docs')]
+docs-serve: docs-collect
+    nix develop .#docs --command zola --root site serve --port 9652
+
+# Vendor the webfonts. Optional: main.scss falls back to faces already present
+# on most machines, so the site is fully styled without ever running this.
+[group('docs')]
+docs-fonts:
+    @echo "Drop Newsreader / Inter / JetBrains Mono woff2 files in site/static/fonts/"
+    @echo "and add the @font-face rules to site/sass/main.scss."
+    @echo "All three are OFL-licensed: https://fonts.google.com/"
+
 # Assemble the combined agent instruction capsule (public layers + local overlay)
 [group('agents')]
 agents-capsule:

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "macros/bits.html" as bits %}
+
+{% block title %}{{ page.title }} — {{ config.title }}{% endblock %}
+{% block description %}{{ page.description | default(value=page.title) }}{% endblock %}
+
+{% block content %}
+<article class="essay solution">
+  <div class="wrap">
+    <p class="crumb"><a href="{{ get_url(path='@/solutions/_index.md') | safe }}">← All solutions</a></p>
+
+    <header class="essay__head">
+      <h1>{{ page.title }}</h1>
+      {{ bits::meta_line(page=page) }}
+      {% if page.taxonomies.tags %}
+      <div class="filed">
+        <span class="filed__label">Filed under</span>
+        {{ bits::chips(page=page) }}
+      </div>
+      {% endif %}
+    </header>
+
+    {# The solutions frontmatter carries a diagnostic record — symptoms, the
+       module at fault, root cause. Surfacing it above the prose is the whole
+       reason these pages are worth publishing: you arrive by searching a
+       symptom, so the symptoms go first. #}
+    {% if page.extra.symptoms or page.extra.module %}
+    <aside class="dossier">
+      {% if page.extra.symptoms %}
+      <h2 class="dossier__title">Symptoms</h2>
+      <ul class="dossier__symptoms">
+        {% for symptom in page.extra.symptoms %}
+        <li>{{ symptom }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <dl class="dossier__facts">
+        {% if page.extra.module %}<div><dt>Module</dt><dd><code>{{ page.extra.module }}</code></dd></div>{% endif %}
+        {% if page.extra.problem_type %}<div><dt>Problem</dt><dd>{{ page.extra.problem_type | replace(from='_', to=' ') }}</dd></div>{% endif %}
+        {% if page.extra.root_cause %}<div><dt>Root cause</dt><dd>{{ page.extra.root_cause | replace(from='_', to=' ') }}</dd></div>{% endif %}
+        {% if page.extra.resolution_type %}<div><dt>Resolution</dt><dd>{{ page.extra.resolution_type | replace(from='_', to=' ') }}</dd></div>{% endif %}
+      </dl>
+    </aside>
+    {% endif %}
+
+    <div class="prose counts">
+      {{ page.content | safe }}
+    </div>
+
+    {{ bits::entity_definitions(page=page) }}
+  </div>
+</article>
+{% endblock content %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% import "macros/bits.html" as bits %}
+
+{% block title %}{{ term.name }} — {{ config.title }}{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <header class="pagehead">
+    <p class="crumb"><a href="{{ get_url(path=taxonomy.name) | safe }}">← All {{ taxonomy.name }}</a></p>
+    <h1>{{ term.name }}</h1>
+    <div class="pagehead__lede">
+      <p>{{ term.pages | length }} page{{ term.pages | length | pluralize }} filed under this {{ taxonomy.name | trim_end_matches(pat="s") }}.</p>
+    </div>
+  </header>
+
+  <ul class="cards cards--index">
+    {% for page in term.pages %}
+    {{ bits::card(page=page) }}
+    {% endfor %}
+  </ul>
+</div>
+{% endblock content %}

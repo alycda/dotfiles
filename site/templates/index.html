@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "macros/bits.html" as bits %}
+
+{% block content %}
+<div class="wrap">
+  <section class="hero">
+    <p class="hero__kicker">§ 00 &nbsp;—&nbsp; Bulletin</p>
+    <h1 class="hero__title">A long argument with Nix.</h1>
+    <p class="hero__lede">
+      A dotfiles repo kept as a record rather than a result. The commits are the
+      reasoning; these pages are what the reasoning was about.
+    </p>
+  </section>
+
+  {% set essays = get_section(path="essays/_index.md") %}
+  {% if essays.pages | length > 0 %}
+  <section class="feed">
+    <h2 class="feed__title"><span class="feed__num">§ 01</span> Essays</h2>
+    <ul class="cards">
+      {% for page in essays.pages | slice(end=5) %}
+      {{ bits::card(page=page) }}
+      {% endfor %}
+    </ul>
+    <p class="feed__more"><a href="{{ essays.permalink | safe }}">All essays →</a></p>
+  </section>
+  {% endif %}
+
+  {% set solutions = get_section(path="solutions/_index.md") %}
+  {% if solutions.pages | length > 0 %}
+  <section class="feed">
+    <h2 class="feed__title"><span class="feed__num">§ 02</span> Solutions</h2>
+    <p class="feed__lede">Things that broke, and what fixed them.</p>
+    <ul class="cards">
+      {% for page in solutions.pages | slice(end=5) %}
+      {{ bits::card(page=page) }}
+      {% endfor %}
+    </ul>
+    <p class="feed__more"><a href="{{ solutions.permalink | safe }}">All solutions →</a></p>
+  </section>
+  {% endif %}
+</div>
+{% endblock content %}

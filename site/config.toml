@@ -1,0 +1,31 @@
+# Zola configuration.
+#
+# Content is NOT authored here — `site/content/` is generated from `docs/`
+# by `site/bin/collect.py` (see `just docs-build`). Edit the markdown in
+# `docs/`, not anything under `site/content/`.
+
+base_url = "https://alycda.github.io/dotfiles"
+title = "dotfiles"
+description = "Notes from a long argument with Nix."
+
+compile_sass = true
+build_search_index = true
+generate_feeds = true
+feed_filenames = ["atom.xml"]
+
+taxonomies = [
+  { name = "tags", feed = true },
+  { name = "category", feed = false },
+]
+
+[markdown]
+smart_punctuation = true
+
+[markdown.highlighting]
+style = "class"
+light_theme = "gruvbox-light-medium"
+dark_theme = "gruvbox-dark-medium"
+
+[extra]
+author = "Alyssa"
+repo_url = "https://github.com/alycda/dotfiles"

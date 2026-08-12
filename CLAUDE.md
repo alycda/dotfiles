@@ -142,10 +142,14 @@ dotfiles/
 │   └── helix/              # Helix config
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
-├── docs/solutions/         # documented solutions to past problems - bugs, practices,
+├── docs/                   # everything published to GitHub Pages, authored as plain
+│   ├── essays/             #   markdown + YAML frontmatter
+│   └── solutions/          # documented solutions to past problems - bugs, practices,
 │                           #   workflow patterns - by category, with YAML frontmatter
 │                           #   (module, tags, problem_type). Relevant when implementing
 │                           #   or debugging in an area one of them covers.
+├── site/                   # Zola static site (templates, sass, collector).
+│                           #   content/ and data/ are GENERATED - never edit them
 ├── CONCEPTS.md             # shared domain vocabulary (entities, named processes,
 │                           #   status concepts) with project-specific meaning
 ├── Dockerfile              # multi-arch (x86_64 + arm64) dev image
@@ -236,6 +240,66 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   (e.g. compound-engineering) belongs in
   `tools/agents/plugins/catalog.json`, not here — a plugin already carries
   its skills, so installing them via nix-skills too would duplicate them
+
+### The docs site (`site/`, published to GitHub Pages)
+
+`docs/` is authored as plain markdown with YAML frontmatter and stays readable
+in the repo — agents and humans read those files directly, without a site build
+in the loop. Zola wants TOML frontmatter under `+++`, its own section layout,
+and taxonomies in a particular shape. Rather than reformat the sources to suit
+the generator, `site/bin/collect.py` translates them on the way in.
+
+**`site/content/` and `site/data/` are build artifacts.** They are gitignored,
+wiped and regenerated on every build. Editing them is always wrong — change the
+markdown in `docs/`, or `CONCEPTS.md`, and rebuild.
+
+What the collector does, and why each piece exists:
+
+| Behaviour | Reason |
+|---|---|
+| YAML frontmatter → TOML, unknown keys → `[extra]` | Zola only reads TOML; passing unknown keys through means adding a frontmatter field needs no collector change |
+| `filed_under` → the `tags` taxonomy | essays borrow the phrasing from the design this site cribs; one tag index for the whole site |
+| `docs/solutions/<category>/x.md` → flat, `category = [...]` | Zola would read the nested directory as a subsection needing its own `_index.md`; the nesting is replayed as a taxonomy instead |
+| Body-leading `# Title` stripped when it matches the frontmatter title | in-repo a solution doc wants a visible H1; on the site the template already renders one |
+| `CONCEPTS.md` → `site/data/concepts.toml` | backs the `[E01]` entity references |
+
+**Entity references.** `{{ e(name="Base profile") }}` in an essay renders a
+linked `[E04]` resolving to the glossary, and any concept named in a page's
+`concepts:` frontmatter gets a definition block at the foot of the page. Both
+read from `CONCEPTS.md`, so the glossary is the single source. A name with no
+matching entry degrades to visible `[Name?]` rather than failing the build —
+cheap to spot in review, and a renamed concept never breaks a deploy.
+
+**Section numbering is presentation.** The `§ 01` before each heading is a CSS
+counter on `.prose.counts h2`. Markdown sources stay plain `## Heading`.
+
+**Fonts are not vendored.** `site/sass/main.scss` names Newsreader / Inter /
+JetBrains Mono and falls back through faces present on most machines, so the
+site is fully styled with zero webfont bytes. `just docs-fonts` documents how
+to add the real ones.
+
+```bash
+just docs-serve    # live reload at 127.0.0.1:9652
+just docs-build    # one-shot build into site/public
+```
+
+**Zola comes from the `docs` devShell, never from `nix shell nixpkgs#zola`.**
+That second form resolves against the *machine's flake registry*, not this
+repo's `flake.lock`, so two machines can build the same commit with different
+Zola versions. That bit immediately: the site was authored against 0.19, whose
+`[markdown]` schema (`highlight_code`, `highlight_themes_css`) 0.22 rejects
+outright — CI failed on config the local build accepted. Both `just` and
+`.github/workflows/pages.yml` now go through `nix develop .#docs`, so a version
+bump can only arrive via `flake.lock`, where it shows up in a diff.
+
+Zola 0.22 moved syntax highlighting to `[markdown.highlighting]` with
+`style = "class"` and a `light_theme`/`dark_theme` pair, and theme names now
+come from [giallo](https://github.com/getzola/giallo) (`gruvbox-light-medium`,
+not `gruvbox-light`). It generates `giallo-light.css` / `giallo-dark.css` into
+`site/static/`; those are artifacts and gitignored.
+
+CI is path-filtered to `docs/`, `CONCEPTS.md`, and `site/` — a Nix-only change
+never triggers a redeploy — and PRs build without publishing.
 
 ### Configuration Conflicts to Avoid
 
@@ -391,6 +455,8 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
+*Last updated: 2026-08-05 - Added the docs site: `docs/` authored as plain markdown, `site/bin/collect.py` translating it into a Zola content tree, and `[E01]` entity references backed by CONCEPTS.md*
+
+*2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 
 *2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*
