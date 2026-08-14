@@ -1,0 +1,21 @@
+# Export the last 3 commits as separate .patch files:
+git format-patch -3
+
+# Export the last 3 commits into a single patch file:
+git format-patch -3 --stdout > my-patch.patch
+
+# Export 3 specific commits (commit1^ includes commit1 itself):
+git format-patch commit1^..commit3
+
+# Export commits from a specific range:
+git format-patch HEAD~3..HEAD
+
+# Useful options:
+#   --numbered      number the patch files (0001-, 0002-, ...)
+#   --cover-letter  generate a cover letter for the patch series
+#   --thread        add threading headers for email
+
+# Apply generated patches later with:
+git am my-patch.patch
+# or:
+git apply my-patch.patch
