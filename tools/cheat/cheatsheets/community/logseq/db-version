@@ -1,0 +1,50 @@
+# Logseq DB version - what changes vs file-based (markdown) graphs
+# The other logseq/* sheets describe FILE-BASED graphs (0.10.x), which is
+# what an existing markdown graph is. DB graphs are SQLite-backed and rename
+# most of the query surface. Check which kind of graph you opened first.
+# https://github.com/logseq/docs/blob/master/db-version-changes.md
+
+## Model
+- Blocks and pages are unified as "nodes"; both are referenced with [[...]].
+- ((block-ref)) syntax is gone - use [[...]] for blocks too.
+- Markdown only; org-mode files are no longer supported.
+- `#` and `/` are disallowed in page names.
+- Namespaces are no longer baked into the page name (renaming is safe);
+  the {{namespace}} macro is deprecated in favour of Library.
+- Task markers are gone as keywords - Status, Priority, Deadline and
+  Scheduled are properties now. The :LOGBOOK: drawer becomes status history.
+- Properties gained real types: numbers and booleans, not just text.
+
+## Attribute renames (advanced queries, :default-queries, config.edn)
+:block/content        -> :block/title
+:block/original-name  -> :block/title
+:block/marker         -> :logseq.property/status
+:block/priority       -> :logseq.property/priority
+:block/deadline       -> :logseq.property/deadline
+:block/scheduled      -> :logseq.property/scheduled
+
+## Removed attributes
+:block/journal?    -> tag instead: [?b :block/tags :logseq.class/Journal]
+:block/left        -> :block/order
+:block/path-refs   -> use the (has-ref ?b ?ref) rule
+
+## Simple-query filter renames
+(page-tags ...)        -> (tags ...)
+(page-property ...)    -> (property ...)
+(has-page-property ...)-> (has-property ...)
+(priority A)           -> (priority high)
+# (all-page-tags) and (sort-by) are removed.
+
+## Rules that exist in DB graphs
+(parent ?p ?c)              recursive block nesting
+(has-ref ?b ?r)             block or an ancestor references ?r
+(alias ?e2 ?e1)
+(class-extends ?p ?c)       class hierarchy
+(self-ref ?b ?ref)
+
+## Also note
+- Many config.edn keys no longer apply, e.g. :journals-directory,
+  :preferred-format, :default-templates, :block-hidden-properties,
+  :ref/linked-references-collapsed-threshold, :srs/initial-interval.
+- Advanced queries you copied from blogs/forums almost certainly assume
+  the file-based attribute names; translate them with the table above.

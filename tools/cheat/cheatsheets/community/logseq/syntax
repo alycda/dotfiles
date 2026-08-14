@@ -1,0 +1,77 @@
+# Logseq syntax - blocks, refs, properties
+# Everything is an outliner block; files stay plain Markdown on disk.
+# https://docs.logseq.com/
+
+## References
+[[page name]]                    link to (and create) a page
+#tag                             same as [[tag]]
+#[[multi word tag]]              tag containing spaces
+((60a78e9e-59dc-40ab-9a01-...))  block reference - type `((` to search
+[label]([[page name]])           page ref with custom display text
+[label](((60a78e9e-59dc-...)))   block ref with custom display text
+parent/child                     namespace - just a `/` in the page name
+
+## Embeds (transclusion; edits propagate both ways)
+{{embed [[page name]]}}          embed a whole page
+{{embed ((block-uuid))}}         embed a block and its children
+# Embeds do NOT contribute to the source page's linked references.
+
+## Properties - `key:: value`
+type:: [[book]]                  block property
+tags:: motor, steering wheel     comma-separated values become page refs
+description:: "no [[links]]"     quote the value to suppress ref parsing
+# Properties in the FIRST block of a page are page properties (frontmatter).
+# Names are case-insensitive, lower-cased, and `_` is rewritten to `-`.
+# A property with an empty value is neither rendered nor queryable.
+
+## Built-in page properties
+title::                    override page title (independent of filename)
+alias::                    synonyms; refs to an alias resolve to this page
+tags::                     lists page under "Pages tagged with X"
+icon::                     page icon
+public::                   include in publish/export (boolean)
+filters::                  saved linked-reference filters
+exclude-from-graph-view::  boolean
+
+## Built-in block properties (Logseq usually writes these for you)
+id::                       block UUID - appears when you copy a block ref
+collapsed::                boolean
+template::                 name that marks this block + children a template
+query-table:: query-properties:: query-sort-by:: query-sort-desc::
+
+## Trigger characters
+/         slash commands (only at line start or after whitespace)
+<         advanced commands - expand to a #+BEGIN_x ... #+END_x section
+[[  ((    page / block autocompletion
+{{  ::    macro / property autocompletion
+
+## Advanced commands (typed with `<`)
+Quote Note Tip Important Caution Warning Example Verse Comment Center
+Src      #+BEGIN_SRC clojure ... #+END_SRC       (arg sets the language)
+Query    #+BEGIN_QUERY {...} #+END_QUERY         (see logseq/datalog)
+
+## Macros and built-in renderers
+{{macro-name arg1, arg2}}   user macro from config.edn :macros
+{{query ...}}               simple query           (see logseq/query)
+{{function (sum :price)}}   aggregate over the query results above it
+{{cards [[Logseq]]}}        flashcard review query
+{{cloze answer \\ cue}}     hidden answer; `\\ cue` is optional
+{{namespace [[parent]]}}    table of contents for a namespace
+{{youtube URL}} {{youtube-timestamp SECONDS}} {{video URL}} {{tweet URL}}
+
+## Media
+![](https://host/file.png)               markdown
+![](../assets/file.mp4)                  local asset
+<video src="..."></video>                raw html also works
+[:img {:src "..."}]                      hiccup
+
+## Math (KaTeX)
+$inline$
+$$display$$
+
+## Templates
+template:: meeting-notes             mark the block + children a template
+template-including-parent:: false    insert only the children
+<% today %> <% yesterday %> <% tomorrow %> <% time %> <% current page %>
+<% last friday %>                    natural-language dates (chrono)
+# Insert with /Template. Dynamic variables also work inside macros.

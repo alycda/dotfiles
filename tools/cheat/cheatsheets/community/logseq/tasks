@@ -1,0 +1,43 @@
+# Logseq tasks - markers, priorities, scheduling
+# https://docs.logseq.com/#/page/tasks
+
+## Workflow markers (first word of the block)
+LATER -> NOW  -> DONE            default flavour
+TODO  -> DOING -> DONE           alternate flavour (Settings > preferred workflow)
+CANCELED / CANCELLED             typed directly, not in the cycle
+IN-PROGRESS
+WAIT / WAITING
+# mod+enter cycles the marker while editing; /LATER etc. also work.
+# Clicking the empty checkbox jumps straight to DONE.
+
+## Priorities
+LATER [#A] ship the thing        highest   (/A)
+LATER [#B] the middling thing    mid       (/B)
+LATER [#C] the someday thing     lowest    (/C)
+# `[#X]` goes after the marker, before the text.
+
+## Scheduled and deadline (own lines, below the block text)
+DEADLINE: <2021-05-29 Sat>       /Deadline
+SCHEDULED: <2021-05-31 Mon>      /Scheduled
+SCHEDULED: <2021-05-26 Wed 7:00> with a time
+# Both work on non-task blocks too.
+# :scheduled/future-days in config.edn controls the look-ahead window.
+
+## Repeaters (append to the timestamp; "Add repeater" in the date picker)
+SCHEDULED: <2021-05-26 Wed 7:00 .+1d>    repeat 1d after you mark it DONE
+SCHEDULED: <2021-05-26 Wed ++1w>         next same weekday, from today
+SCHEDULED: <2021-05-26 Wed +1m>          fixed 1m from the original date
+
+## Time tracking
+# Marking NOW/DOING writes a :LOGBOOK: drawer under the block.
+# Disable it in Settings > enable timetracking.
+
+## Finding tasks
+{{query (task now later)}}                    simple query
+{{query (and (task now) (priority a))}}
+{{query (and (task todo) (between -7d today))}}
+# Advanced/datalog equivalents: see logseq/datalog and logseq/schema.
+
+## Journal defaults
+# The "NOW" / "NEXT" query blocks at the bottom of today's journal come from
+# :default-queries {:journals [...]} in config.edn - edit or delete them there.
