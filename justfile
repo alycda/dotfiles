@@ -89,6 +89,21 @@ docker-build:
 docker-run dir=invocation_directory():
     ./docker/dev.sh run {{dir}}
 
+# Install the lightweight config tier (no nix, no docker) from this checkout
+[group('lite')]
+lite-config:
+    ./bootstrap/lite.sh config
+
+# Install the lightweight static binaries into ~/.local/bin
+[group('lite')]
+lite-bins *tools:
+    ./bootstrap/lite.sh bins {{tools}}
+
+# Report what the lightweight path has installed and what it's missing
+[group('lite')]
+lite-doctor:
+    ./bootstrap/lite.sh doctor
+
 # Assemble the combined agent instruction capsule (public layers + local overlay)
 [group('agents')]
 agents-capsule:
