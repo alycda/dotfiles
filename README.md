@@ -110,6 +110,7 @@ You need ONE of these:
 | **[GitHub Codespaces](https://github.com/features/codespaces/)** | A GitHub account | Exploring in the cloud |
 | **Local Nix** | [Nix installed](https://nixos.org/download) | Already have Nix or want to install it |
 | **Plain Docker** | Just Docker (no VSCode, no Nix, no gh) | Locked-down machines — e.g. a non-admin macOS user |
+| **Lite** (`bootstrap/lite.sh`) | `curl` + `tar` on a Linux box | Remote machines with no root, no Docker *and* no Nix |
 
 ### macOS setup (Darwin)
 
@@ -202,6 +203,28 @@ start. `devhome` persists nix/jj/ssh state across `--rm`; `claude-home` keeps
 Claude Code auth in its own volume so a devhome reset never logs you out.
 Authenticate `gh` and `claude` once inside; see the `Dockerfile` header for
 ragenix keys, ssh-agent forwarding, and troubleshooting.
+
+### Lite (no Nix, no Docker, no root — Linux remotes)
+
+For a Linux box you SSH into where none of the paths above are available: no
+admin rights to install Nix, and no container runtime either. `bootstrap/lite.sh`
+installs the plaintext `tools/` tree plus a handful of static binaries under
+`~/.local`, touching nothing outside your home directory.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/bootstrap/lite.sh | sh -s -- all
+```
+
+Two tiers, installable separately — `config` is ~700K of plaintext and needs
+only `curl` and `tar`; `bins` adds ~12 static binaries (`hx`, `cheat`, `rg`,
+`jq`, `fzf`, `starship`, `jj`, `gh`, `rage`, `bat`, `eza`, `tv`). Then source
+`~/.local/share/dotfiles-lite/env.sh` from your shell rc.
+
+This is an approximation, not parity: no LSP servers, no declarative rollback,
+no starship config, and the git identity and private agent overlay still need
+the age key. `bootstrap/README.md` has the full list of what's deliberately
+missing and why — including why this isn't chezmoi. If you can get Nix onto the
+box at all (try `nix-portable`), prefer that.
 
 ### Other (Flake) devShell (without Home Manager)
 
