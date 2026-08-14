@@ -53,20 +53,59 @@ Overrides: `REF` (git ref, default `main`), `LITE_HOME`, `LITE_BIN`,
 `LITE_SOURCE` (use a local checkout instead of fetching), and `VER_<tool>` to
 bump a single pinned binary.
 
-## Why not chezmoi
+## Alternatives considered
 
-The obvious answer to "lightweight dotfiles" is chezmoi, and it is the wrong
-one *here*. Its three real value-adds — templating, per-machine variance, and
-age-encrypted secrets — are all things this repo already has, via profiles,
-`mkHome`, and ragenix on the same age keys. Adopting it would mean every file
-under `tools/` grows a chezmoi-managed twin, or the home-manager modules start
-reading out of chezmoi's source directory. Either way there are two sources of
-truth for the same file, which is the exact drift `CLAUDE.md` warns about.
+Written down because the last round of this thinking was lost — searching the
+issues, PRs and tree for it turned up nothing, and it had to be re-derived from
+scratch. Two off-the-shelf tools were weighed before `lite.sh`; they fail in
+opposite directions, which is the useful part.
+
+### chezmoi — competes with something we already have
+
+The obvious answer to "lightweight dotfiles", and the wrong one *here*. Its
+three real value-adds — templating, per-machine variance, and age-encrypted
+secrets — are all things this repo already has, via profiles, `mkHome`, and
+ragenix on the same age keys. Adopting it would mean every file under `tools/`
+grows a chezmoi-managed twin, or the home-manager modules start reading out of
+chezmoi's source directory. Either way there are two sources of truth for the
+same file, which is the exact drift `CLAUDE.md` warns about.
 
 `lite.sh` instead consumes the **same** `tools/` tree the Nix modules do. No new
 source of truth, no new tool in the chain.
 
-One happy side effect: `tools/helix/*.toml` was previously decorative —
+### mise — competes with the weakest part of this script
+
+Harder to dismiss than chezmoi, and worth revisiting rather than settling.
+
+mise overlaps three things the repo already has — tool installation
+(home-manager), env management (`direnv`, enabled in `common.nix`) and task
+running (`just`) — so as a *whole* it is redundant here for the same reason
+chezmoi is. But one slice of it is not: it is a single static binary that
+installs pinned tool versions under `~/.local/share/mise` with no root, which is
+precisely the `bins` tier's job. And `bins` is the part of this script with a
+known defect — a hand-maintained version table that rots, listed under
+Known limitations below. `mise use -g …` would delete that table outright.
+
+Reasons it did not win *this* round, none of them decisive:
+
+- **Supply chain.** The pinned-URL table resolves to GitHub release artifacts
+  from the projects themselves. mise's registry reaches those too, but several
+  of its backends do not — asdf plugins are third-party shell scripts, and the
+  cargo backend builds from source, which is a bad trade on a constrained
+  remote where the whole point is a prebuilt binary. Evaluating this means
+  checking the backend *per tool*, which is real work, not a glance.
+- **Another thing to bootstrap.** mise has to be installed before it can
+  install anything, so the curl-able entry point does not go away — mise
+  replaces the table, not the script.
+- **It solves the tier we already got right.** `config` is the tier carrying
+  the value, and mise has nothing to say about it.
+
+Worth reopening if the pins rot faster than expected, which is the most likely
+way this script gets annoying. Tracked in #99.
+
+### The happy side effect either way
+
+`tools/helix/*.toml` was previously decorative —
 `helix.nix` re-encodes those settings in Nix by hand, and
 `tools/helix/README.md` describes them as "manually translated". Nothing
 actually read the TOMLs. `lite.sh` does, which makes drift between the two
