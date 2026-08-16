@@ -1,3 +1,6 @@
 {
-  "cleanupPeriodDays": 90
+  "cleanupPeriodDays": 90,
+  "skillOverrides": {
+    "compound-engineering:ce-proof": "user-invocable-only"
+  }
 }

@@ -5,19 +5,24 @@
 # ~/.claude/CLAUDE.md itself stays hand-edited (not yet canonicalized into this
 # repo), so managed rules live as separate files under ~/.claude/rules/ and are
 # pulled in via CLAUDE.md's @import syntax. The activation script idempotently
-# ensures the import line exists.
+# ensures the import lines exist.
 { lib, pkgs, ... }:
 {
   home = {
-    file.".claude/rules/outbound-comment-gate.md".source =
-      ../../../tools/claude/rules/outbound-comment-gate.md;
+    file = {
+      ".claude/rules/outbound-comment-gate.md".source =
+        ../../../tools/claude/rules/outbound-comment-gate.md;
+      ".claude/rules/docs-to-hackmd.md".source =
+        ../../../tools/claude/rules/docs-to-hackmd.md;
+    };
 
     activation = {
       # Managed slices of ~/.claude/settings.json. The file itself is
       # runtime-mutable (Claude Code writes it), so it stays unmanaged and
       # activation deep-merges these fragments in idempotently:
-      #  - tools/claude/settings.json - plain managed defaults (e.g.
-      #    cleanupPeriodDays, transcript retention extended to 90 days)
+      #  - tools/claude/settings.json - plain managed defaults (cleanup
+      #    retention; the skillOverrides that demotes ce-proof so agent doc
+      #    publishing lands in HackMD - see rules/docs-to-hackmd.md)
       #  - tools/agents/plugins/catalog.json - the issue #40 plugin catalog:
       #    desired plugin state, never a committed ~/.claude/plugins cache.
       #    Claude Code fetches declared marketplaces and installs enabled
@@ -34,18 +39,21 @@
           "${../../../tools/agents/plugins/catalog.json}"
       '';
 
-      # entryAfter linkGeneration (not just writeBoundary): the import line must
-      # only be appended once the rule file it points at has actually been
-      # linked - otherwise a failure later in activation leaves CLAUDE.md
-      # importing a file that doesn't exist (observed on the dotfiles-ci VM,
+      # entryAfter linkGeneration (not just writeBoundary): the import lines
+      # must only be appended once the rule files they point at have actually
+      # been linked - otherwise a failure later in activation leaves CLAUDE.md
+      # importing files that don't exist (observed on the dotfiles-ci VM,
       # 2026-07-02).
-      claudeOutboundCommentGate = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      claudeRuleImports = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         claudeMd="$HOME/.claude/CLAUDE.md"
-        importLine="@rules/outbound-comment-gate.md"
-        if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
-          run mkdir -p "$HOME/.claude"
-          run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"
-        fi
+        run mkdir -p "$HOME/.claude"
+        for importLine in \
+          "@rules/outbound-comment-gate.md" \
+          "@rules/docs-to-hackmd.md"; do
+          if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
+            run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"
+          fi
+        done
       '';
     };
   };
