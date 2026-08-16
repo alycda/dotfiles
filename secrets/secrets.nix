@@ -25,4 +25,10 @@ in
   # reliably survive the trip into a commit.
   "work/linear-api-key.age".publicKeys = [ alyssa ];
   "personal/linear-api-key.age".publicKeys = [ alyssa ];
+
+  # HackMD API token for the `hackmd` MCP server - the enforced destination
+  # for agent-published docs (see tools/claude/rules/docs-to-hackmd.md).
+  # Carried here so a fresh machine gets a working hackmd MCP from activation
+  # alone, instead of the token living only in one machine's ~/.claude.json.
+  "personal/hackmd-api-token.age".publicKeys = [ alyssa ];
 }
