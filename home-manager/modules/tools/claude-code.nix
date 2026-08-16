@@ -6,7 +6,7 @@
 # repo), so managed rules live as separate files under ~/.claude/rules/ and are
 # pulled in via CLAUDE.md's @import syntax. The activation script idempotently
 # ensures the import lines exist.
-{ lib, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
   home = {
     file = {
@@ -39,6 +39,37 @@
           "${../../../tools/agents/plugins/catalog.json}"
       '';
 
+      # Managed slice of ~/.claude.json: user-scope MCP servers, so every
+      # project's sessions get linear + hackmd without a per-machine
+      # `claude mcp add` ritual. Same merge-idempotently pattern as
+      # claudeManagedSettings - ~/.claude.json is runtime-mutable state and
+      # stays unmanaged as a whole; only .mcpServers.{linear,hackmd} are owned
+      # (see tools/claude/mcp-servers.jq for the entries and the account
+      # choice). Secrets are read from the agenix-decrypted files at
+      # activation time: they end up in ~/.claude.json (local, untracked -
+      # where Claude Code keeps MCP credentials anyway), never in the store.
+      #
+      # Decryption is done by ragenix's launchd agent, which activation only
+      # *installs* (setupLaunchAgents) - on a first-ever switch the decrypted
+      # files may not exist yet, and no DAG ordering can wait for them. So:
+      # guard on readability and skip with a warning rather than fail; the
+      # next switch (or rerun) after the agent has mounted completes the merge.
+      claudeMcpServers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        claudeJson="$HOME/.claude.json"
+        linearKey="${config.age.secrets.linear-api-key-work.path}"
+        hackmdToken="${config.age.secrets.hackmd-api-token.path}"
+        if [ -r "$linearKey" ] && [ -r "$hackmdToken" ]; then
+          if [ ! -f "$claudeJson" ]; then
+            run sh -c 'echo "{}" > "$1"' _ "$claudeJson"
+          fi
+          run sh -c '"$1" --arg lin "$(cat "$3")" --arg hmd "$(cat "$4")" -f "$5" "$2" > "$2.tmp" && mv "$2.tmp" "$2"' \
+            _ "${pkgs.jq}/bin/jq" "$claudeJson" "$linearKey" "$hackmdToken" \
+            "${../../../tools/claude/mcp-servers.jq}"
+        else
+          echo "claudeMcpServers: agenix secrets not decrypted yet, skipping MCP merge (rerun switch)" >&2
+        fi
+      '';
+
       # entryAfter linkGeneration (not just writeBoundary): the import lines
       # must only be appended once the rule files they point at have actually
       # been linked - otherwise a failure later in activation leaves CLAUDE.md
@@ -57,4 +88,10 @@
       '';
     };
   };
+
+  # Token for the hackmd MCP server above. Defined next to its consumer; the
+  # linear keys stay grouped in ../agents.nix with the rest of the agent
+  # secrets. No `path` override: the default agenix dir is where
+  # claudeMcpServers reads it via config.age.secrets.
+  age.secrets.hackmd-api-token.file = ../../../secrets/personal/hackmd-api-token.age;
 }
