@@ -237,6 +237,28 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   `tools/agents/plugins/catalog.json`, not here — a plugin already carries
   its skills, so installing them via nix-skills too would duplicate them
 
+### Managed slices of runtime-mutable Claude config
+
+Claude Code rewrites `~/.claude/settings.json` and `~/.claude.json` at
+runtime, so neither can be a store symlink. Instead
+`home-manager/modules/tools/claude-code.nix` jq-merges managed fragments in
+idempotently at activation, leaving everything it doesn't name alone:
+
+- `tools/claude/settings.json` + `tools/agents/plugins/catalog.json` →
+  `~/.claude/settings.json` (defaults, `skillOverrides`, plugin catalog)
+- `tools/claude/mcp-servers.jq` → `.mcpServers` in `~/.claude.json`:
+  user-scope MCP servers (linear, hackmd). A jq *filter*, not a JSON
+  fragment, so API keys are `--arg`-injected from agenix-decrypted files at
+  activation time and never enter a tracked file or the Nix store.
+  Machine-local servers (e.g. apple-mail) are untouched.
+- Behavioral rules are plain files in `tools/claude/rules/*.md`, linked into
+  `~/.claude/rules/` and imported via appended `@rules/...` lines in the
+  hand-edited `~/.claude/CLAUDE.md`.
+
+The dividing line for MCP: API-key auth (Linear, HackMD) can be fully
+declarative; OAuth surfaces (`claude /login`, connector-style servers) stay a
+per-machine manual step.
+
 ### Configuration Conflicts to Avoid
 
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
@@ -391,6 +413,8 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
+*Last updated: 2026-08-15 - Documented the managed-slice pattern for Claude Code's runtime-mutable config files (settings fragments, the mcp-servers.jq secret-injecting merge into ~/.claude.json, and rules-as-files), added while enforcing HackMD-over-Proof doc publishing and making the linear/hackmd MCP servers declarative*
+
+*2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 
 *2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*
