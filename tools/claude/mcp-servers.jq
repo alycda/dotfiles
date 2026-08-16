@@ -9,10 +9,11 @@
 #
 # linear: Linear's hosted MCP server authenticates with a plain API key in the
 # Authorization header - no OAuth dance - so unlike `claude /login` this needs
-# no manual step after checkout. Uses the WORK account key: it is the only key
-# with existing consumers (see the linear-api-key notes in
-# home-manager/modules/tools/agents.nix); a per-project .mcp.json can still
-# shadow this with the personal key later.
+# no manual step after checkout. Uses the PERSONAL account key: user scope is
+# the machine's ambient identity, and that is the personal account. The work
+# tree keeps work Linear regardless - its project-scope config names the -work
+# key explicitly, and more specific MCP scopes shadow user scope. The flip
+# side: a work repo *without* its own .mcp.json gets personal Linear here.
 .mcpServers = (.mcpServers // {}) + {
   linear: {
     type: "http",

@@ -134,18 +134,14 @@ in
       file = ../../../secrets/work/linear-api-key.age;
     };
 
-    # The personal-account counterpart. Carried, not consumed: nothing reads
-    # ~/.local/share/agenix/linear-api-key-personal today. The `linear` MCP
-    # server lives in the work tree, and both paths that authenticate it - its
-    # headersHelper and that tree's .envrc export of $LINEAR_API_KEY - name the
-    # -work file explicitly. So adding this secret delivers the value without
-    # changing which Linear account any agent talks to.
-    #
-    # Carrying it before there is a consumer is the point. A key that exists
-    # only in a container's runtime dir dies with the container; encrypted here
-    # it survives, and pointing a personal tree at it later is one
-    # $LINEAR_API_KEY_FILE away rather than a trip back to linear.app to mint a
-    # replacement.
+    # The personal-account counterpart. Originally carried without a consumer
+    # (a key living only in a container's runtime dir dies with the container;
+    # encrypted here it survives). The anticipated consumer has since arrived:
+    # the user-scope `linear` MCP server (claudeMcpServers in ./claude-code.nix)
+    # reads this file, making personal Linear the ambient default everywhere.
+    # The work tree still talks to work Linear - its project-scope config
+    # (headersHelper + .envrc) names the -work file explicitly, and more
+    # specific MCP scopes shadow user scope.
     linear-api-key-personal = {
       file = ../../../secrets/personal/linear-api-key.age;
     };

@@ -56,7 +56,7 @@
       # next switch (or rerun) after the agent has mounted completes the merge.
       claudeMcpServers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         claudeJson="$HOME/.claude.json"
-        linearKey="${config.age.secrets.linear-api-key-work.path}"
+        linearKey="${config.age.secrets.linear-api-key-personal.path}"
         hackmdToken="${config.age.secrets.hackmd-api-token.path}"
         if [ -r "$linearKey" ] && [ -r "$hackmdToken" ]; then
           if [ ! -f "$claudeJson" ]; then
