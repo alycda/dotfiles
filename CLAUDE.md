@@ -395,10 +395,20 @@ nix.yml would sit idle on the bot PR. Two compensations:
 nix.yml also triggers on pushes to `automation/flake-update`, so a manual
 fixup commit on a bot PR is re-validated (bot pushes are exempt from that
 trigger; human pushes fire it). Operational notes: the repo setting "Allow
-GitHub Actions to create and approve pull requests" must stay enabled or PR
-creation fails; and a later dispatch force-pushes the branch, superseding
-any still-open update PR — merge or close a pending one first if it must
-not be replaced.
+GitHub Actions to create and approve pull requests" (Settings → Actions →
+General → Workflow permissions) must stay enabled or PR creation fails; and
+a later dispatch force-pushes the branch, superseding any still-open update
+PR — merge or close a pending one first if it must not be replaced.
+
+That setting is the one thing the workflow cannot establish for itself, and
+it is what the first dispatch died on: `permissions: pull-requests: write`
+in a workflow only *narrows* what `GITHUB_TOKEN` may do, so a repo (or
+account) setting that withholds PR creation overrides it, and `gh pr
+create` is refused identically. PR creation is therefore non-fatal — the
+validated lockfile is already pushed by then, so the run dispatches nix.yml
+on the branch anyway and writes a compare link into the job summary before
+failing. Full write-up:
+`docs/solutions/ci-errors/github-actions-not-permitted-to-create-pull-requests.md`
 
 ### Entity diff (informational, non-blocking)
 
@@ -430,7 +440,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
+*Last updated: 2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
+
+*2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
 
 *2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 
