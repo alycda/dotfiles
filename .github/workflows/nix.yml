@@ -2,7 +2,10 @@ name: Nix
 
 on:
   push:
-    branches: [main, master]
+    # automation/flake-update: manual fixup commits on the bot's update-PR
+    # branch get re-validated (the bot's own GITHUB_TOKEN pushes are exempt
+    # from triggering this; update-flake-lock.yml dispatches us instead)
+    branches: [main, master, automation/flake-update]
   pull_request:
   workflow_dispatch:
 
