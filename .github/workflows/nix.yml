@@ -36,5 +36,12 @@ jobs:
       - name: Check flake
         run: nix flake check --all-systems
 
+      # `nix flake check` only evaluates output types it recognizes;
+      # darwinConfigurations and homeConfigurations are skipped as unknown,
+      # so without this step CI never evaluates the configs anyone actually
+      # switches to.
+      - name: Evaluate darwin and home configurations
+        run: ./.github/scripts/eval-configurations.sh
+
       - name: Show flake outputs
         run: nix flake show
