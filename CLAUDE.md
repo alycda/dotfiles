@@ -349,9 +349,18 @@ CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs
 { environment.systemPackages = [ pkgs.git ]; }
 ```
 
-### Check job: `nix flake check --all-systems`
+### Check job: `nix flake check --all-systems` + config evaluation
 
 The flake must evaluate cleanly across all systems. This catches type errors, missing attributes, and evaluation failures.
+
+**`nix flake check` alone does not cover the configs anyone switches to.**
+It only evaluates output types it recognizes; `darwinConfigurations` and
+`homeConfigurations` are skipped with an "unknown flake output" warning, so
+for this flake it exercises just the devShells. The check job therefore also
+runs `.github/scripts/eval-configurations.sh`, which forces each
+configuration's top-level derivation path (`system.drvPath` /
+`activationPackage.drvPath`) — full module evaluation with no builds, which
+is what lets the aarch64-darwin configs be checked on a Linux runner.
 
 ### Running linters locally before pushing
 
@@ -359,7 +368,37 @@ The flake must evaluate cleanly across all systems. This catches type errors, mi
 nix profile install nixpkgs#statix && statix check .
 nix profile install nixpkgs#deadnix && deadnix --fail .
 nix flake check --all-systems
+./.github/scripts/eval-configurations.sh
 ```
+
+### Flake input updates: `update-flake-lock.yml`
+
+`.github/workflows/update-flake-lock.yml` is a manually-triggered
+(`workflow_dispatch`) workflow that runs `nix flake update` — optionally
+scoped to specific inputs via its text field — validates the result, and
+opens a PR on the `automation/flake-update` branch. It exists so lockfile
+updates can be kicked off and validated from anywhere (including the GitHub
+mobile app) without needing a checkout on whichever machine happens to be
+current.
+
+The wrinkle it works around: **PRs created with the default `GITHUB_TOKEN`
+never trigger `pull_request` workflows** (GitHub's anti-recursion rule), so
+nix.yml would sit idle on the bot PR. Two compensations:
+
+1. The workflow runs the full check-job validation *before* creating the
+   PR, so a PR only ever appears for a lockfile that already evaluates.
+2. `workflow_dispatch` is exempt from the anti-recursion rule, so after
+   opening the PR it runs `gh workflow run nix.yml --ref
+   automation/flake-update`, giving the PR real lint/check runs — the "two
+   jobs must pass" rule above holds for bot PRs too.
+
+nix.yml also triggers on pushes to `automation/flake-update`, so a manual
+fixup commit on a bot PR is re-validated (bot pushes are exempt from that
+trigger; human pushes fire it). Operational notes: the repo setting "Allow
+GitHub Actions to create and approve pull requests" must stay enabled or PR
+creation fails; and a later dispatch force-pushes the branch, superseding
+any still-open update PR — merge or close a pending one first if it must
+not be replaced.
 
 ### Entity diff (informational, non-blocking)
 
@@ -391,6 +430,8 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
+*Last updated: 2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
+
+*2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 
 *2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*

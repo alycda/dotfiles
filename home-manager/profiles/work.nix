@@ -19,7 +19,6 @@
     homeDirectory = "/Users/alyssaevans";
 
     packages = with pkgs; [
-      cocoapods # for flutter (to be removed soon)
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
       teleport # kubectl
       cmake
@@ -27,6 +26,12 @@
       openjdk
       # swig - installed via homebrew (locked tap)
       # lazydiff - alpha, not in nixpkgs yet; installed via official script below
+    ]
+    # darwin-only packages: this profile is also alyssa@work-dev on
+    # aarch64-linux (see agentSkills.liveCheckout above), and cocoapods
+    # only supports aarch64-darwin
+    ++ lib.optionals stdenv.hostPlatform.isDarwin [
+      cocoapods # for flutter (to be removed soon)
     ];
 
     # The installer drops the binary in ~/.lazydiff/bin and appends a PATH

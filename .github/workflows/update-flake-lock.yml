@@ -1,0 +1,131 @@
+name: Update flake.lock
+
+# Manually-triggered flake input updates, validated before a PR is opened.
+#
+# PRs created with the default GITHUB_TOKEN never trigger `pull_request`
+# workflows (GitHub's anti-recursion rule), so this workflow compensates
+# twice over:
+#   1. It runs the full validation itself (the same commands as nix.yml's
+#      check job) before creating the PR, so a PR only ever appears for a
+#      lockfile that already evaluates cleanly.
+#   2. After opening the PR it starts nix.yml on the update branch via
+#      `gh workflow run` — workflow_dispatch is exempt from the
+#      anti-recursion rule — so the PR also carries real check runs that
+#      branch protection can consume.
+# nix.yml additionally triggers on direct pushes to automation/flake-update,
+# so a manual fixup commit on the PR branch is re-validated by normal CI
+# (bot pushes don't fire that trigger; human pushes do).
+# (statix/deadnix are skipped here: a lockfile-only commit — enforced via
+# add-paths below — cannot change .nix sources.)
+#
+# Requires the repo setting "Allow GitHub Actions to create and approve
+# pull requests" (Settings → Actions → General); without it the
+# create-pull-request step fails after validation has already run. To run
+# this unattended later, add a `schedule:` trigger — the validation and
+# check-run wiring above are what make that safe.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flake-inputs:
+        description: "Space-separated inputs to update (empty = all, e.g. 'nixpkgs nix-skills')"
+        required: false
+        default: ""
+
+# Serialize runs: a newer dispatch cancels an in-flight one. A later run also
+# force-pushes automation/flake-update, superseding any PR still open from a
+# previous run — merge or close a pending update PR before dispatching a
+# narrower update you don't want replaced.
+concurrency:
+  group: update-flake-lock
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write # lets the last step dispatch nix.yml onto the update branch
+
+jobs:
+  update:
+    name: Update inputs and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Always update against main, regardless of which ref the
+          # workflow_dispatch branch picker happened to be on.
+          ref: main
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update flake inputs
+        env:
+          FLAKE_INPUTS: ${{ inputs.flake-inputs }}
+        run: |
+          set -o pipefail -o noglob
+          # Bare input names/paths only (e.g. 'nixpkgs', 'ragenix/crane').
+          # Reject anything else before it reaches nix: flags like
+          # --override-input could repoint an input at an arbitrary repo,
+          # and globs would expand against repo files.
+          for tok in $FLAKE_INPUTS; do
+            if [[ ! "$tok" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+              echo "::error::not a flake input name: $tok"
+              exit 1
+            fi
+          done
+          # word-splitting is intentional: one arg per input name; with no
+          # names given the expansion is empty and all inputs update
+          # shellcheck disable=SC2086
+          nix flake update $FLAKE_INPUTS 2>&1 | tee "$RUNNER_TEMP/update.log"
+
+      - name: Detect lockfile changes
+        id: diff
+        run: |
+          if git diff --quiet flake.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "All requested inputs are already up to date." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate updated flake
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          nix flake check --all-systems
+          ./.github/scripts/eval-configurations.sh
+          nix flake show
+
+      - name: Write PR body
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "Automated \`nix flake update\`, validated by [this workflow run]($RUN_URL) before the PR was opened. The nix.yml checks on this PR re-run the same validation on the branch itself."
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/update.log"
+            echo '```'
+          } > "$RUNNER_TEMP/pr-body.md"
+
+      - name: Create pull request
+        id: pr
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: main
+          branch: automation/flake-update
+          delete-branch: true
+          add-paths: flake.lock
+          title: "Update flake.lock"
+          body-path: ${{ runner.temp }}/pr-body.md
+          commit-message: |
+            Update flake.lock
+
+            Automated input update from the update-flake-lock workflow.
+
+      - name: Run CI checks on the update branch
+        if: steps.pr.outputs.pull-request-operation != 'none' && steps.pr.outputs.pull-request-operation != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run nix.yml --ref automation/flake-update -R "$GITHUB_REPOSITORY"
