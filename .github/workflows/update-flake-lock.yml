@@ -19,10 +19,14 @@ name: Update flake.lock
 # add-paths below — cannot change .nix sources.)
 #
 # Requires the repo setting "Allow GitHub Actions to create and approve
-# pull requests" (Settings → Actions → General); without it the
-# create-pull-request step fails after validation has already run. To run
-# this unattended later, add a `schedule:` trigger — the validation and
-# check-run wiring above are what make that safe.
+# pull requests" (Settings → Actions → General → Workflow permissions).
+# The very first dispatch of this workflow died on exactly that — the API
+# returns "GitHub Actions is not permitted to create or approve pull
+# requests" — so PR creation is now non-fatal: the validated branch is
+# already pushed at that point, CI still runs on it, and the step summary
+# links straight to the compare page so the update can be opened by hand.
+# To run this unattended later, add a `schedule:` trigger — the validation
+# and check-run wiring above are what make that safe.
 
 on:
   workflow_dispatch:
@@ -111,6 +115,12 @@ jobs:
       - name: Create pull request
         id: pr
         if: steps.diff.outputs.changed == 'true'
+        # Non-fatal: by the time this step can fail, the validated lockfile is
+        # already pushed to automation/flake-update. Aborting the job here would
+        # throw away the CI dispatch below and leave the branch unexplained, so
+        # the run continues and "Report unopened pull request" fails it at the
+        # end with instructions.
+        continue-on-error: true
         uses: peter-evans/create-pull-request@v7
         with:
           base: main
@@ -125,7 +135,43 @@ jobs:
             Automated input update from the update-flake-lock workflow.
 
       - name: Run CI checks on the update branch
-        if: steps.pr.outputs.pull-request-operation != 'none' && steps.pr.outputs.pull-request-operation != ''
+        # 'none' means create-pull-request found the branch and PR already
+        # current, so there is nothing new to check. An empty value means the
+        # step above failed — the branch may still have been pushed before the
+        # failure, and if it was, it deserves check runs like any other; the
+        # ls-remote guard is what tells the two apart.
+        if: steps.diff.outputs.changed == 'true' && steps.pr.outputs.pull-request-operation != 'none'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run nix.yml --ref automation/flake-update -R "$GITHUB_REPOSITORY"
+        run: |
+          if git ls-remote --exit-code --heads origin automation/flake-update >/dev/null; then
+            gh workflow run nix.yml --ref automation/flake-update -R "$GITHUB_REPOSITORY"
+          else
+            echo "::notice::automation/flake-update was never pushed; no checks to dispatch."
+          fi
+
+      - name: Verify the update PR is open
+        # Ask GitHub rather than trusting the step above, because two distinct
+        # paths end with a pushed branch and no PR: the creation call being
+        # refused, and a re-dispatch finding the branch already current
+        # ('none'), where create-pull-request skips PR creation entirely and
+        # would otherwise leave the run green with nothing to review.
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMPARE_URL: ${{ github.server_url }}/${{ github.repository }}/compare/main...automation/flake-update?expand=1
+          SETTINGS_URL: ${{ github.server_url }}/${{ github.repository }}/settings/actions
+        run: |
+          if [ -n "$(gh pr list -R "$GITHUB_REPOSITORY" --head automation/flake-update \
+                       --state open --json number --jq '.[].number')" ]; then
+            exit 0
+          fi
+          echo "::error::Lockfile validated and pushed, but no pull request is open for it — see the job summary."
+          {
+            echo "## Lockfile validated — pull request not opened"
+            echo
+            echo "The updated \`flake.lock\` passed the full check-job validation and is pushed to \`automation/flake-update\`. Only the PR itself is missing, so **nothing is lost**: [open the pull request by hand]($COMPARE_URL)."
+            echo
+            echo "If the step log says *\"GitHub Actions is not permitted to create or approve pull requests\"*, tick **Allow GitHub Actions to create and approve pull requests** under [Settings → Actions → General]($SETTINGS_URL), in the Workflow permissions section. A greyed-out checkbox means the same switch is off at the account level (Settings → Actions → General), which overrides the per-repo one."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
