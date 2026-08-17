@@ -45,6 +45,28 @@
       include.path = "${config.home.homeDirectory}/.local/share/agenix/git-config";
       init.defaultBranch = "main";
       push.autoSetupRemote = true;
+
+      # `gh auth login` stores its token in ~/.config/gh/hosts.yml for gh's own
+      # use; it never teaches git anything. Without a helper, an https push
+      # falls through to git's username/password prompt - which GitHub disabled
+      # for git operations in 2021 - so a green `gh auth status` sits right next
+      # to a failing `git push`. Observed in the dev container (2026-08-17)
+      # pushing from a colocated jj repo: `jj git push` shells out to git and
+      # inherits the same empty credential config, so it fails identically.
+      #
+      # `gh auth setup-git` is the usual fix and is the wrong tool here. It
+      # writes with --global, which resolves through the home-manager symlink
+      # into a /nix/store path. The write lands (the store is writable in the
+      # container image) and is then silently reverted by the next activation -
+      # a working push that stops working after a rebuild, with no error saying
+      # why. Config home-manager owns has to come from home-manager.
+      #
+      # Absolute store path rather than a bare `gh`: git runs the helper with
+      # whatever PATH it inherited, and the nix profile is not on PATH in every
+      # non-interactive context. gh is already in lib/core-packages.nix, so
+      # naming it here costs nothing in the closure.
+      credential."https://github.com".helper = "!${pkgs.gh}/bin/gh auth git-credential";
+      credential."https://gist.github.com".helper = "!${pkgs.gh}/bin/gh auth git-credential";
     };
   };
 }
