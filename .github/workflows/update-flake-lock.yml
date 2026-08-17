@@ -1,0 +1,125 @@
+name: Update flake.lock
+
+# Manually-triggered flake input updates, validated before a PR is opened.
+#
+# Why validate inside this workflow instead of relying on the PR's own CI:
+# PRs created with the default GITHUB_TOKEN do not trigger `pull_request`
+# workflows (GitHub's anti-recursion rule), so nix.yml would sit idle on the
+# bot PR. Running `nix flake check --all-systems` here means a PR only ever
+# appears once the updated lockfile already evaluates cleanly — the whole
+# point is knowing an update is safe before spending time on a machine.
+# (statix/deadnix are skipped: a lock update never touches .nix sources.)
+
+on:
+  workflow_dispatch:
+    inputs:
+      flake-inputs:
+        description: "Space-separated inputs to update (empty = all, e.g. 'nixpkgs nix-skills')"
+        required: false
+        default: ""
+  # Opt in to unattended updates by uncommenting:
+  # schedule:
+  #   - cron: '0 6 * * 1'  # Mondays 06:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    name: Update inputs and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update flake inputs
+        env:
+          FLAKE_INPUTS: ${{ inputs.flake-inputs }}
+        run: |
+          if [ -n "$FLAKE_INPUTS" ]; then
+            # word-splitting is intentional: one arg per input name
+            # shellcheck disable=SC2086
+            nix flake update $FLAKE_INPUTS
+          else
+            nix flake update
+          fi
+
+      - name: Detect lockfile changes
+        id: diff
+        run: |
+          if git diff --quiet flake.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "All requested inputs are already up to date." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Summarize input changes
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          python3 - "$RUNNER_TEMP/pr-body.md" <<'EOF'
+          import json, subprocess, sys
+
+          old = json.loads(subprocess.check_output(["git", "show", "HEAD:flake.lock"], text=True))
+          new = json.load(open("flake.lock"))
+
+          def locked(lock, name):
+              node = lock["nodes"]["root"]["inputs"].get(name)
+              if not isinstance(node, str):
+                  return None
+              return lock["nodes"].get(node, {}).get("locked")
+
+          lines = [
+              "Automated `nix flake update`, already validated in the update "
+              "workflow with `nix flake check --all-systems` before this PR "
+              "was opened.",
+              "",
+              "| Input | Change |",
+              "|-------|--------|",
+          ]
+          for name in sorted(new["nodes"]["root"]["inputs"]):
+              o, n = locked(old, name), locked(new, name)
+              if not o or not n or o == n:
+                  continue
+              orev, nrev = o.get("rev", "?")[:10], n.get("rev", "?")[:10]
+              change = f"`{orev}` → `{nrev}`"
+              if o.get("type") == "github" and n.get("type") == "github" and o.get("repo") == n.get("repo"):
+                  url = f"https://github.com/{n['owner']}/{n['repo']}/compare/{o['rev']}...{n['rev']}"
+                  change = f"[{change}]({url})"
+              lines.append(f"| `{name}` | {change} |")
+
+          lines += [
+              "",
+              "_Note: this PR was opened with `GITHUB_TOKEN`, so the regular "
+              "`pull_request` CI does not start automatically. Validation "
+              "already ran in the update workflow; close and reopen the PR "
+              "if you want the nix.yml checks to run here too._",
+          ]
+
+          body = "\n".join(lines) + "\n"
+          with open(sys.argv[1], "w") as f:
+              f.write(body)
+          print(body)
+          EOF
+          cat "$RUNNER_TEMP/pr-body.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate updated flake
+        if: steps.diff.outputs.changed == 'true'
+        run: nix flake check --all-systems
+
+      - name: Create pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/flake-update
+          delete-branch: true
+          title: "Update flake.lock"
+          body-path: ${{ runner.temp }}/pr-body.md
+          commit-message: |
+            Update flake.lock
+
+            Automated input update from the update-flake-lock workflow,
+            validated with `nix flake check --all-systems` before the PR
+            was opened.
