@@ -1,0 +1,25 @@
+# television cable channel: browse Claude Code memory files.  Usage: `tv claude`
+#
+# One rg sweep over $HOME with restrictive include globs:
+#   CLAUDE*.md                        - project memory (CLAUDE.md, CLAUDE.local.md)
+#                                       and user memory (~/.claude/CLAUDE.md)
+#   **/.claude/rules/**, skills/**    - rules and skills content, user-level
+#                                       (~/.claude/) or per-project (.claude/)
+#   **/.claude/{memory,memories}/**   - Claude's auto-memory folders, both the
+#                                       user-level ~/.claude/memory and any
+#                                       per-project .claude/memory directory
+# --hidden is required (everything under a .claude dir is inside a dotdir);
+# --no-ignore-vcs keeps gitignored files visible (CLAUDE.local.md is usually
+# gitignored). The exclusions prune the traversal-heavy noise directories so
+# results start streaming quickly. rg is used rather than fd because ripgrep
+# is already in core-packages (fzf.nix leans on it the same way).
+[metadata]
+name = "claude"
+description = "Browse Claude Code memory files (CLAUDE.md, rules, skills, memory folders)"
+requirements = ["rg", "bat"]
+
+[source]
+command = "rg --files --hidden --no-ignore-vcs -g 'CLAUDE*.md' -g '**/.claude/rules/**' -g '**/.claude/skills/**' -g '**/.claude/{memory,memories}/**' -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/.cache/**' ~ 2>/dev/null"
+
+[preview]
+command = "bat --color=always {}"

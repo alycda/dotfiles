@@ -27,6 +27,7 @@
   xdg.configFile = {
     # "television/cable/jj-log.toml".source = ../../../tools/television/cable/jj-log.toml; # unverified
     "television/cable/cheat.toml".source = ../../../tools/television/cable/cheat.toml;
+    "television/cable/claude.toml".source = ../../../tools/television/cable/claude.toml;
     # "television/cable/sqlite.toml".source = ../../../tools/television/cable/sqlite.toml; # unverified
     # "television/cable/postgres.toml".source = ../../../tools/television/cable/postgres.toml; # unverified
     # "television/cable/redis.toml".source = ../../../tools/television/cable/redis.toml; # unverified
