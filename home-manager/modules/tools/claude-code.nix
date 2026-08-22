@@ -3,9 +3,13 @@
 # config that must exist identically on every machine.
 #
 # ~/.claude/CLAUDE.md itself stays hand-edited (not yet canonicalized into this
-# repo), so managed rules live as separate files under ~/.claude/rules/ and are
-# pulled in via CLAUDE.md's @import syntax. The activation script idempotently
-# ensures the import line exists.
+# repo), so managed rules live as separate files under ~/.claude/rules/. That
+# directory is user-scope: Claude Code discovers every .md in it and loads it
+# into every session on this machine, with no @import line anywhere. Rules that
+# should only load for matching files carry `paths:` frontmatter instead.
+#
+# The agent-instruction layers are a separate mechanism (@import lines in a
+# managed block at the top of CLAUDE.md) - see ./agents.nix.
 { lib, pkgs, ... }:
 {
   home = {
@@ -34,19 +38,15 @@
           "${../../../tools/agents/plugins/catalog.json}"
       '';
 
-      # entryAfter linkGeneration (not just writeBoundary): the import line must
-      # only be appended once the rule file it points at has actually been
-      # linked - otherwise a failure later in activation leaves CLAUDE.md
-      # importing a file that doesn't exist (observed on the dotfiles-ci VM,
-      # 2026-07-02).
-      claudeOutboundCommentGate = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-        claudeMd="$HOME/.claude/CLAUDE.md"
-        importLine="@rules/outbound-comment-gate.md"
-        if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
-          run mkdir -p "$HOME/.claude"
-          run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"
-        fi
-      '';
+      # No activation entry appends "@rules/outbound-comment-gate.md" to
+      # CLAUDE.md any more. User-level rules in ~/.claude/rules/ load into
+      # every session on their own - Claude Code discovers the directory, no
+      # import needed - so the appended line loaded the same file a second
+      # time. The append predates user-level rules support.
+      #
+      # The stale line is removed from existing CLAUDE.md files by the sync
+      # script in ./agents.nix, which strips it along with the other legacy
+      # bare imports.
     };
   };
 }
