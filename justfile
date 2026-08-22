@@ -113,3 +113,35 @@ agents-capsule:
 [group('agents')]
 agents-copy:
     just agents-capsule | pbcopy && echo "Copied agent capsule to clipboard"
+
+# Resolve the age identity ragenix needs, or explain how to get one. Extracted
+# so edit-secret and rekey-secrets share one answer to "where is the key".
+_age-identity:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    key="${RAGENIX_IDENTITY:-$HOME/.age/personal-key.txt}"
+    if [ ! -f "$key" ]; then
+      echo "No age identity at $key" >&2
+      echo "Copy it from a machine that has it, e.g.:" >&2
+      echo "  docker cp ~/.age/personal-key.txt <container>:/root/.age/personal-key.txt" >&2
+      exit 1
+    fi
+    echo "$key"
+
+# Edit an age-encrypted secret, e.g. `just edit-secret personal/git-config.age`
+[group('secrets')]
+edit-secret path:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # ragenix's CLI reads neither our Nix config nor the rules' location. It
+    # hunts for SSH keys in ~/.ssh (which the dev container doesn't have) and
+    # defaults --rules to ./secrets.nix (ours lives in secrets/), so both flags
+    # are needed on every invocation. Forgetting -i surfaces as "No usable
+    # identity", which reads like a lost key rather than a missing flag. The
+    # identity path matches age.identityPaths in home-manager/modules/git.nix;
+    # keep the two in step.
+    key="$(just _age-identity)"
+    # Recipes run from the repo root, so accept the path as typed from either
+    # here ('secrets/personal/x.age') or from inside secrets/ ('personal/x.age').
+    rel="{{ path }}"
+    exec ragenix --rules secrets/secrets.nix -i "$key" -e "secrets/${rel#secrets/}"
