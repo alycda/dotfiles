@@ -47,11 +47,11 @@ private overlay authoritative on conflict.
   `path` — the plaintext lives in the agenix runtime dir, **not** the Nix store,
 - creates Claude include symlinks under `~/.claude/includes/` pointing at the
   `~/.agents/` paths (out-of-store symlinks, so decryption/edits flow through one
-  place),
-- idempotently appends the `@includes/agents-*.md` imports to
-  `~/.claude/CLAUDE.md` so Claude actually loads the layers — the *distilled*
-  constitution, not the full one (and removes the stale full-constitution
-  import a previous generation may have appended),
+  place), including `agents-entrypoint.md` → `~/.agents/AGENTS.md`,
+- rewrites a marker-delimited managed block at the top of `~/.claude/CLAUDE.md`
+  holding the `@includes/agents-*.md` imports in precedence order, so Claude
+  actually loads the layers — the *distilled* constitution, not the full one.
+  Everything outside the markers stays hand-edited and is preserved verbatim,
 - generates the critic subagents under `~/.claude/agents/` — persona files
   canonical in `tools/agents/*-critic.md`, judged-against material appended
   as layers — so full rubrics load on demand instead of always:
@@ -83,15 +83,23 @@ Decryption on a machine requires the private identity at
 
 ## Surface integration
 
-- **Claude Code.** Managed — no manual step. Activation idempotently appends
-  these local imports (never a URL) to `~/.claude/CLAUDE.md`, after the
-  include symlinks exist (same pattern as the outbound-comment gate):
+- **Claude Code.** Managed — no manual step. **Claude Code reads `CLAUDE.md`
+  and has no `AGENTS.md` fallback**, so the entrypoint has to be bridged
+  explicitly. Activation rewrites this block at the top of
+  `~/.claude/CLAUDE.md`, after the include symlinks exist:
 
   ```md
-  @includes/agents-company-values.md
+  <!-- BEGIN managed: agents overlay -->
+  @includes/agents-entrypoint.md
+  @includes/agents-preferred-tooling.md
   @includes/agents-personal-constitution-distilled.md
   @includes/agents-instructions.private.md
+  <!-- END managed: agents overlay -->
   ```
+
+  Order is precedence: the entrypoint first, the private overlay last.
+  `agents-company-values.md` is not listed because `AGENTS.md` imports
+  `~/.agents/company-values.md` itself; listing it here would load it twice.
 
   The full constitution loads on demand instead: ask Claude to run the
   `constitution-critic` agent against a plan, PR, or decision.
