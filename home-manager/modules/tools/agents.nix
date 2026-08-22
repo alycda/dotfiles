@@ -57,6 +57,24 @@ let
     mkdir -p "$(dirname "$md")"
     [ -f "$md" ] || : > "$md"
 
+    # The awk strip below treats everything after BEGIN as managed until it
+    # sees END, so an unpaired marker would silently swallow the hand-edited
+    # remainder of the file. The markers are invisible HTML comments in a file
+    # meant to be hand-edited, and README.md shows both of them in a fenced
+    # block that is easy to paste - assume they will get mangled eventually.
+    #
+    # Skip rather than fail: a mangled marker is not a reason to abort an
+    # otherwise good activation, and whatever imports are already in the file
+    # keep working until the markers are repaired.
+    begins=$(grep -c '^<!-- BEGIN managed: agents overlay' "$md" || :)
+    ends=$(grep -c '^<!-- END managed: agents overlay' "$md" || :)
+    if [ "$begins" != "$ends" ] || [ "$begins" -gt 1 ]; then
+      echo "claude-md-sync: refusing to rewrite $md" >&2
+      echo "  found $begins BEGIN and $ends END markers, expected one of each" >&2
+      echo "  (or none). Rewriting now would delete hand-edited content." >&2
+      exit 0
+    fi
+
     tmp=$md.hm-sync.$$
     trap 'rm -f "$tmp"' EXIT
 
