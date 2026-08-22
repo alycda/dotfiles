@@ -21,10 +21,20 @@ mkdir -p "$(dirname "$log")" || exit 0
 
 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-{
-	printf '{"ts":"%s","event":' "$ts"
-	tr -d '\n'
-	printf '}\n'
-} >>"$log" 2>/dev/null || exit 0
+# Read the event before writing anything. Three separate writes sharing one
+# O_APPEND fd could interleave - InstructionsLoaded fires repeatedly per
+# session and async:true means invocations overlap - and an empty stdin used
+# to emit {"ts":"...","event":} , which is not JSON: one such record makes the
+# whole log unreadable to `jq -c .`, not just that line.
+event=$(tr -d '\n')
+
+# Only an object is worth logging. Anything else means the payload was not
+# what this expects, and a guess would be the garbage the log must not hold.
+case $event in
+	'{'*) ;;
+	*) exit 0 ;;
+esac
+
+printf '{"ts":"%s","event":%s}\n' "$ts" "$event" >>"$log" 2>/dev/null || exit 0
 
 exit 0
