@@ -104,21 +104,18 @@ ARG HM_PROFILE
 
 # Build the HM generation and root it at a stable path (GC-safe).
 # "path:" forces the path fetcher - the image has no git for the git fetcher.
-# The chosen profile is recorded at /opt/hm-profile for the entrypoint, and
-# the matching container-env doc is baked in as Claude's user-level memory so
-# it applies regardless of which project is mounted at /work. At runtime
-# /root/.claude is a volume (claude-home) that shadows the baked copy, so the
-# entrypoint re-copies it on every start to keep it current; this seed covers
-# a fresh volume and runs without the claude-home mount.
+# The chosen profile is recorded at /opt/hm-profile for the entrypoint.
+#
+# The per-arch container-env doc is NOT copied here. It ships inside the
+# generation as ~/.claude/rules/container-env.md (home-manager/profiles/dev.nix
+# selects the arch), which Claude Code loads into every session regardless of
+# which project is mounted at /work. Putting it in the generation means the
+# claude-home volume can't shadow a stale copy and the entrypoint has nothing
+# to re-copy - the doc updates exactly when the generation does.
 RUN arch="$(uname -m)" \
  && profile="${HM_PROFILE:-$(case "$arch" in aarch64) echo 'alyssa@dev';; *) echo 'alyssa@dev-x86';; esac)}" \
  && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
- && echo "$profile" > /opt/hm-profile \
- && mkdir -p /root/.claude \
- && case "$arch" in \
-      aarch64) cp /opt/dotfiles/docker/CLAUDE-arm64.md /root/.claude/CLAUDE.md ;; \
-      *)       cp /opt/dotfiles/docker/CLAUDE.md       /root/.claude/CLAUDE.md ;; \
-    esac
+ && echo "$profile" > /opt/hm-profile
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 
