@@ -76,7 +76,9 @@ let
     fi
 
     tmp=$md.hm-sync.$$
-    trap 'rm -f "$tmp"' EXIT
+    # $md.new too: on ENOSPC the group write below fails, set -e aborts before
+    # the mv, and a partial file would otherwise sit next to CLAUDE.md forever.
+    trap 'rm -f "$tmp" "$md.new"' EXIT
 
     # Strip the previous managed block, plus any bare import line an
     # append-era generation left behind. Everything else is hand-edited.
