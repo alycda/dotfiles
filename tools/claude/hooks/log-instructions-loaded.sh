@@ -19,6 +19,16 @@ set -eu
 log="${XDG_STATE_HOME:-$HOME/.local/state}/claude/instructions-loaded.jsonl"
 mkdir -p "$(dirname "$log")" || exit 0
 
+# Roll at 1 MiB, keeping one previous file. This appends several records per
+# session and lives on a persistent volume; cleanupPeriodDays sweeps session
+# transcripts, not this. One generation back is enough - the log answers "what
+# loaded recently", and anything older has been superseded by an activation.
+# -f first: redirecting from a missing file is a *shell* error, which 2>/dev/null
+# on wc would not have suppressed - it printed on every fresh log.
+if [ -f "$log" ] && [ "$(wc -c <"$log")" -ge 1048576 ]; then
+	mv -f "$log" "$log.1" 2>/dev/null || :
+fi
+
 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # Read the event before writing anything. Three separate writes sharing one
