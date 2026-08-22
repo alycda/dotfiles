@@ -122,8 +122,15 @@ _age-identity:
     key="${RAGENIX_IDENTITY:-$HOME/.age/personal-key.txt}"
     if [ ! -f "$key" ]; then
       echo "No age identity at $key" >&2
-      echo "Copy it from a machine that has it, e.g.:" >&2
-      echo "  docker cp ~/.age/personal-key.txt <container>:/root/.age/personal-key.txt" >&2
+      if [ -n "${RAGENIX_IDENTITY:-}" ]; then
+        # Don't send someone to the default path when their own override is
+        # what's pointing at nothing — following that hint would change nothing.
+        echo "That path came from \$RAGENIX_IDENTITY; unset it to fall back to" >&2
+        echo "~/.age/personal-key.txt." >&2
+      else
+        echo "Copy it from a machine that has it, e.g.:" >&2
+        echo "  docker cp ~/.age/personal-key.txt <container>:/root/.age/personal-key.txt" >&2
+      fi
       exit 1
     fi
     echo "$key"
