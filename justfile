@@ -144,7 +144,11 @@ edit-secret path:
     # Recipes run from the repo root, so accept the path as typed from either
     # here ('secrets/personal/x.age') or from inside secrets/ ('personal/x.age').
     rel="{{ path }}"
-    exec ragenix --rules secrets/secrets.nix -i "$key" -e "secrets/${rel#secrets/}"
+    # $EDITOR is a required argument that merely defaults from the environment,
+    # so an unset EDITOR fails with a clap usage dump rather than anything
+    # actionable — exactly the confusion this recipe exists to prevent.
+    exec ragenix --rules secrets/secrets.nix -i "$key" \
+      --editor "${EDITOR:-hx}" -e "secrets/${rel#secrets/}"
 
 # Re-encrypt every secret for the recipients in secrets/secrets.nix
 [group('secrets')]
