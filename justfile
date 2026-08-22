@@ -142,8 +142,17 @@ edit-secret path:
     # keep the two in step.
     key="$(just _age-identity)"
     # Recipes run from the repo root, so accept the path as typed from either
-    # here ('secrets/personal/x.age') or from inside secrets/ ('personal/x.age').
-    rel="{{ path }}"
+    # here ('secrets/personal/x.age') or from inside secrets/ ('personal/x.age'),
+    # and tolerate the './' and absolute forms a shell completion will hand you.
+    # quote() matters: just interpolation is raw text substitution, so an
+    # unquoted path with a space or a ';' would be re-parsed as shell source.
+    rel={{ quote(path) }}
+    rel="${rel#./}"
+    rel="${rel#"$PWD/"}"
+    # No existence check here on purpose: `ragenix -e` on a path that doesn't
+    # exist yet is how a *new* secret gets created. Letting it through means
+    # ragenix's own rules check is the gate, which also catches a file that
+    # exists but was never added to secrets.nix.
     # $EDITOR is a required argument that merely defaults from the environment,
     # so an unset EDITOR fails with a clap usage dump rather than anything
     # actionable — exactly the confusion this recipe exists to prevent.
