@@ -145,3 +145,11 @@ edit-secret path:
     # here ('secrets/personal/x.age') or from inside secrets/ ('personal/x.age').
     rel="{{ path }}"
     exec ragenix --rules secrets/secrets.nix -i "$key" -e "secrets/${rel#secrets/}"
+
+# Re-encrypt every secret for the recipients in secrets/secrets.nix
+[group('secrets')]
+rekey-secrets:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    key="$(just _age-identity)"
+    ragenix --rules secrets/secrets.nix -i "$key" --rekey
