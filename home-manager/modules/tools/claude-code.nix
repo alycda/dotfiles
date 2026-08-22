@@ -13,8 +13,20 @@
 { lib, pkgs, ... }:
 {
   home = {
-    file.".claude/rules/outbound-comment-gate.md".source =
-      ../../../tools/claude/rules/outbound-comment-gate.md;
+    file = {
+      ".claude/rules/outbound-comment-gate.md".source =
+        ../../../tools/claude/rules/outbound-comment-gate.md;
+
+      # Audit log for which instruction files load, when, and why. Wired to the
+      # InstructionsLoaded event by tools/claude/settings.json, which references
+      # this path. `executable` because home.file links store copies in 0444 by
+      # default and a non-executable hook fails with a shell 127 that Claude
+      # Code reports as a non-blocking error - easy to miss.
+      ".claude/hooks/log-instructions-loaded.sh" = {
+        source = ../../../tools/claude/hooks/log-instructions-loaded.sh;
+        executable = true;
+      };
+    };
 
     activation = {
       # Managed slices of ~/.claude/settings.json. The file itself is
@@ -26,6 +38,14 @@
       #    desired plugin state, never a committed ~/.claude/plugins cache.
       #    Claude Code fetches declared marketplaces and installs enabled
       #    plugins itself on next startup.
+      #
+      # jq's `*` merges objects recursively but *replaces* every non-object,
+      # arrays included. So a hook event named in tools/claude/settings.json
+      # owns that event outright: anything under the same key in the live file
+      # is dropped on activation. Other events are untouched. Declaring a hook
+      # here is therefore a claim of ownership, not an addition - which is the
+      # behaviour we want for managed config, but means a hook added through
+      # the UI under a managed event will not survive.
       claudeManagedSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         settings="$HOME/.claude/settings.json"
         run mkdir -p "$HOME/.claude"
