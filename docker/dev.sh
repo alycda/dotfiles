@@ -24,6 +24,8 @@ usage: dev.sh <command>
   run [dir]      start the container, mounting dir (default: current
                  directory) at /work. devhome + claude-home volumes persist
                  nix/jj/ssh state and Claude auth across --rm
+  exec [ctr]     open a second shell in a container already started by `run`,
+                 forwarding $TERM (default: the newest one from this image)
   up [ref]       build then run the current directory
 
 env overrides: REPO_URL (default: https://github.com/alycda/dotfiles.git)
@@ -56,20 +58,15 @@ in_foreground() {
 # terminal". The controlling terminal is still reachable as /dev/tty in that
 # case (the pipeline runs in a terminal; only fd 0 was taken), so borrow it for
 # the container instead of demanding the caller reshape their command line.
-run_container() {
-  dir="${1:-$PWD}"
-  set -- --rm \
-    -v devhome:/root \
-    -v claude-home:/root/.claude \
-    -v "$dir":/work -w /work \
-    --network host \
-    "$IMAGE"
-
+#
+# "$@" is the complete docker argv - subcommand, -it and all - so this serves
+# `run` and `exec` alike.
+attach_tty() {
   if in_foreground; then
     if [ -t 0 ]; then
-      exec docker run -it "$@"
+      exec docker "$@"
     elif (true </dev/tty) 2>/dev/null; then
-      exec docker run -it "$@" </dev/tty
+      exec docker "$@" </dev/tty
     fi
   fi
 
@@ -80,7 +77,7 @@ run_container() {
   #
   # The command below is rendered from the same "$@" the exec branches use, so
   # it cannot drift from the real invocation. It did drift once, when
-  # --network host was added above and the hand-written copy here kept the old
+  # --network host was added below and the hand-written copy here kept the old
   # flag list.
   hint=
   for arg in "$@"; do
@@ -91,10 +88,57 @@ run_container() {
   done
   cat >&2 <<USAGE
 dev.sh: no terminal available, so the container's shell has nothing to attach to.
-The image is built; start it from an interactive terminal with:
-  docker run -it$hint
+Run this from an interactive terminal instead:
+  docker$hint
 USAGE
   exit 1
+}
+
+run_container() {
+  dir="${1:-$PWD}"
+  attach_tty run -it --rm \
+    -v devhome:/root \
+    -v claude-home:/root/.claude \
+    -v "$dir":/work -w /work \
+    --network host \
+    "$IMAGE"
+}
+
+# Second shell into the container that `run` started.
+#
+# `-e TERM` is the point of this existing at all. A plain `docker exec` builds
+# its environment from the image, not from the terminal you typed the command
+# into, so TERM is unset and the container falls back to `xterm` - a 1980s
+# description that silently mis-renders everything a modern terminal does
+# (alt-screen, scrollback, 256 colors, modified arrow keys). Forwarding the
+# host's TERM is the other half of shipping a terminfo database; issue #116 was
+# both halves missing at once, and neither half is any use alone.
+#
+# Falls back to xterm-256color rather than to nothing when the caller has no
+# TERM (a cron job, an editor's task runner): still a guess, but a guess that
+# matches what the container can actually do.
+#
+# The container is found by image, since `run` deliberately doesn't --name it
+# (that would cap you at one). Pass a name or id to pick a specific one.
+exec_container() {
+  target="${1:-}"
+  if [ -z "$target" ]; then
+    target=$(docker ps -q --filter "ancestor=$IMAGE" | head -n 1)
+  fi
+  if [ -z "$target" ]; then
+    cat >&2 <<USAGE
+dev.sh: no running container found for image '$IMAGE'.
+Start one with:  dev.sh run
+...or name an already-running container:  dev.sh exec <name-or-id>
+USAGE
+    exit 1
+  fi
+
+  # Same guarded launch as the image's CMD: zsh comes from the home-manager
+  # profile, and if activation failed it does not exist. Dropping to bash keeps
+  # the container's own recovery instructions reachable.
+  attach_tty exec -it -e TERM="${TERM:-xterm-256color}" "$target" \
+    sh -c 'if command -v zsh >/dev/null 2>&1; then exec zsh -l; else exec bash -l; fi'
 }
 
 cmd="${1:-}"
@@ -109,6 +153,9 @@ case "$cmd" in
     ;;
   run)
     run_container "${1:-$PWD}"
+    ;;
+  exec)
+    exec_container "${1:-}"
     ;;
   up)
     docker build -t "$IMAGE" "$REPO_URL${1:+#$1}"

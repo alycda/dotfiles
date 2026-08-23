@@ -89,6 +89,11 @@ docker-build:
 docker-run dir=invocation_directory():
     ./docker/dev.sh run {{dir}}
 
+# Open a second shell in the running dev container, forwarding $TERM
+[group('docker')]
+docker-exec container="":
+    ./docker/dev.sh exec {{container}}
+
 # Assemble the combined agent instruction capsule (public layers + local overlay)
 [group('agents')]
 agents-capsule:
