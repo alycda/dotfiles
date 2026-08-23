@@ -38,6 +38,52 @@ passes `-m`.
 
 ---
 
+## Revset syntax changes in v0.44 — these fail confusingly
+
+Two revset behaviours changed. Neither produces an error that points at the real
+cause, and both spellings appear throughout older notes.
+
+### The `all:` modifier is gone
+
+A multi-commit revset passed to `-d`/`--onto` used to need an explicit `all:` prefix
+to confirm "yes, I meant more than one commit". In v0.44 the prefix is a parse error,
+and the message blames the colon rather than the modifier:
+
+```
+$ jj rebase -r done -d 'all:heads(parents(done))'
+Error: Failed to parse revset: `:` is not an infix operator
+Hint: Did you mean `::` for DAG range?
+```
+
+The hint is a red herring — nothing here wants a DAG range. Drop the prefix; a bare
+revset resolving to several commits is now accepted on its own:
+
+```
+jj rebase -r done -d 'heads(parents(done))'
+```
+
+### `description()` matches exactly, not as a substring
+
+`description("foo")` is an **exact** match in v0.44. A miss returns the empty set
+with exit status 0 — no error, no warning — so a script capturing it into a variable
+gets an empty string and fails later, somewhere unrelated.
+
+The exact form also fails when the description looks correct, because jj stores
+descriptions with a trailing newline:
+
+```
+description("oops")            -> <empty>
+description(exact:"branch-b")  -> <empty>   # the description IS "branch-b"
+description(substring:"oops")  -> nkylquwn
+description(glob:"*oops*")     -> nkylquwn
+```
+
+**Use `substring:` or `glob:` for descriptions.** The bare form only matches if you
+supply the entire description including its newline, which in practice never happens.
+
+---
+
+
 ## The `--destination` → `--onto` rename (still just an alias)
 
 The destination flag for `jj rebase`, `jj split`, and `jj revert` is canonically
