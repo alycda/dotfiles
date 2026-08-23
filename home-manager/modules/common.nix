@@ -25,6 +25,7 @@ in
     ./tools/starship.nix
     ./tools/television.nix
     ./git.nix
+    ./jujutsu.nix
   ];
 
   home = {

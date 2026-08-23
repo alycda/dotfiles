@@ -118,6 +118,7 @@ dotfiles/
 │   ├── modules/
 │   │   ├── common.nix      # Shared across all profiles (no GUI)
 │   │   ├── git.nix
+│   │   ├── jujutsu.nix     # jj config.toml + identity from the git-config secret
 │   │   ├── dev/            # Language tooling modules
 │   │   │   ├── nix-lang.nix
 │   │   │   └── rust.nix
@@ -248,6 +249,12 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
    - **`lib.hiPrio`** — only for collisions *within* home-manager's own closure; it cannot reach across nix-env profile elements
 
    A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
+
+5. **Tools that write their own config**: once home-manager owns a config file, that file is a symlink into `/nix/store`, and the tool's own "save this setting for me" command becomes a trap. Two instances so far, both silent rather than loud:
+   - `gh auth setup-git` writes `--global`, which resolves through the symlink; the write lands and the next activation reverts it (see `home-manager/modules/git.nix`)
+   - `jj config set --user` defaults to `config.toml` — the symlink — and follows it into the store, where the devcontainer's root user can write. Success is reported; the next activation reverts it (see `home-manager/modules/jujutsu.nix`)
+
+   The fix is the same both times: put the setting in the module. Where a tool supports a drop-in directory (`~/.config/jj/conf.d/`, loaded after `config.toml`), that is the place for machine-local one-offs home-manager should not own.
 
 ## Migration Workflow
 
@@ -440,7 +447,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
+*Last updated: 2026-08-23 - Made jj's user config declarative (`home-manager/modules/jujutsu.nix`), with identity derived at activation from the same agenix git-config secret git uses; recorded the "tools that write their own config" trap it shares with `gh auth setup-git`*
+
+*2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 
 *2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
 
