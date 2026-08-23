@@ -14,7 +14,7 @@ description: >
   ancestor commit without `jj edit` (which would let auto-tracking pollute the
   ancestor) — uses `jj restore --from @ --to <new>` instead of squash, with a
   `jj restore --from 'root()'` fix for any delete/modify conflicts downstream.
-  Pinned to jj v0.43.
+  Pinned to jj v0.44.
 allowed-tools: Bash(jj *), Bash(git log *), Bash(git status), Read, Edit
 ---
 
