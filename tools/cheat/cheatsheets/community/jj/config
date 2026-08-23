@@ -1,2 +1,24 @@
-jj config set --user user.name "$(git config --get user.name)"
-jj config set --user user.email "$(git config --get user.email)"
+# jj's user config is declarative: home-manager/modules/jujutsu.nix renders
+# ~/.config/jj/config.toml from the Nix store, so it comes back after a
+# container rebuild instead of needing the old `jj config set --user` ritual
+# (which now writes into a read-only store path and does not stick).
+
+# Show every config value and which layer it came from
+jj config list --include-defaults
+jj config path --user
+
+# Identity comes from the encrypted git config, translated into
+# ~/.config/jj/conf.d/10-identity.toml at home-manager activation. Change it
+# in one place:
+just edit-secret personal/git-config.age
+
+# Persistent settings: add them to programs.jujutsu.settings in
+# home-manager/modules/jujutsu.nix, then re-activate.
+home-manager switch --flake .#alyssa@dev   # or darwin-rebuild switch --flake .#ditto
+
+# Machine-local one-offs home-manager does not own. conf.d/*.toml loads after
+# config.toml (lexicographic order), so these win.
+$EDITOR ~/.config/jj/conf.d/99-local.toml
+
+# One command only, no file involved
+jj --config ui.diff-formatter=:color-words diff
