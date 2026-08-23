@@ -57,6 +57,24 @@ it is:
 - If activation instead complains about age/agenix, the ragenix identity is
   missing - the entrypoint prints the `docker cp` recovery command.
 
+## Terminal
+
+Terminal capability lives in the profile now, not in the image's FHS paths
+(which `nixos/nix` leaves empty): `ncurses` plus `ghostty.terminfo` are in
+`home.packages`, and `TERMINFO_DIRS` points at
+`~/.nix-profile/share/terminfo`. `infocmp` and `tic` are on `PATH`, so a
+terminal question is answerable rather than guessable.
+
+The other half is the `TERM` *value*: `docker exec` inherits nothing from the
+host terminal, so a bare `docker exec` lands on ncurses' `xterm` fallback and
+mis-renders quietly - wrong colors, broken alt-screen and scrollback,
+Ctrl/Shift+arrow arriving as escape garbage. Use `./docker/dev.sh exec` (or
+`just docker-exec`), which forwards `$TERM`. If rendering still looks wrong,
+check `echo $TERM` and `infocmp -1 "$TERM"` before blaming tmux - that
+misattribution is what made issue #116 take a while. Never paste a
+`/nix/store/...-ncurses-*/share/terminfo` path into `TERMINFO_DIRS` as a fix;
+it works until the next ncurses bump or GC.
+
 ## Host notes
 
 - The host macOS user may be non-admin: don't suggest `sudo`, Homebrew

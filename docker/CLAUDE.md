@@ -100,6 +100,24 @@ fix is (a) `cargo install --locked` on the host (works: jj, just, rustledger), o
 Inside the container, Linux software is NOT capped — current Node, Rust, Claude
 Code, etc. all run fine. That's the point of the container.
 
+## Terminal
+
+Terminal capability lives in the profile now, not in the image's FHS paths
+(which `nixos/nix` leaves empty): `ncurses` plus `ghostty.terminfo` are in
+`home.packages`, and `TERMINFO_DIRS` points at
+`~/.nix-profile/share/terminfo`. `infocmp` and `tic` are on `PATH`, so a
+terminal question is answerable rather than guessable.
+
+The other half is the `TERM` *value*: `docker exec` inherits nothing from the
+host terminal, so a bare `docker exec` lands on ncurses' `xterm` fallback and
+mis-renders quietly - wrong colors, broken alt-screen and scrollback,
+Ctrl/Shift+arrow arriving as escape garbage. Use `./docker/dev.sh exec` (or
+`just docker-exec`), which forwards `$TERM`. If rendering still looks wrong,
+check `echo $TERM` and `infocmp -1 "$TERM"` before blaming tmux - that
+misattribution is what made issue #116 take a while. Never paste a
+`/nix/store/...-ncurses-*/share/terminfo` path into `TERMINFO_DIRS` as a fix;
+it works until the next ncurses bump or GC.
+
 ## Host editing setup
 
 - Host terminal is Warp; editing happens via VS Code 1.97.2 + Remote Containers on

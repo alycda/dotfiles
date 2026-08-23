@@ -16,6 +16,11 @@
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
 #   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work --network host dev
+# Second (third, nth) shell into a container that is already running:
+#   ./docker/dev.sh exec          # or: just docker-exec
+# ...rather than a hand-written `docker exec -it <ctr> zsh`, which starts a
+# session with no TERM and silently drops you to the `xterm` fallback. dev.sh
+# forwards yours; see the TERM entry under Troubleshooting.
 #
 # Optional extras for the run command (append before the image name):
 #   SSH agent forwarding (Docker Desktop for Mac):
@@ -79,6 +84,23 @@
 #     new package, decide by asking whether home-manager needs to *provide* the
 #     program or only configure it. See
 #     docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md
+#   colors, scrollback, alt-screen, or Ctrl/Shift+arrow are mangled - TERM, not
+#     tmux, and not cmux either (that misattribution is what made issue #116
+#     take a while). Two independent halves, both were missing:
+#     (a) the entries. `nixos/nix` populates none of the FHS paths ncurses
+#         searches (/etc/terminfo, /lib/terminfo, /usr/share/terminfo), so a
+#         container built before #116 has no terminfo database reachable at all
+#         - ncurses is in the closure only as a transitive dep. Rebuild the
+#         image to pick up the profile-level ncurses + ghostty.terminfo in
+#         home-manager/profiles/dev.nix. Check:
+#           echo $TERMINFO_DIRS                     # ~/.nix-profile/share/terminfo
+#           ls ~/.nix-profile/share/terminfo/x/ | grep xterm-256color
+#     (b) the TERM value. `docker exec` inherits nothing from your terminal, so
+#         TERM is unset and ncurses falls back to `xterm`. Use ./docker/dev.sh
+#         exec (passes -e TERM="$TERM"). Check, inside the container:
+#           echo $TERM && infocmp -1 "$TERM" >/dev/null && echo ok
+#     Do NOT "fix" this by exporting a /nix/store/...-ncurses-6.6/share/terminfo
+#     path: it works, and it dies at the next ncurses bump or GC.
 #   container starts, prompt looks perfect, but claude/jj/rg are "command not
 #     found" - this is NOT a PATH problem. It is a failed activation: file
 #     linking runs before package installation, so the dotfiles land and

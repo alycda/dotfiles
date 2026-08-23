@@ -249,6 +249,27 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
 
    A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
 
+   The `hiPrio` remedy has a live instance now, and it is worth knowing as the
+   contrast: `ncurses` and `ghostty.terminfo` both provide
+   `share/terminfo/g/ghostty` (#116). Both are things *we* asked for, so the
+   comparison happens inside home-manager's own `buildEnv` - which reads
+   `meta.priority` - and fails at *build* time with a different message
+   (`pkgs.buildEnv error: two given paths contain a conflicting subpath`). The
+   three above fail one layer up, at activation, when nix-env unions
+   `home-manager-path` with the base image's profile, where there is no
+   priority to compare. Similar-sounding errors, different layers; work out
+   which before picking a remedy.
+
+5. **Terminal capability in the container**: the `nixos/nix` image populates
+   none of the FHS paths ncurses is compiled to search, so the dev profile
+   installs `ncurses` (+ `ghostty.terminfo`) and sets `TERMINFO_DIRS` to
+   `${config.home.profileDirectory}/share/terminfo`. Point it at the profile,
+   never at a `/nix/store/...-ncurses-*` path - the latter works right up until
+   the next bump or `nix-collect-garbage`. Note ncurses has no `terminfo`
+   output; its database is in `$out/share/terminfo`, so plain `pkgs.ncurses` is
+   what you want (`pkgs.ncurses.terminfo` is an eval error, not a fallback).
+   Full write-up: `docs/solutions/runtime-errors/container-ships-no-terminfo-term-falls-back-to-xterm.md`
+
 ## Migration Workflow
 
 When migrating changes from experimental branches:
@@ -440,7 +461,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
+*Last updated: 2026-08-23 - Recorded the container terminfo fix (#116): why terminal capability is a profile-level concern rather than a devShell one, that `pkgs.ncurses` has no `terminfo` output, and the `ncurses`/`ghostty.terminfo` overlap as the first in-closure collision `lib.hiPrio` actually resolves*
+
+*2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 
 *2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
 
