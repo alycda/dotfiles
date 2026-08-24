@@ -64,7 +64,20 @@ and both copies have a fully populated database:
 
 But they're there as transitive dependencies of stdenv and the shell, and a transitive dependency's *data files* are not part of the user environment — only the libraries other packages link against. Meanwhile nixpkgs builds ncurses with `--with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo:/run/current-system/sw/share/terminfo`, deliberately, so a binary doesn't hard-depend on a store path for its terminal data. Every one of those four is an FHS or NixOS path, and the `nixos/nix` image populates none of them. The compiled-in search list is complete and every entry on it is empty.
 
-**2. `TERM` is never sent.** `docker exec` builds the new session's environment from the image, not from the terminal you typed the command into. Nothing sets `TERM`, so ncurses uses its built-in `xterm` fallback — a description of a terminal from the 1980s, which is a proper subset of what any modern emulator does. That's the "silently degrades" part: `xterm` is a *valid* description, so nothing errors. It just describes far less than the terminal on the other end can do.
+**2. `TERM` is wrong — and it is docker, not an omission, that makes it wrong.** The intuitive story is "nothing sets `TERM`, so ncurses falls back to `xterm`". That is not what happens, and the difference matters when you go looking for it. Docker *supplies* `TERM=xterm` whenever it allocates a tty, on `docker run -it` and `docker exec -it` alike:
+
+```go
+// moby, container.CreateDaemonEnvironment
+if tty {
+    env = append(env, "TERM=xterm")
+}
+...
+env = ReplaceOrAppendEnvValues(env, container.Config.Env)
+```
+
+So `echo $TERM` shows a plausible value rather than an empty line, which is why this reads as a deliberate setting rather than a hole. The `ReplaceOrAppendEnvValues` on the end is the lever: anything passed with `-e` is layered over the default, so `-e TERM="$TERM"` wins. `docker exec` runs the same function and then layers the *container's* config env on top, so a `run` that set `TERM` correctly also fixes every later hand-written `docker exec` into that container.
+
+Either way the result is the same shape of failure: `xterm` is a *valid* description, so nothing errors. It just describes far less than the terminal on the other end can do.
 
 ## Solution
 
@@ -81,11 +94,16 @@ sessionVariables = {
 };
 ```
 
-**...and forward `TERM` on the way in** (`docker/dev.sh exec`, `just docker-exec`):
+**...and forward `TERM` on the way in** — on `run` *and* `exec` (`docker/dev.sh`, `just docker-run` / `just docker-exec`):
 
 ```sh
-docker exec -it -e TERM="${TERM:-xterm-256color}" "$target" ...
+CONTAINER_TERM="${TERM:-xterm-256color}"
+
+docker run  -it -e TERM="$CONTAINER_TERM" ... "$IMAGE"
+docker exec -it -e TERM="$CONTAINER_TERM" "$target" ...
 ```
+
+Both, not just `exec`. The container's *primary* shell — the one you spend the day in — is a `docker run -it`, and it takes docker's `xterm` exactly like an exec does. Fixing only the second-and-later shells leaves #116's symptoms in the first one.
 
 Verify both halves inside the container:
 
@@ -125,9 +143,9 @@ Ghostty's entry winning the tie is also correct on the merits: ncurses' `ghostty
 
 ## Verified
 
-Against nixpkgs-unstable, x86_64-linux, outside the container (the flake's own
-`homeConfiguration` could not be evaluated here — no network access to the
-home-manager input — so this exercises the mechanism, not the activation):
+Against nixpkgs-unstable, x86_64-linux, outside the container. This exercises
+the mechanism, not the activation — the flake's own `homeConfiguration` was
+evaluated separately, by CI's `eval-configurations.sh` on the PR:
 
 - `pkgs.ncurses.outputs == [ "out" "dev" "man" ]`, `pkgs.ncurses ? terminfo == false`
 - `pkgs.ghostty.terminfo` substitutes on its own: 24 KB, `x/xterm-ghostty` + `g/ghostty`
@@ -135,6 +153,7 @@ home-manager input — so this exercises the mechanism, not the activation):
 - `buildEnv [ ncurses ghostty.terminfo ]` fails with the conflicting-subpath error above
 - `buildEnv [ ncurses (hiPrio ghostty.terminfo) ]` builds; `g/ghostty` resolves to ghostty's copy, `x/xterm-256color` to ncurses'
 - with `TERMINFO_DIRS=<env>/share/terminfo`, `infocmp -1 xterm-ghostty` and `infocmp -1 xterm-256color` both resolve
+- the `TERM=xterm` default is read straight from moby's `CreateDaemonEnvironment`, which is also where `ReplaceOrAppendEnvValues` shows `-e` overriding it
 
 ## Related
 
