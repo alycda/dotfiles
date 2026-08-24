@@ -14,6 +14,28 @@ set -eu
 REPO_URL="${REPO_URL:-https://github.com/alycda/dotfiles.git}"
 IMAGE="${IMAGE:-dev}"
 
+# The TERM to hand the container, used by both `run` and `exec`.
+#
+# Docker does not leave TERM unset when it allocates a tty - it supplies
+# `TERM=xterm` itself, for run and exec alike (moby: CreateDaemonEnvironment
+# appends TERM=xterm when tty, and the caller's -e values are layered on top,
+# so an explicit -e TERM wins). That is what makes issue #116 silent rather
+# than loud: `xterm` is a real, valid description, just a 1980s one, and every
+# capability a modern terminal adds on top of it - alt-screen, scrollback, 256
+# colors, modified arrow keys - is simply absent rather than an error.
+#
+# So the choice is never "TERM or nothing", it is "your terminal or a 1980s
+# one". Forwarding it is the other half of shipping a terminfo database;
+# neither half is any use alone.
+#
+# Setting it on `run` also fixes a bare `docker exec` afterwards: exec layers
+# the container's own config env over that same xterm default, so whatever
+# `run` was given is what a hand-written exec inherits.
+#
+# xterm-256color when the caller has no TERM (cron, CI, an editor's task
+# runner): still a guess, but one the container can honour.
+CONTAINER_TERM="${TERM:-xterm-256color}"
+
 usage() {
   cat <<'USAGE'
 usage: dev.sh <command>
@@ -24,9 +46,12 @@ usage: dev.sh <command>
   run [dir]      start the container, mounting dir (default: current
                  directory) at /work. devhome + claude-home volumes persist
                  nix/jj/ssh state and Claude auth across --rm
-  exec [ctr]     open a second shell in a container already started by `run`,
-                 forwarding $TERM (default: the newest one from this image)
+  exec [ctr]     open a second shell in a container already started by `run`
+                 (default: the newest one from this image)
   up [ref]       build then run the current directory
+
+run and exec both forward $TERM into the container. Without it docker
+substitutes TERM=xterm and every TUI renders subtly wrong (issue #116).
 
 env overrides: REPO_URL (default: https://github.com/alycda/dotfiles.git)
                IMAGE    (default: dev)
@@ -97,6 +122,7 @@ USAGE
 run_container() {
   dir="${1:-$PWD}"
   attach_tty run -it --rm \
+    -e TERM="$CONTAINER_TERM" \
     -v devhome:/root \
     -v claude-home:/root/.claude \
     -v "$dir":/work -w /work \
@@ -104,26 +130,34 @@ run_container() {
     "$IMAGE"
 }
 
-# Second shell into the container that `run` started.
+# Find the container `run` started. It deliberately has no --name (that would
+# cap you at one), so it is found by image instead - and that takes two lookups,
+# because neither is right alone:
 #
-# `-e TERM` is the point of this existing at all. A plain `docker exec` builds
-# its environment from the image, not from the terminal you typed the command
-# into, so TERM is unset and the container falls back to `xterm` - a 1980s
-# description that silently mis-renders everything a modern terminal does
-# (alt-screen, scrollback, 256 colors, modified arrow keys). Forwarding the
-# host's TERM is the other half of shipping a terminfo database; issue #116 was
-# both halves missing at once, and neither half is any use alone.
+#   ancestor=  resolves the reference to the image id it points at *now*. After
+#              a rebuild, a container still running from the previous build no
+#              longer matches - and rebuild-while-running is exactly the
+#              documented flake-update workflow ("rebuild the image and keep the
+#              devhome volume"), so this is the common case, not the exotic one.
+#   .Image     is the reference recorded on the container at creation, which
+#              survives the rebuild - but is an image id, not a name, for a
+#              container started from an untagged build.
 #
-# Falls back to xterm-256color rather than to nothing when the caller has no
-# TERM (a cron job, an editor's task runner): still a guess, but a guess that
-# matches what the container can actually do.
-#
-# The container is found by image, since `run` deliberately doesn't --name it
-# (that would cap you at one). Pass a name or id to pick a specific one.
+# Unioned, in `docker ps` order, so "newest" still means newest.
+find_containers() {
+  ancestors=$(docker ps --filter "ancestor=$IMAGE" --format '{{.ID}}' 2>/dev/null || true)
+  docker ps --format '{{.ID}} {{.Image}}' 2>/dev/null | awk -v img="$IMAGE" -v ids="$ancestors" '
+    BEGIN { n = split(ids, a, "\n"); for (k = 1; k <= n; k++) if (a[k] != "") anc[a[k]] = 1 }
+    ($1 in anc) || $2 == img || $2 == img ":latest" { print $1 }
+  '
+}
+
+# Second shell into a container `run` already started. See CONTAINER_TERM above
+# for why -e TERM is the point of this existing at all.
 exec_container() {
   target="${1:-}"
   if [ -z "$target" ]; then
-    target=$(docker ps -q --filter "ancestor=$IMAGE" | head -n 1)
+    target=$(find_containers | head -n 1)
   fi
   if [ -z "$target" ]; then
     cat >&2 <<USAGE
@@ -137,7 +171,7 @@ USAGE
   # Same guarded launch as the image's CMD: zsh comes from the home-manager
   # profile, and if activation failed it does not exist. Dropping to bash keeps
   # the container's own recovery instructions reachable.
-  attach_tty exec -it -e TERM="${TERM:-xterm-256color}" "$target" \
+  attach_tty exec -it -e TERM="$CONTAINER_TERM" "$target" \
     sh -c 'if command -v zsh >/dev/null 2>&1; then exec zsh -l; else exec bash -l; fi'
 }
 
