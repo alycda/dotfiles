@@ -1,1 +1,2 @@
 cargo … -vvv --color=always |& grep -v Running | grep -e '' -e Dirty
+# Runnable: just -g cargo-dirty <cargo args>

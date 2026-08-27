@@ -4,6 +4,7 @@ pkgs: with pkgs; [
   asciinema
   gawk
   bat
+  clock-rs # `just -g clock` runs on every machine class, not just the ditto mac
   codecrafters-cli
   # curl + file: ubiquitous CLI primitives; also the runtime deps the
   # here.now agent-skill's publish.sh shells out to (alongside jq).
