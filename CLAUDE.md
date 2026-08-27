@@ -260,7 +260,17 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
    priority to compare. Similar-sounding errors, different layers; work out
    which before picking a remedy.
 
-5. **Terminal capability in the container**: the `nixos/nix` image populates
+5. **System-level shell config reaches every account**: anything under
+   `programs.zsh.*` in nix-darwin is written to `/etc/zshrc` / `/etc/zshenv`,
+   which every user on the machine reads - including a non-admin account with
+   no Nix, no home-manager, and no way to opt out. `brew shellenv` there puts
+   the admin's `/opt/homebrew` on their `FPATH`, and nix-darwin's global
+   `compinit` then prompts them about it on every login. Write system-level
+   shell config for the account that owns the least, not for the one running
+   `darwin-rebuild`. Full write-up:
+   `docs/solutions/runtime-errors/zsh-compinit-prompts-every-non-admin-login.md`
+
+6. **Terminal capability in the container**: the `nixos/nix` image populates
    none of the FHS paths ncurses is compiled to search, so the dev profile
    installs `ncurses` (+ `ghostty.terminfo`) and sets `TERMINFO_DIRS` to
    `${config.home.profileDirectory}/share/terminfo`. Point it at the profile,
@@ -462,6 +472,8 @@ This document should evolve as patterns emerge. When you:
 ---
 
 *Last updated: 2026-08-23 - Recorded the container terminfo fix (#116): why terminal capability is a profile-level concern rather than a devShell one, that `pkgs.ncurses` has no `terminfo` output, and the `ncurses`/`ghostty.terminfo` overlap as the first in-closure collision `lib.hiPrio` actually resolves*
+
+*2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
 
 *2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 

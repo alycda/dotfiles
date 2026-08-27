@@ -121,7 +121,9 @@ FROM nixos/nix:latest
 
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 
-# Outside /root so a mounted home volume can never shadow the flake
+# Outside /root so a mounted home volume can never shadow the flake. This layer
+# is the cache key for the nix build below, so .dockerignore keeps everything
+# the flake does not read (docs, .git/.jj, editor config) out of the context.
 COPY . /opt/dotfiles
 
 # The profile is picked by asking the build container itself (uname -m), NOT

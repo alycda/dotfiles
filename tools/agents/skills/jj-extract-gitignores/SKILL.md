@@ -14,7 +14,7 @@ description: >
   ancestor commit without `jj edit` (which would let auto-tracking pollute the
   ancestor) — uses `jj restore --from @ --to <new>` instead of squash, with a
   `jj restore --from 'root()'` fix for any delete/modify conflicts downstream.
-  Pinned to jj v0.43.
+  Pinned to jj v0.44.
 allowed-tools: Bash(jj *), Bash(git log *), Bash(git status), Read, Edit
 ---
 
@@ -140,7 +140,11 @@ After processing all originals, show Alyssa:
   movement.)
 - Does not create sibling commits off the target. Siblings conflict at squash time
   when multiple of them append to the same end-of-file position. The whole point of
-  this skill is to avoid that failure mode.
+  this skill is to avoid that failure mode. This is not a `.gitignore` quirk — it is
+  true of any append-only file (changelogs, `SUMMARY.md`), and it applies to merges
+  as much as to squashes. The general rule, the anchor-line workaround, and why that
+  workaround only relocates the problem are in the jujutsu skill's
+  `references/merge-surgery.md`.
 - Does not retroactively untrack files that match the new ignores. The patterns become
   effective from the new in-between commit forward, but files already tracked in earlier
   commits stay tracked. If Alyssa wants to remove a file from history too, that's a

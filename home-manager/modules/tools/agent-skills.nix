@@ -62,6 +62,19 @@ in
       # this one covers what to write when a change becomes a commit.
       ".claude/skills/commit-craft".source = skillSource "commit-craft";
 
+      # brag-doc — extract promo-packet-ready impact entries from raw work
+      # notes (five fixed categories + aggregate rollups). Pairs with
+      # failure-doc below: its Learning Log holds summary lines pointing at
+      # full failure-doc entries.
+      ".claude/skills/brag-doc".source = skillSource "brag-doc";
+
+      # failure-doc — capture failures as deliberate-learning records (the
+      # failure was load-bearing). Cross-references brag-doc for entries that
+      # are also brag-eligible, so the two ship together here. Planned to also
+      # be packaged standalone in Alycda/ffi-workshop later; this copy stays
+      # canonical for the home environment.
+      ".claude/skills/failure-doc".source = skillSource "failure-doc";
+
       # External skills from skills.sh (see lib/skills-sh.nix for pinning).
       # Note: compound-engineering is deliberately NOT installed this way -
       # it's already a Claude Code plugin via the catalog (#65), and its 38
