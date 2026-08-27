@@ -21,4 +21,4 @@ git am my-patch.patch
 git apply my-patch.patch
 
 # --
-# https://git-scm.com/docs/git-format-patch
+# see https://git-scm.com/docs/git-format-patch or `man git format-patch`
