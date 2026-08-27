@@ -249,6 +249,16 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
 
    A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
 
+5. **System-level shell config reaches every account**: anything under
+   `programs.zsh.*` in nix-darwin is written to `/etc/zshrc` / `/etc/zshenv`,
+   which every user on the machine reads - including a non-admin account with
+   no Nix, no home-manager, and no way to opt out. `brew shellenv` there puts
+   the admin's `/opt/homebrew` on their `FPATH`, and nix-darwin's global
+   `compinit` then prompts them about it on every login. Write system-level
+   shell config for the account that owns the least, not for the one running
+   `darwin-rebuild`. Full write-up:
+   `docs/solutions/runtime-errors/zsh-compinit-prompts-every-non-admin-login.md`
+
 ## Migration Workflow
 
 When migrating changes from experimental branches:
@@ -440,7 +450,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
+*Last updated: 2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
+
+*2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 
 *2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
 

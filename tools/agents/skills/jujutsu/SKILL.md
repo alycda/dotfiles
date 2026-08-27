@@ -6,7 +6,7 @@ description: >
   fetch, rebase, history rewriting, file tracking, and `.gitignore` changes. Especially
   trigger before creating new files, running builds, or editing `.gitignore`, since jj
   auto-snapshots everything and retroactive cleanup is expensive if not done right. Pinned
-  to jj v0.43. Raw `git` commands in a non-colocated jj repo can corrupt state, so always
+  to jj v0.44. Raw `git` commands in a non-colocated jj repo can corrupt state, so always
   reach for this skill first when she mentions jj, jujutsu, change IDs, revsets, bookmarks,
   or anything VCS-shaped in a jj repo — even if she just says "commit this" or "what's
   the status," because in a jj repo those words mean different operations.
@@ -19,9 +19,9 @@ Alyssa uses Jujutsu (jj) as her daily-driver VCS in colocated mode (both `.jj/` 
 `.git/` present). This skill teaches Claude to operate in jj repos without reaching for
 git muscle memory.
 
-**Pinned version:** jj v0.43. The canonical destination flag for `rebase`, `split`, and
+**Pinned version:** jj v0.44. The canonical destination flag for `rebase`, `split`, and
 `revert` is `--onto`/`-o` (`--destination`/`-d` survives as an alias). Two flags older
-tutorials use are **gone** in v0.43: `jj git push --allow-new` (use `--named
+tutorials use are **gone** in v0.44: `jj git push --allow-new` (use `--named
 <name>=<rev>`) and `jj describe --edit`. See `references/version-notes.md` for the full
 delta.
 
@@ -451,6 +451,48 @@ absorb's heuristic can be wrong.
 
 ---
 
+## Merges and Fans
+
+When history converges on a merge commit rather than running in a line, three rules
+carry most of the weight. Full recipes and the verification behind them live in
+`references/merge-surgery.md`.
+
+**Add to one branch of a merge with `--insert-after`, naming the branch tip.**
+It rewrites exactly one parent edge and leaves the others byte-identical.
+
+```
+jj new --insert-after <branch-tip> -m "message"
+jj rebase -r <existing-change> --insert-after <branch-tip>   # splice one in later
+```
+
+Do NOT reach for `--insert-before <the-merge>`: the new commit absorbs every parent
+and becomes the octopus, and the original merge degrades to a single-parent child.
+
+**Use `-s`, not `-r`, when giving a commit a second parent.**
+
+```
+jj rebase -s <commit> -d <parent1> -d <parent2>
+```
+
+`-r` moves the commit alone and reparents its **descendants onto its old parent**,
+which detaches every link below it. Down a long chain this silently recomputes
+content against the wrong ancestor — the tell is a file checksum that moves and
+conflicts appearing far from the edit. Recover with `jj op restore`, not more rebases.
+
+**jj never drops redundant merge parents.** Collapse fan branches into a chain and
+the merge keeps all its old edges, including ones now ancestors of another parent.
+Clean up explicitly:
+
+```
+jj rebase -r <merge> -d 'heads(parents(<merge>))'
+```
+
+**Append-only files (`.gitignore`, changelogs) cannot be built by sibling merges** —
+every sibling claims the same end-of-file offset and the merge conflicts. A linear
+chain gives each commit a distinct offset and merges cleanly. See the reference for
+the anchor-line workaround and why it only relocates the problem.
+
+
 ## Bookmarks and Pushing
 
 ### Bookmarks aren't branches
@@ -462,7 +504,7 @@ stays where it was. You must move it explicitly before pushing.
 ```
 jj bookmark create my-feature -r @          # create at @
 jj bookmark move   my-feature --to @         # move to @
-jj bookmark advance                           # move the closest bookmark(s) to @ (v0.43)
+jj bookmark advance                           # move the closest bookmark(s) to @ (v0.44)
 jj bookmark list                              # show bookmarks
 jj bookmark delete my-feature                 # delete (commits stay)
 jj bookmark track <name>@<remote>             # track a remote bookmark
@@ -578,7 +620,14 @@ keep this file under context budget.
   translate a specific git workflow Alyssa describes, or when she asks "how do I do
   <git operation> in jj?"
 
-- **`references/version-notes.md`** — jj v0.43-specific behavior: flags removed since
+- **`references/merge-surgery.md`** — Fan-shaped history: adding a commit to one
+  branch of a merge, `-r` vs `-s` when creating a merge, dropping redundant merge
+  parents, why append-only files conflict under sibling merges, and why octopus
+  merges render as an empty diff. Load when working in a repo whose history
+  converges on merge commits, or when a merge conflicts for no obvious reason.
+
+
+- **`references/version-notes.md`** — jj v0.44-specific behavior: flags removed since
   the tutorials were written (`--allow-new`, `describe --edit`), the
   `--destination`/`-d` → `--onto`/`-o` rename, current config-key names, and the
   migration notes that matter for muscle memory. Load when commands are erroring
