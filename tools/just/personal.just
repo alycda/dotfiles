@@ -1,14 +1,9 @@
-# clock-rs is installed system-level on the ditto machine (darwin/profiles/ditto.nix)
+# clock-rs ships everywhere via lib/core-packages.nix
 [group('personal')]
 clock:
     clock-rs --fmt="%A, %Y-%m-%d" -t
 
-[group('personal')]
-home-vpn:
-    sudo /opt/homebrew/opt/openvpn/sbin/openvpn --config ~/Downloads/Firewalla.ovpn
-
-# render markdown (defaults to cwd; pass a file to render one). glow is
-# always installed (lib/core-packages.nix) since main's glow promotion.
+# render markdown from cwd or a given file (glow ships via core-packages)
 [group('personal')]
 md *args:
     glow {{args}}
