@@ -5,6 +5,11 @@ pkgs: with pkgs; [
   gawk
   bat
   codecrafters-cli
+  # charmbracelet's terminal agent CLI. UNFREE (FSL-1.1-MIT): needs
+  # allowUnfree wherever this list is evaluated (mkHome and darwin already
+  # set it; flake.nix devShells sets it for this), and cache.nixos.org has
+  # no binaries for unfree packages, so first eval compiles it from source.
+  crush
   # curl + file: ubiquitous CLI primitives; also the runtime deps the
   # here.now agent-skill's publish.sh shells out to (alongside jq).
   curl

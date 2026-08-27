@@ -25,4 +25,10 @@ in
   # reliably survive the trip into a commit.
   "work/linear-api-key.age".publicKeys = [ alyssa ];
   "personal/linear-api-key.age".publicKeys = [ alyssa ];
+
+  # Venice API key for crush (see cheat crush/venice). Committed value is an
+  # encrypted PLACEHOLDER string, not a real key - replace in place with
+  # `agenix -e secrets/personal/venice-api-key.age` before wiring it into
+  # home-manager. Armored, like the linear keys above.
+  "personal/venice-api-key.age".publicKeys = [ alyssa ];
 }
