@@ -1,0 +1,27 @@
+# codex 0.145+ speaks the Responses wire natively, and casper's /v1/responses
+# supports tools - NO LiteLLM bridge.
+
+# CASPER_API_KEY is never committed, not even encrypted.
+export CASPER_API_KEY=<mint a token for casper>
+
+# To run codex against casper without touching ~/.codex/config.toml
+# (provider passed entirely via -c overrides):
+codex exec \
+  -c model_providers.casper.name=Casper \
+  -c model_providers.casper.base_url="https://casper/v1" \
+  -c model_providers.casper.env_key=CASPER_API_KEY \
+  -c model_providers.casper.wire_api=responses \
+  -c model_providers.casper.request_max_retries=10 \
+  -c model_providers.casper.stream_max_retries=10 \
+  -c model_provider=casper \
+  -m "${CASPER_MODEL:?pick an id from casper /v1/models}" \
+  "prompt"
+
+# To list model ids for CASPER_MODEL:
+curl -s -H "Authorization: Bearer $CASPER_API_KEY" \
+  https://casper/v1/models | jq -r '.data[].id'
+
+# casper rate-limits per token window, and codex's seconds-scale backoff
+# can't outlast it. On a 429 death, cool down
+# (~10m), then resume the same session with context intact:
+codex exec resume --last "continue from where you left off"

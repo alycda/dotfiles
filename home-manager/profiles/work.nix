@@ -22,6 +22,11 @@
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
       teleport # kubectl
       cmake
+      # LiteLLM bridge for Claude Code -> casper (Anthropic Messages -> OpenAI 
+      # chat/completions translation). Only claude needs it: codex speaks 
+      # casper's Responses wire natively, and crush<->venice is 
+      # OpenAI-compatible end to end. See cheat claude/casper.
+      litellm
       # flutter - managed by puro (manually installed)
       openjdk
       # swig - installed via homebrew (locked tap)

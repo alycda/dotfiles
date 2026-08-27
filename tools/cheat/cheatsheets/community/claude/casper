@@ -1,0 +1,24 @@
+# Bridge locally with LiteLLM (config: casper-litellm.yaml):  claude -> 127.0.0.1:4400/v1/messages -> casper /v1/chat/completions
+
+# The LiteLLM config reads it via os.environ/ so it never touches disk.
+export CASPER_API_KEY=<mint a token>
+
+# To start the bridge (litellm is in the work/ditto home-manager profile;
+# on machines without it, substitute `nix run nixpkgs#litellm --`):
+litellm --config casper-litellm.yaml --port 4400
+
+# To point claude at the bridge - model tiers via env, NOT --model (claude
+# validates --model against known Anthropic IDs and rejects casper's):
+export ANTHROPIC_BASE_URL="http://127.0.0.1:4400"
+export ANTHROPIC_AUTH_TOKEN="casper-litellm-local"  # bridge holds the real key
+export ANTHROPIC_DEFAULT_OPUS_MODEL="${CASPER_MODEL:-auto}"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="${CASPER_MODEL:-auto}"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="${CASPER_MODEL:-auto}"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+export MAX_THINKING_TOKENS=0  # thinking blocks replayed in history 400 on casper
+
+# To launch (strict MCP so a repo's .mcp.json can't blow the model's context):
+claude --strict-mcp-config
+
+# Expect the "claude.ai connectors are disabled" warning - the bridge
+# credential overrides the claude.ai login; .mcp.json servers still load.
