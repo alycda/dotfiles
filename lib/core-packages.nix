@@ -9,6 +9,7 @@ pkgs: with pkgs; [
   # here.now agent-skill's publish.sh shells out to (alongside jq).
   curl
   file
+  glow # https://github.com/charmbracelet/glow
   eza
   ripgrep
   jujutsu
