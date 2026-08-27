@@ -21,6 +21,7 @@ in
     ./tools/claude-code.nix
     ./tools/fzf.nix
     ./tools/gh-dash.nix
+    ./tools/git-worktree-clone.nix
     ./tools/helix.nix
     ./tools/starship.nix
     ./tools/television.nix
