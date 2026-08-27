@@ -65,4 +65,14 @@
       '';
     };
   };
+
+  # The ditto-worktree agent recipes as just's GLOBAL justfile: run with
+  # `just -g <recipe>` from the workspace they expect. Verified (just 1.58):
+  # -g recipes execute with the invocation directory as cwd and dotenv-load
+  # reads the cwd's .env, so relative paths behave as if the justfile were
+  # local to the workspace. The justfile imports siblings (recipes/*.just),
+  # so the config entry is a one-line shim importing the store copy of
+  # tools/just by absolute path - the justfile's own relative imports then
+  # resolve inside that directory (also verified empirically).
+  xdg.configFile."just/justfile".text = "import '${../../tools/just}/ditto-worktree.justfile'";
 }
