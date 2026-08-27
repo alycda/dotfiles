@@ -1,0 +1,62 @@
+# Logseq keyboard shortcuts (defaults; mod = cmd on macOS, ctrl elsewhere)
+# `g s` opens the live, authoritative list. Rebind in config.edn :shortcuts.
+
+## Navigation (chords, only when the editor is NOT focused)
+g h   home                 g j   journals            g a   all pages
+g g   graph view           g w   whiteboards         g s   shortcuts
+g t   tomorrow             g n   next journal        g p   prev journal
+g f   flashcards           g shift+g  all graphs
+mod+[ / mod+]              back / forward
+mod+k                      search
+mod+shift+k                search in page
+mod+shift+p                command palette
+
+## Toggles
+t r   right sidebar        t l   left sidebar        t t   theme
+t d   document mode        t w   wide mode           t s   settings
+t o   open/close all blocks               t n   numbered list
+t c   flashcards           t p   plugins             t i   theme colour
+shift+/                    keyboard help
+c t                        close top sidebar item
+mod+shift+j                open today in the sidebar (alt+shift+j on Linux/Win)
+
+## Editing
+enter / shift+enter        new block / new line inside the block
+tab / shift+tab            indent / outdent
+mod+enter                  cycle TODO marker
+mod+z / mod+shift+z        undo / redo
+mod+b  mod+i               bold / italics
+mod+shift+h                highlight
+mod+shift+s                strikethrough
+mod+l                      insert link
+mod+o                      follow link under cursor
+mod+shift+o                open link in right sidebar
+mod+e                      copy block embed
+mod+shift+v                paste as plain text into one block
+mod+shift+r                replace block ref with its text
+mod+shift+y                insert youtube timestamp
+
+## Moving and selecting
+mod+shift+up / down        move block up / down    (alt+shift on Linux/Win)
+alt+up / alt+down          select block above / below
+shift+up / shift+down      extend text selection
+mod+a                      select parent block
+mod+shift+a                select all blocks
+mod+up / mod+down          collapse / expand children
+mod+;                      toggle children
+mod+. / mod+,              zoom into / out of block  (alt+arrows elsewhere)
+mod+shift+f                toggle favourite
+
+## Flashcards review
+s  show answers    n  next card    r  remembered    f  forgotten    t  recall
+
+## Rebinding
+;; config.edn (or the global config.edn for all graphs)
+:shortcuts
+{:editor/new-line "shift+enter"
+ :editor/up       ["ctrl+k" "up"]
+ :editor/down     ["ctrl+j" "down"]
+ :ui/toggle-theme "mod+c mod+t"
+ :editor/highlight false}         ; false disables a binding
+# `+` = pressed together, a space = a chord. `mod` maps to cmd/ctrl.
+# Defaults: src/main/frontend/modules/shortcut/config.cljs in logseq/logseq
