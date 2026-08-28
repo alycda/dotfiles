@@ -237,6 +237,34 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   `tools/agents/plugins/catalog.json`, not here — a plugin already carries
   its skills, so installing them via nix-skills too would duplicate them
 
+### Agent-writable knowledge: the cheat inbox
+
+`cheat` is the one knowledge store both Alyssa and an agent read from the same
+place — she types `cheat jj/rebase` in her terminal, an agent runs the same
+command. That shared substrate, not retrieval quality, is the reason notes go
+here rather than into another markdown folder an agent would just ripgrep.
+
+The split with skills is by *shape*, not by topic:
+
+- **Cheatsheet** — imperative, one screen, a command to copy. `jj/rebase`.
+- **Skill** — a hazard or mental model the agent has to *apply*. "jj
+  auto-snapshots everything, so check `.gitignore` before generating files."
+
+Small models degrade far faster on the second than the first, which is what
+makes the split worth maintaining rather than collapsing into one store.
+
+Writes land in `~/.cheat/inbox` (the only writable cheatpath — `community/` and
+`personal/` are read-only store paths) and are promoted by moving the file.
+Quarantine is the point: the curated sheets make claims like "verified against
+crush 0.88.1 source", and that standard does not survive unreviewed writes. The
+`cheat-memory` skill carries the reflex — look up before guessing, write down
+after verifying, every sheet naming what proved it.
+
+`cheat` has no equivalent of a skill's always-injected `description`, so nothing
+tells a model the store exists. The skill is what makes it discoverable; the
+knowledge itself lives outside it. That is the whole design: skill as router,
+cheatsheets as content.
+
 ### Configuration Conflicts to Avoid
 
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
@@ -450,7 +478,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
+*Last updated: 2026-08-28 - Documented the cheat inbox as the agent-writable knowledge store (skill as router, cheatsheets as content) after adding a writable cheatpath and the `cheat-memory` skill*
+
+*2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
 
 *2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 

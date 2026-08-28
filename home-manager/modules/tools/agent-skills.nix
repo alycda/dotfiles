@@ -22,6 +22,7 @@
 #
 # Repo skills:
 #   brag-doc              - promo-packet impact entries from raw work notes
+#   cheat-memory          - look up / write back command syntax via cheat
 #   commit-craft          - commit-message craft + jj describe/push workflow
 #   failure-doc           - failures as deliberate-learning records
 #   html-deck             - self-contained single-file HTML slide decks
@@ -42,6 +43,7 @@ let
 
   repoSkills = [
     "brag-doc"
+    "cheat-memory"
     "commit-craft"
     "failure-doc"
     "html-deck"
