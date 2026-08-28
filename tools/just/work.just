@@ -833,9 +833,13 @@ chatgpt-casper prompt:
 # so a wrong pin is visible immediately.
 # MCP is pinned to casper-mcp.json (linear-server ONLY) via --strict-mcp-config:
 # the ticket protocol needs linear get_issue, but the full MCP roster (workflowy,
-# hackmd, dart, slack, ...) adds ~200KB of tool schemas per request — context
-# bloat that correlates with local models corrupting tool-call JSON (run #6:
-# kimi-k3 mashed two calls' args into one, claude rejected, model gave up).
+# dart, slack, ...) adds ~200KB of tool schemas per request — context bloat that
+# correlates with local models corrupting tool-call JSON (run #6: kimi-k3 mashed
+# two calls' args into one, claude rejected, model gave up).
+# hackmd used to be on that list. It is now a CLI on PATH plus the skill that
+# documents it (home-manager/modules/tools/hackmd.nix), which is the shape this
+# comment argues for: a skill is a few hundred bytes of frontmatter until an
+# agent opens it, where a server is schemas in every request either way.
 # Expect the "claude.ai connectors are disabled" warning in the log — the
 # bridge credential overrides the claude.ai login; .mcp.json servers still load.
 chat-casper prompt:
