@@ -34,9 +34,15 @@ in
     "crush/crush.json".text = builtins.toJSON {
       "$schema" = "https://charm.land/crush.json";
       options = {
+        # Verbatim reads, no @-import expansion, missing paths skipped
+        # (crush 0.88.1 processContextPath) - so the canonical layers are
+        # listed directly instead of the ~/.agents/AGENTS.md entrypoint,
+        # in precedence order. CRUSH.md stays as a hand-scribble hatch.
         global_context_paths = [
           "${config.xdg.configHome}/crush/CRUSH.md"
-          "${config.xdg.configHome}/AGENTS.md"
+          "${config.home.homeDirectory}/.agents/company-values.md"
+          "${config.home.homeDirectory}/.agents/persona-core.md"
+          "${config.home.homeDirectory}/.agents/instructions.private.md"
           "${config.home.homeDirectory}/.agents/rules/outbound-comment-gate.md"
         ];
       };
