@@ -133,6 +133,7 @@ dotfiles/
 │       ├── home.nix        # Personal profile
 │       └── work.nix        # Work profile
 ├── lib/
+│   ├── charm-nur.nix       # scoped overlay for charmbracelet/nur (crush)
 │   ├── core-packages.nix   # Packages shared by devShells + home-manager
 │   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*

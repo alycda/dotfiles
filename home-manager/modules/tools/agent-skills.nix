@@ -14,8 +14,8 @@
 # roots, and issue #2072 asking for ~/.agents/skills reads as open. The source
 # settles it - config.GlobalSkillsDirs() in internal/config/load.go returns
 # ~/.config/crush/skills, ~/.config/agents/skills, ~/.agents/skills and
-# ~/.claude/skills, and the ~/.agents entry is present in the v0.88.1 tag,
-# which is the crush nixpkgs pins at the locked rev. So nothing here needs a
+# ~/.claude/skills, and the ~/.agents entry is present in v0.91.2, which is
+# the crush lib/charm-nur.nix pins at the locked rev. So nothing here needs a
 # skills_paths entry in tools/crush.nix; if a future bump ever drops that
 # path, adding one is the fix (load.go appends the defaults to a configured
 # skills_paths rather than replacing them).

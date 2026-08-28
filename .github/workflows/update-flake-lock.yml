@@ -32,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       flake-inputs:
-        description: "Space-separated inputs to update (empty = all, e.g. 'nixpkgs nix-skills')"
+        description: "Space-separated inputs to update (empty = all, e.g. 'nixpkgs nix-skills charm-nur')"
         required: false
         default: ""
 
