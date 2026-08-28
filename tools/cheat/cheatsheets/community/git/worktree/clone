@@ -1,0 +1,11 @@
+# One command (script on PATH via home-manager; flags pass through to git clone —
+# check the target repo's README for partial-clone speedups like --filter=blob:none)
+git worktree-clone <user/repo> [dir]
+git worktree-clone --filter=blob:none <user/repo> [dir]
+
+# The recipe the script encodes:
+git clone --bare <url> <dir>/.bare
+echo "gitdir: ./.bare" > <dir>/.git
+# bare clones only ever fetch HEAD unless told otherwise
+git -C <dir> config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+git -C <dir> worktree add <branch> <branch>

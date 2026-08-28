@@ -12,7 +12,7 @@ chat_protocol := "Follow the 'Starting work on a ticket' protocol in CLAUDE.md. 
 
 # starts work in headless mode, will exit when done but can resume with `claude -c` with optional "next prompt", also can resume from VSCode panel
 # logs to .agent-logs/<TICKET>.out (e.g. .agent-logs/TICKET-1234.out) so parallel runs don't collide on shared nohup.out
-# writes .agent-logs/<TICKET>.pid so `just status` can distinguish a running agent from a finished one
+# writes .agent-logs/<TICKET>.pid so `just -g status` can distinguish a running agent from a finished one
 chat prompt:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -22,9 +22,9 @@ chat prompt:
     nohup claude --model opus --permission-mode acceptEdits -p "{{prompt}}. {{chat_protocol}}" > "$log" 2>&1 &
     pid=$!
     echo "$pid" > ".agent-logs/${ticket}.pid"
-    echo "Started agent for ${ticket} (PID $pid) → just status  (or tail -f ${log})"
+    echo "Started agent for ${ticket} (PID $pid) → just -g status  (or tail -f ${log})"
 
-# Same as `just chat`, but drives Codex. It deliberately follows AGENTS.md rather
+# Same as `just -g chat`, but drives Codex. It deliberately follows AGENTS.md rather
 # than inheriting Claude's permissions or Taskbook/worktree protocol. The current
 # workspace parent is not a Git worktree, so the agent uses the ticket worktree
 # for implementation, creating one from the Linear branch when it does not exist.
@@ -39,7 +39,7 @@ chatgpt prompt:
     log=".agent-logs/${ticket}.out"
     model="${CODEX_MODEL:-gpt-5.5}"
     printf '%s\n' codex > ".agent-logs/${ticket}.runner"
-    agent_prompt="{{prompt}}"$'\n\n'"You are the headless Codex runner for ${ticket}. Read AGENTS.md and any scoped instructions before acting. Follow the Codex ticket workflow in AGENTS.md, not the Claude ticket protocol."$'\n\n'"For implementation, use the ticket worktree at ${ticket}/. If it does not exist, create it from the Linear branch with 'just new ${ticket} <linear-branch>'. Do not substitute main or invent a branch. Before any visible GitHub or Linear message, show its body and wait for approval."$'\n\n'"As the final line of your response, emit exactly one machine-readable sentinel: ::STATUS:: <state> — <detail>. Use done only when a PR is open; use needs-input for an approval or answer you need from the user; use blocked for a concrete environmental or technical blocker."
+    agent_prompt="{{prompt}}"$'\n\n'"You are the headless Codex runner for ${ticket}. Read AGENTS.md and any scoped instructions before acting. Follow the Codex ticket workflow in AGENTS.md, not the Claude ticket protocol."$'\n\n'"For implementation, use the ticket worktree at ${ticket}/. If it does not exist, create it from the Linear branch with 'just -g new ${ticket} <linear-branch>'. Do not substitute main or invent a branch. Before any visible GitHub or Linear message, show its body and wait for approval."$'\n\n'"As the final line of your response, emit exactly one machine-readable sentinel: ::STATUS:: <state> — <detail>. Use done only when a PR is open; use needs-input for an approval or answer you need from the user; use blocked for a concrete environmental or technical blocker."
     nohup codex exec --disable code_mode_host -m "$model" -s workspace-write --add-dir "$PWD/.bare" --add-dir "$HOME/.taskbook" --add-dir "$HOME/.taskbook-journals" --add-dir "$HOME/.config" --skip-git-repo-check "$agent_prompt" > "$log" 2>&1 &
     pid=$!
     echo "$pid" > ".agent-logs/${ticket}.pid"
@@ -176,7 +176,7 @@ status:
             print(f'⚪ {t:12} STOPPED    (last {last(log)}) → tail {log}')
     if done:
         labels = ', '.join(t + (f' (PR #{pr})' if pr else '') for t, pr in done)
-        print(f'— {len(done)} done: {labels}  → `just sweep` to archive merged')
+        print(f'— {len(done)} done: {labels}  → `just -g sweep` to archive merged')
 
 # archive run artifacts (.out/.pid) for tickets that are taskbook-complete AND whose
 # PR is MERGED, moving them from .agent-logs/ into .agent-archive/. Reversible (move,
@@ -189,7 +189,7 @@ sweep:
     import glob, json, os, re, subprocess, shutil
     STORAGE = os.path.expanduser('~/.taskbook/storage/storage.json')
     JOURNALS = os.path.expanduser('~/.taskbook-journals')
-    LOGS, REPO, ARCHIVE = '.agent-logs', 'getditto/ditto', '.agent-archive'
+    LOGS, REPO, ARCHIVE = '.agent-logs', os.environ.get('DITTO_REPO', 'org/repo'), '.agent-archive'
     def taskbook_done():
         out = set()
         try:
@@ -261,7 +261,7 @@ sweep:
             if stt.returncode != 0:
                 kept_wt.append(f'{t}: worktree status check failed — left in place')
             elif stt.stdout.strip():
-                kept_wt.append(f'{t}: worktree has local changes — left in place (just del {t} to remove)')
+                kept_wt.append(f'{t}: worktree has local changes — left in place (just -g del {t} to remove)')
             else:
                 rm = subprocess.run(['git', '-C', 'main', 'worktree', 'remove', os.path.abspath(t)], capture_output=True, text=True)
                 if rm.returncode == 0:
@@ -286,7 +286,7 @@ sweep:
 # per-ticket / taskbook-done targeting: every panel session runs with cwd = repo root
 # and holds no worktree files open, so a dart PID cannot be attributed to a ticket —
 # age is the only honest signal. Spares anything younger than <spare_min> minutes so a
-# server you're actively waiting on isn't nuked mid-analyze. `just reap-dart 0` = all.
+# server you're actively waiting on isn't nuked mid-analyze. `just -g reap-dart 0` = all.
 reap-dart spare_min='5':
     #!/usr/bin/env python3
     import re, os, signal, subprocess
@@ -387,7 +387,7 @@ copy ticket:
     # Find the Rust target directory in main
     MAIN_TARGET="main/target"
     if [ ! -d "$MAIN_TARGET" ]; then
-        echo "Error: main/target directory not found. Build FFI in main first with 'just build'"
+        echo "Error: main/target directory not found. Build FFI in main first with 'just -g build'"
         exit 1
     fi
 
@@ -467,7 +467,7 @@ test-wasm ticket:
     # Copy WASM builds if not present
     if [ ! -f "{{ticket}}/examples/carsapp/wasm/carsapp.js" ]; then
         echo "WASM build not found, copying from main..."
-        just copy-wasm {{ticket}}
+        just -g copy-wasm {{ticket}}
     fi
 
     # Install Playwright if not already installed
@@ -501,11 +501,10 @@ push dir:
 # Resolves a published version from crates.io (override with DITTO_VERSION),
 # downloads the prebuilt static lib from software.ditto.live, and caches it
 # at ~/.cache/ditto/libdittoffi/{version}/{target}/ so all worktrees on the
-# same version share one download. Use `just env <dir>` to print the shell
+# same version share one download. Use `just -g env <dir>` to print the shell
 # exports needed to use the cached binary with plain cargo from a worktree.
 # ---------------------------------------------------------------------------
 
-host_target := `rustc --print host-tuple`
 base_url    := "https://software.ditto.live/rust/Ditto"
 cache_root  := home_directory() / ".cache" / "ditto" / "libdittoffi"
 
@@ -561,44 +560,47 @@ resolve-version dir='main':
 info dir='main':
     #!/usr/bin/env bash
     set -euo pipefail
-    version=$(just resolve-version {{dir}})
+    version=$(just -g resolve-version {{dir}})
+    host_target=$(rustc --print host-tuple)
     echo "worktree    : {{dir}}"
     echo "sdk_version : $version"
-    echo "host_target : {{host_target}}"
-    echo "cache_dir   : {{cache_root}}/$version/{{host_target}}"
-    echo "fetch_url   : {{base_url}}/$version/{{host_target}}/release/libdittoffi.a"
+    echo "host_target : ${host_target}"
+    echo "cache_dir   : {{cache_root}}/$version/${host_target}"
+    echo "fetch_url   : {{base_url}}/$version/${host_target}/release/libdittoffi.a"
 
 # Print shell exports for using the cached binary with plain cargo.
-# Usage: eval "$(just env <dir>)" && cd <dir> && cargo check --manifest-path sdks/rust/dittolive-ditto/Cargo.toml
+# Usage: eval "$(just -g env <dir>)" && cd <dir> && cargo check --manifest-path sdks/rust/dittolive-ditto/Cargo.toml
 env dir='main':
     #!/usr/bin/env bash
     set -euo pipefail
-    version=$(just resolve-version {{dir}})
-    echo "export DITTOFFI_SEARCH_PATH={{cache_root}}/$version/{{host_target}}"
+    version=$(just -g resolve-version {{dir}})
+    host_target=$(rustc --print host-tuple)
+    echo "export DITTOFFI_SEARCH_PATH={{cache_root}}/$version/${host_target}"
     echo "export DITTO_LOCAL_BUILD=0"
 
 # Fetch prebuilt libdittoffi.a for the host platform (no-op if cached)
 fetch dir='main':
     #!/usr/bin/env bash
     set -euo pipefail
-    version=$(just resolve-version {{dir}})
-    cache_dir="{{cache_root}}/$version/{{host_target}}"
+    version=$(just -g resolve-version {{dir}})
+    host_target=$(rustc --print host-tuple)
+    cache_dir="{{cache_root}}/$version/${host_target}"
     if [[ -f "$cache_dir/libdittoffi.a" ]]; then
         echo "Already cached: $cache_dir/libdittoffi.a"
         exit 0
     fi
     mkdir -p "$cache_dir"
     curl -fL --progress-bar \
-        "{{base_url}}/$version/{{host_target}}/release/libdittoffi.a" \
+        "{{base_url}}/$version/${host_target}/release/libdittoffi.a" \
         -o "$cache_dir/libdittoffi.a"
     echo "Saved to $cache_dir/libdittoffi.a"
 
 # Fetch prebuilt libdittoffi.a for a specific target triple (no-op if cached)
-# Usage: just fetch-target x86_64-unknown-linux-gnu [dir]
+# Usage: just -g fetch-target x86_64-unknown-linux-gnu [dir]
 fetch-target target dir='main':
     #!/usr/bin/env bash
     set -euo pipefail
-    version=$(just resolve-version {{dir}})
+    version=$(just -g resolve-version {{dir}})
     cache_dir="{{cache_root}}/$version/{{target}}"
     if [[ -f "$cache_dir/libdittoffi.a" ]]; then
         echo "Already cached: $cache_dir/libdittoffi.a"
@@ -612,42 +614,45 @@ fetch-target target dir='main':
 
 # Fetch for Linux x86_64 (common Docker/CI target)
 fetch-linux dir='main':
-    just fetch-target x86_64-unknown-linux-gnu {{dir}}
+    just -g fetch-target x86_64-unknown-linux-gnu {{dir}}
 
 # cargo check inside <dir> using the fetched host prebuilt.
 # Note: sdks/rust/ is a separate Cargo workspace from the repo root, so
 # `-p dittolive-ditto` won't work from the root manifest. Use --manifest-path:
-#   just cargo-check main --manifest-path sdks/rust/dittolive-ditto/Cargo.toml
+#   just -g cargo-check main --manifest-path sdks/rust/dittolive-ditto/Cargo.toml
 cargo-check dir *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    just fetch {{dir}}
-    version=$(just resolve-version {{dir}})
+    just -g fetch {{dir}}
+    host_target=$(rustc --print host-tuple)
+    version=$(just -g resolve-version {{dir}})
     cd {{dir}}
-    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/{{host_target}}" \
+    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/${host_target}" \
         cargo check {{args}}
 
 # cargo build inside <dir> using the fetched host prebuilt
 cargo-build dir *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    just fetch {{dir}}
-    version=$(just resolve-version {{dir}})
+    just -g fetch {{dir}}
+    host_target=$(rustc --print host-tuple)
+    version=$(just -g resolve-version {{dir}})
     cd {{dir}}
-    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/{{host_target}}" \
+    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/${host_target}" \
         cargo build {{args}}
 
 # cargo test inside <dir> using the fetched host prebuilt
 cargo-test dir *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    just fetch {{dir}}
-    version=$(just resolve-version {{dir}})
+    just -g fetch {{dir}}
+    host_target=$(rustc --print host-tuple)
+    version=$(just -g resolve-version {{dir}})
     cd {{dir}}
-    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/{{host_target}}" \
+    DITTO_LOCAL_BUILD=0 DITTOFFI_SEARCH_PATH="{{cache_root}}/$version/${host_target}" \
         cargo test {{args}}
 
-import 'recipes/flutter.just'
+import 'work/flutter.just'
 
 # Check whether the main build cache is stale (default: stale if > 7 days)
 fresh-check days='7':
@@ -685,7 +690,7 @@ fresh-check days='7':
     fi
     echo
     if [ $stale -gt 0 ] || [ $missing -gt 0 ]; then
-        echo "Cache is stale ($stale stale, $missing missing, $fresh fresh). Run: just freshen"
+        echo "Cache is stale ($stale stale, $missing missing, $fresh fresh). Run: just -g freshen"
         exit 1
     fi
     echo "Cache is fresh."
@@ -707,7 +712,6 @@ kanban issue cycle:
 my-notes:
     tb -l notes
 
-import 'recipes/git.just'
 
 # ---------------------------------------------------------------------------
 # Claude Code on Casper (internal OpenAI-compatible endpoint)
@@ -765,7 +769,7 @@ casper-proxy-stop:
         echo "no pid file (.agent-logs/casper-litellm.pid)"
     fi
 
-# `just chatgpt`, but routed to Casper via codex's NATIVE Responses wire — no
+# `just -g chatgpt`, but routed to Casper via codex's NATIVE Responses wire — no
 # LiteLLM bridge in the path (codex 0.145+ is responses-only; casper's
 # /v1/responses supports tools, verified 2026-08-26 with kimi-k2.7-code).
 # Provider is passed entirely via -c overrides so ~/.codex/config.toml is never
@@ -822,9 +826,9 @@ chatgpt-casper prompt:
     echo "$pid" > ".agent-logs/${ticket}.pid"
     echo "Started casper codex agent (model: ${model}, supervised: auto-resume on 429) for ${ticket} (PID $pid) → tail -f ${log}"
 
-# `just chat`, but routed through Casper. Pin the model with
+# `just -g chat`, but routed through Casper. Pin the model with
 # CASPER_MODEL=<id from casper /v1/models>, e.g.:
-#   CASPER_MODEL=kimi-k3 just chat-casper "TICKET-NNNN - title"
+#   CASPER_MODEL=kimi-k3 just -g chat-casper "TICKET-NNNN - title"
 # Default is casper's "auto" router — the launch line echoes the routed model
 # so a wrong pin is visible immediately.
 # MCP is pinned to casper-mcp.json (linear-server ONLY) via --strict-mcp-config:
@@ -837,7 +841,7 @@ chatgpt-casper prompt:
 chat-casper prompt:
     #!/usr/bin/env bash
     set -euo pipefail
-    just casper-proxy
+    just -g casper-proxy
     mkdir -p .agent-logs
     ticket=$(echo "{{prompt}}" | grep -oE '^[A-Z]+-[0-9]+' || echo "chat-$(date +%Y%m%d-%H%M%S)")
     log=".agent-logs/${ticket}.out"
@@ -855,16 +859,16 @@ chat-casper prompt:
     nohup claude --model opus --permission-mode acceptEdits --strict-mcp-config --mcp-config casper-mcp.json -p "{{prompt}}. {{chat_protocol}}" > "$log" 2>&1 &
     pid=$!
     echo "$pid" > ".agent-logs/${ticket}.pid"
-    echo "Started casper agent (model: ${model}) for ${ticket} (PID $pid) → just status  (or tail -f ${log})"
+    echo "Started casper agent (model: ${model}) for ${ticket} (PID $pid) → just -g status  (or tail -f ${log})"
 
-# Run Claude Code against Casper: `just claude-code` (interactive) or
-# `just claude-code -p "prompt"`. Override the routed model with
+# Run Claude Code against Casper: `just -g claude-code` (interactive) or
+# `just -g claude-code -p "prompt"`. Override the routed model with
 # CASPER_MODEL=<id from /v1/models> (default: casper's "auto" router).
 claude-code *args:
     #!/usr/bin/env bash
     set -euo pipefail
     : "${CASPER_API_KEY:?export CASPER_API_KEY first (mint a token for casper)}"
-    just casper-proxy
+    just -g casper-proxy
     model="${CASPER_MODEL:-auto}"
     export ANTHROPIC_BASE_URL="http://127.0.0.1:{{casper_port}}"
     export ANTHROPIC_AUTH_TOKEN="casper-litellm-local"   # bridge does auth upstream; claude just needs a non-empty credential

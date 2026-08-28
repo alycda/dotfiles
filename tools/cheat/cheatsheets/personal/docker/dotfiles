@@ -1,0 +1,5 @@
+# docker resolve the _script_ itself
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
+
+# docker resolve a different branch (and script):
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/refs/heads/BRANCH_NAME/docker/dev.sh | sh -s -- up BRANCH_NAME

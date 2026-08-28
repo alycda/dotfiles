@@ -1,1 +1,3 @@
 git branch --merged origin/main | grep -v "^\*" | grep -v "main" | xargs git branch -d
+
+# Runnable: just -g del-merged

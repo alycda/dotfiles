@@ -5,13 +5,13 @@
 # for TICKET-1888 spinner-canary validation (PR #22347).
 #
 # Workflow:
-#   1. just pub-patch ditto_live 5.0.0-rc.1 /tmp/ditto_live_patched
+#   1. just -g pub-patch ditto_live 5.0.0-rc.1 /tmp/ditto_live_patched
 #   2. Edit files inside /tmp/ditto_live_patched (cherry-pick the Dart fix)
 #   3. Add to the consuming app's pubspec.yaml:
 #        dependency_overrides:
 #          ditto_live:
 #            path: /tmp/ditto_live_patched
-#   4. just flutter-record-sim <flutter-app-dir> <sim-id> /tmp/after.mp4 &
+#   4. just -g flutter-record-sim <flutter-app-dir> <sim-id> /tmp/after.mp4 &
 #   5. Tap the FAB / exercise the UI, then kill the recordVideo PID printed.
 # ---------------------------------------------------------------------------
 
