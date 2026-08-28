@@ -35,9 +35,20 @@
       url = "github:sudosubin/nix-skills";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Charm's own Nix repo, for crush. nixpkgs' crush is hand-bumped and runs
+    # multiple releases behind (see lib/charm-nur.nix); this one is generated
+    # by Charm's GoReleaser pipeline on every tag. Taken as a direct flake
+    # input rather than via nix-community/NUR - same expressions, but pinned
+    # in our flake.lock instead of behind NUR's repos.json, so
+    # `nix flake update charm-nur` is the thing that moves it.
+    charm-nur = {
+      url = "github:charmbracelet/nur";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, claude-code-nix, nix-skills, ... }:
+  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, claude-code-nix, nix-skills, charm-nur, ... }:
     let
       # Systems supported for devShells
       # x86_64-darwin dropped: nixpkgs 26.11 removed support for it, and every
@@ -60,6 +71,7 @@
             nix-vscode-extensions.overlays.default
             claude-code-nix.overlays.default
             (import ./lib/skills-sh.nix nix-skills)
+            (import ./lib/charm-nur.nix charm-nur)
           ];
         };
 
@@ -77,7 +89,7 @@
         darwin.lib.darwinSystem {
           inherit system;
 
-          specialArgs = { inherit nix-vscode-extensions claude-code-nix nix-skills; };
+          specialArgs = { inherit nix-vscode-extensions claude-code-nix nix-skills charm-nur; };
 
           modules = [
             ./darwin/configuration.nix
@@ -137,6 +149,11 @@
             # `nix flake check --all-systems`. mkHome and darwin already
             # allow unfree; this brings the devShells in line.
             config.allowUnfree = true;
+            # ...and crush now comes from pkgs.charm-nur, so the devShells
+            # need that overlay for the same reason: core-packages is shared
+            # with home-manager, and an attribute missing here is an
+            # evaluation failure, not a missing binary.
+            overlays = [ (import ./lib/charm-nur.nix charm-nur) ];
           };
 
           # Core packages shared with home-manager

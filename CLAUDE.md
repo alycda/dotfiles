@@ -285,6 +285,55 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   `tools/agents/plugins/catalog.json`, not here — a plugin already carries
   its skills, so installing them via nix-skills too would duplicate them
 
+### When nixpkgs lags: prefer the vendor's own Nix repo over NUR
+
+nixpkgs is a *downstream* packager. For a fast-moving upstream that ships
+more often than a volunteer remembers to bump it, `nix flake update` is not
+a fix — it locks a newer nixpkgs that still contains the same old package.
+Diagnose it that way before reaching for anything: check the pinned rev's
+`pkgs/by-name/<xx>/<pkg>/package.nix`, then check nixpkgs **master**, then
+check for an open bump PR. If master is stale too, no lockfile move can help.
+
+That is exactly how `crush` ended up three releases behind (nixpkgs 0.88.1
+from 2026-08-07 vs upstream 0.91.2 on 2026-08-26, no open PR). The nixpkgs
+bumps land every one to three weeks and crush tags weekly, so the drift is
+structural rather than a one-off.
+
+The fix is `charmbracelet/nur` as a **direct flake input** (`lib/charm-nur.nix`
++ the `charm-nur` input in `flake.nix`). Three things to carry forward:
+
+- **Prefer the vendor's repo to `nix-community/NUR` even when NUR is what
+  surfaced it.** NUR is a meta-index: it *republishes* per-user repos behind
+  its own `repos.json` pins, so consuming crush through it adds a staleness
+  layer and a large lazy eval surface for one package, and the thing that
+  moves the version is NUR's index refresh rather than your lockfile. Taken
+  directly, the same expressions are pinned in `flake.lock` and
+  `nix flake update charm-nur` is the operation that bumps them. Use NUR
+  itself for *discovery* — `nur.nix-community.org/repos/<user>/` is how you
+  learn the vendor repo exists and what version it carries.
+- **Scope the overlay; never apply the vendor's `overlays.default`.** Charm's
+  is `final: prev: import ./pkgs { pkgs = final; }` — it shadows *every*
+  Charm attribute in nixpkgs (glow, vhs, gum, …) at the top level. Ours are
+  already current in nixpkgs and built from source there; wanting a fresh
+  crush is not a reason to silently swap them for prebuilt binaries. Bind the
+  set to one attribute (`pkgs.charm-nur.<name>`) instead, and wire that overlay
+  in all three places pkgs gets built: `mkHome`, `darwin/configuration.nix`,
+  **and** the flake's devShells (`lib/core-packages.nix` is shared with the
+  devShells, so an attribute missing there is an evaluation failure).
+- **Take the package, not the vendor's home-manager module.** Charm's
+  `programs.crush` writes `xdg.configFile."crush/crush.json"` — the exact
+  path `home-manager/modules/tools/crush.nix` already owns. Two modules, one
+  path, one activation conflict of the kind already catalogued below.
+
+One eval detail worth remembering: a vendor flake's `packages.<system>`
+output imports nixpkgs *itself*, with no `config`, so for an unfree package
+(crush is FSL-1.1-MIT) forcing it throws regardless of our `allowUnfree`.
+Applying their overlay against our own `final` sidesteps that — the package
+set gets built with our config. The upside of the switch is that these are
+GoReleaser release binaries rather than source builds, and cache.nixos.org
+never had a binary for the unfree nixpkgs build anyway, so every machine had
+been compiling crush from scratch.
+
 ### Configuration Conflicts to Avoid
 
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
@@ -498,7 +547,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-28 - Documented the `importNpmLock` pattern for packaging an npm-only CLI (hackmd-cli), including why the lockfile-as-pin approach makes over-declared npm dependencies and per-platform binary packages a build-size problem worth overriding away, and added the rule that a CLI reaching `common.nix` must not be able to hit an interactive credential prompt headlessly*
+*Last updated: 2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
+
+*2026-08-28 - Documented the `importNpmLock` pattern for packaging an npm-only CLI (hackmd-cli), including why the lockfile-as-pin approach makes over-declared npm dependencies and per-platform binary packages a build-size problem worth overriding away, and added the rule that a CLI reaching `common.nix` must not be able to hit an interactive credential prompt headlessly*
 
 *2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
 
