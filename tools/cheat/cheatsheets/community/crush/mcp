@@ -1,0 +1,60 @@
+# Crush MCP servers (verified against crush 0.88.1).
+# Managed declaratively in home-manager/modules/tools/crush.nix.
+
+# WHAT IS WIRED (all hosted HTTP + OAuth 2.1, no tokens on disk):
+#   notion  https://mcp.notion.com/mcp        DCR, zero config
+#   slack   https://mcp.slack.com/mcp         pre-registered client, port 3118
+#   linear  https://mcp.linear.app/mcp        DCR
+#   google-{gmail,drive,docs,sheets,slides,calendar,chat}
+#           https://<product>mcp.googleapis.com/mcp/v1   OFF by default
+# Enable Google: crush.mcp.googleWorkspace.enable = true (needs a GCP OAuth
+# client - see the option description in crush.nix).
+
+# OAUTH, NOT `npx mcp-remote`. crush has had OAuth 2.1 for HTTP MCP since
+# v0.87 (RFC 8414 discovery + PKCE + dynamic client registration), so a
+# hosted server needs no stdio bridge and no long-lived API token.
+#   "oauth": true                 -> try DCR, then browser authorization-code
+#   "oauth_client_id"/"_secret"   -> for servers that REJECT DCR (Slack,
+#                                    GitHub, Google). Both run through the
+#                                    shell resolver: $VAR and $(cmd) work,
+#                                    so secrets never sit in the file.
+#   "oauth_callback_port"         -> pin it when the provider enforces an
+#                                    exact-match redirect URI.
+
+# Authorize: nothing happens at startup (no browser is opened). Unauthorized
+# servers sit in StateNeedsAuth; authorize them from the TUI's MCP list.
+# Tokens are persisted to ~/.local/share/crush/crush.json - the writable data
+# config, which loads AFTER ~/.config/crush/crush.json and deep-merges into
+# it, so the nix-managed store symlink is not in the way.
+jq '.mcp | map_values(.oauth_token != null)' ~/.local/share/crush/crush.json
+
+# Re-auth from scratch (revoke locally): delete the entry and restart.
+jq 'del(.mcp.slack.oauth_token)' ~/.local/share/crush/crush.json | sponge \
+  ~/.local/share/crush/crush.json
+
+# WHICH FIELDS EXPAND $VAR / $(cmd)  (internal/config/config.go):
+#   MCP: url, command args, env, headers, oauth_client_id, oauth_client_secret
+#   LSP: args, env  -- NOT command (hence absolute store paths)
+# A header resolving to "" is dropped rather than sent blank.
+
+# Tool names reaching the agent are mcp_<server>_<tool>, e.g.
+# mcp_slack_slack_send_message, mcp_notion_notion-create-comment. That naming
+# is what tools/crush/outbound-gate.sh matches on - add a server that can
+# post and the gate patterns have to grow with it.
+
+# NOT WIRED: github (https://api.githubcopilot.com/mcp/). Sessionless - it
+# issues no Mcp-Session-Id and answers go-sdk's SEP-2575
+# subscriptions/listen POST with a 404 the SDK calls fatal. crush's
+# `sessionless` flag + auto-detection for that URL landed after 0.88.1, and
+# both versions vendor go-sdk v1.7.0, so there is nothing to configure
+# around it. Symptom to recognise elsewhere: a server that connects, then
+# immediately tears down with "session not found".
+#   after a bump past crush 0.91:  "github": {"type":"http",
+#     "url":"https://api.githubcopilot.com/mcp/",
+#     "headers":{"Authorization":"Bearer $(gh auth token)"}}
+# Until then: `gh` in bash, which tools/crush/outbound-gate.sh covers.
+
+# Scope a chatty server instead of dropping it (tool schemas are billed
+# context on every turn):
+#   "enabled_tools": ["notion-search", "notion-fetch"]   # allowlist
+#   "disabled_tools": ["notion-create-database"]         # blocklist

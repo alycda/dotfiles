@@ -1,16 +1,28 @@
-# DRAFT - field names verified against crush 0.88.1 source; the values are
-# examples to tune once the crush MCP roster and permission gates are decided.
+# Field names verified against crush 0.88.1 source.
 # JSON config: ./crush.json or .crush.json (project), ~/.config/crush/crush.json
 # (global). crushrc is the bash-form sibling for providers/models/options.
+#
+# The global crush.json is nix-managed (home-manager/modules/tools/crush.nix)
+# and owns: options, hooks, lsp, mcp. Keep those out of the hand-written
+# crushrc - same directory, and crushrc wins on a conflict.
+# The rosters that live there have their own sheets: cheat crush/lsp,
+# cheat crush/mcp.
+#
+# Merge order, low to high (internal/config/load.go lookupConfigs):
+#   /etc/crush/crush.json
+#   ~/.config/crush/crush.json      <- nix-managed
+#   ~/.config/crush/crushrc         <- hand-written, beats the JSON sibling
+#   ~/.local/share/crush/crush.json <- machine-writable state (OAuth tokens)
+#   then project configs walking up: crush.json < .crush.json < crushrc < .crushrc
 
-# MCP servers - "mcp": name -> config; type is stdio | sse | http.
-# HTTP/SSE header values get shell expansion ($VAR, $(cmd)) at startup,
-# so tokens stay in the environment, never in the file:
+# MCP servers - "mcp": name -> config; type is stdio | sse | http ("type" is
+# the one required field). url/args/env/headers and the oauth_client_* pair
+# all get shell expansion ($VAR, $(cmd)) at startup, so tokens stay in the
+# environment, never in the file. Full roster + OAuth notes: cheat crush/mcp
 #   "mcp": {
-#     "linear": {
-#       "type": "stdio",
-#       "command": "npx", "args": ["-y", "mcp-remote", "<url>"],
-#       "env": { "LINEAR_API_KEY": "$LINEAR_API_KEY" }
+#     "hosted": {                                        # preferred shape
+#       "type": "http", "url": "https://mcp.example.com/mcp",
+#       "oauth": true                                    # crush >= 0.87
 #     },
 #     "internal-http": {
 #       "type": "http",
@@ -19,8 +31,17 @@
 #       "enabled_tools": ["get_issue", "list_issues"],   # allowlist per server
 #       "disabled_tools": ["delete_issue"],              # or blocklist
 #       "timeout": 60
+#     },
+#     "local": {
+#       "type": "stdio",
+#       "command": "npx", "args": ["-y", "some-mcp-server"],
+#       "env": { "SOME_API_KEY": "$SOME_API_KEY" }
 #     }
 #   }
+
+# LSP servers - "lsp": name -> config. Mostly you do NOT need one:
+# options.auto_lsp (default true) starts bundled servers by root marker.
+# The traps in overriding one are in: cheat crush/lsp
 
 # Tool permissions - which tools skip the prompt (like Claude's allow rules):
 #   "permissions": { "allowed_tools": ["view", "grep", "ls"] }
