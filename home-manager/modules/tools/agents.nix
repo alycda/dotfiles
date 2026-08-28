@@ -82,7 +82,7 @@ let
 
     # Strip the previous managed block, plus any bare import line an
     # append-era generation left behind. Everything else is hand-edited.
-    awk '
+    ${pkgs.gawk}/bin/awk '
       /^<!-- BEGIN managed: agents overlay/ { inblock = 1; next }
       /^<!-- END managed: agents overlay/   { inblock = 0; next }
       inblock { next }
@@ -98,7 +98,7 @@ let
 
     # Drop leading blank lines so the block lands at line 1 and the file does
     # not grow one blank line per activation.
-    { cat "$block"; echo; sed "/./,\$!d" "$tmp"; } > "$md.new"
+    { cat "$block"; echo; ${pkgs.gnused}/bin/sed "/./,\$!d" "$tmp"; } > "$md.new"
     mv "$md.new" "$md"
   '';
   # Critic subagents: persona (frontmatter + enforcer instructions) canonical
