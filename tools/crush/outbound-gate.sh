@@ -17,7 +17,12 @@ set -euo pipefail
 APPROVALS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/crush/outbound-approvals"
 
 hash_payload() {
-	shasum -a 256 | awk '{print $1}'
+	# coreutils on linux profiles; perl shasum on stock macOS. Same digest.
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum | awk '{print $1}'
+	else
+		shasum -a 256 | awk '{print $1}'
+	fi
 }
 
 if [[ "${1:-}" == "approve" ]]; then
@@ -44,6 +49,20 @@ is_outbound_bash() {
 	grep -qiE 'gh\s+(pr|issue)\s+(comment|review|create|edit)' <<<"$cmd" && return 0
 	grep -qiE 'gh\s+(pr|issue)\s+(close|reopen)\b[^|]*--comment' <<<"$cmd" && return 0
 	grep -qiE 'gh\s+release\s+(create|edit)' <<<"$cmd" && return 0
+	# gist create publishes content; pr merge --body writes a visible message
+	grep -qiE 'gh\s+gist\s+create' <<<"$cmd" && return 0
+	grep -qiE 'gh\s+pr\s+merge\b[^|]*--body' <<<"$cmd" && return 0
+	# any graphql mutation - addComment/addPullRequestReview/etc. all post;
+	# over-blocking non-message mutations is the safe side for a gate
+	if grep -qiE 'gh\s+api\s+graphql' <<<"$cmd" && grep -qiE '\bmutation\b' <<<"$cmd"; then
+		return 0
+	fi
+	# raw HTTP writes to message APIs bypass gh entirely
+	if grep -qiE '\b(curl|wget)\b' <<<"$cmd" &&
+		grep -qiE '(api\.github\.com|slack\.com/api|hooks\.slack\.com|api\.linear\.app)' <<<"$cmd" &&
+		grep -qiE '(-X\s*=?\s*(POST|PATCH|PUT)|--method(=|\s+)(POST|PATCH|PUT)|--data\b|--data-|-d\s|--json\b|--post-data|--body\b)' <<<"$cmd"; then
+		return 0
+	fi
 	# gh api mutations against message-ish endpoints; -f/-F/--input imply POST
 	if grep -qiE 'gh\s+api\b' <<<"$cmd" &&
 		grep -qiE '(-X\s*=?\s*(POST|PATCH|PUT)|--method(=|\s+)(POST|PATCH|PUT)|-[fF]\s|--input\s)' <<<"$cmd" &&
@@ -77,6 +96,9 @@ if [[ "$gated" != true ]]; then
 	echo '{}'
 	exit 0
 fi
+
+# stale approvals are a replay risk: expire anything older than an hour
+find "$APPROVALS_DIR" -type f -mmin +60 -delete 2>/dev/null || true
 
 hash="$(printf '%s' "$payload" | hash_payload)"
 if [[ -f "$APPROVALS_DIR/$hash" ]]; then
