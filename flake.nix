@@ -147,14 +147,19 @@
             cheatsheetsPath = ./tools/cheat/cheatsheets;
           };
 
-          # Create a wrapped version of cheat that always has the right config
+          # Wrap cheat with a config, but with --set-default rather than --set:
+          # this conf has no inbox (a writable cheatpath needs a home directory,
+          # which only home-manager knows), so inside `nix develop` on a
+          # home-managed machine the richer inbox-bearing conf already in the
+          # environment must win. On a machine without home-manager nothing is
+          # set and this one applies. Read parity either way.
           cheatWrapped = pkgs.symlinkJoin {
             name = "cheat";
             paths = [ pkgs.cheat ];
             buildInputs = [ pkgs.makeWrapper ];
             postBuild = ''
               wrapProgram $out/bin/cheat \
-                --set CHEAT_CONFIG_PATH "${cheatConf}"
+                --set-default CHEAT_CONFIG_PATH "${cheatConf}"
             '';
           };
 
@@ -162,7 +167,7 @@
           cheatShell = pkgs.mkShell {
             packages = [ cheatWrapped pkgs.helix ];
             shellHook = ''
-              export CHEAT_CONFIG_PATH="${cheatConf}"
+              export CHEAT_CONFIG_PATH="''${CHEAT_CONFIG_PATH:-${cheatConf}}"
               export EDITOR="hx"
             '';
           };

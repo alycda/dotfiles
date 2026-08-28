@@ -30,8 +30,31 @@ cheatsheets/
 │   ├── git/       # Git commands
 │   ├── jj/        # Jujutsu commands
 │   └── nix/       # Nix commands
-└── personal/      # Machine-specific or private sheets
+├── personal/      # Machine-specific or private sheets
+└── inbox/         # Quarantine for unreviewed sheets (see below)
 ```
+
+## The inbox
+
+`community/` and `personal/` are nix store paths, so they are `readonly: true` and
+nothing can write to them - `cheat -e <new-sheet>` has nowhere to land. The `inbox`
+cheatpath is the one writable one, mounted at `~/.cheat/inbox`:
+
+```bash
+cheat -l -t unverified   # everything waiting for review
+cheat -e scratch/thing   # new sheets land in the inbox
+```
+
+It is a quarantine, not a third library. Sheets arrive there unreviewed - from
+`cheat -e`, or from an agent running the `cheat-memory` skill - and are promoted by
+moving the file into `community/` or `personal/`. That keeps the "verified against
+crush 0.88.1 source" standard of the curated sheets from being diluted by notes
+nobody has checked.
+
+On a machine with a live dotfiles checkout (`agentSkills.liveCheckout`), `~/.cheat/inbox`
+is a symlink into `cheatsheets/inbox/`, so a sheet written mid-session shows up in
+`jj status` right away and promotion is a plain `mv`. Elsewhere it is an ordinary
+directory - still writable, just not versioned.
 
 ## Local `.cheat` directories
 
