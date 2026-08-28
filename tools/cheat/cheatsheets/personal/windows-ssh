@@ -1,0 +1,52 @@
+# Driving a headless Windows box over native OpenSSH from macOS.
+# Native Windows OpenSSH (not WSL). Verified 2026-08-27 against OpenSSH_for_Windows_9.5.
+
+# --- find it on the LAN ---
+# ping-sweep, then read the ARP table (catches hosts that drop ICMP but answer ARP)
+for i in $(seq 1 254); do ping -c1 -W400 10.0.0.$i >/dev/null 2>&1 & done; wait
+arp -an | grep -v incomplete
+
+# name a host via mDNS reverse-PTR (octets reversed)
+dns-sd -timeout -Q 4.3.2.1.in-addr.arpa PTR
+
+# see who advertises ssh over Bonjour
+dns-sd -B _ssh._tcp local.
+
+# identify the OS without logging in
+nc -G3 -w4 HOST 22 </dev/null | head -1     # banner: OpenSSH_for_Windows_x.y => native, not WSL
+ssh-keyscan -T 5 HOST
+
+# cheap port probe (macOS nc: -G connect timeout, -w read timeout)
+for p in 22 445 3389 5900; do nc -z -G1 -w1 HOST $p && echo "$p open"; done
+
+# --- run things ---
+# non-interactive probe that never hangs on a password prompt
+ssh -o BatchMode=yes -o ConnectTimeout=8 -o PasswordAuthentication=no USER@HOST 'hostname'
+
+# default shell is PowerShell; call it explicitly so quoting is predictable
+ssh USER@HOST 'powershell -NoProfile -Command "Get-Service NAME | Select-Object Status"'
+ssh USER@HOST 'powershell -NoProfile -Command "(Get-CimInstance Win32_OperatingSystem).LastBootUpTime"'
+ssh USER@HOST 'powershell -NoProfile -Command "Get-Content C:\Windows\System32\drivers\etc\hosts | Select-String PATTERN"'
+
+# for anything with nested quotes, base64 the command as UTF-16LE and skip quoting entirely
+# (dodges CLIXML mangling on stderr too)
+CMD='Get-Service | Where-Object {$_.Status -eq "Running"}'
+B64=$(printf '%s' "$CMD" | iconv -f UTF-8 -t UTF-16LE | base64)
+ssh USER@HOST "powershell -NoProfile -EncodedCommand $B64"
+
+# --- gotchas ---
+# * Non-interactive ssh gets a minimal PATH. On the macOS side of a fleet use `zsh -lc '...'`;
+#   on Windows call binaries by full path.
+# * A long-running command (systeminfo, big builds) will blow a short client timeout and
+#   leave you with empty output. Raise ConnectTimeout, or run it detached and poll.
+# * `.local` mDNS names resolve to a link-local IPv6 address on Windows, which most clients
+#   cannot use. Pin the IPv4 in C:\Windows\System32\drivers\etc\hosts (needs an elevated editor)
+#   when a cert SAN forces you to keep using the hostname.
+# * That hosts pin is a static IP in a DHCP world -- it goes stale after any power outage or
+#   lease change. Re-check it first when a host "disappears" after a reboot.
+# * Services: a LocalSystem service with SERVICE_AUTO_START runs pre-logon, which sidesteps
+#   MDM policies that block auto-logon. Check it survived a reboot before trusting it.
+# * Service wrappers often truncate long quoted argument strings. Put the real command in a
+#   .cmd wrapper and point the service at that instead.
+
+# Runnable: cheat windows-ssh
