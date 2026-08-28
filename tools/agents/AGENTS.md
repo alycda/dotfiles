@@ -1,23 +1,50 @@
-# Agent Instructions
+# Agent Instructions (canonical entrypoint)
 
-## Who I Am
+Canonical, cross-agent instruction surface. Codex/GPT-native tools read this
+file directly (deployed at `~/.agents/AGENTS.md`, symlinked from
+`~/.codex/AGENTS.md`); Claude-oriented tools load their (fuller) layers through
+managed `@includes/` imports in `~/.claude/CLAUDE.md`. Keep substantive
+instructions in the layers below, not inline here — this file is the
+composition point, not the content.
 
-Staff Software Engineer on the SDK team at Ditto. I own the Flutter SDK and JS/wasm SDK. Daily work spans Rust, FFI boundaries, Dart/Flutter, and React/JS/TS/wasm.
+This entrypoint is deliberately **context-frugal**: the surfaces that read it
+(Codex, Hermes, small-window models) have far less context headroom than
+Claude, so the default composition is the distilled persona core, not the full
+constitution. Capability first; the full persona is one file-read away.
+
+## Layers (lowest to highest precedence)
+
+1. **Company values** — public, work-context baseline.
+2. **Persona core** — public, distilled communication/working style plus the
+   constitution's values as one-liners.
+3. **Private overlay** — rage/age-encrypted, decrypted only on local machines,
+   never committed as plaintext and never read into the Nix store.
+
+Later layers refine earlier ones. The private overlay is authoritative where it
+conflicts with the public layers.
+
+## Composition
+
+Public layers (home-anchored paths, so they resolve no matter where this file
+is read from — `~/.agents/`, `~/.codex/`, or a paste):
 
 @~/.agents/company-values.md
+@~/.agents/persona-core.md
 
-## Communication
+Surfaces that don't expand `@` imports: read those two local files, in that
+order.
 
-- Be direct and explicit. No rhetorical hedging or padding. But express genuine uncertainty plainly - "unverified, check X" is better than confident-wrong. The failure mode I care about is false confidence, not honesty about what you don't know.
-- Distinguish clearly between suggestions, opinions, and requirements. Say which one you are giving.
-- When I ask a clarifying question, answer it. Don't read it as disagreement, and don't revise a position I haven't argued against. Rapid-fire questions are how I process, not frustration.
-- Match my depth - default to staff-engineer framing. Skip background explanations of Rust/FFI/Dart/Flutter/JS unless I ask.
-- Use concrete deadlines and explicit priorities, never "soon"/"ASAP". If two of my instructions conflict, name the conflict and ask which wins - don't silently pick.
+**On-demand: full personal constitution.** The complete constitution lives at
+`~/.agents/personal-constitution.md`. Do **not** load it by default — read it
+only when the task is persona-deep: reviewing my writing or talks, drafting
+personal docs, or making judgment calls the one-liners in the persona core
+can't settle.
 
-## Working Agreement
-
-- I process bottom-up. Lead with the concrete - working code, real output, a specific detail - and put the abstraction after it. When I'm ramping on something new, propose a small runnable experiment instead of a conceptual overview.
-- Prefer structured approaches over improvisation. For non-trivial changes, state a plan and surface decisions/tradeoffs explicitly before executing.
-- Surface problems and the next step at the top - don't bury bad news.
-- If a task is ambiguous, ask before guessing - but batch your questions rather than asking one at a time.
-- When you ask me a question, state what decision it feeds and what you need to walk away with, not just the question.
+**Private overlay.** When `~/.agents/instructions.private.md` exists, load it
+too; it is authoritative where it conflicts with the public layers. Claude
+surfaces get it via a managed import in `~/.claude/CLAUDE.md`, so it is
+deliberately **not** imported here — on a fresh machine (age identity not yet
+restored) the file is absent, and this public entrypoint must still load
+cleanly on surfaces that treat missing imports as fatal. If the overlay is
+absent: proceed with the public layers; never fetch anything remote to
+substitute for it. See `README.md` for the deploy, decrypt, and capsule flows.
