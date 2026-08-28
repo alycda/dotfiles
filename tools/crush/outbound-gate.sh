@@ -76,8 +76,27 @@ is_outbound_tool() {
 	local name
 	name="$(tr '[:upper:]' '[:lower:]' <<<"$1")"
 	grep -qE 'linear.*(comment|status_update|customer_need)' <<<"$name" && return 0
+	grep -qE 'linear.*share_' <<<"$name" && return 0
 	grep -qE 'slack.*(send|post|reply|message)' <<<"$name" && return 0
-	grep -qE '(email|mail).*send' <<<"$name" && return 0
+	# A Slack canvas is published into a channel the same way a message is
+	grep -qE 'slack.*canvas' <<<"$name" && return 0
+	grep -qE '(email|mail).*(send|draft)' <<<"$name" && return 0
+	# Google Workspace ships one MCP server per product, so the tool names
+	# arrive prefixed mcp_google-<product>_. Chat messages post; a Drive
+	# permission change IS publication, whatever the file already said.
+	grep -qE 'chat.*(send|post|create).*message' <<<"$name" && return 0
+	grep -qE 'drive.*share' <<<"$name" && return 0
+	grep -qE 'drive.*(add|create|update|set|delete).*permission' <<<"$name" && return 0
+	# Notion writes land in a workspace other people read. Deliberately wider
+	# than "comment": a page or database edit is visible content too, and
+	# over-blocking is the safe side here.
+	grep -qE 'notion.*(create|update|append|duplicate|move|delete)' <<<"$name" && return 0
+	# GitHub's MCP tool names don't line up with the generic patterns below:
+	# add_issue_comment has no literal "add_comment" in it, and the write
+	# paths are spelled issue_write / pull_request_review_write. Both halves
+	# require a write verb so the get_*/list_*/search_* readers stay open.
+	grep -qE 'github.*(add|create|update|submit|write).*(comment|issue|pull_request|review|release|gist)' <<<"$name" && return 0
+	grep -qE 'github.*(issue|pull_request|review)_write' <<<"$name" && return 0
 	grep -qE 'mcp_.*(add_comment|create_comment|post_message|send_message|create_issue|create_pull_request|submit_review)' <<<"$name" && return 0
 	return 1
 }
