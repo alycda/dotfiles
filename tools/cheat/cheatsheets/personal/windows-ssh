@@ -49,4 +49,3 @@ ssh USER@HOST "powershell -NoProfile -EncodedCommand $B64"
 # * Service wrappers often truncate long quoted argument strings. Put the real command in a
 #   .cmd wrapper and point the service at that instead.
 
-# Runnable: cheat windows-ssh
