@@ -2,7 +2,7 @@
 name: jj-extract-gitignores
 description: >
   Extract `.gitignore` changes from buried commits in a jj chain back into named
-  in-between commits that sit right after a target ancestor (default: the project's init
+  in-between commits that sit right after a target ancestor (default - the project's init
   commit). Use when the user says "extract gitignore changes", "split off the gitignores",
   "roll the gitignores back to <commit>", "retroactive gitignore remediation",
   "/jj-extract-gitignores", or wants to land later-committed `.gitignore` additions as
