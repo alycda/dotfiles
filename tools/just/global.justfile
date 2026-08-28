@@ -4,7 +4,7 @@
 # recipe here; sheets that are genuinely reference material stay sheets.
 # Successor to the community/nix/sh trick (`cheat <name> | sh`).
 #
-# Root is imports-only (same shape as getditto/ditto#21676): one .just file
+# Root is imports-only (same shape as the ditto monorepo justfile split PR): one .just file
 # per topic group, recipes delegate to real binaries where one exists.
 
 import 'gh.just'

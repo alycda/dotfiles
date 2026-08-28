@@ -130,7 +130,14 @@
       # Development shells
       devShells = forAllSystems (system:
         let
-          pkgs = import nixpkgs { inherit system; };
+          pkgs = import nixpkgs {
+            inherit system;
+            # core-packages carries crush, which is unfree (FSL-1.1-MIT) -
+            # without this every devShell fails evaluation, which also fails
+            # `nix flake check --all-systems`. mkHome and darwin already
+            # allow unfree; this brings the devShells in line.
+            config.allowUnfree = true;
+          };
 
           # Core packages shared with home-manager
           corePackages = import ./lib/core-packages.nix pkgs;

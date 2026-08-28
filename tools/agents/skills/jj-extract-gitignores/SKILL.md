@@ -2,20 +2,16 @@
 name: jj-extract-gitignores
 description: >
   Extract `.gitignore` changes from buried commits in a jj chain back into named
-  in-between commits that sit right after a target ancestor (default: the project's init
+  in-between commits that sit right after a target ancestor (default - the project's init
   commit). Use when the user says "extract gitignore changes", "split off the gitignores",
   "roll the gitignores back to <commit>", "retroactive gitignore remediation",
   "/jj-extract-gitignores", or wants to land later-committed `.gitignore` additions as
   logical ancestors of the work that uses them. Builds a sequential chain of named
-  in-between commits — not siblings — because siblings conflict at squash time when
-  they all append to the same end-of-file position. Each in-between commit holds
-  exactly one original commit's `.gitignore` delta, preserving its hunk exactly. `@`
-  does not move. Also covers a related variant for modifying a tracked path in an
-  ancestor commit without `jj edit` (which would let auto-tracking pollute the
-  ancestor) — uses `jj restore --from @ --to <new>` instead of squash, with a
-  `jj restore --from 'root()'` fix for any delete/modify conflicts downstream.
+  in-between commits - not siblings, which conflict at squash time by appending to the
+  same end-of-file position. Each in-between commit holds exactly one original commit's
+  `.gitignore` delta, preserving its hunk exactly. `@` does not move. Also covers
+  modifying a tracked path in an ancestor without `jj edit` (via `jj restore`).
   Pinned to jj v0.44.
-allowed-tools: Bash(jj *), Bash(git log *), Bash(git status), Read, Edit
 ---
 
 # jj-extract-gitignores

@@ -2,20 +2,34 @@
 # repo, each runtime mounts it natively). Skill sources live under
 # tools/agents/skills/.
 #
-# Two deployment modes, selected per profile via agentSkills.liveCheckout:
+# Canonical install location is ~/.agents/skills/<name> - the Agent Skills
+# standard directory that crush and codex scan directly. Claude Code reads
+# only ~/.claude/skills, so each skill also gets a ~/.claude/skills/<name>
+# symlink pointing at the canonical ~/.agents/skills copy (same pattern cmux
+# uses for its hand-installed skills). One deploy, every surface.
+#
+# Two deployment modes for repo skills, selected per profile via
+# agentSkills.liveCheckout:
 #  - null (default): skills deploy from the store snapshot the flake was built
 #    from. No path assumptions, so the module is safe in common.nix and the
-#    dev devcontainer (which previously couldn't import it: the oosSymlink
-#    target assumed a checkout at ~/dotfiles and dangled silently elsewhere).
+#    dev devcontainer.
 #  - a path string: out-of-store symlinks into that live checkout, so skill
-#    edits land in the runtime without a rebuild — the desktop dev loop.
-#
-# Claude only for now. Hermes mounts (nested by category under ~/.hermes/)
-# land with the s3-now port (#43).
+#    edits land in the runtime without a rebuild - the desktop dev loop.
 #
 # External skills (from skills.sh, pinned via the nix-skills flake input and
 # selected in lib/skills-sh.nix) always deploy from the store - liveCheckout
 # doesn't apply to them since their source isn't in this repo.
+#
+# Repo skills:
+#   brag-doc              - promo-packet impact entries from raw work notes
+#   commit-craft          - commit-message craft + jj describe/push workflow
+#   failure-doc           - failures as deliberate-learning records
+#   html-deck             - self-contained single-file HTML slide decks
+#   jj-extract-gitignores - roll .gitignore additions back into ancestors
+#   jujutsu               - operate in jj repos without git muscle memory
+# (compound-engineering is deliberately NOT here - it ships as a Claude Code
+# plugin via the catalog (#65), and installing its 38 ce-* skills again here
+# would duplicate every one of them in the picker.)
 { config, lib, pkgs, ... }:
 let
   cfg = config.agentSkills;
@@ -25,6 +39,39 @@ let
       config.lib.file.mkOutOfStoreSymlink "${cfg.liveCheckout}/tools/agents/skills/${name}"
     else
       ../../../tools/agents/skills + "/${name}";
+
+  repoSkills = [
+    "brag-doc"
+    "commit-craft"
+    "failure-doc"
+    "html-deck"
+    "jj-extract-gitignores"
+    "jujutsu"
+  ];
+
+  externalSkills = {
+    here-now = pkgs.skills-sh.here-now;
+    supabase-postgres-best-practices = pkgs.skills-sh.supabase-postgres-best-practices;
+  };
+
+  # canonical copies: ~/.agents/skills/<name>
+  canonical =
+    lib.listToAttrs (
+      map (n: lib.nameValuePair ".agents/skills/${n}" { source = skillSource n; }) repoSkills
+    )
+    // lib.mapAttrs' (n: src: lib.nameValuePair ".agents/skills/${n}" { source = src; })
+      externalSkills;
+
+  # claude mount: ~/.claude/skills/<name> -> ~/.agents/skills/<name>
+  claudeMount = lib.listToAttrs (
+    map (
+      n:
+      lib.nameValuePair ".claude/skills/${n}" {
+        source =
+          config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/.agents/skills/${n}";
+      }
+    ) (repoSkills ++ lib.attrNames externalSkills)
+  );
 in
 {
   options.agentSkills.liveCheckout = lib.mkOption {
@@ -32,7 +79,7 @@ in
     default = null;
     example = "/Users/alyssa/dotfiles";
     description = ''
-      Absolute path to a live dotfiles checkout. When set, skills are
+      Absolute path to a live dotfiles checkout. When set, repo skills are
       out-of-store symlinks into it and edits land without a rebuild.
       When null, skills deploy from the store — portable to machines
       without a checkout at any particular path.
@@ -40,49 +87,6 @@ in
   };
 
   config = {
-    home.file = {
-      # html-deck — self-contained single-file HTML slide decks. Tool-agnostic,
-      # but only wired for Claude here; other runtimes follow later.
-      ".claude/skills/html-deck".source = skillSource "html-deck";
-
-      # jujutsu — operate in jj repos without git muscle memory. Progressive
-      # disclosure: SKILL.md carries the mental model and agent rules, with
-      # references/ loaded on demand (command mapping, gitignore recovery,
-      # version deltas). Pinned to jj v0.43.
-      ".claude/skills/jujutsu".source = skillSource "jujutsu";
-
-      # jj-extract-gitignores — retroactively roll .gitignore additions back
-      # into named in-between commits after the ancestor that needed them.
-      # Narrow companion to the jujutsu skill above.
-      ".claude/skills/jj-extract-gitignores".source = skillSource "jj-extract-gitignores";
-
-      # commit-craft — Chris Beams' seven rules for commit messages, plus the
-      # jj-side workflow (`jj describe` → bookmark → push). Completes the pair
-      # with the jujutsu skill above: that one covers moving around a jj repo,
-      # this one covers what to write when a change becomes a commit.
-      ".claude/skills/commit-craft".source = skillSource "commit-craft";
-
-      # brag-doc — extract promo-packet-ready impact entries from raw work
-      # notes (five fixed categories + aggregate rollups). Pairs with
-      # failure-doc below: its Learning Log holds summary lines pointing at
-      # full failure-doc entries.
-      ".claude/skills/brag-doc".source = skillSource "brag-doc";
-
-      # failure-doc — capture failures as deliberate-learning records (the
-      # failure was load-bearing). Cross-references brag-doc for entries that
-      # are also brag-eligible, so the two ship together here. Planned to also
-      # be packaged standalone in Alycda/ffi-workshop later; this copy stays
-      # canonical for the home environment.
-      ".claude/skills/failure-doc".source = skillSource "failure-doc";
-
-      # External skills from skills.sh (see lib/skills-sh.nix for pinning).
-      # Note: compound-engineering is deliberately NOT installed this way -
-      # it's already a Claude Code plugin via the catalog (#65), and its 38
-      # ce-* skills ship inside the plugin; installing them here too would
-      # duplicate every one of them in the skill picker.
-      ".claude/skills/here-now".source = pkgs.skills-sh.here-now;
-      ".claude/skills/supabase-postgres-best-practices".source =
-        pkgs.skills-sh.supabase-postgres-best-practices;
-    };
+    home.file = canonical // claudeMount;
   };
 }
