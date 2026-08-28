@@ -19,6 +19,7 @@ in
     ./tools/agents.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
+    ./tools/crush.nix
     ./tools/fzf.nix
     ./tools/gh-dash.nix
     ./tools/git-worktree-clone.nix

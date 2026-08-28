@@ -29,6 +29,10 @@ in
     ".agents/personal-constitution.md".source = ../../../tools/agents/personal-constitution.md;
     ".agents/preferred-tooling.md".source = ../../../tools/agents/preferred-tooling.md;
     ".agents/personal-constitution-distilled.md".source = ../../../tools/agents/personal-constitution-distilled.md;
+    # Cross-tool home of the outbound-comment gate; Claude mounts it at
+    # ~/.claude/rules (claude-code.nix), crush loads it via context_paths
+    # (crush.nix).
+    ".agents/rules/outbound-comment-gate.md".source = ../../../tools/agents/rules/outbound-comment-gate.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.

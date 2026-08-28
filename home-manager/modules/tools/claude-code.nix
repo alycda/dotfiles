@@ -9,8 +9,11 @@
 { lib, pkgs, ... }:
 {
   home = {
+    # Canonical source lives in tools/agents/rules (cross-tool, issue #40);
+    # this is Claude's mount of it. crush loads the same rule via
+    # options.context_paths (see tools/crush.nix).
     file.".claude/rules/outbound-comment-gate.md".source =
-      ../../../tools/claude/rules/outbound-comment-gate.md;
+      ../../../tools/agents/rules/outbound-comment-gate.md;
 
     activation = {
       # Managed slices of ~/.claude/settings.json. The file itself is
