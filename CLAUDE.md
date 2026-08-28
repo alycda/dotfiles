@@ -139,6 +139,7 @@ dotfiles/
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
+│   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
 │   └── helix/              # Helix config
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
@@ -209,6 +210,53 @@ the flake's devShells and home-manager. This is deliberate: the ephemeral
 same core CLI tools, so `cheat`, `jj`, `just`, `gh`, etc. behave identically
 whether you're in a throwaway shell or a switched profile. Add a
 universally-needed CLI tool here rather than duplicating it in both places.
+
+### Packaging an npm CLI that nixpkgs doesn't have
+
+`home-manager/modules/tools/hackmd.nix` is the worked example. When a tool
+only exists on npm, package it from a **pin-only** `tools/<tool>/package.json`
+whose single dependency is the published package, plus the `package-lock.json`
+generated from it — then build with `pkgs.importNpmLock.buildNodeModules` and
+wrap `node <entrypoint>` in a `writeShellApplication` (which shellchecks the
+wrapper for free, and leaves room for a guard — see the last paragraph here).
+
+Use `importNpmLock`, not `buildNpmPackage`'s default `fetchNpmDeps`. The latter
+needs an `npmDepsHash` over the whole dependency FOD, which you can only obtain
+by running a build and copying the hash out of the mismatch error — impossible
+to produce in an environment without Nix, and a second thing to keep in sync
+forever. `importNpmLock` fetches each dependency by the integrity hash already
+in the lockfile, so the lockfile *is* the pin.
+
+Two consequences of "the lockfile is the pin" that bit on the first use:
+
+- **Every entry in the lock is fetched, not just the ones for the build
+  platform.** A dependency that ships per-platform binaries (typescript 7.x
+  ships 20 of them) downloads all of them on every machine to install one.
+  Pin such a dependency down to a pure-JS version with an npm `overrides`
+  entry.
+- **npm-declared runtime dependencies are often nothing of the sort.**
+  hackmd-cli declares the `oclif` publisher CLI — yeoman, aws-sdk v2 — as a
+  runtime dep while its shipped code only ever requires `@oclif/core`.
+  Redirect the edge with an `overrides` alias to a package already in the tree
+  rather than deleting it, so a surprise `require` gets a real module. (npm
+  does not dedupe an alias against the real package, so the aliased target is
+  installed twice — cheap next to what the override saves, but not free.)
+  Between the two overrides: 770 packages / 263MB → 161 / 50MB.
+
+Both overrides need a comment saying what they buy, because a later
+`rm package-lock.json && npm install --package-lock-only` silently reverts to
+the fat tree if someone drops them. Add `**/node_modules` coverage to both
+`.gitignore` and `.dockerignore` while you are here: the bump procedure runs
+npm inside the repo, and `tools/` is in the Docker build context.
+
+One more thing a CLI needs before it belongs in `common.nix`: **a credential
+prompt must not be reachable headlessly.** `common.nix` is inherited by the
+devcontainer, so anything installed there gets called by agents on machines
+where nobody ever ran `login`. A CLI that prompts for a token and re-asks on an
+empty answer does not fail there — it spins until killed. Guard the
+non-interactive path in the wrapper (`tools/hackmd/token-guard.sh` is the
+worked example: no TTY + no token + a command that needs one = exit 1 with the
+env var to set), and leave the TTY path alone.
 
 ### External agent skills (`lib/skills-sh.nix`)
 
@@ -450,7 +498,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
+*Last updated: 2026-08-28 - Documented the `importNpmLock` pattern for packaging an npm-only CLI (hackmd-cli), including why the lockfile-as-pin approach makes over-declared npm dependencies and per-platform binary packages a build-size problem worth overriding away, and added the rule that a CLI reaching `common.nix` must not be able to hit an interactive credential prompt headlessly*
+
+*2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
 
 *2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 
