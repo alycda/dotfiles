@@ -90,7 +90,7 @@ works out of the box. Replace it with your real private instructions locally:
 ```sh
 # edit in place — decrypts, opens $EDITOR, re-encrypts to the recipients in
 # secrets/secrets.nix (never writes plaintext to disk)
-agenix -e secrets/personal/agent-instructions.age
+just edit-secret personal/agent-instructions.age
 ```
 
 The recipient is the age public key already declared in `secrets/secrets.nix`.
