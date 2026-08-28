@@ -33,10 +33,14 @@ export HMD_API_ACCESS_TOKEN=YOUR_TOKEN
 ```
 
 <!-- LOCAL EDIT (dotfiles) -- as above. -->
-With no token configured, upstream's CLI prompts for one, and on a pipe that
-prompt re-asks forever. The wrapper here turns that case into an immediate
-error instead, so a command that exits 1 saying "no API token" is telling you
-to set `HMD_API_ACCESS_TOKEN` — not to retry.
+On these machines neither step above is usually needed: the token is an agenix
+secret that home-manager decrypts at activation, and the `hackmd-cli` wrapper
+reads it at call time. Just run the command.
+
+If a command exits 1 saying "no API token", that is the wrapper refusing to
+hang — upstream's CLI would prompt, and on a pipe that prompt re-asks forever.
+It means the secret did not arrive, so retrying will not help: read the paths
+in the error, or set `HMD_API_ACCESS_TOKEN` for this one invocation.
 
 For HackMD EE instances, also set the API endpoint:
 

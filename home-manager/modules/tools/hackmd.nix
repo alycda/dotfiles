@@ -11,6 +11,33 @@
 # Not in nixpkgs (searched nixos-unstable: no hackmd attribute at all), so it is
 # packaged here from the published npm tarball.
 #
+# The API token comes from agenix, selected per profile with
+# `hackmd.account = "personal" | "work"` (the option is at the bottom of this
+# file). Both ciphertexts and the secrets.nix declarations were taken from
+# PR #59, which this one supersedes: #59 wired the same secrets to a HackMD MCP
+# server, and the secrets are the half of it worth keeping.
+#
+# To validate in the devcontainer, which is the profile carrying the personal
+# account:
+#
+#   docker build -t dev .
+#   docker run -it --rm -v devhome:/root -v "$PWD":/work -w /work dev
+#   # if activation complains about age/agenix, the identity is missing:
+#   #   docker cp ~/.age/personal-key.txt <container>:/root/.age/personal-key.txt
+#   # ...and make sure that file ends in a newline - see
+#   #   docs/solutions/runtime-errors/
+#   #     ragenix-edit-fails-on-identity-without-trailing-newline.md
+#   ls -l ~/.local/share/agenix/hackmd-api-token   # the token should be here
+#   hackmd-cli whoami        # should name the account, not prompt or hang
+#   hackmd-cli teams
+#
+# That container only decrypts anything because dev.nix also imports
+# ../agenix-activation.nix, carried onto this branch for exactly this reason:
+# ragenix's home-manager module installs secrets from a systemd user service and
+# adds no activation step, and the container has no user systemd. Without it
+# `hackmd.account` is a no-op there and the guard below reports a missing token
+# while the identity is sitting in place - a misdiagnosis worth avoiding.
+#
 # WHY importNpmLock RATHER THAN buildNpmPackage's usual fetchNpmDeps: the latter
 # needs an `npmDepsHash` of the whole dependency FOD, which can only be obtained
 # by running a build and reading the mismatch error. importNpmLock instead
@@ -64,8 +91,23 @@
 # Result: 161 packages / 50MB. That still rides in common.nix (and so into the
 # devcontainer image), which is why the 263MB version was not acceptable - see
 # CLAUDE.md on the 2012 MBP overflowing Docker's disk mid-build.
-{ lib, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 let
+  cfg = config.hackmd;
+
+  # Where agenix writes the token and the wrapper reads it. `path` is left
+  # unoverridden below - agenix's default is `${age.secretsDir}/${name}`, the
+  # same convention the Linear key relies on in ./agents.nix - and read back
+  # from the option here, so the two can never drift even if a `path` is added
+  # later. Profiles with no account define no secret, so that branch spells the
+  # default out; nothing decrypts there, and the guard only quotes the path to
+  # say what is missing.
+  tokenPath =
+    if cfg.account == null then
+      "${config.age.secretsDir}/hackmd-api-token"
+    else
+      config.age.secrets.hackmd-api-token.path;
+
   lock = lib.importJSON ../../../tools/hackmd/package-lock.json;
 
   # Read the version out of the pin rather than restating it. A second copy is
@@ -100,6 +142,7 @@ let
     };
     text = ''
       # hackmd-cli ${version}
+      hackmd_token_file=${lib.escapeShellArg tokenPath}
       ${builtins.readFile ../../../tools/hackmd/token-guard.sh}
       exec ${pkgs.nodejs}/bin/node \
         "${nodeModules}/node_modules/@hackmd/hackmd-cli/bin/run" "$@"
@@ -107,10 +150,45 @@ let
   };
 in
 {
-  # Auth is deliberately NOT managed here. `hackmd-cli login` writes
-  # ~/.hackmd/config.json, and HMD_API_ACCESS_TOKEN overrides it - either way
-  # the token is a runtime credential, not a generation input. If it should
-  # travel with the machine it belongs in secrets/ as an agenix secret, the way
-  # the Linear key does in ./agents.nix.
-  home.packages = [ hackmd-cli ];
+  # Which HackMD account this machine talks to. Null (the default) still
+  # installs the CLI - `hackmd-cli login` or HMD_API_ACCESS_TOKEN then work as
+  # upstream intends - it only declines to carry a token.
+  #
+  # An enum rather than two importable modules (which is how PR #59 shaped it):
+  # the accounts are mutually exclusive because they share one secret name and
+  # one decrypt path, and an enum makes picking both unrepresentable instead of
+  # something a comment has to warn against.
+  options.hackmd.account = lib.mkOption {
+    type = lib.types.nullOr (lib.types.enum [
+      "personal"
+      "work"
+    ]);
+    default = null;
+    example = "personal";
+    description = ''
+      Which HackMD account's API token to decrypt for `hackmd-cli`, selecting
+      `secrets/<account>/hackmd-api-token.age`. When null no token is carried
+      and the CLI falls back to its own `login` / `HMD_API_ACCESS_TOKEN`.
+    '';
+  };
+
+  config = {
+    home.packages = [ hackmd-cli ];
+
+    # The token arrives with the generation, so a fresh container has a working
+    # hackmd-cli without a paste-the-token ritual - the same reasoning that puts
+    # the Linear key in ./agents.nix. It is never exported into the shell
+    # environment: the wrapper reads this file at call time (see
+    # tools/hackmd/token-guard.sh).
+    #
+    # No `mode` override (#59 set 0600): agenix's 0400 default is already
+    # owner-read-only, and read is all the wrapper needs.
+    #
+    # This adds a secret to a decrypt step every profile already runs for
+    # git.nix's git-config, so it introduces no new way for activation to fail -
+    # a missing identity was already going to be reported there first.
+    age.secrets = lib.mkIf (cfg.account != null) {
+      hackmd-api-token.file = ../../../secrets + "/${cfg.account}/hackmd-api-token.age";
+    };
+  };
 }
