@@ -1,0 +1,48 @@
+# Crush LSP config (verified against crush 0.88.1 / powernap v0.1.6).
+# Managed declaratively in home-manager/modules/tools/crush.nix.
+
+# Crush does NOT need an LSP roster the way helix does. options.auto_lsp
+# (default TRUE) matches each file it touches against a bundled registry of
+# 365 servers and starts the ones whose command is on PATH. Only the gaps
+# need a `lsp` entry.
+
+# WHICH SERVERS THE REGISTRY ALREADY KNOWS (name | command):
+#   rust_analyzer | rust-analyzer      nil_ls | nil        nixd | nixd
+#   gopls | gopls   golangci_lint_ls | golangci-lint-langserver
+#   zls | zls       just | just-lsp    harper_ls | harper-ls
+#   kotlin_language_server | kotlin-language-server
+#   dartls | dart   sourcekit | sourcekit-lsp   marksman, taplo, bashls, ...
+# NOT in it, despite overrides.go naming them: ts_ls, jsonls, html, cssls,
+# yamlls, jdtls. Those need explicit entries or the language has no server.
+
+# Dump the whole registry for the pinned crush:
+git clone --depth 1 --branch powernap/v0.1.6 https://github.com/charmbracelet/x /tmp/x
+jq -r 'to_entries[] | "\(.key)\t\(.value.command)\t\(.value.filetypes // [] | join(","))"' \
+  /tmp/x/powernap/pkg/config/lsps.json | column -t
+
+# THREE BEHAVIOURS THAT DECIDE HOW TO WRITE AN ENTRY
+# (internal/lsp/manager.go):
+#
+# 1. An `lsp` entry REPLACES the bundled server, it does not layer onto it
+#    (NewManager -> AddServer). Writing `"gopls": {"command": "gopls"}` drops
+#    gopls's filetypes and root_markers - and an empty filetypes list means
+#    "handles every file". Restate the whole definition or don't touch it.
+#
+# 2. A user-configured server SKIPS the exec.LookPath check that auto-start
+#    does. A bundled server whose binary is missing is silently skipped; a
+#    configured one is respawned and fails on every file open. Hence the
+#    absolute /nix/store paths in crush.nix rather than bare names.
+#
+# 3. A user-configured server also skips skipAutoStartCommands - the list of
+#    commands too generic to auto-start (dart, java, node, npx, python,
+#    deno, dotnet, ruff, ...). Naming `dartls` is the ONLY way to get Dart,
+#    even though the registry already defines it correctly.
+
+# Filetype matching is suffix-based ("ts" -> endswith ".ts") OR equal to
+# powernap's detected language kind. ".mts" does NOT end with ".ts", so list
+# mts/cts/mjs/cjs separately. Root markers are globbed in the WORKING DIR
+# only (non-recursive); an empty list means "no project needed".
+
+# Debug what actually started:
+#   crushrc:  option debug true; option debug-lsp true
+tail -f ~/.local/share/crush/logs/crush.log | grep -i lsp

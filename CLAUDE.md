@@ -249,6 +249,10 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
 
    A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
 
+6. **A declarative override may REPLACE an upstream default, not merge with it**: before writing a partial config entry over something a tool already ships, check which of the two it does. crush's `lsp` block is the live example - `internal/lsp/manager.go` `NewManager` calls `AddServer(name, ...)` with exactly the fields the user gave, so `"gopls": { "command": "gopls" }` does not "keep the defaults and set the command": it drops gopls's `filetypes` and `root_markers`, and an empty `filetypes` list means *handles every file in the repo*. The correct shapes are (a) omit the entry entirely and let the tool's own auto-configuration run, or (b) restate the definition in full. `home-manager/modules/tools/crush.nix` does both deliberately, and says which for each server.
+
+   The generalisation past crush: a declarative module is a claim of ownership over a key, and how far that claim reaches is the tool's decision, not ours. The same asymmetry is already load-bearing two other places in this repo - jq's `*` in `claude-code.nix` (recursive for objects, wholesale replacement for arrays, so a managed hook event owns that event outright) and `global_context_paths` in crush.nix (setting it *replaces* the two built-in defaults, which is why they are relisted). Read the merge semantics before the option list.
+
 5. **System-level shell config reaches every account**: anything under
    `programs.zsh.*` in nix-darwin is written to `/etc/zshrc` / `/etc/zshenv`,
    which every user on the machine reads - including a non-admin account with
@@ -450,7 +454,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
+*Last updated: 2026-08-28 - Added "a declarative override may REPLACE an upstream default" as a sixth configuration conflict, after wiring crush's LSP and MCP rosters turned on the same asymmetry three times (`lsp` AddServer, jq array replacement, `global_context_paths`)*
+
+*2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
 
 *2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 
