@@ -32,6 +32,11 @@
 **/result-*
 **/.direnv
 
+# npm scratch, same story: the flake reads only tools/hackmd/package.json and
+# package-lock.json, never a node_modules the bump procedure may have left
+# behind. ~50MB, and it rewrites itself on every npm run.
+**/node_modules
+
 # Docs, CI and editor config: read by humans, GitHub and VS Code, never by the
 # flake. CLAUDE.md is the most frequently edited file in the repo, which is
 # exactly why it should not be able to invalidate the closure build. The copy

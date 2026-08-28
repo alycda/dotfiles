@@ -41,13 +41,21 @@
 #   jujutsu               - operate in jj repos without git muscle memory
 #
 # One of them is vendored rather than authored:
-#   hackmd-cli - upstream's own skill, extracted verbatim from the
-#     hackmd-cli.skill zip in hackmdio/hackmd-cli (a plain zip of a SKILL.md;
-#     the npm tarball does NOT carry it, so it cannot come from the same
-#     fetch as the binary). It documents the CLI that ../tools/hackmd.nix
-#     installs, so the two are re-synced together - bump instructions live in
-#     that module's header. Do not hand-edit it; edits are lost on the next
-#     re-vendor.
+#   hackmd-cli - upstream's own skill, extracted from the hackmd-cli.skill zip
+#     in hackmdio/hackmd-cli (a plain zip of a SKILL.md; the npm tarball does
+#     NOT carry it, so it cannot come from the same fetch as the binary). It
+#     documents the CLI that ../tools/hackmd.nix installs, so the two are
+#     re-synced together - bump instructions live in that module's header.
+#
+#     Vendored, not verbatim: two blocks marked `LOCAL EDIT (dotfiles)` correct
+#     instructions that are actively wrong here. Upstream's Install section
+#     says `npm install -g`, which against a read-only store prefix either
+#     fails or shadows the pinned build; and the Setup section says nothing
+#     about the no-token hang the wrapper now turns into an error. A skill is
+#     read by agents as instructions, so leaving a known-wrong command in it to
+#     preserve byte-fidelity with upstream trades the thing that matters for
+#     one that does not. Re-apply both blocks when re-vendoring; treat any
+#     other edit as one the next re-vendor will silently drop.
 #
 #     It sits in repoSkills because the deployment is identical, but note what
 #     liveCheckout then means for it: with a live checkout set it becomes an

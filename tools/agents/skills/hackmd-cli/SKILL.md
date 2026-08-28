@@ -11,9 +11,14 @@ Command-line tool for managing HackMD notes, team notes, personal folders, and t
 
 ### Install
 
-```bash
-npm install -g @hackmd/hackmd-cli
-```
+<!-- LOCAL EDIT (dotfiles) -- re-apply this block when re-vendoring this file.
+     Upstream says `npm install -g @hackmd/hackmd-cli` here. On these machines
+     that is wrong twice over: the npm prefix is the read-only Nix store, so a
+     global install fails, and where it does not fail it shadows the pinned
+     build with an unpinned one. See home-manager/modules/tools/hackmd.nix. -->
+
+Nothing to install. `hackmd-cli` is already on `PATH` — home-manager installs it
+from a pinned version, so `npm install -g` is neither needed nor safe here.
 
 ### Configure Access Token
 
@@ -26,6 +31,12 @@ hackmd-cli login
 # Or via environment variable
 export HMD_API_ACCESS_TOKEN=YOUR_TOKEN
 ```
+
+<!-- LOCAL EDIT (dotfiles) -- as above. -->
+With no token configured, upstream's CLI prompts for one, and on a pipe that
+prompt re-asks forever. The wrapper here turns that case into an immediate
+error instead, so a command that exits 1 saying "no API token" is telling you
+to set `HMD_API_ACCESS_TOKEN` — not to retry.
 
 For HackMD EE instances, also set the API endpoint:
 
