@@ -1,0 +1,26 @@
+# crush speaks OpenAI natively and casper is OpenAI-compatible - direct
+# provider wiring, no bridge (unlike claude, which needs LiteLLM).
+# Needs CASPER_API_KEY and CASPER_BASE_URL in the environment (workspace
+# .env or shell) - crushrc expands $VARs.
+
+# To wire casper as a provider, in ~/.config/crush/crushrc:
+#   provider add casper --type openai-compat \
+#     --base-url "$CASPER_BASE_URL/v1" \
+#     --api-key "$CASPER_API_KEY"
+#   model add casper/<model-id> \
+#     --name "<display name>" \
+#     --context-window <tokens> \
+#     --default-max-tokens <tokens>
+
+# To see which model ids casper offers (GPT-class models only if the
+# roster proxies them - check here first):
+curl -s -H "Authorization: Bearer $CASPER_API_KEY" \
+  "$CASPER_BASE_URL/v1/models" | jq -r '.data[].id'
+
+# NOT a route: codex's ChatGPT-plan login. That OAuth token is scoped to
+# the codex CLI's chatgpt backend and cannot be reused by crush - GPT
+# models without casper require a paid OpenAI *platform* API key.
+
+# Alternative subscription route (no API key): crush ships Copilot OAuth.
+# With a GitHub Copilot seat this unlocks Copilot's model roster:
+crush login copilot
