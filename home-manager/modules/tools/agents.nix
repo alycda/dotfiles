@@ -20,10 +20,12 @@ let
   # (authoritative on conflict). Claude Code concatenates imports where they
   # appear, so this ordering is the precedence, not decoration.
   #
-  # agents-company-values.md is deliberately absent: AGENTS.md already imports
-  # ~/.agents/company-values.md by absolute path, so listing it here would load
-  # the layer twice. The include symlink stays for the capsule and for anyone
-  # importing the layer directly.
+  # agents-company-values.md and agents-personal-constitution-distilled.md are
+  # deliberately absent: AGENTS.md already imports ~/.agents/company-values.md
+  # and ~/.agents/persona-core.md by absolute path (verified expanding via the
+  # InstructionsLoaded audit log), and persona-core carries the constitution's
+  # values as one-liners - listing either here would load the layer twice. The
+  # include symlinks stay for the capsule and for anyone importing directly.
   #
   # Block-level HTML comments are stripped before Claude Code injects the file
   # into context, so the markers cost no tokens.
@@ -33,7 +35,6 @@ let
          Source: home-manager/modules/tools/agents.nix. Edits here are lost. -->
     @includes/agents-entrypoint.md
     @includes/agents-preferred-tooling.md
-    @includes/agents-personal-constitution-distilled.md
     @includes/agents-instructions.private.md
     <!-- END managed: agents overlay -->
   '';
@@ -127,8 +128,8 @@ in
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.
-    # Claude always-loads the *distilled* constitution; the full version is
-    # on-demand via the constitution-critic subagent below.
+    # Constitution values reach Claude as persona-core's one-liners (via the
+    # entrypoint); the full version is on-demand via constitution-critic below.
     #
     # The entrypoint include is what makes Claude Code read AGENTS.md at all.
     # Claude Code reads CLAUDE.md and has no AGENTS.md fallback, so without
