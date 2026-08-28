@@ -69,9 +69,6 @@ _:
       "rustdesk" 
       "tailscale-app"   # Ditto
       "visual-studio-code"
-      # "warp" # replaced by cmux as the daily terminal. Left commented rather
-      # than deleted because onActivation.cleanup = "zap" means re-adding it is
-      # a fresh install with no settings - worth seeing that it was a choice.
       "workflowy"
     ];
   };

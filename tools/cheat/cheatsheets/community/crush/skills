@@ -1,0 +1,23 @@
+# Where crush finds skills (verified against crush 0.88.1 source).
+# Global scan order - duplicates dedupe BY NAME, LAST occurrence wins:
+#   ~/.config/crush/skills
+#   ~/.config/agents/skills
+#   ~/.agents/skills          <- canonical nix deploy (agent-skills.nix)
+#   ~/.claude/skills          <- symlinks to canonical; wins ties harmlessly
+# Project dirs are appended after globals (so they beat all of them):
+#   .agents/skills  .crush/skills  .claude/skills  .cursor/skills
+#   (working dir first, then git worktree root - NB upstream comment claims
+#   local beats monorepo root, but last-wins makes the ROOT win)
+
+# To run crush with ONLY one skills dir - CRUSH_SKILLS_DIR REPLACES the whole
+# global list (it does not add to it). Project dirs still load:
+CRUSH_SKILLS_DIR=~/skills-under-test crush
+
+# To run crush with NO global skills at all:
+CRUSH_SKILLS_DIR=/var/empty crush
+
+# To disable specific skills instead (crush config option):
+#   "options": { "disabled_skills": ["name", ...] }
+
+# To check which copy of a duplicated skill won: it's the one from the
+# LAST-scanned path above (e.g. ~/.claude/skills beats ~/.agents/skills).

@@ -1,0 +1,27 @@
+# crush ships via nix (lib/core-packages.nix). Unfree license (FSL-1.1-MIT),
+# so it compiles from source on first eval - no cache.nixos.org binaries.
+
+# To wire Venice as an OpenAI-compatible provider, in ~/.config/crush/crushrc
+# (config file directives, NOT CLI subcommands - crush 0.88 has no
+# `crush provider` command):
+#   provider add venice --type openai-compat \
+#     --base-url "https://api.venice.ai/api/v1" \
+#     --api-key "$VENICE_API_KEY"
+#   model add venice/<model-id> \
+#     --name "<display name>" \
+#     --context-window <tokens> \
+#     --default-max-tokens <tokens>
+
+# Until it's wired into home-manager sessionVariables, export it manually:
+export VENICE_API_KEY=<your-key>
+
+# To list the models crush can see across configured providers:
+crush models
+
+# To run one-shot / interactive / auto-accept:
+crush run "prompt"
+crush
+crush --yolo
+
+# To show config and data directories:
+crush dirs

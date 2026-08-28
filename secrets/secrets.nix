@@ -1,5 +1,6 @@
 # Agenix secrets configuration
-# Run `agenix -e secrets/<name>.age` to create/edit encrypted secrets
+# Run `just edit-secret <name>.age` (repo root) to create/edit secrets -
+# bare agenix lacks the --rules and -i flags (see cheat agenix/edit)
 #
 # Usage in home-manager:
 #   age.secrets.example.file = ../../secrets/example.age;
@@ -25,4 +26,10 @@ in
   # reliably survive the trip into a commit.
   "work/linear-api-key.age".publicKeys = [ alyssa ];
   "personal/linear-api-key.age".publicKeys = [ alyssa ];
+
+  # Venice API key for crush (see cheat crush/venice). Committed value is an
+  # encrypted PLACEHOLDER string, not a real key - replace in place with
+  # `just edit-secret personal/venice-api-key.age` before wiring it into
+  # home-manager. Armored, like the linear keys above.
+  "personal/venice-api-key.age".publicKeys = [ alyssa ];
 }

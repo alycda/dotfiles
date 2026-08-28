@@ -1,1 +1,2 @@
 grep -rl "TICKET-NUMBER" ~/.claude/projects/
+# Runnable: just -g find-session <ticket>

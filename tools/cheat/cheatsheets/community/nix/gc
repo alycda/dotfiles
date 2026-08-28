@@ -1,1 +1,3 @@
 nix-collect-garbage
+
+# Runnable: just -g gc

@@ -68,6 +68,26 @@
     sessionVariables = {
       TERMINFO_DIRS = "${config.home.profileDirectory}/share/terminfo";
     };
+
+    # Container-environment notes as a user-level Claude rule. ~/.claude/rules/
+    # is discovered by Claude Code and loaded into every session on the machine
+    # with no @import line, so this applies whatever is mounted at /work.
+    #
+    # This used to be copied over ~/.claude/CLAUDE.md by the Dockerfile and
+    # again by docker/entrypoint.sh on every start. The entrypoint copy ran
+    # before the *conditional* home-manager activation and wiped the managed
+    # import block on every restart after the first. Owning the file through
+    # the generation removes the copy, the shadowing problem the copy existed
+    # to solve, and the clobber it caused.
+    #
+    # Arch is resolved at eval time: both "alyssa@dev" (aarch64-linux) and
+    # "alyssa@dev-x86" (x86_64-linux) use this profile, so hostPlatform is the
+    # same signal the Dockerfile's `uname -m` was reaching for.
+    file.".claude/rules/container-env.md".source =
+      if pkgs.stdenv.hostPlatform.isAarch64 then
+        ../../docker/CLAUDE-arm64.md
+      else
+        ../../docker/CLAUDE.md;
   };
 
   # Configure bash, but do NOT ship a bash. common.nix enables programs.bash so

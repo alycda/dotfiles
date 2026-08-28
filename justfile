@@ -107,7 +107,7 @@ agents-capsule:
     # AGENTS.md first: the capsule must carry the entrypoint's precedence and
     # composition contract, not just the layer bodies. Its @import lines are
     # dropped — inert in a paste, and the layers are inlined right below.
-    for f in AGENTS.md company-values.md personal-constitution.md instructions.private.md; do
+    for f in AGENTS.md company-values.md persona-core.md personal-constitution.md instructions.private.md; do
       if [ -f "$agents/$f" ]; then
         printf '\n<!-- %s -->\n\n' "$f"
         sed '/^@/d' "$agents/$f"
