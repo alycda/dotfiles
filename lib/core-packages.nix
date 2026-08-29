@@ -41,6 +41,25 @@ pkgs: with pkgs; [
   # but sed is its own GNU package, so nothing else supplies it (and nothing
   # else collides with it either).
   gnused
+  # charmbracelet's local key-value store — the macOS analogue to the iOS
+  # Cheatsheet app. Deliberately a third thing next to the two stores that
+  # already exist here: `cheat` and the global justfile hold *runnable*
+  # command memory, agenix/NordPass hold *secrets*, and skate holds the short
+  # dumb strings that are neither — an age recipient key, which flake target a
+  # machine class wants, the SSH line for a box touched twice a year. Namespace
+  # them (`skate set <key> @personal`) to mirror the home-manager profile split.
+  #
+  # From nixpkgs rather than pkgs.charm-nur: the NUR exists here for packages
+  # nixpkgs lags on, which is the whole argument in lib/charm-nur.nix for
+  # crush. skate is not one — upstream's latest is v1.0.1 (2025-03-06) and
+  # nixpkgs and the NUR both carry exactly 1.0.1. Same call as glow and vhs.
+  #
+  # Two caveats worth knowing before trusting it with anything: nixpkgs still
+  # describes it as a "multi-machine syncable" store, which stopped being true
+  # when Charm Cloud sunset — it is local-only now, so no phone<->laptop sync.
+  # And it is plaintext BadgerDB on disk: not a vault, same caveat as
+  # Cheatsheet itself. Secrets stay in agenix.
+  skate
   supabase-cli
   taskbook
   tmux
