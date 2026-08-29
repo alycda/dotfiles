@@ -1,6 +1,6 @@
 name: Update flake.lock
 
-# Manually-triggered flake input updates, validated before a PR is opened.
+# Weekly (and on-demand) flake input updates, validated before a PR is opened.
 #
 # PRs created with the default GITHUB_TOKEN never trigger `pull_request`
 # workflows (GitHub's anti-recursion rule), so this workflow compensates
@@ -25,21 +25,41 @@ name: Update flake.lock
 # requests" — so PR creation is now non-fatal: the validated branch is
 # already pushed at that point, CI still runs on it, and the step summary
 # links straight to the compare page so the update can be opened by hand.
-# To run this unattended later, add a `schedule:` trigger — the validation
-# and check-run wiring above are what make that safe.
+# The weekly schedule below is only safe *because* of that wiring: nothing
+# reaches a PR unvalidated, and the PR that appears carries real check runs
+# even though no human dispatched it.
+#
+# Two things to know about `schedule:`:
+#   - It only fires for the copy of this file on the default branch, so
+#     editing the cron on a feature branch changes nothing until it merges.
+#   - GitHub disables scheduled workflows in repos with no activity for 60
+#     days, and emails the owner to re-enable them (Actions tab → this
+#     workflow → "Enable workflow").
+# On a scheduled run `inputs.flake-inputs` is empty, so every input updates.
 
 on:
+  schedule:
+    # Mondays, 07:23 UTC — a week is roughly the cadence at which the inputs
+    # this flake tracks (nixpkgs unstable, the nix-skills index, charm-nur)
+    # actually move. The odd minute is deliberate: GitHub queues scheduled
+    # runs across all of Actions, and on-the-hour slots are the congested
+    # ones, so a run asked for at :00 can start much later than requested.
+    - cron: "23 7 * * 1"
   workflow_dispatch:
     inputs:
       flake-inputs:
-        description: "Space-separated inputs to update (empty = all, e.g. 'nixpkgs nix-skills')"
+        description: "Space-separated inputs to update (empty = all, e.g. 'nixpkgs nix-skills charm-nur')"
         required: false
         default: ""
 
-# Serialize runs: a newer dispatch cancels an in-flight one. A later run also
-# force-pushes automation/flake-update, superseding any PR still open from a
-# previous run — merge or close a pending update PR before dispatching a
-# narrower update you don't want replaced.
+# Serialize runs: a newer run cancels an in-flight one — including the weekly
+# schedule cancelling a manual dispatch that happens to overlap it, which is
+# only ever a few minutes lost. A later run also force-pushes
+# automation/flake-update, so a still-open update PR is rolled forward onto
+# the newest lockfile rather than a second one being opened beside it. That
+# is what makes an unreviewed weekly PR harmless, and it is also why a
+# narrow manual dispatch ('nixpkgs' alone, say) should be merged before the
+# next Monday: the schedule updates everything and will replace it.
 concurrency:
   group: update-flake-lock
   cancel-in-progress: true

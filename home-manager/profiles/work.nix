@@ -14,6 +14,11 @@
   agentSkills.liveCheckout =
     lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "${config.home.homeDirectory}/dotfiles";
 
+  # HackMD: the work account. Both tokens are encrypted to the same age key, so
+  # this is a choice about which account the machine talks to, not about who can
+  # decrypt what.
+  hackmd.account = "work";
+
   home = {
     username = "alyssaevans";
     homeDirectory = "/Users/alyssaevans";

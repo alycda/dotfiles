@@ -12,6 +12,9 @@
   agentSkills.liveCheckout =
     lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "${config.home.homeDirectory}/dotfiles";
 
+  # HackMD: the personal account, matching this machine's identity.
+  hackmd.account = "personal";
+
   home = {
     username = "alyssa";
     homeDirectory = "/Users/alyssa";

@@ -1,9 +1,12 @@
-# crush ships via nix (lib/core-packages.nix). Unfree license (FSL-1.1-MIT),
-# so it compiles from source on first eval - no cache.nixos.org binaries.
+# crush ships via nix (lib/core-packages.nix), from charmbracelet/nur rather
+# than nixpkgs - see lib/charm-nur.nix. Unfree license (FSL-1.1-MIT), so
+# cache.nixos.org has nothing for it either way, but charm-nur serves Charm's
+# own release binaries, so first eval downloads rather than compiles.
 
 # To wire Venice as an OpenAI-compatible provider, in ~/.config/crush/crushrc
-# (config file directives, NOT CLI subcommands - crush 0.88 has no
-# `crush provider` command):
+# (config file directives, NOT CLI subcommands - crush 0.91 still has no
+# `crush provider` command; `update-providers` refreshes the catalog from a
+# path or URL, it does not add one):
 #   provider add venice --type openai-compat \
 #     --base-url "https://api.venice.ai/api/v1" \
 #     --api-key "$VENICE_API_KEY"
