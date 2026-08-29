@@ -481,13 +481,22 @@ nix flake check --all-systems
 
 ### Flake input updates: `update-flake-lock.yml`
 
-`.github/workflows/update-flake-lock.yml` is a manually-triggered
-(`workflow_dispatch`) workflow that runs `nix flake update` — optionally
-scoped to specific inputs via its text field — validates the result, and
-opens a PR on the `automation/flake-update` branch. It exists so lockfile
-updates can be kicked off and validated from anywhere (including the GitHub
-mobile app) without needing a checkout on whichever machine happens to be
-current.
+`.github/workflows/update-flake-lock.yml` runs `nix flake update` — weekly
+on a `schedule:` cron, or on demand via `workflow_dispatch`, where a text
+field can scope the update to specific inputs — validates the result, and
+opens a PR on the `automation/flake-update` branch. The manual trigger
+exists so lockfile updates can be kicked off and validated from anywhere
+(including the GitHub mobile app) without needing a checkout on whichever
+machine happens to be current; the weekly cron exists so they happen even
+when nobody thinks to ask.
+
+The schedule is only safe because the validation below already gates PR
+creation: an unattended run cannot produce a PR for a lockfile that doesn't
+evaluate. Two `schedule:` mechanics worth remembering — it fires only for
+the copy of the workflow on the **default branch** (editing the cron on a
+feature branch changes nothing until it merges), and GitHub **disables
+scheduled workflows after 60 days of repo inactivity**, emailing the owner
+to re-enable them from the Actions tab.
 
 The wrinkle it works around: **PRs created with the default `GITHUB_TOKEN`
 never trigger `pull_request` workflows** (GitHub's anti-recursion rule), so
@@ -505,8 +514,12 @@ fixup commit on a bot PR is re-validated (bot pushes are exempt from that
 trigger; human pushes fire it). Operational notes: the repo setting "Allow
 GitHub Actions to create and approve pull requests" (Settings → Actions →
 General → Workflow permissions) must stay enabled or PR creation fails; and
-a later dispatch force-pushes the branch, superseding any still-open update
-PR — merge or close a pending one first if it must not be replaced.
+a later run force-pushes the branch, superseding any still-open update PR.
+That superseding is what keeps the weekly cron from piling up review debt —
+an unmerged update PR is rolled forward onto the newest lockfile instead of
+a second one opening beside it — but it also means a *narrow* manual
+dispatch (`nixpkgs` alone, say) must be merged before the next Monday, since
+the scheduled run updates everything and will replace it.
 
 That setting is the one thing the workflow cannot establish for itself, and
 it is what the first dispatch died on: `permissions: pull-requests: write`
@@ -548,7 +561,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
+*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+
+*2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 
 *2026-08-28 - Documented the `importNpmLock` pattern for packaging an npm-only CLI (hackmd-cli), including why the lockfile-as-pin approach makes over-declared npm dependencies and per-platform binary packages a build-size problem worth overriding away, and added the rule that a CLI reaching `common.nix` must not be able to hit an interactive credential prompt headlessly*
 
