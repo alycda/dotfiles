@@ -6,11 +6,16 @@ pkgs: with pkgs; [
   bat
   clock-rs # `just -g clock` runs on every machine class, not just the ditto mac
   codecrafters-cli
-  # charmbracelet's terminal agent CLI. UNFREE (FSL-1.1-MIT): needs
-  # allowUnfree wherever this list is evaluated (mkHome and darwin already
-  # set it; flake.nix devShells sets it for this), and cache.nixos.org has
-  # no binaries for unfree packages, so first eval compiles it from source.
-  crush
+  # charmbracelet's terminal agent CLI, from Charm's own Nix repo rather than
+  # nixpkgs: nixpkgs' copy is hand-bumped and sat three releases behind with
+  # no open PR, so `nix flake update` could not reach a newer one. The whole
+  # argument, and why this is scoped instead of overlaid at top level, is in
+  # lib/charm-nur.nix. Still UNFREE (FSL-1.1-MIT): needs allowUnfree wherever
+  # this list is evaluated (mkHome and darwin already set it; flake.nix
+  # devShells sets it for this). No longer built from source, though - Charm
+  # ships release binaries, which is what cache.nixos.org could never do for
+  # an unfree package.
+  charm-nur.crush
   # curl + file: ubiquitous CLI primitives; also the runtime deps the
   # here.now agent-skill's publish.sh shells out to (alongside jq).
   curl
