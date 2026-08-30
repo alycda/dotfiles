@@ -259,6 +259,30 @@ non-interactive path in the wrapper (`tools/hackmd/token-guard.sh` is the
 worked example: no TTY + no token + a command that needs one = exit 1 with the
 env var to set), and leave the TTY path alone.
 
+### Packaging a Go CLI that nixpkgs doesn't have
+
+`home-manager/modules/tools/workflowy.nix` is the worked example, and the
+decision it turns on is **source build vs. vendored release binaries** - the
+same fork `lib/charm-nur.nix` took the other way for crush.
+
+`buildGoModule` needs two hashes (the `fetchFromGitHub` `hash` and the
+`vendorHash`), and both are obtained the same way: set them to `lib.fakeHash`
+one at a time and read the real value out of the mismatch error. Neither can be
+produced without running Nix, so a bump is a machine-with-Nix operation, not a
+docs edit. Prefer `tag = "v${finalAttrs.version}"` over a literal so the tag
+follows the version, and name `subPackages` so the build doesn't walk a repo
+that also holds libraries and assets.
+
+Upstream release binaries look like the cheaper option and usually aren't, for
+a reason specific to macOS: **an unsigned arm64 Mach-O binary does not execute
+on Apple Silicon at all**. GoReleaser doesn't codesign, so a `fetchurl` of the
+darwin archive trades a build-time Go toolchain for a runtime signing problem,
+plus one hash per platform instead of two total. Charm's binaries were worth it
+because crush is unfree and cache.nixos.org could never substitute it anyway;
+absent that, build from source. Either way nothing substitutes for a package
+that isn't in nixpkgs - the question is only whether the compiler shows up in
+the *build* closure, which is transient and collectable, or not.
+
 ### External agent skills (`lib/skills-sh.nix`)
 
 Skills from [skills.sh](https://www.skills.sh/) install declaratively through
@@ -561,7 +585,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+*Last updated: 2026-08-30 - Documented packaging a Go CLI nixpkgs doesn't carry (`buildGoModule` + the two fake-hash lookups) and why upstream release binaries are the wrong default for one, unlike crush: unsigned arm64 Mach-O binaries don't run on Apple Silicon, so the saved build-time toolchain buys a runtime signing problem*
+
+*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 
