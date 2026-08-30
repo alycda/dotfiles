@@ -37,7 +37,7 @@ workflowy complete <id>                             # also: uncomplete, delete
 
 # --- bulk replace: always dry-run first ---
 workflowy replace --dry-run "foo" "bar"
-workflowy replace --interactive "foo" "bar"         # the one interactive path
+workflowy replace --interactive "foo" "bar"         # prompts per match
 workflowy replace "TASK-([0-9]+)" 'ISSUE-$1'        # $1 = capture group
 workflowy replace "OLD-" "NEW-" --parent-id <id>    # scope it to one subtree
 
@@ -48,6 +48,9 @@ workflowy transform <id> trim --name --note         # also: lowercase, title, ..
 workflowy transform <id> group --by=created.month
 workflowy transform <id> -x 'echo {} | llm "summarize this"'
 workflowy transform <id> uppercase --dry-run --depth 2
+# WATCH THE SHORT FLAG: -i is --ignore-case on search and replace, but
+# --interactive on transform - the one that stops and asks per node.
+workflowy transform <id> lowercase -i                # prompts, does NOT ignore case
 
 # --- reports (paste straight back into Workflowy) ---
 workflowy report count --threshold 0.01             # where the content lives

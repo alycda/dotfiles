@@ -27,7 +27,6 @@ in
     ./tools/helix.nix
     ./tools/starship.nix
     ./tools/television.nix
-    ./tools/workflowy.nix
     ./git.nix
   ];
 

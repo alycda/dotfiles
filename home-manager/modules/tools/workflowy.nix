@@ -4,9 +4,11 @@
 #
 # Not in nixpkgs: neither `pkgs/by-name/wo/workflowy` nor `.../workflowy-cli`
 # exists on master or at the pinned rev, so it is built here from upstream's
-# tagged source. Homebrew and Scoop are upstream's own channels and neither is
-# a fit - a Homebrew formula would install it outside the generation on exactly
-# one machine class, and nothing would carry it into the Linux devcontainer.
+# tagged source rather than through upstream's own Homebrew tap, which would
+# put it outside the generation. Not to be confused with the `workflowy` cask
+# both darwin machines already install (darwin/modules/homebrew*.nix) - that is
+# the GUI app. The two profiles importing this module are those same two
+# machines, so the CLI lands beside the app it drives.
 #
 # THE CLI, NOT THE MCP SERVER IT ALSO SHIPS. `workflowy mcp` is a subcommand of
 # this same binary, so installing the CLI already installs the server and
@@ -23,23 +25,44 @@
 # The read/write split is upstream's, and `--write-root-id` sandboxes writes to
 # one subtree - worth knowing before handing an agent `--expose=all`.
 #
-# SAFE FOR common.nix, per the rule this repo learned from hackmd-cli: a CLI
-# that reaches the devcontainer must not be able to hit an interactive
-# credential prompt headlessly, because agents call it on machines where nobody
-# ever ran `login`. workflowy never prompts for one. With no key it warns, falls
-# back to `--method=backup`, and exits 1 when there is no backup file either -
-# verified against v0.9.0 with an empty $HOME and stdin closed. The only prompt
-# in the binary is `replace --interactive`, which is opt-in per invocation.
+# IMPORTED BY THE DESKTOP PROFILES, NOT common.nix - the same split, and for
+# the same reason, as ./ide/vscode.nix. common.nix is inherited by the `dev`
+# devcontainer, and the Dockerfile runs `nix build ...activationPackage` inside
+# the image with no garbage collection afterwards (Dockerfile:117). Since this
+# package is in no binary cache, that build realises the whole Go toolchain -
+# ~250MB, measured - and every byte of it is then frozen into both the arm64
+# and x86 images, for an 11MB binary, on exactly the disk-constrained 2012 MBP
+# whose mid-build disk overflow is what put vscode.nix in the profiles. The
+# container gains nothing in return: no profile sets `workflowy.apiKeyFile`, so
+# every invocation in there fails on a missing key anyway. This is the first
+# thing in the tree to build from Go source; nothing in common.nix,
+# lib/core-packages.nix or lib/charm-nur.nix pulls that toolchain in today.
 #
-# BUILT FROM SOURCE, unlike crush (lib/charm-nur.nix), which upstream ships as
-# GoReleaser binaries. Upstream tags release archives here too, but they are
-# unsigned, and an unsigned arm64 binary does not execute on Apple Silicon at
-# all - so a fetchurl of the darwin archive would trade a Go toolchain at build
-# time for a codesigning problem at runtime. buildGoModule also covers all
-# three supported systems from one pair of hashes instead of one per platform.
-# Nothing substitutes from cache.nixos.org either way (this package is not in
-# nixpkgs), so the cost is the Go compiler in the *build* closure - build-time
-# only, and collectable - not 11MB of runtime closure per machine.
+# It would otherwise be safe for common.nix under the rule hackmd-cli
+# established - a CLI reaching the devcontainer must not be able to hit an
+# interactive prompt headlessly, because agents call it where nobody ever ran
+# `login`. workflowy passes that test: with no key it warns, falls back to
+# `--method=backup`, and exits 1 when there is no backup file either (verified
+# against v0.9.0 with an empty $HOME and stdin closed). It has two prompts, not
+# one - `replace --interactive` and `transform --interactive` (transform.go:381)
+# - and both are opt-in per invocation and treat a stdin read error as a skip,
+# so neither can hang. Note that on `transform` the short form of that flag is
+# `-i`, which on `search` and `replace` means `--ignore-case`: same letter, and
+# on `transform` it is the one that stops to ask.
+#
+# BUILT FROM SOURCE, unlike crush (lib/charm-nur.nix), which is consumed as
+# GoReleaser binaries. Upstream tags release archives here too, and they would
+# work: Go's own linker ad-hoc code-signs every darwin/arm64 binary it links
+# (`NeedCodeSign() = IsDarwin() && IsARM64()`, cmd/link/internal/ld/lib.go:301,
+# reaching cmd/internal/codesign), so a GoReleaser tarball is signed enough to
+# execute on Apple Silicon without anyone running `codesign`. The reasons to
+# build anyway are smaller and duller: one pair of hashes covers all three
+# supported systems where fetchurl needs one per platform, and the thing being
+# pinned is auditable source rather than someone's CI output. Nothing
+# substitutes from cache.nixos.org either way (this package is not in nixpkgs).
+# The cost is the Go compiler in the build closure - transient and collectable
+# on a real machine, permanent in a Docker layer, which is what the profile
+# split above is about.
 #
 # To bump: change `version`, set `hash` and `vendorHash` to lib.fakeHash in
 # turn, and read the real values out of the two mismatch errors. Upstream tags
