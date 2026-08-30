@@ -1,0 +1,66 @@
+# Workflowy from the terminal. Installed by
+# home-manager/modules/tools/workflowy.nix; upstream: mholzen/workflowy.
+# Key: https://workflowy.com/api-key/ -> ~/.workflowy/api.key (or $WORKFLOWY_API_KEY).
+# Verified against v0.9.0 - the README still shows a --item-id flag the CLI
+# dropped; ids are positional on get/update/move, and --id on search/report.
+
+# --- ids ---
+# Anything taking an id accepts a full UUID, a short id, a "Copy Internal Link"
+# URL, or a target key (inbox, and whatever you've made a shortcut).
+workflowy targets                                   # shortcuts + system targets
+workflowy id inbox                                  # resolve to a full UUID
+workflowy get https://workflowy.com/#/1bdae4aecf00
+
+# --- read ---
+workflowy get                                       # top-level, two deep
+workflowy get <id> --depth 4                        # or --all for everything
+workflowy list                                      # flat list of descendants
+workflowy search -i "foobar"                        # case-insensitive
+workflowy search -E "<time.*>"                      # regex
+workflowy search "bug" --id <id>                    # within one subtree
+workflowy search "todo" -g path -o -modified        # group by path, newest first
+
+# --- data access: get | export | backup ---
+# get:    real-time, per-item, default at depth 1-3
+# export: whole tree, cached after first fetch, up to 1 min stale (rate limit)
+# backup: Workflowy's Dropbox backup, offline and fastest, but stale; the
+#         automatic fallback when no API key is configured, and the only
+#         method `report mirrors` supports.
+workflowy get --method=backup
+workflowy list --force-refresh                      # bypass the export cache
+
+# --- write ---
+workflowy create "Buy groceries" --parent-id=inbox
+workflowy update <id> "Project Plan v2"             # or --name/--note
+workflowy move <id> <parent-id>
+workflowy complete <id>                             # also: uncomplete, delete
+
+# --- bulk replace: always dry-run first ---
+workflowy replace --dry-run "foo" "bar"
+workflowy replace --interactive "foo" "bar"         # the one interactive path
+workflowy replace "TASK-([0-9]+)" 'ISSUE-$1'        # $1 = capture group
+workflowy replace "OLD-" "NEW-" --parent-id <id>    # scope it to one subtree
+
+# --- transform a node's content ---
+workflowy transform <id> split -s "\n"              # lines -> child nodes
+workflowy transform <id> split -l                   # markdown list -> children
+workflowy transform <id> trim --name --note         # also: lowercase, title, ...
+workflowy transform <id> group --by=created.month
+workflowy transform <id> -x 'echo {} | llm "summarize this"'
+workflowy transform <id> uppercase --dry-run --depth 2
+
+# --- reports (paste straight back into Workflowy) ---
+workflowy report count --threshold 0.01             # where the content lives
+workflowy report children --top-n 20                # widest nodes
+workflowy report modified --top-n 50                # stalest nodes
+workflowy report mirrors --top-n 20                 # backup method only
+workflowy report count --upload --parent-id inbox   # write it back instead
+workflowy report count | pbcopy                     # clip / wl-copy / xclip elsewhere
+
+# --- same binary is an MCP server, not registered by default ---
+# (schemas cost context in every request - see the module comment)
+claude mcp add --transport=stdio workflowy -- workflowy mcp               # read tools
+claude mcp add --transport=stdio workflowy -- workflowy mcp --expose=all  # + writes
+# sandbox what an agent can touch: --write-root-id limits writes to one
+# subtree, --read-root-id limits everything to it.
+claude mcp add --transport=stdio workflowy -- workflowy mcp --expose=all --write-root-id <id>
