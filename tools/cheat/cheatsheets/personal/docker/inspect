@@ -1,0 +1,4 @@
+## Which compose file defines a running container
+docker inspect <container> --format '{{index .Config.Labels "com.docker.compose.project.config_files"}}'
+# project working dir:
+docker inspect <container> --format '{{index .Config.Labels "com.docker.compose.project.working_dir"}}'
