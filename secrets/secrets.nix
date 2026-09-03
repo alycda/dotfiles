@@ -41,6 +41,24 @@ in
   "work/hackmd-api-token.age".publicKeys = [ alyssa ];
   "personal/hackmd-api-token.age".publicKeys = [ alyssa ];
 
+  # Cloudflare R2 credentials for the cf-now skill, split the way the AWS CLI
+  # itself splits them: `r2-config` is the non-secret half (region `auto`, the
+  # account-scoped S3 endpoint) and `r2-credentials` is the R2 API token's
+  # access key ID / secret. Both are encrypted because the endpoint embeds the
+  # 32-hex Cloudflare account ID, which is not a credential but is not worth
+  # publishing in a public repo either.
+  #
+  # These existed as unmanaged plaintext in the devhome volume for a month
+  # before landing here: ~/.aws/{config,credentials} were symlinks into the
+  # agenix runtime dir with no ciphertext behind them and no age.secrets entry,
+  # so the *only* copy was a file that a volume reset would have destroyed with
+  # nothing to restore from. Recovery would have meant re-minting the token in
+  # the Cloudflare dashboard.
+  #
+  # Personal, not work: this is Alyssa's own Cloudflare account.
+  "personal/r2-config.age".publicKeys = [ alyssa ];
+  "personal/r2-credentials.age".publicKeys = [ alyssa ];
+
   # Venice API key for crush (see cheat crush/venice). Committed value is an
   # encrypted PLACEHOLDER string, not a real key - replace in place with
   # `just edit-secret personal/venice-api-key.age` before wiring it into
