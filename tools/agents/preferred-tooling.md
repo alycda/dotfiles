@@ -46,7 +46,7 @@ learn from work I didn't watch happen. Concretely:
 | GitHub | `gh`, `gh-dash` | web / API |
 | Secrets | `rage` / `ragenix` (agenix) | — |
 | Terminal multiplexer | `tmux` | — |
-| Tasks / todos | `tb` (taskbook) | — |
+| Tasks / todos | `tb` (taskbook — desktop profiles only) | a plaintext TODO in-repo |
 | Cheatsheets | `cheat` | — |
 | Terminal slides | `presenterm` | — |
 | Terminal recording | `asciinema` | — |

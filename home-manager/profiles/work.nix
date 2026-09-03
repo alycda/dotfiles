@@ -42,6 +42,9 @@
     # only supports aarch64-darwin
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       cocoapods # for flutter (to be removed soon)
+      # taskbook's Node closure is why it isn't in lib/core-packages.nix; the
+      # same reasoning keeps it out of the aarch64-linux devcontainer.
+      taskbook # interim CLI task manager
     ];
 
     # The installer drops the binary in ~/.lazydiff/bin and appends a PATH
