@@ -16,6 +16,10 @@
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
 #   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work --network host dev
+# ...or open the repo in VS Code and "Reopen in Container": .devcontainer.json
+# runs this same image with the same volumes, invoking the entrypoint from
+# postStartCommand (Dev Containers overrides ENTRYPOINT, so it never runs on
+# its own). Build the image first - the devcontainer does not build it.
 #
 # Optional extras for the run command (append before the image name):
 #   SSH agent forwarding (Docker Desktop for Mac):
