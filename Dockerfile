@@ -95,11 +95,16 @@
 #     materializing /etc/{passwd,group,shadow}; if you see it again, check that
 #     RUN survived. Reads like a volume/permissions bug and is neither.
 #   VS Code Dev Containers dies at "check-requirements.sh: getconf: command not
-#     found" - getconf is the symptom. The server's prebuilt node wants an FHS
-#     ELF interpreter (/lib/ld-linux-*) that this rootfs does not have. Fixed
-#     below with the VSCODE_SERVER_CUSTOM_GLIBC_* variables, which make
-#     bin/code-server patchelf its own node. If it returns, check those three
-#     survived into the image: `docker run --rm dev env | grep VSCODE_SERVER`.
+#     found", or at "node: cannot execute: required file not found" - both are
+#     symptoms. The server's prebuilt node wants an FHS ELF interpreter
+#     (/lib/ld-linux-*) that this rootfs does not have. Fixed below by putting
+#     nix-ld at that path and pointing it at the image's glibc through the
+#     NIX_LD* variables. If it returns, check both survived into the image:
+#       docker run --rm --entrypoint /bin/sh dev -c 'ls -l /lib*/ld-linux-*; env | grep NIX_LD'
+#   "patchelf: open: Text file busy" from bin/code-server - a leftover of the
+#     VSCODE_SERVER_CUSTOM_GLIBC_PATH route. That variable must stay unset;
+#     the nix-ld block below explains why in-place patching cannot work with
+#     the `vscode` volume Dev Containers shares across every container.
 
 FROM nixos/nix:latest
 
@@ -165,56 +170,75 @@ RUN for f in passwd group shadow; do \
 # Let VS Code Server's prebuilt node run here.
 #
 # The server ships a 121 MB glibc-linked node built for FHS: it wants
-# /lib/ld-linux-aarch64.so.1 as its ELF interpreter, and this rootfs has no
-# /lib at all, so it dies with a bare "no such file or directory" that names
-# the binary rather than the missing loader. Before that it fails even earlier,
-# in bin/helpers/check-requirements.sh, on `getconf: command not found`.
+# /lib/ld-linux-aarch64.so.1 (x86_64: /lib64/ld-linux-x86-64.so.2) as its ELF
+# interpreter, and this rootfs has no /lib at all, so it dies with a bare
+# "cannot execute: required file not found" that names the binary rather than
+# the missing loader. Before that it fails even earlier, in
+# bin/helpers/check-requirements.sh, on `getconf: command not found`.
 #
-# Both are solved by the escape hatch Microsoft built for exactly this case,
-# documented under "Can I run VS Code Server on older Linux distributions?" at
-# https://code.visualstudio.com/docs/remote/faq - the same mechanism, since
-# "older distro" and "no FHS at all" fail its glibc assumptions identically.
-# When all three of these are set, bin/code-server patchelfs its own node on
-# first launch (--set-rpath, then --set-interpreter), and check-requirements.sh
-# short-circuits to exit 0 the moment it sees the LINKER variable - before any
-# of the FHS probing it would otherwise do.
+# Put a loader at the path the binary asks for. nix-ld is what NixOS uses for
+# exactly this: a static ELF interpreter that reads the real dynamic linker
+# from $NIX_LD and a library search path from $NIX_LD_LIBRARY_PATH, then hands
+# off to that linker for the one process being started. The binary is never
+# modified, and no other program in the image sees an LD_LIBRARY_PATH. Both
+# variables are load-bearing - nix-ld 2.x with NIX_LD unset panics rather
+# than guessing - so they are ENV here, where every `docker exec` inherits
+# them. Verified 2026-09-03 against the exact server build VS Code 1.135.0
+# pulls: node prints v24.18.1, and bin/code-server --version launches.
 #
-# `--inputs-from` resolves nixpkgs through the flake's own lock rather than the
-# ambient registry, so these are the same glibc the rest of the image already
-# links against - the marginal cost is patchelf and gcc-lib, not a second libc.
-# `-o` roots them for the GC, matching how /opt/hm-activation is handled above.
+# NOT the VSCODE_SERVER_CUSTOM_GLIBC_* patchelf route Microsoft documents
+# under "Can I run VS Code Server on older Linux distributions?" at
+# https://code.visualstudio.com/docs/remote/faq, which this image tried first.
+# That route has bin/code-server rewrite node's interpreter and rpath in
+# place - and Dev Containers installs the server into a `vscode` Docker
+# volume shared by EVERY devcontainer on the machine, so the rewrite is
+# global. Two failure modes, both hit on the first real open: with a
+# Debian-based devcontainer running the same server build, patchelf dies with
+# "Text file busy" (the binary is executing from the shared volume); and had
+# it succeeded, that Debian container would have inherited a node whose
+# interpreter is /opt/vscode-glibc/linker, a path that exists only here. The
+# patch also only covers bin/code-server: the extension's own container
+# helper execs $HOME/.vscode-server/bin/<commit>/node directly, which the
+# rewrite never reaches on a first start.
 #
-# Deliberately NOT solved by adding /etc/os-release with ID=nixos, which is the
-# other bypass in that script (line 34) and looks tidier. It parses the file
-# with `sed`, which is not on PATH in a `docker exec` environment here, and the
-# script runs under `set -e` - so the tidier fix would trade a missing-getconf
-# failure for a missing-sed one. The env-var check runs first and needs nothing.
-# The *-pkg links are the GC roots; the four unsuffixed ones below are what the
-# ENV refers to, so the variables never encode a store path, an architecture, or
-# nix's output-naming rules. That last one is not hypothetical: `-o foo` on a
-# non-default output lands at `foo-lib`, not `foo`, so pointing ENV straight at
-# the `-o` path silently misses libstdc++. The `test`s make that a build failure
-# rather than a runtime one.
+# VSCODE_SERVER_CUSTOM_GLIBC_LINKER is still set - alone, on purpose. It is
+# the first thing check-requirements.sh tests (exit 0 before any of the FHS
+# probing that hits getconf), and bin/code-server only patches when all three
+# variables are present, so one variable keeps the bypass and loses the
+# rewrite. The other bypass, /etc/os-release with ID=nixos, parses the file
+# with `sed`, which is not on PATH in a `docker exec` here, under `set -e`.
+#
+# `--inputs-from` resolves nixpkgs through the flake's own lock rather than
+# the ambient registry, so this is the same glibc the rest of the image
+# already links against - the marginal cost is nix-ld and gcc-lib, not a
+# second libc. `-o` roots them for the GC, matching /opt/hm-activation. The
+# *-pkg links are the GC roots; the unsuffixed ones are what the ENV refers
+# to, so the variables never encode a store path, an architecture, or nix's
+# output-naming rules. That last one is not hypothetical: `-o foo` on a
+# non-default output lands at `foo-lib`, not `foo`, so pointing ENV straight
+# at the `-o` path silently misses libstdc++. The `test`s make that a build
+# failure rather than a runtime one.
 RUN mkdir -p /opt/vscode-glibc \
- && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/patchelf-pkg nixpkgs#patchelf \
- && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/glibc-pkg    nixpkgs#glibc.out \
- && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/gcc-pkg      nixpkgs#stdenv.cc.cc.lib \
+ && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/nix-ld-pkg nixpkgs#nix-ld \
+ && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/glibc-pkg  nixpkgs#glibc.out \
+ && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/gcc-pkg    nixpkgs#stdenv.cc.cc.lib \
  && case "$(uname -m)" in \
-      aarch64) ld=ld-linux-aarch64.so.1 ;; \
-      *)       ld=ld-linux-x86-64.so.2  ;; \
+      aarch64) ld=ld-linux-aarch64.so.1; interp=/lib/ld-linux-aarch64.so.1   ;; \
+      *)       ld=ld-linux-x86-64.so.2;  interp=/lib64/ld-linux-x86-64.so.2  ;; \
     esac \
- && ln -sfn "glibc-pkg/lib/$ld"         /opt/vscode-glibc/linker \
- && ln -sfn patchelf-pkg/bin/patchelf   /opt/vscode-glibc/patchelf \
- && ln -sfn glibc-pkg/lib               /opt/vscode-glibc/libc \
- && ln -sfn gcc-pkg-lib/lib             /opt/vscode-glibc/libcxx \
+ && ln -sfn "glibc-pkg/lib/$ld"  /opt/vscode-glibc/linker \
+ && ln -sfn glibc-pkg/lib        /opt/vscode-glibc/libc \
+ && ln -sfn gcc-pkg-lib/lib      /opt/vscode-glibc/libcxx \
+ && mkdir -p "$(dirname "$interp")" \
+ && ln -sfn /opt/vscode-glibc/nix-ld-pkg/libexec/nix-ld "$interp" \
  && test -x /opt/vscode-glibc/linker \
- && test -x /opt/vscode-glibc/patchelf \
  && test -e /opt/vscode-glibc/libc/libc.so.6 \
- && test -e /opt/vscode-glibc/libcxx/libstdc++.so.6
+ && test -e /opt/vscode-glibc/libcxx/libstdc++.so.6 \
+ && test -x "$interp"
 
-ENV VSCODE_SERVER_PATCHELF_PATH=/opt/vscode-glibc/patchelf \
-    VSCODE_SERVER_CUSTOM_GLIBC_LINKER=/opt/vscode-glibc/linker \
-    VSCODE_SERVER_CUSTOM_GLIBC_PATH=/opt/vscode-glibc/libc:/opt/vscode-glibc/libcxx
+ENV NIX_LD=/opt/vscode-glibc/linker \
+    NIX_LD_LIBRARY_PATH=/opt/vscode-glibc/libc:/opt/vscode-glibc/libcxx \
+    VSCODE_SERVER_CUSTOM_GLIBC_LINKER=/opt/vscode-glibc/linker
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 
