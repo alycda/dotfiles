@@ -30,11 +30,17 @@ the whole point here.
 
 ## Requirements
 
-- `jq` (installed) and `aws` CLI v2 (**not** installed — summon it:
-  `nix run nixpkgs#awscli2 -- ...`, or `nix shell nixpkgs#awscli2` for a
-  session of several calls). awscli2 is a ~500MB Python closure and this is an
-  occasional-use tool, so it is deliberately absent from every profile's
-  closure rather than carried by the devcontainer image
+- `jq` (installed) and `aws` CLI v2 (**not** installed). awscli2 is a ~500MB
+  Python closure and this is occasional-use, so it is deliberately absent from
+  every profile's closure rather than carried by the devcontainer image.
+  Summon it *around* the script, not instead of it — these scripts call `aws`
+  from `PATH`, so `nix run nixpkgs#awscli2 -- ...` does **not** work (it runs
+  the CLI itself and passes everything after `--` to it as arguments):
+
+  ```bash
+  nix shell nixpkgs#awscli2 -c ./scripts/publish.sh deck.html
+  nix shell nixpkgs#awscli2          # or open a session for several calls
+  ```
 - A Cloudflare **R2 API token** (Object Read & Write) exposed to an AWS named
   profile (default: `alyssa-r2`) — its Access Key ID / Secret Access Key are
   the token's S3 credentials
@@ -47,7 +53,10 @@ Unlike s3-now (which needs an interactive `aws sso login` every session),
 cf-now uses a **long-lived R2 API token** configured once as static
 credentials — there is no per-session login to run.
 
-**On a profile with `cfNow.enable = true`, there is nothing to configure.**
+**On a profile with `cfNow.enable = true`, the credentials need no setup** —
+but `~/.cfnow/config.json` still does, and `publish.sh` refuses to run without
+it. See "One-time setup" below; this section covers only the token half.
+
 The token ships as an agenix secret and arrives with the generation:
 `secrets/personal/r2-credentials.age` is decrypted to `~/.aws/credentials` and
 `secrets/personal/r2-config.age` to `~/.aws/config`, both via `path` overrides
@@ -78,6 +87,29 @@ distinguishable from the error alone. See
 CF_ACCOUNT_ID=<account-id> ./scripts/setup.sh   # defaults: profile alyssa-r2, bucket cf-now
 ./scripts/setup.sh --account-id ID --profile OTHER --bucket OTHER
 ```
+
+**`setup.sh` cannot run with the Object Read & Write token this skill now
+recommends.** It probes with account-level `ListBuckets` (it creates the bucket
+and writes the lifecycle rule, so it genuinely needs Admin Read & Write), and
+an Object-scoped token gets `AccessDenied`. Its error tells you to create the
+bucket in the dashboard and skip the script — which leaves `publish.sh` dying
+`no config at ~/.cfnow/config.json — run setup.sh first`, with no documented
+way out. Until that is resolved, write the config by hand once:
+
+```bash
+mkdir -p ~/.cfnow && cat > ~/.cfnow/config.json <<JSON
+{
+  "profile": "alyssa-r2",
+  "region": "auto",
+  "bucket": "cf-now",
+  "account": "<32-hex account id>",
+  "endpoint": "https://<32-hex account id>.r2.cloudflarestorage.com"
+}
+JSON
+```
+
+The account ID is the subdomain in `endpoint_url` in `~/.aws/config`, which
+`cfNow.enable` already decrypts for you.
 
 Idempotent. Creates a private R2 bucket `cf-now` and a lifecycle rule expiring
 the `tmp/` prefix after 7 days. R2 buckets are **private by default** — there
