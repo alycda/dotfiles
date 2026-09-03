@@ -1,2 +1,3 @@
 gh api user | jq .name
 gh api user | jq .email
+# Runnable: just -g gh-whoami

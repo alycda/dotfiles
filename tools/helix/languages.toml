@@ -26,3 +26,22 @@ name = "json"
 language-servers = ["vscode-json-languageserver"]
 file-types = ["json", "jsonc", "geojson"]
 indent = { tab-width = 2, unit = "  " }
+
+# harper-ls: offline grammar/spell checker (binary from pkgs.harper).
+# Surface suggestions as "hint" to match editor.inline-diagnostics.
+[language-server.harper-ls]
+command = "harper-ls"
+args = ["--stdio"]
+config.harper-ls.diagnosticSeverity = "hint"
+
+# Grammar checking for prose. No marksman/markdown-oxide installed, so
+# harper-ls is the only markdown server - this replaces helix's defaults.
+[[language]]
+name = "markdown"
+language-servers = ["harper-ls"]
+
+# Grammar-check commit messages too - this repo values meaningful,
+# well-written commits (see CLAUDE.md commit strategy).
+[[language]]
+name = "git-commit"
+language-servers = ["harper-ls"]

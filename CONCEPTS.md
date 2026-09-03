@@ -36,6 +36,13 @@ The merged symlink tree that becomes the active set of installed programs, assem
 ### Activation
 The process that makes a generation live. It runs in ordered stages, and in practice the stage that links files runs before the stage that installs packages — so a failed activation can leave a machine with correct dotfiles and none of its tools. Activation is non-fatal by design in the container: the entrypoint reports the failure and still starts a shell.
 
+## Sharing
+
+### Slug
+The opaque random identifier that names one published upload and stands in for access control. Note this inverts the usual meaning: a slug here is deliberately *unreadable*, because unguessability is the only thing keeping a private object private — the bucket is never public and content is reached solely through time-limited signed URLs.
+
+A slug is stable and reusable: republishing to an existing slug replaces its content in place, so a link already shared keeps working. Uploads are ephemeral by default, expiring through a storage lifecycle rule unless explicitly published as permanent; permanence governs how long the *object* survives, which is independent of how long any signed URL for it remains valid.
+
 ## Flagged ambiguities
 
 - *Profile* had been used for both a home-manager profile (a composition of modules, as in this repo's profiles) and a Nix profile (the installed-package tree, as in the base profile). These are distinct, and conflating them hides the fact that packages from both a Nix profile and a home-manager profile land in the same *user environment*.

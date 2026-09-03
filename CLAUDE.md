@@ -133,12 +133,14 @@ dotfiles/
 │       ├── home.nix        # Personal profile
 │       └── work.nix        # Work profile
 ├── lib/
+│   ├── charm-nur.nix       # scoped overlay for charmbracelet/nur (crush)
 │   ├── core-packages.nix   # Packages shared by devShells + home-manager
 │   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
+│   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
 │   └── helix/              # Helix config
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
@@ -260,6 +262,53 @@ benefit (same reasoning as the "no GUI in common.nix" rule). Only universal,
 lightweight CLIs belong here; a heavy personal tool goes in the desktop profiles'
 `packages` (e.g. `taskbook`, whose Node closure lives in `home.nix`/`work.nix`).
 
+### Packaging an npm CLI that nixpkgs doesn't have
+
+`home-manager/modules/tools/hackmd.nix` is the worked example. When a tool
+only exists on npm, package it from a **pin-only** `tools/<tool>/package.json`
+whose single dependency is the published package, plus the `package-lock.json`
+generated from it — then build with `pkgs.importNpmLock.buildNodeModules` and
+wrap `node <entrypoint>` in a `writeShellApplication` (which shellchecks the
+wrapper for free, and leaves room for a guard — see the last paragraph here).
+
+Use `importNpmLock`, not `buildNpmPackage`'s default `fetchNpmDeps`. The latter
+needs an `npmDepsHash` over the whole dependency FOD, which you can only obtain
+by running a build and copying the hash out of the mismatch error — impossible
+to produce in an environment without Nix, and a second thing to keep in sync
+forever. `importNpmLock` fetches each dependency by the integrity hash already
+in the lockfile, so the lockfile *is* the pin.
+
+Two consequences of "the lockfile is the pin" that bit on the first use:
+
+- **Every entry in the lock is fetched, not just the ones for the build
+  platform.** A dependency that ships per-platform binaries (typescript 7.x
+  ships 20 of them) downloads all of them on every machine to install one.
+  Pin such a dependency down to a pure-JS version with an npm `overrides`
+  entry.
+- **npm-declared runtime dependencies are often nothing of the sort.**
+  hackmd-cli declares the `oclif` publisher CLI — yeoman, aws-sdk v2 — as a
+  runtime dep while its shipped code only ever requires `@oclif/core`.
+  Redirect the edge with an `overrides` alias to a package already in the tree
+  rather than deleting it, so a surprise `require` gets a real module. (npm
+  does not dedupe an alias against the real package, so the aliased target is
+  installed twice — cheap next to what the override saves, but not free.)
+  Between the two overrides: 770 packages / 263MB → 161 / 50MB.
+
+Both overrides need a comment saying what they buy, because a later
+`rm package-lock.json && npm install --package-lock-only` silently reverts to
+the fat tree if someone drops them. Add `**/node_modules` coverage to both
+`.gitignore` and `.dockerignore` while you are here: the bump procedure runs
+npm inside the repo, and `tools/` is in the Docker build context.
+
+One more thing a CLI needs before it belongs in `common.nix`: **a credential
+prompt must not be reachable headlessly.** `common.nix` is inherited by the
+devcontainer, so anything installed there gets called by agents on machines
+where nobody ever ran `login`. A CLI that prompts for a token and re-asks on an
+empty answer does not fail there — it spins until killed. Guard the
+non-interactive path in the wrapper (`tools/hackmd/token-guard.sh` is the
+worked example: no TTY + no token + a command that needs one = exit 1 with the
+env var to set), and leave the TTY path alone.
+
 ### External agent skills (`lib/skills-sh.nix`)
 
 Skills from [skills.sh](https://www.skills.sh/) install declaratively through
@@ -287,6 +336,55 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   `tools/agents/plugins/catalog.json`, not here — a plugin already carries
   its skills, so installing them via nix-skills too would duplicate them
 
+### When nixpkgs lags: prefer the vendor's own Nix repo over NUR
+
+nixpkgs is a *downstream* packager. For a fast-moving upstream that ships
+more often than a volunteer remembers to bump it, `nix flake update` is not
+a fix — it locks a newer nixpkgs that still contains the same old package.
+Diagnose it that way before reaching for anything: check the pinned rev's
+`pkgs/by-name/<xx>/<pkg>/package.nix`, then check nixpkgs **master**, then
+check for an open bump PR. If master is stale too, no lockfile move can help.
+
+That is exactly how `crush` ended up three releases behind (nixpkgs 0.88.1
+from 2026-08-07 vs upstream 0.91.2 on 2026-08-26, no open PR). The nixpkgs
+bumps land every one to three weeks and crush tags weekly, so the drift is
+structural rather than a one-off.
+
+The fix is `charmbracelet/nur` as a **direct flake input** (`lib/charm-nur.nix`
++ the `charm-nur` input in `flake.nix`). Three things to carry forward:
+
+- **Prefer the vendor's repo to `nix-community/NUR` even when NUR is what
+  surfaced it.** NUR is a meta-index: it *republishes* per-user repos behind
+  its own `repos.json` pins, so consuming crush through it adds a staleness
+  layer and a large lazy eval surface for one package, and the thing that
+  moves the version is NUR's index refresh rather than your lockfile. Taken
+  directly, the same expressions are pinned in `flake.lock` and
+  `nix flake update charm-nur` is the operation that bumps them. Use NUR
+  itself for *discovery* — `nur.nix-community.org/repos/<user>/` is how you
+  learn the vendor repo exists and what version it carries.
+- **Scope the overlay; never apply the vendor's `overlays.default`.** Charm's
+  is `final: prev: import ./pkgs { pkgs = final; }` — it shadows *every*
+  Charm attribute in nixpkgs (glow, vhs, gum, …) at the top level. Ours are
+  already current in nixpkgs and built from source there; wanting a fresh
+  crush is not a reason to silently swap them for prebuilt binaries. Bind the
+  set to one attribute (`pkgs.charm-nur.<name>`) instead, and wire that overlay
+  in all three places pkgs gets built: `mkHome`, `darwin/configuration.nix`,
+  **and** the flake's devShells (`lib/core-packages.nix` is shared with the
+  devShells, so an attribute missing there is an evaluation failure).
+- **Take the package, not the vendor's home-manager module.** Charm's
+  `programs.crush` writes `xdg.configFile."crush/crush.json"` — the exact
+  path `home-manager/modules/tools/crush.nix` already owns. Two modules, one
+  path, one activation conflict of the kind already catalogued below.
+
+One eval detail worth remembering: a vendor flake's `packages.<system>`
+output imports nixpkgs *itself*, with no `config`, so for an unfree package
+(crush is FSL-1.1-MIT) forcing it throws regardless of our `allowUnfree`.
+Applying their overlay against our own `final` sidesteps that — the package
+set gets built with our config. The upside of the switch is that these are
+GoReleaser release binaries rather than source builds, and cache.nixos.org
+never had a binary for the unfree nixpkgs build anyway, so every machine had
+been compiling crush from scratch.
+
 ### Configuration Conflicts to Avoid
 
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
@@ -298,15 +396,24 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
    - **`lib.hiPrio`** — only for collisions *within* home-manager's own closure; it cannot reach across nix-env profile elements
 
    A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
-5. **Don't hand-list a package a `programs.*` module already provides.** Enabling
+5. **System-level shell config reaches every account**: anything under
+   `programs.zsh.*` in nix-darwin is written to `/etc/zshrc` / `/etc/zshenv`,
+   which every user on the machine reads - including a non-admin account with
+   no Nix, no home-manager, and no way to opt out. `brew shellenv` there puts
+   the admin's `/opt/homebrew` on their `FPATH`, and nix-darwin's global
+   `compinit` then prompts them about it on every login. Write system-level
+   shell config for the account that owns the least, not for the one running
+   `darwin-rebuild`. Full write-up:
+   `docs/solutions/runtime-errors/zsh-compinit-prompts-every-non-admin-login.md`
+6. **Don't hand-list a package a `programs.*` module already provides.** Enabling
    `programs.direnv` installs direnv; also adding `direnv` to `systemPackages` is a
    duplicate. Let the program module own its package. (PR #11.)
-6. **Enable the shell, or its hooks never get injected.** home-manager only wires a
+7. **Enable the shell, or its hooks never get injected.** home-manager only wires a
    program's shell integration (direnv's `eval` hook, a tool's `wt`/`fzf` init) into
    shells it *manages*. `programs.direnv.enable = true` does nothing until
    `programs.zsh.enable = true` also puts the hook in `.zshrc`. A silent,
    cross-profile breakage. (PR #24.)
-7. **Runtime-mutable config must stay unmanaged.** A tool that writes to its own
+8. **Runtime-mutable config must stay unmanaged.** A tool that writes to its own
    config/state at runtime (taskbook's `~/.taskbook.json`, Claude's `~/.claude`
    credentials) breaks on first write if home-manager points that path at a
    read-only Nix-store symlink. Install the binary only; leave the state files
@@ -473,9 +580,18 @@ CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs
 { environment.systemPackages = [ pkgs.git ]; }
 ```
 
-### Check job: `nix flake check --all-systems`
+### Check job: `nix flake check --all-systems` + config evaluation
 
 The flake must evaluate cleanly across all systems. This catches type errors, missing attributes, and evaluation failures.
+
+**`nix flake check` alone does not cover the configs anyone switches to.**
+It only evaluates output types it recognizes; `darwinConfigurations` and
+`homeConfigurations` are skipped with an "unknown flake output" warning, so
+for this flake it exercises just the devShells. The check job therefore also
+runs `.github/scripts/eval-configurations.sh`, which forces each
+configuration's top-level derivation path (`system.drvPath` /
+`activationPackage.drvPath`) — full module evaluation with no builds, which
+is what lets the aarch64-darwin configs be checked on a Linux runner.
 
 ### Running linters locally before pushing
 
@@ -492,6 +608,7 @@ Or the raw equivalents:
 nix profile install nixpkgs#statix && statix check .
 nix profile install nixpkgs#deadnix && deadnix --fail .
 nix flake check --all-systems
+./.github/scripts/eval-configurations.sh
 ```
 
 **Keep `just lint` at parity with CI.** deadnix only exits non-zero with `--fail`,
@@ -503,6 +620,58 @@ so `just ci` is a trustworthy pre-push gate.)
 Note the CI workflow pins its GitHub Actions to `@main` and historically leaned
 on the now-sunset `magic-nix-cache-action`; treat floating action refs and that
 cache step as maintenance landmines. (PR #1.)
+
+### Flake input updates: `update-flake-lock.yml`
+
+`.github/workflows/update-flake-lock.yml` runs `nix flake update` — weekly
+on a `schedule:` cron, or on demand via `workflow_dispatch`, where a text
+field can scope the update to specific inputs — validates the result, and
+opens a PR on the `automation/flake-update` branch. The manual trigger
+exists so lockfile updates can be kicked off and validated from anywhere
+(including the GitHub mobile app) without needing a checkout on whichever
+machine happens to be current; the weekly cron exists so they happen even
+when nobody thinks to ask.
+
+The schedule is only safe because the validation below already gates PR
+creation: an unattended run cannot produce a PR for a lockfile that doesn't
+evaluate. Two `schedule:` mechanics worth remembering — it fires only for
+the copy of the workflow on the **default branch** (editing the cron on a
+feature branch changes nothing until it merges), and GitHub **disables
+scheduled workflows after 60 days of repo inactivity**, emailing the owner
+to re-enable them from the Actions tab.
+
+The wrinkle it works around: **PRs created with the default `GITHUB_TOKEN`
+never trigger `pull_request` workflows** (GitHub's anti-recursion rule), so
+nix.yml would sit idle on the bot PR. Two compensations:
+
+1. The workflow runs the full check-job validation *before* creating the
+   PR, so a PR only ever appears for a lockfile that already evaluates.
+2. `workflow_dispatch` is exempt from the anti-recursion rule, so after
+   opening the PR it runs `gh workflow run nix.yml --ref
+   automation/flake-update`, giving the PR real lint/check runs — the "two
+   jobs must pass" rule above holds for bot PRs too.
+
+nix.yml also triggers on pushes to `automation/flake-update`, so a manual
+fixup commit on a bot PR is re-validated (bot pushes are exempt from that
+trigger; human pushes fire it). Operational notes: the repo setting "Allow
+GitHub Actions to create and approve pull requests" (Settings → Actions →
+General → Workflow permissions) must stay enabled or PR creation fails; and
+a later run force-pushes the branch, superseding any still-open update PR.
+That superseding is what keeps the weekly cron from piling up review debt —
+an unmerged update PR is rolled forward onto the newest lockfile instead of
+a second one opening beside it — but it also means a *narrow* manual
+dispatch (`nixpkgs` alone, say) must be merged before the next Monday, since
+the scheduled run updates everything and will replace it.
+
+That setting is the one thing the workflow cannot establish for itself, and
+it is what the first dispatch died on: `permissions: pull-requests: write`
+in a workflow only *narrows* what `GITHUB_TOKEN` may do, so a repo (or
+account) setting that withholds PR creation overrides it, and `gh pr
+create` is refused identically. PR creation is therefore non-fatal — the
+validated lockfile is already pushed by then, so the run dispatches nix.yml
+on the branch anyway and writes a compare link into the job summary before
+failing. Full write-up:
+`docs/solutions/ci-errors/github-actions-not-permitted-to-create-pull-requests.md`
 
 ### Entity diff (informational, non-blocking)
 
@@ -534,7 +703,19 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
+*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+
+*2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
+
+*2026-08-28 - Documented the `importNpmLock` pattern for packaging an npm-only CLI (hackmd-cli), including why the lockfile-as-pin approach makes over-declared npm dependencies and per-platform binary packages a build-size problem worth overriding away, and added the rule that a CLI reaching `common.nix` must not be able to hit an interactive credential prompt headlessly*
+
+*2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
+
+*2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
+
+*2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
+
+*2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 
 *2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*
 
