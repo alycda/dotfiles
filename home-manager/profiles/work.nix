@@ -19,7 +19,6 @@
     homeDirectory = "/Users/alyssaevans";
 
     packages = with pkgs; [
-      taskbook # interim CLI task manager; desktop-only (Node closure, not for containers)
       cocoapods # for flutter (to be removed soon)
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
       teleport # kubectl
@@ -28,7 +27,13 @@
       openjdk
       # swig - installed via homebrew (locked tap)
       # lazydiff - alpha, not in nixpkgs yet; installed via official script below
-    ];
+    ]
+    # taskbook: interim CLI task manager, desktop-only. Its Node closure is the
+    # reason it isn't in lib/core-packages.nix — and this profile is *also*
+    # instantiated as the aarch64-linux devcontainer alyssa@work-dev, so an
+    # unconditional entry would drag that closure into the container anyway.
+    # Same Darwin gate as agentSkills.liveCheckout above.
+    ++ lib.optional stdenv.hostPlatform.isDarwin taskbook;
 
     # The installer drops the binary in ~/.lazydiff/bin and appends a PATH
     # export to the shell rc — which does nothing once home-manager owns the

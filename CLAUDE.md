@@ -260,15 +260,6 @@ benefit (same reasoning as the "no GUI in common.nix" rule). Only universal,
 lightweight CLIs belong here; a heavy personal tool goes in the desktop profiles'
 `packages` (e.g. `taskbook`, whose Node closure lives in `home.nix`/`work.nix`).
 
-### Shared package lists (`lib/core-packages.nix`)
-
-`lib/core-packages.nix` is a single `pkgs: [ ... ]` list imported by **both**
-the flake's devShells and home-manager. This is deliberate: the ephemeral
-`nix develop` shell and the persistent home-manager environment install the
-same core CLI tools, so `cheat`, `jj`, `just`, `gh`, etc. behave identically
-whether you're in a throwaway shell or a switched profile. Add a
-universally-needed CLI tool here rather than duplicating it in both places.
-
 ### External agent skills (`lib/skills-sh.nix`)
 
 Skills from [skills.sh](https://www.skills.sh/) install declaratively through
@@ -393,7 +384,12 @@ When migrating changes from experimental branches:
    CLI, a profile's `packages` for a one-off, a module only when there's real
    config to own (see Module Organization). Is it in nixpkgs? If not, see "Tools
    Nix Can't Fully Manage".
-3. Import the module in appropriate profiles
+3. Wire it into the profiles that need it: a module gets imported by them; a
+   plain package goes in each profile's `packages`. Either way, check whether
+   every consumer of that placement should get it — `common.nix`,
+   `lib/core-packages.nix`, and `work.nix` all feed the headless devcontainers,
+   so gate a desktop-only tool (`lib.optional
+   stdenv.hostPlatform.isDarwin`) rather than shipping it into a container.
 4. **Shell integration is a separate step from installing the binary.** If the
    tool needs a shell hook (direnv's eval, a directory-changing command like
    worktrunk's `wt switch`), add it to `interactiveShellInit` / `initExtra` and
