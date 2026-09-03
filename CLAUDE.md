@@ -347,6 +347,17 @@ been compiling crush from scratch.
 
    A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
 
+   The `hiPrio` remedy has a live instance now, and it is worth knowing as the
+   contrast: `ncurses` and `ghostty.terminfo` both provide
+   `share/terminfo/g/ghostty` (#116). Both are things *we* asked for, so the
+   comparison happens inside home-manager's own `buildEnv` - which reads
+   `meta.priority` - and fails at *build* time with a different message
+   (`pkgs.buildEnv error: two given paths contain a conflicting subpath`). The
+   three above fail one layer up, at activation, when nix-env unions
+   `home-manager-path` with the base image's profile, where there is no
+   priority to compare. Similar-sounding errors, different layers; work out
+   which before picking a remedy.
+
 5. **System-level shell config reaches every account**: anything under
    `programs.zsh.*` in nix-darwin is written to `/etc/zshrc` / `/etc/zshenv`,
    which every user on the machine reads - including a non-admin account with
@@ -356,6 +367,16 @@ been compiling crush from scratch.
    shell config for the account that owns the least, not for the one running
    `darwin-rebuild`. Full write-up:
    `docs/solutions/runtime-errors/zsh-compinit-prompts-every-non-admin-login.md`
+
+6. **Terminal capability in the container**: the `nixos/nix` image populates
+   none of the FHS paths ncurses is compiled to search, so the dev profile
+   installs `ncurses` (+ `ghostty.terminfo`) and sets `TERMINFO_DIRS` to
+   `${config.home.profileDirectory}/share/terminfo`. Point it at the profile,
+   never at a `/nix/store/...-ncurses-*` path - the latter works right up until
+   the next bump or `nix-collect-garbage`. Note ncurses has no `terminfo`
+   output; its database is in `$out/share/terminfo`, so plain `pkgs.ncurses` is
+   what you want (`pkgs.ncurses.terminfo` is an eval error, not a fallback).
+   Full write-up: `docs/solutions/runtime-errors/container-ships-no-terminfo-term-falls-back-to-xterm.md`
 
 ## Migration Workflow
 
@@ -566,6 +587,8 @@ This document should evolve as patterns emerge. When you:
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 
 *2026-08-28 - Documented the `importNpmLock` pattern for packaging an npm-only CLI (hackmd-cli), including why the lockfile-as-pin approach makes over-declared npm dependencies and per-platform binary packages a build-size problem worth overriding away, and added the rule that a CLI reaching `common.nix` must not be able to hit an interactive credential prompt headlessly*
+
+*2026-08-23 - Recorded the container terminfo fix (#116): why terminal capability is a profile-level concern rather than a devShell one, that `pkgs.ncurses` has no `terminfo` output, and the `ncurses`/`ghostty.terminfo` overlap as the first in-closure collision `lib.hiPrio` actually resolves*
 
 *2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
 

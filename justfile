@@ -84,10 +84,15 @@ _login:
 docker-build:
     ./docker/dev.sh build-local
 
-# Run the dev container, mounting the current directory at /work
+# Run the dev container, mounting the current directory at /work (forwards $TERM)
 [group('docker')]
 docker-run dir=invocation_directory():
     ./docker/dev.sh run {{dir}}
+
+# Open a second shell in the running dev container (also forwards $TERM)
+[group('docker')]
+docker-exec container="":
+    ./docker/dev.sh exec {{container}}
 
 # Assemble the combined agent instruction capsule (public layers + local overlay)
 [group('agents')]

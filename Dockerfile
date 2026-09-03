@@ -15,7 +15,17 @@
 # ...or from a local clone:
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
-#   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work --network host dev
+#   docker run -it --rm -e TERM="$TERM" -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work --network host dev
+# Second (third, nth) shell into a container that is already running:
+#   ./docker/dev.sh exec          # or: just docker-exec
+#
+# `-e TERM` is not optional garnish. Whenever docker allocates a tty it puts
+# `TERM=xterm` in the environment itself - on run and on exec - so without it
+# you get a valid 1980s terminal description instead of yours, and every TUI
+# renders subtly wrong without erroring. Prefer ./docker/dev.sh run and
+# ./docker/dev.sh exec, which pass it for you; see the TERM entry under
+# Troubleshooting. Setting it on `run` also covers a later hand-written
+# `docker exec`, which inherits the container's env over docker's xterm default.
 #
 # Optional extras for the run command (append before the image name):
 #   SSH agent forwarding (Docker Desktop for Mac):
@@ -79,6 +89,28 @@
 #     new package, decide by asking whether home-manager needs to *provide* the
 #     program or only configure it. See
 #     docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md
+#   colors, scrollback, alt-screen, or Ctrl/Shift+arrow are mangled - TERM, not
+#     tmux, and not cmux either (that misattribution is what made issue #116
+#     take a while). Two independent halves, both were missing:
+#     (a) the entries. `nixos/nix` populates none of the FHS paths ncurses
+#         searches (/etc/terminfo, /lib/terminfo, /usr/share/terminfo), so a
+#         container built before #116 has no terminfo database reachable at all
+#         - ncurses is in the closure only as a transitive dep. Rebuild the
+#         image to pick up the profile-level ncurses + ghostty.terminfo in
+#         home-manager/profiles/dev.nix. Check:
+#           echo $TERMINFO_DIRS                     # ~/.nix-profile/share/terminfo
+#           ls ~/.nix-profile/share/terminfo/x/ | grep xterm-256color
+#     (b) the TERM value. Docker supplies `TERM=xterm` itself whenever it
+#         allocates a tty - both `docker run -it` and `docker exec -it` - so
+#         this is not an unset variable you can spot, it is a wrong one that
+#         looks deliberate. An explicit -e TERM overrides it. Use
+#         ./docker/dev.sh run and ./docker/dev.sh exec, which pass
+#         -e TERM="$TERM" on both. Check, inside the container:
+#           echo $TERM && infocmp -1 "$TERM" >/dev/null && echo ok
+#         If that prints `xterm` on a host running anything else, the container
+#         was started without -e TERM: restart it via dev.sh (or add the flag).
+#     Do NOT "fix" this by exporting a /nix/store/...-ncurses-6.6/share/terminfo
+#     path: it works, and it dies at the next ncurses bump or GC.
 #   container starts, prompt looks perfect, but claude/jj/rg are "command not
 #     found" - this is NOT a PATH problem. It is a failed activation: file
 #     linking runs before package installation, so the dotfiles land and
