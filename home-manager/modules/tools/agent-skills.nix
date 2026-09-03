@@ -34,6 +34,7 @@
 #
 # Repo skills:
 #   brag-doc              - promo-packet impact entries from raw work notes
+#   cf-now                - private file sharing from Cloudflare R2 (pre-signed URLs)
 #   commit-craft          - commit-message craft + jj describe/push workflow
 #   failure-doc           - failures as deliberate-learning records
 #   html-deck             - self-contained single-file HTML slide decks
@@ -77,6 +78,7 @@ let
 
   repoSkills = [
     "brag-doc"
+    "cf-now"
     "commit-craft"
     "failure-doc"
     "hackmd-cli"
