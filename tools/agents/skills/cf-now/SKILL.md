@@ -30,7 +30,11 @@ the whole point here.
 
 ## Requirements
 
-- `aws` CLI v2 and `jq` (both installed on this machine)
+- `jq` (installed) and `aws` CLI v2 (**not** installed — summon it:
+  `nix run nixpkgs#awscli2 -- ...`, or `nix shell nixpkgs#awscli2` for a
+  session of several calls). awscli2 is a ~500MB Python closure and this is an
+  occasional-use tool, so it is deliberately absent from every profile's
+  closure rather than carried by the devcontainer image
 - A Cloudflare **R2 API token** (Object Read & Write) exposed to an AWS named
   profile (default: `alyssa-r2`) — its Access Key ID / Secret Access Key are
   the token's S3 credentials
@@ -41,19 +45,32 @@ the whole point here.
 
 Unlike s3-now (which needs an interactive `aws sso login` every session),
 cf-now uses a **long-lived R2 API token** configured once as static
-credentials — there is no per-session login to run. Configure the profile once
-(in Claude Code, `!` runs it inline):
+credentials — there is no per-session login to run.
+
+**On a profile with `cfNow.enable = true`, there is nothing to configure.**
+The token ships as an agenix secret and arrives with the generation:
+`secrets/personal/r2-credentials.age` is decrypted to `~/.aws/credentials` and
+`secrets/personal/r2-config.age` to `~/.aws/config`, both via `path` overrides
+in `home-manager/modules/tools/cf-now.nix`. A fresh container has a working
+profile as soon as the age identity is present — the same deal as the HackMD
+token, and for the same reason: nobody runs a `login` ritual in a throwaway
+shell.
+
+Mint or rotate the token at Cloudflare dashboard → R2 → **Manage R2 API
+Tokens** → *Create API token* (Object Read & Write). A rotated token has to go
+back into the secret, not into `aws configure` — a hand-written
+`~/.aws/credentials` is a symlink into the agenix runtime dir and the next
+activation overwrites it:
 
 ```
-! aws configure set aws_access_key_id     <R2_ACCESS_KEY_ID>     --profile alyssa-r2
-! aws configure set aws_secret_access_key <R2_SECRET_ACCESS_KEY> --profile alyssa-r2
+just edit-secret personal/r2-credentials.age
 ```
 
-Mint the token at Cloudflare dashboard → R2 → **Manage R2 API Tokens** →
-*Create API token* (Object Read & Write). If a script fails with
-"not authenticated", the token is missing, revoked, or expired — the user must
-create/rotate it in the Cloudflare dashboard and re-run the two lines above.
-You cannot do this for them.
+If a script reports it cannot reach the bucket, suspect in this order: the age
+identity is missing (nothing decrypted), the token was revoked, or the bucket
+name is wrong — R2 answers `AccessDenied` for all three, so they are not
+distinguishable from the error alone. See
+`docs/solutions/integration-issues/r2-auth-probe-fails-on-least-privilege-token.md`.
 
 ## One-time setup
 
