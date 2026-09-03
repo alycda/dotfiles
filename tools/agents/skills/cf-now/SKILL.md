@@ -9,8 +9,10 @@ description: >
   deck, demo script, report, or document. Safe for Ditto-internal content: only
   holders of a live pre-signed URL can view, and URLs expire. Supports stable
   slugs for re-upload, URL refresh without re-upload (--presign), unpublish, and
-  listing. Ephemeral by default (storage auto-deletes after ~7 days); pass
-  --permanent to keep. URLs are intentionally obtuse — opaque random keys plus
+  listing. Ephemeral by default (storage auto-deletes after ~7 days *if* the
+  bucket's lifecycle rule is in place — publish.sh now reports
+  storage_expires=UNVERIFIED when it cannot read the rule, which is the normal
+  case under an Object-scoped token); pass --permanent to keep. URLs are intentionally obtuse — opaque random keys plus
   the pre-signed signature; unguessable, crawler-safe, not meant to be typed or
   remembered.
 ---
@@ -53,9 +55,9 @@ Unlike s3-now (which needs an interactive `aws sso login` every session),
 cf-now uses a **long-lived R2 API token** configured once as static
 credentials — there is no per-session login to run.
 
-**On a profile with `cfNow.enable = true`, the credentials need no setup** —
-but `~/.cfnow/config.json` still does, and `publish.sh` refuses to run without
-it. See "One-time setup" below; this section covers only the token half.
+**On a profile with `cfNow.enable = true`, there is nothing to set up** —
+neither credentials nor config. `publish.sh` reads its endpoint and region from
+the AWS profile, and defaults the rest, so `~/.cfnow/config.json` is optional.
 
 The token ships as an agenix secret and arrives with the generation:
 `secrets/personal/r2-credentials.age` is decrypted to `~/.aws/credentials` and
@@ -88,30 +90,22 @@ CF_ACCOUNT_ID=<account-id> ./scripts/setup.sh   # defaults: profile alyssa-r2, b
 ./scripts/setup.sh --account-id ID --profile OTHER --bucket OTHER
 ```
 
-**`setup.sh` cannot run with the Object Read & Write token this skill now
-recommends.** It probes with account-level `ListBuckets` (it creates the bucket
-and writes the lifecycle rule, so it genuinely needs Admin Read & Write), and
-an Object-scoped token gets `AccessDenied`. Its error tells you to create the
-bucket in the dashboard and skip the script — which leaves `publish.sh` dying
-`no config at ~/.cfnow/config.json — run setup.sh first`, with no documented
-way out. Until that is resolved, write the config by hand once:
+**`setup.sh` is optional, and cannot run with the Object Read & Write token
+this skill recommends.** It creates the bucket and writes the lifecycle rule,
+so it genuinely needs Admin Read & Write, and probes with account-level
+`ListBuckets`, which an Object-scoped token cannot make.
 
-```bash
-mkdir -p ~/.cfnow && cat > ~/.cfnow/config.json <<JSON
-{
-  "profile": "alyssa-r2",
-  "region": "auto",
-  "bucket": "cf-now",
-  "account": "<32-hex account id>",
-  "endpoint": "https://<32-hex account id>.r2.cloudflarestorage.com"
-}
-JSON
-```
+That used to be fatal: `publish.sh` hard-required the config file that only
+`setup.sh` writes, so a machine with perfectly good credentials could not
+publish, and `setup.sh`'s own error told you to skip it. `publish.sh` now
+resolves its settings without that file — endpoint and region come from the
+AWS profile, profile and bucket default to `alyssa-r2` / `cf-now` — so with the
+bucket already created in the dashboard, you can ignore this script entirely.
 
-The account ID is the subdomain in `endpoint_url` in `~/.aws/config`, which
-`cfNow.enable` already decrypts for you.
-
-Idempotent. Creates a private R2 bucket `cf-now` and a lifecycle rule expiring
+Run it only when you hold an admin token and want the bucket and its `tmp/`
+expiry rule created for you. Idempotent, and it now re-runs rather than
+short-circuiting when `--bucket` or `--account-id` name a different target
+than the existing config. Creates a private R2 bucket `cf-now` and a lifecycle rule expiring
 the `tmp/` prefix after 7 days. R2 buckets are **private by default** — there
 is no public r2.dev URL and no custom domain unless one is explicitly attached,
 so (unlike S3) there is no public-access-block to set. Writes

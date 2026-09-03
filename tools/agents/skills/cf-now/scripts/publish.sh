@@ -17,6 +17,8 @@
 # revoking the token invalidates every URL it signed.
 #
 # State: .cfnow/state.json in the working directory (slug -> key map).
+# Config: ~/.cfnow/config.json is optional — settings fall back to the AWS
+# profile (endpoint_url, region) and to defaults. See the resolution block below.
 set -euo pipefail
 
 # AWS CLI v2's newer default request checksums trip R2 uploads (400 /
@@ -33,12 +35,44 @@ need_cmd() { command -v "$1" >/dev/null 2>&1 || die "requires $1"; }
 need_cmd aws
 need_cmd jq
 
-[[ -f "$CONFIG" ]] || die "no config at $CONFIG — run setup.sh first"
-PROFILE="$(jq -r .profile "$CONFIG")"
-REGION="$(jq -r .region "$CONFIG")"
-BUCKET="$(jq -r .bucket "$CONFIG")"
-ENDPOINT="$(jq -r .endpoint "$CONFIG")"
-[[ -n "$ENDPOINT" && "$ENDPOINT" != "null" ]] || die "config missing endpoint — re-run setup.sh"
+# Config resolution: ~/.cfnow/config.json, then the environment, then the AWS
+# profile itself, then defaults.
+#
+# That file is OPTIONAL on purpose. It used to be a hard requirement, and the
+# only thing that writes it is setup.sh - which probes with account-level
+# ListBuckets and so cannot run with the Object Read & Write token this skill
+# recommends minting. The two facts together made a fresh machine unable to
+# publish at all: credentials decrypt fine, setup.sh refuses to run, publish.sh
+# dies "run setup.sh first", and setup.sh's own error tells you to skip it.
+#
+# Nothing in it was ever secret or even interesting - four of the five fields
+# are constants, and the fifth (the endpoint) is already in ~/.aws/config,
+# which cfNow.enable decrypts. So ask the AWS profile instead of demanding a
+# hand-maintained file in $HOME that no generation manages.
+#
+# `// empty` on every read, not bare `jq -r`: a missing key yields the *string*
+# "null", which would sail into `aws --profile null` and die inside the CLI
+# rather than here.
+cfg() {
+  [[ -f "$CONFIG" ]] || return 0
+  jq -r --arg k "$1" '.[$k] // empty' "$CONFIG" 2>/dev/null || true
+}
+
+PROFILE="$(cfg profile)";   PROFILE="${PROFILE:-${CFNOW_PROFILE:-alyssa-r2}}"
+BUCKET="$(cfg bucket)";     BUCKET="${BUCKET:-${CFNOW_BUCKET:-cf-now}}"
+REGION="$(cfg region)"
+ENDPOINT="$(cfg endpoint)"
+
+[[ -n "$ENDPOINT" ]] || ENDPOINT="${CFNOW_ENDPOINT:-}"
+[[ -n "$ENDPOINT" ]] || ENDPOINT="$(aws configure get endpoint_url --profile "$PROFILE" 2>/dev/null || true)"
+if [[ -z "$ENDPOINT" && -n "${CF_ACCOUNT_ID:-}" ]]; then
+  ENDPOINT="https://${CF_ACCOUNT_ID}.r2.cloudflarestorage.com"
+fi
+[[ -n "$ENDPOINT" ]] || die "no R2 endpoint. Set one of: endpoint in $CONFIG, \$CFNOW_ENDPOINT, \$CF_ACCOUNT_ID, or endpoint_url in the '$PROFILE' AWS profile (cfNow.enable writes that one for you)"
+
+[[ -n "$REGION" ]] || REGION="$(aws configure get region --profile "$PROFILE" 2>/dev/null || true)"
+REGION="${REGION:-auto}"   # R2 is always 'auto'
+
 AWSP=(aws --profile "$PROFILE" --region "$REGION" --endpoint-url "$ENDPOINT")
 
 SRC=""
@@ -81,6 +115,29 @@ else
 fi
 (( EXPIRES >= 1 )) || die "--expires must be a positive duration"
 (( EXPIRES > 604800 )) && die "--expires exceeds the 7-day R2 pre-sign cap"
+
+# Validate the slug HERE, not in the upload path - --unpublish and --presign
+# both take --slug and both return before the upload path is ever reached, so a
+# check down there guards the one caller that cannot do damage.
+#
+# `tmp` is the ephemeral *prefix*, not a slug, and it passes the character
+# class. Two ways that bites, both silent:
+#   --unpublish --slug tmp  resolves PREFIX to `tmp` (the bare-slug candidate
+#     matches every ephemeral object), then runs
+#     `s3 rm s3://$BUCKET/tmp/ --recursive` - deleting every ephemeral upload in
+#     the bucket - and prints "removed".
+#   --permanent --slug tmp  writes to tmp/<file>, which the expire-tmp rule
+#     deletes after 7 days, while the script reports the upload as permanent.
+RESERVED_SLUGS=("tmp")
+
+if [[ -n "$SLUG" ]]; then
+  [[ "$SLUG" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "slug must be lowercase alphanumeric/hyphens"
+  # case, not `[[ ]] && die` in a loop: under `set -e` a false test as the last
+  # command of a loop body exits the script.
+  case " ${RESERVED_SLUGS[*]} " in
+    *" $SLUG "*) die "'$SLUG' is a reserved key prefix, not a slug — publishing there would collide with the ephemeral namespace, and unpublishing it would delete every ephemeral upload in the bucket" ;;
+  esac
+fi
 
 # R2 has no STS, so the auth probe is an ordinary call. It must be a
 # *bucket-scoped* one: ListBuckets is an account-level operation, and an R2
@@ -161,6 +218,17 @@ fi
 if $PRESIGN_ONLY; then
   [[ -n "$SLUG" ]] || die "--presign requires --slug"
   KEY="$(state_get_key "$SLUG")"
+  # A cached key proves the slug was published once, not that it is still
+  # there: state.json keeps its entry forever while the lifecycle rule deletes
+  # the object after ~7 days. Presigning a dead key mints a valid-looking URL
+  # that 404s - worse than failing, because SKILL.md tells the agent to
+  # reassure the user that re-presigning restores access. Verify, and fall
+  # through to the bucket search on a miss (which already fails closed).
+  if [[ -n "$KEY" ]] && ! "${AWSP[@]}" s3api head-object \
+       --bucket "$BUCKET" --key "$KEY" >/dev/null 2>&1; then
+    echo "note: state had a key for '$SLUG' but no such object in the bucket — re-resolving" >&2
+    KEY=""
+  fi
   if [[ -z "$KEY" ]]; then
     KEY="$("${AWSP[@]}" s3api list-objects-v2 --bucket "$BUCKET" --prefix "$SLUG/" \
       --max-items 1 --output json | jq -r '.Contents[0].Key // empty')"
@@ -185,11 +253,8 @@ gen_slug() {
   od -An -tx1 -N16 /dev/urandom | tr -d ' \n'
 }
 
-if [[ -n "$SLUG" ]]; then
-  [[ "$SLUG" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "slug must be lowercase alphanumeric/hyphens"
-else
-  SLUG="$(gen_slug)"
-fi
+# Validated up front, alongside the reserved-prefix check.
+[[ -n "$SLUG" ]] || SLUG="$(gen_slug)"
 $EPHEMERAL && PREFIX="tmp/$SLUG" || PREFIX="$SLUG"
 
 content_type_flag() {
@@ -207,8 +272,12 @@ if [[ -d "$SRC" ]]; then
   if [[ -f "$SRC/index.html" ]]; then
     KEY="$PREFIX/index.html"
   else
+    # `// empty` like every other call site here. Without it an empty result
+    # prints the string "null", which is then recorded in state and pre-signed
+    # as s3://$BUCKET/null - a successful-looking publish of nothing.
     KEY="$("${AWSP[@]}" s3api list-objects-v2 --bucket "$BUCKET" --prefix "$PREFIX/" \
-      --max-items 1 --output json | jq -r '.Contents[0].Key')"
+      --max-items 1 --output json | jq -r '.Contents[0].Key // empty')"
+    [[ -n "$KEY" ]] || die "nothing was uploaded from '$SRC' — the directory is empty"
   fi
 else
   KEY="$PREFIX/$(basename "$SRC")"
@@ -222,6 +291,21 @@ state_put "$SLUG" "$KEY" "$EPHEMERAL"
 echo "publish_result.slug=$SLUG" >&2
 echo "publish_result.key=$KEY" >&2
 echo "publish_result.ephemeral=$EPHEMERAL" >&2
-$EPHEMERAL && echo "publish_result.storage_expires=~7 days (bucket lifecycle rule)" >&2
+if $EPHEMERAL; then
+  # Check rather than assert. GetBucketLifecycleConfiguration is AccessDenied
+  # under a least-privilege Object token, and setup.sh - the only thing that
+  # verifies the rule - cannot run with that token either. So on the setup this
+  # skill now recommends, *nothing* has ever confirmed the rule exists, and the
+  # old unconditional line promised a 7-day deletion that may never happen.
+  # Content the user believed was ephemeral living forever is the failure that
+  # matters here, so say which of the two situations this is.
+  if "${AWSP[@]}" s3api get-bucket-lifecycle-configuration --bucket "$BUCKET" \
+       --output json 2>/dev/null \
+       | jq -e '.Rules[]? | select(.ID == "expire-tmp" and .Status == "Enabled")' >/dev/null 2>&1; then
+    echo "publish_result.storage_expires=~7 days (rule 'expire-tmp' verified)" >&2
+  else
+    echo "publish_result.storage_expires=UNVERIFIED — could not read the tmp/ lifecycle rule (expected with an Object-scoped token). Do not tell the user this auto-deletes; use --unpublish to be sure." >&2
+  fi
+fi
 echo "publish_result.url_expires_in=${EXPIRES}s (or immediately, if the R2 token is rotated/revoked)" >&2
 presign "$KEY"

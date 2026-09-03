@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # One-time (idempotent) setup for the cf-now skill.
+#
+# OPTIONAL as of the config-resolution change in publish.sh: this script needs
+# Admin Read & Write (it creates the bucket and writes the lifecycle rule), so
+# with the Object-scoped token SKILL.md recommends it cannot run at all. That
+# is fine now - publish.sh no longer requires the config file this writes, and
+# falls back to the AWS profile. Run this only when you hold an admin token and
+# want the bucket and its tmp/ expiry rule created for you.
 # Creates a fully private Cloudflare R2 bucket (no r2.dev URL, no custom domain).
 # R2 speaks the S3 API, so this drives it with the AWS CLI pointed at the R2
 # endpoint. Access is gated by an R2 API token; sharing happens via pre-signed
@@ -48,12 +55,25 @@ if ! "${AWSP[@]}" s3api list-buckets >/dev/null 2>&1; then
 fi
 echo "account: $ACCOUNT_ID  profile: $PROFILE  region: $REGION  endpoint: $ENDPOINT" >&2
 
+# Short-circuit only when the existing config describes the SAME target as the
+# flags just passed. Testing reachability alone meant
+# `setup.sh --account-id NEW --bucket other` printed "already set up", exited 0
+# and left every old value in place - so subsequent publishes went to the
+# previous account while the operator believed they had switched. An
+# idempotence check has to compare what was asked for, not merely find
+# something that works.
 if [[ -f "$CONFIG" ]]; then
-  EXISTING="$(jq -r '.bucket // empty' "$CONFIG")"
-  if [[ -n "$EXISTING" ]] && "${AWSP[@]}" s3api head-bucket --bucket "$EXISTING" 2>/dev/null; then
-    echo "already set up:" >&2
-    cat "$CONFIG"
-    exit 0
+  E_PROFILE="$(jq -r '.profile // empty' "$CONFIG")"
+  E_BUCKET="$(jq -r '.bucket // empty' "$CONFIG")"
+  E_ENDPOINT="$(jq -r '.endpoint // empty' "$CONFIG")"
+  if [[ "$E_PROFILE" == "$PROFILE" && "$E_BUCKET" == "$BUCKET" && "$E_ENDPOINT" == "$ENDPOINT" ]]; then
+    if "${AWSP[@]}" s3api head-bucket --bucket "$E_BUCKET" 2>/dev/null; then
+      echo "already set up:" >&2
+      cat "$CONFIG"
+      exit 0
+    fi
+  else
+    echo "reconfiguring: ${E_PROFILE:-?}/${E_BUCKET:-?} -> $PROFILE/$BUCKET" >&2
   fi
 fi
 
@@ -93,7 +113,7 @@ mkdir -p "$CONFIG_DIR"
 jq -n \
   --arg profile "$PROFILE" --arg region "$REGION" --arg bucket "$BUCKET" \
   --arg account "$ACCOUNT_ID" --arg endpoint "$ENDPOINT" \
-  '{profile: $profile, region: $region, bucket: $bucket, accountId: $account, endpoint: $endpoint}' \
+  '{profile: $profile, region: $region, bucket: $bucket, account: $account, endpoint: $endpoint}' \
   > "$CONFIG"
 chmod 600 "$CONFIG"
 
