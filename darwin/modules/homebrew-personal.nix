@@ -29,6 +29,14 @@ _:
     # compare); none are listed here, so keep an eye out when adding one.
     greedyCasks = true;
 
+    # Export HOMEBREW_BUNDLE_FILE pointing at the generated Brewfile, so a bare
+    # `brew bundle install` upgrades exactly what's declared here - that's what
+    # `just brew-upgrade` uses to pull cask updates between switches, since
+    # nix-darwin only runs brew during activation. This lands in /etc/zshenv and
+    # so reaches every account on the machine (see the CLAUDE.md note about
+    # system-level shell config); it's inert for an account with no Homebrew.
+    global.brewfile = true;
+
     taps = [
       {
         name = "cirruslabs/cli";
