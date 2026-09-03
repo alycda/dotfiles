@@ -1,0 +1,3 @@
+curl -s https://ipinfo.io/json
+
+# Runnable: just -g ip

@@ -1,1 +1,2 @@
 clock-rs --fmt="%A, %Y-%m-%d" -t
+# Runnable: just -g clock

@@ -34,6 +34,11 @@
 
     # Just
     just-lsp
+
+    # Prose / grammar (Markdown, commit messages, comments)
+    # Provides the `harper-ls` binary - a fast, offline, Rust grammar checker.
+    # https://writewithharper.com/ - no desktop app, just the LSP for helix.
+    harper
   ] ++ lib.optionals pkgs.stdenv.isDarwin [
     swift-format          # Swift formatter (sourcekit-lsp from Xcode)
   ];
@@ -78,10 +83,32 @@
           file-types = [ "json" "jsonc" "geojson" ];
           indent = { tab-width = 2; unit = "  "; };
         }
+        # Grammar checking for prose via harper-ls.
+        # No marksman/markdown-oxide installed, so harper-ls is the only
+        # markdown server here - listing it replaces helix's defaults.
+        {
+          name = "markdown";
+          language-servers = [ "harper-ls" ];
+        }
+        # Grammar-check commit messages too - this repo values meaningful,
+        # well-written commits (see CLAUDE.md commit strategy).
+        {
+          name = "git-commit";
+          language-servers = [ "harper-ls" ];
+        }
       ];
 
       # rust-analyzer config (binary provided by rustup)
       language-server = {
+        # harper-ls: offline grammar/spell checker (binary from pkgs.harper).
+        # Surface suggestions as "hint" so they match the non-intrusive
+        # inline-diagnostics style configured in editor.inline-diagnostics.
+        harper-ls = {
+          command = "harper-ls";
+          args = [ "--stdio" ];
+          config.harper-ls.diagnosticSeverity = "hint";
+        };
+
         rust-analyzer.config = {
           check.command = "clippy";
           inlayHints = {

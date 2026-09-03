@@ -2,20 +2,16 @@
 name: jj-extract-gitignores
 description: >
   Extract `.gitignore` changes from buried commits in a jj chain back into named
-  in-between commits that sit right after a target ancestor (default: the project's init
+  in-between commits that sit right after a target ancestor (default - the project's init
   commit). Use when the user says "extract gitignore changes", "split off the gitignores",
   "roll the gitignores back to <commit>", "retroactive gitignore remediation",
   "/jj-extract-gitignores", or wants to land later-committed `.gitignore` additions as
   logical ancestors of the work that uses them. Builds a sequential chain of named
-  in-between commits — not siblings — because siblings conflict at squash time when
-  they all append to the same end-of-file position. Each in-between commit holds
-  exactly one original commit's `.gitignore` delta, preserving its hunk exactly. `@`
-  does not move. Also covers a related variant for modifying a tracked path in an
-  ancestor commit without `jj edit` (which would let auto-tracking pollute the
-  ancestor) — uses `jj restore --from @ --to <new>` instead of squash, with a
-  `jj restore --from 'root()'` fix for any delete/modify conflicts downstream.
-  Pinned to jj v0.43.
-allowed-tools: Bash(jj *), Bash(git log *), Bash(git status), Read, Edit
+  in-between commits - not siblings, which conflict at squash time by appending to the
+  same end-of-file position. Each in-between commit holds exactly one original commit's
+  `.gitignore` delta, preserving its hunk exactly. `@` does not move. Also covers
+  modifying a tracked path in an ancestor without `jj edit` (via `jj restore`).
+  Pinned to jj v0.44.
 ---
 
 # jj-extract-gitignores
@@ -140,7 +136,11 @@ After processing all originals, show Alyssa:
   movement.)
 - Does not create sibling commits off the target. Siblings conflict at squash time
   when multiple of them append to the same end-of-file position. The whole point of
-  this skill is to avoid that failure mode.
+  this skill is to avoid that failure mode. This is not a `.gitignore` quirk — it is
+  true of any append-only file (changelogs, `SUMMARY.md`), and it applies to merges
+  as much as to squashes. The general rule, the anchor-line workaround, and why that
+  workaround only relocates the problem are in the jujutsu skill's
+  `references/merge-surgery.md`.
 - Does not retroactively untrack files that match the new ignores. The patterns become
   effective from the new in-between commit forward, but files already tracked in earlier
   commits stay tracked. If Alyssa wants to remove a file from history too, that's a

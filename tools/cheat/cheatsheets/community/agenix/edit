@@ -1,5 +1,13 @@
-# Create or edit an encrypted secret
-agenix -e secrets/<name>.age
+# Edit or create an encrypted secret - from the dotfiles repo root
+# (wraps ragenix's two required flags; see justfile group 'secrets'):
+just edit-secret personal/<name>.age
 
-# Re-key all secrets (after adding new keys to secrets.nix)
-agenix -r
+# Re-key all secrets (after adding recipients in secrets/secrets.nix):
+just rekey-secrets
+
+# Bare agenix/ragenix FAILS without both flags:
+#   "./secrets.nix does not exist"  -> rules live at secrets/secrets.nix
+#   "No matching keys found"        -> identity is ~/.age/personal-key.txt
+#                                      (RAGENIX_IDENTITY overrides), not ~/.ssh
+# Raw equivalent when the justfile isn't at hand:
+ragenix --rules secrets/secrets.nix -i ~/.age/personal-key.txt -e secrets/personal/<name>.age

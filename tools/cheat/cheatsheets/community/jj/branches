@@ -1,1 +1,3 @@
 jj log -r 'heads(all())'
+
+# Runnable: just -g jj-heads

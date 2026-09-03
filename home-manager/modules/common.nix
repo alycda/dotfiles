@@ -19,8 +19,11 @@ in
     ./tools/agents.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
+    ./tools/crush.nix
     ./tools/fzf.nix
     ./tools/gh-dash.nix
+    ./tools/git-worktree-clone.nix
+    ./tools/hackmd.nix
     ./tools/helix.nix
     ./tools/starship.nix
     ./tools/television.nix
@@ -68,4 +71,15 @@ in
       nix-direnv.enable = true;
     };
   };
+
+  # Invocable cheatsheets as just's GLOBAL justfile: `just -g <recipe>` from
+  # anywhere (verified on just 1.58: -g recipes run with the invocation
+  # directory as cwd). The shim imports the store copy by absolute path, and
+  # `import?` leaves an optional hook so a profile or machine can layer its
+  # own recipes (e.g. the work profile's ditto-worktree recipes) by writing
+  # ~/.config/just/local.just instead of fighting over this file.
+  xdg.configFile."just/justfile".text = ''
+    import '${../../tools/just}/global.justfile'
+    import? '~/.config/just/local.just'
+  '';
 }

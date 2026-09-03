@@ -11,7 +11,7 @@
 
   # User-level zsh configuration for Rust
   # Ensures rustup is updated on shell initialization
-  programs.zsh.initExtra = ''
+  programs.zsh.initContent = ''
     rustup update
     # rustup toolchain install nightly
   '';

@@ -14,19 +14,34 @@
   agentSkills.liveCheckout =
     lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "${config.home.homeDirectory}/dotfiles";
 
+  # HackMD: the work account. Both tokens are encrypted to the same age key, so
+  # this is a choice about which account the machine talks to, not about who can
+  # decrypt what.
+  hackmd.account = "work";
+
   home = {
     username = "alyssaevans";
     homeDirectory = "/Users/alyssaevans";
 
     packages = with pkgs; [
-      cocoapods # for flutter (to be removed soon)
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
       teleport # kubectl
       cmake
+      # LiteLLM bridge for Claude Code -> casper (Anthropic Messages -> OpenAI 
+      # chat/completions translation). Only claude needs it: codex speaks 
+      # casper's Responses wire natively, and crush<->venice is 
+      # OpenAI-compatible end to end. See cheat claude/casper.
+      litellm
       # flutter - managed by puro (manually installed)
       openjdk
       # swig - installed via homebrew (locked tap)
       # lazydiff - alpha, not in nixpkgs yet; installed via official script below
+    ]
+    # darwin-only packages: this profile is also alyssa@work-dev on
+    # aarch64-linux (see agentSkills.liveCheckout above), and cocoapods
+    # only supports aarch64-darwin
+    ++ lib.optionals stdenv.hostPlatform.isDarwin [
+      cocoapods # for flutter (to be removed soon)
     ];
 
     # The installer drops the binary in ~/.lazydiff/bin and appends a PATH
@@ -55,4 +70,14 @@
       '';
     };
   };
+
+  # The ditto-worktree agent recipes, layered into the global justfile that
+  # common.nix owns: its shim ends with `import? '~/.config/just/local.just'`,
+  # so the work profile plugs in there instead of redefining just/justfile
+  # (two modules defining the same xdg.configFile path would fail eval).
+  # work.just's own relative imports (work/*.just) resolve inside the store
+  # copy of tools/just. Run with `just -g <recipe>` from the workspace the
+  # recipes expect - they execute with the invocation directory as cwd and
+  # dotenv-load reads the cwd's .env (verified on just 1.58).
+  xdg.configFile."just/local.just".text = "import '${../../tools/just}/work.just'";
 }

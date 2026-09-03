@@ -15,7 +15,7 @@
 # ...or from a local clone:
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
-#   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+#   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work --network host dev
 #
 # Optional extras for the run command (append before the image name):
 #   SSH agent forwarding (Docker Desktop for Mac):
@@ -51,6 +51,14 @@
 # missing or stale.
 #
 # Troubleshooting:
+#   "cannot attach stdin to a TTY-enabled container because stdin is not a
+#     terminal" - `docker run -it` was invoked from a process whose stdin is a
+#     pipe, not a tty (classically `curl ... | sh`, where the script inherits
+#     the curl pipe on fd 0). The image built fine; only the run failed. Add
+#     `< /dev/tty` to the docker run command to hand it the controlling
+#     terminal - docker/dev.sh does this for you (PR #86), so prefer it over a
+#     hand-written docker run when bootstrapping through a pipe. Full write-up:
+#     docs/solutions/runtime-errors/curl-piped-dev-sh-cannot-attach-stdin-to-tty.md
 #   "no space left on device" - Docker Desktop's disk is full. Reclaim with
 #     docker image prune          # drops dangling images (e.g. old dev-x86 builds)
 #     docker builder prune        # drops stale build cache
@@ -81,7 +89,9 @@ FROM nixos/nix:latest
 
 RUN echo "experimental-features = nix-command flakes" >> /etc/nix/nix.conf
 
-# Outside /root so a mounted home volume can never shadow the flake
+# Outside /root so a mounted home volume can never shadow the flake. This layer
+# is the cache key for the nix build below, so .dockerignore keeps everything
+# the flake does not read (docs, .git/.jj, editor config) out of the context.
 COPY . /opt/dotfiles
 
 # The profile is picked by asking the build container itself (uname -m), NOT
@@ -96,21 +106,18 @@ ARG HM_PROFILE
 
 # Build the HM generation and root it at a stable path (GC-safe).
 # "path:" forces the path fetcher - the image has no git for the git fetcher.
-# The chosen profile is recorded at /opt/hm-profile for the entrypoint, and
-# the matching container-env doc is baked in as Claude's user-level memory so
-# it applies regardless of which project is mounted at /work. At runtime
-# /root/.claude is a volume (claude-home) that shadows the baked copy, so the
-# entrypoint re-copies it on every start to keep it current; this seed covers
-# a fresh volume and runs without the claude-home mount.
+# The chosen profile is recorded at /opt/hm-profile for the entrypoint.
+#
+# The per-arch container-env doc is NOT copied here. It ships inside the
+# generation as ~/.claude/rules/container-env.md (home-manager/profiles/dev.nix
+# selects the arch), which Claude Code loads into every session regardless of
+# which project is mounted at /work. Putting it in the generation means the
+# claude-home volume can't shadow a stale copy and the entrypoint has nothing
+# to re-copy - the doc updates exactly when the generation does.
 RUN arch="$(uname -m)" \
  && profile="${HM_PROFILE:-$(case "$arch" in aarch64) echo 'alyssa@dev';; *) echo 'alyssa@dev-x86';; esac)}" \
  && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
- && echo "$profile" > /opt/hm-profile \
- && mkdir -p /root/.claude \
- && case "$arch" in \
-      aarch64) cp /opt/dotfiles/docker/CLAUDE-arm64.md /root/.claude/CLAUDE.md ;; \
-      *)       cp /opt/dotfiles/docker/CLAUDE.md       /root/.claude/CLAUDE.md ;; \
-    esac
+ && echo "$profile" > /opt/hm-profile
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 

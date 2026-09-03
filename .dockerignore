@@ -1,0 +1,60 @@
+# Build context for the dev image (see Dockerfile).
+#
+# `COPY . /opt/dotfiles` sits directly above the `nix build` that bakes the
+# whole home-manager closure into the image, so every file in the context is
+# also a cache key: change one and Docker rebuilds ~10GB of closure. It is a
+# size cost too - `nix build path:` copies the entire directory into the store,
+# so the context lands in the image twice (at /opt/dotfiles and again under
+# /nix/store).
+#
+# What the flake actually reads is flake.nix, flake.lock, lib/, home-manager/,
+# darwin/ and secrets/; docker/ is needed separately for the entrypoint and the
+# baked CLAUDE.md. Everything excluded below is either unread by the flake or
+# rewrites itself without changing what the flake sees.
+#
+# If a module ever imports from one of these paths, delete that line - the
+# failure mode is otherwise confusing: `nix build` reports a missing file that
+# is plainly sitting there in your checkout.
+
+# VCS state. Nothing in the image uses it - the flake is fetched with `path:`
+# *because* the base image has no git. Both directories rewrite themselves on
+# every commit (jj: on every command, including `jj status`), so without this a
+# `docker build .` from a working checkout busts the closure layer for changes
+# the build cannot see. .jj is excluded from git by .git/info/exclude in a
+# colocated repo, not by .gitignore, so it is easy to forget it is even here.
+.git
+.gitignore
+.jj
+
+# Host build outputs. These are symlinks into the *host's* /nix/store and dangle
+# inside the image; .direnv additionally holds a whole devShell profile.
+**/result
+**/result-*
+**/.direnv
+
+# npm scratch, same story: the flake reads only tools/hackmd/package.json and
+# package-lock.json, never a node_modules the bump procedure may have left
+# behind. ~50MB, and it rewrites itself on every npm run.
+**/node_modules
+
+# Docs, CI and editor config: read by humans, GitHub and VS Code, never by the
+# flake. CLAUDE.md is the most frequently edited file in the repo, which is
+# exactly why it should not be able to invalidate the closure build. The copy
+# that matters inside the container is docker/CLAUDE{,-arm64}.md, baked in as
+# Claude's user-level memory; a checkout you actually work on is mounted at
+# /work and brings its own.
+docs/
+README.md
+CONCEPTS.md
+CLAUDE.md
+.github/
+.vscode/
+.devcontainer.json
+
+# macOS. Patterns here are matched against the whole relative path, not the
+# basename, so a bare `.DS_Store` would only ever catch the one at the root -
+# hence `**/`.
+**/.DS_Store
+**/._*
+**/.AppleDouble
+**/.LSOverride

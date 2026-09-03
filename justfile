@@ -102,7 +102,7 @@ agents-capsule:
     # AGENTS.md first: the capsule must carry the entrypoint's precedence and
     # composition contract, not just the layer bodies. Its @import lines are
     # dropped — inert in a paste, and the layers are inlined right below.
-    for f in AGENTS.md company-values.md personal-constitution.md instructions.private.md; do
+    for f in AGENTS.md company-values.md persona-core.md personal-constitution.md instructions.private.md; do
       if [ -f "$agents/$f" ]; then
         printf '\n<!-- %s -->\n\n' "$f"
         sed '/^@/d' "$agents/$f"
@@ -113,3 +113,63 @@ agents-capsule:
 [group('agents')]
 agents-copy:
     just agents-capsule | pbcopy && echo "Copied agent capsule to clipboard"
+
+# Resolve the age identity ragenix needs, or explain how to get one. Extracted
+# so edit-secret and rekey-secrets share one answer to "where is the key".
+_age-identity:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    key="${RAGENIX_IDENTITY:-$HOME/.age/personal-key.txt}"
+    if [ ! -f "$key" ]; then
+      echo "No age identity at $key" >&2
+      if [ -n "${RAGENIX_IDENTITY:-}" ]; then
+        # Don't send someone to the default path when their own override is
+        # what's pointing at nothing — following that hint would change nothing.
+        echo "That path came from \$RAGENIX_IDENTITY; unset it to fall back to" >&2
+        echo "~/.age/personal-key.txt." >&2
+      else
+        echo "Copy it from a machine that has it, e.g.:" >&2
+        echo "  docker cp ~/.age/personal-key.txt <container>:/root/.age/personal-key.txt" >&2
+      fi
+      exit 1
+    fi
+    echo "$key"
+
+# Edit an age-encrypted secret, e.g. `just edit-secret personal/git-config.age`
+[group('secrets')]
+edit-secret path:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # ragenix's CLI reads neither our Nix config nor the rules' location. It
+    # hunts for SSH keys in ~/.ssh (which the dev container doesn't have) and
+    # defaults --rules to ./secrets.nix (ours lives in secrets/), so both flags
+    # are needed on every invocation. Forgetting -i surfaces as "No usable
+    # identity", which reads like a lost key rather than a missing flag. The
+    # identity path matches age.identityPaths in home-manager/modules/git.nix;
+    # keep the two in step.
+    key="$(just _age-identity)"
+    # Recipes run from the repo root, so accept the path as typed from either
+    # here ('secrets/personal/x.age') or from inside secrets/ ('personal/x.age'),
+    # and tolerate the './' and absolute forms a shell completion will hand you.
+    # quote() matters: just interpolation is raw text substitution, so an
+    # unquoted path with a space or a ';' would be re-parsed as shell source.
+    rel={{ quote(path) }}
+    rel="${rel#./}"
+    rel="${rel#"$PWD/"}"
+    # No existence check here on purpose: `ragenix -e` on a path that doesn't
+    # exist yet is how a *new* secret gets created. Letting it through means
+    # ragenix's own rules check is the gate, which also catches a file that
+    # exists but was never added to secrets.nix.
+    # $EDITOR is a required argument that merely defaults from the environment,
+    # so an unset EDITOR fails with a clap usage dump rather than anything
+    # actionable — exactly the confusion this recipe exists to prevent.
+    exec ragenix --rules secrets/secrets.nix -i "$key" \
+      --editor "${EDITOR:-hx}" -e "secrets/${rel#secrets/}"
+
+# Re-encrypt every secret for the recipients in secrets/secrets.nix
+[group('secrets')]
+rekey-secrets:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    key="$(just _age-identity)"
+    ragenix --rules secrets/secrets.nix -i "$key" --rekey
