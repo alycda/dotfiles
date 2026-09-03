@@ -12,3 +12,6 @@ md *args:
 [group('personal')]
 encrypt *args:
     rage -e -r age1mxz3lqtpxg35s2cct2gex76l66wrw9xpv5v8tk340gqxsdzxh5msq8vp09 {{args}}
+
+ip:
+    curl -s https://ipinfo.io/json
