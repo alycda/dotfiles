@@ -4,6 +4,14 @@
 just docker-build
 # then VS Code: "Dev Containers: Reopen in Container"
 
+# `just docker-build` builds THIS CHECKOUT. dev.sh's `build`/`up` do not - they
+# hand the GitHub URL to docker and default to main, so while a Dockerfile fix
+# is unmerged they give you an image without it (and VS Code then fails with a
+# symptom the Dockerfile header blames on the missing fix). Name the branch:
+./docker/dev.sh build BRANCH_NAME
+# which tree did the image actually come from?
+docker run --rm --entrypoint /bin/sh dev -c 'ls -l /lib*/ld-linux-*; env | grep NIX_LD'
+
 # same config from a terminal, no VS Code (npm i -g @devcontainers/cli):
 devcontainer up --workspace-folder .
 devcontainer exec --workspace-folder . zsh -l

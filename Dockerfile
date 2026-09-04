@@ -11,7 +11,8 @@
 #
 # Bootstrap from nothing (no gh/ssh/Nix/git needed - Docker fetches the repo
 # itself via BuildKit's remote build context):
-#   docker build -t dev https://github.com/alycda/dotfiles.git
+#   docker build -t dev https://github.com/alycda/dotfiles.git       # main
+#   docker build -t dev https://github.com/alycda/dotfiles.git#branch
 # ...or from a local clone:
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
@@ -101,6 +102,19 @@
 #     nix-ld at that path and pointing it at the image's glibc through the
 #     NIX_LD* variables. If it returns, check both survived into the image:
 #       docker run --rm --entrypoint /bin/sh dev -c 'ls -l /lib*/ld-linux-*; env | grep NIX_LD'
+#   ...and if that check comes back EMPTY, the Dockerfile is not the problem:
+#     the image was built from a ref that predates the fix. The remote build
+#     context above, and docker/dev.sh's `build` and `up`, fetch this repo from
+#     GitHub and default to main - by design, so the curl bootstrap needs no
+#     checkout. Only `build-local` (what `just docker-build` runs) builds the
+#     tree you are sitting in. So while a Dockerfile change is unmerged, which
+#     is exactly when you are testing one, `dev.sh up` silently gives you an
+#     image without it:
+#       just docker-build                  # this checkout
+#       ./docker/dev.sh build <branch>     # a branch on GitHub
+#     The same reasoning covers the /etc/passwd entry above, and every future
+#     one: the symptom names a missing fix, not a wrong one, so verify WHICH
+#     tree the image came from before re-reading the RUN step.
 #   "patchelf: open: Text file busy" from bin/code-server - a leftover of the
 #     VSCODE_SERVER_CUSTOM_GLIBC_PATH route. That variable must stay unset;
 #     the nix-ld block below explains why in-place patching cannot work with
