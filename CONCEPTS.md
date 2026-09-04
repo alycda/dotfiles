@@ -36,12 +36,25 @@ The merged symlink tree that becomes the active set of installed programs, assem
 ### Activation
 The process that makes a generation live. It runs in ordered stages, and in practice the stage that links files runs before the stage that installs packages — so a failed activation can leave a machine with correct dotfiles and none of its tools. Activation is non-fatal by design in the container: the entrypoint reports the failure and still starts a shell.
 
+## Agent instructions
+
+### Public layers
+The agent-instruction files that are safe to publish and are tracked in the repo — entrypoint, preferred tooling, company values, persona. They reach every agent surface as local files written by home-manager activation, not fetched from a URL at runtime.
+
+### Private overlay
+The encrypted agent-instruction layer, decrypted by agenix only on machines holding the identity key. It is ordered last in the managed import block, so it is authoritative on conflict with the public layers — and it may legitimately dangle on a machine without the key, which consumers tolerate by skipping the unresolvable import rather than failing.
+
 ## Sharing
 
 ### Slug
 The opaque random identifier that names one published upload and stands in for access control. Note this inverts the usual meaning: a slug here is deliberately *unreadable*, because unguessability is the only thing keeping a private object private — the bucket is never public and content is reached solely through time-limited signed URLs.
 
 A slug is stable and reusable: republishing to an existing slug replaces its content in place, so a link already shared keeps working. Uploads are ephemeral by default, expiring through a storage lifecycle rule unless explicitly published as permanent; permanence governs how long the *object* survives, which is independent of how long any signed URL for it remains valid.
+
+## Cross-cutting
+
+### Drift
+Divergence between committed source and a derived artifact that should faithfully reflect it — a built image carrying uncommitted state, a runtime config with no source of record, or a stale pin emitting flags newer tools reject. Runtime state that cannot be traced to a commit is drift to be committed or filed, never adopted as truth.
 
 ## Flagged ambiguities
 
