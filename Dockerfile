@@ -11,11 +11,16 @@
 #
 # Bootstrap from nothing (no gh/ssh/Nix/git needed - Docker fetches the repo
 # itself via BuildKit's remote build context):
-#   docker build -t dev https://github.com/alycda/dotfiles.git
+#   docker build -t dev https://github.com/alycda/dotfiles.git       # main
+#   docker build -t dev https://github.com/alycda/dotfiles.git#branch
 # ...or from a local clone:
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
 # Run:
 #   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work --network host dev
+# ...or open the repo in VS Code and "Reopen in Container": .devcontainer.json
+# runs this same image with the same volumes, invoking the entrypoint from
+# postStartCommand (Dev Containers overrides ENTRYPOINT, so it never runs on
+# its own). Build the image first - the devcontainer does not build it.
 #
 # Optional extras for the run command (append before the image name):
 #   SSH agent forwarding (Docker Desktop for Mac):
@@ -84,6 +89,36 @@
 #     linking runs before package installation, so the dotfiles land and
 #     home-manager-path never installs. Scroll up to the activation output and
 #     read the tail; the real error is buried above a wall of success lines.
+#   VS Code Dev Containers fails with "Shell server terminated (code: 126)" and
+#     "openat etc/passwd: path escapes from parent" - the container itself is
+#     fine (`docker run` works); it is `docker exec` that cannot follow the base
+#     image's absolute /etc/passwd -> /nix/store symlink. Fixed below by
+#     materializing /etc/{passwd,group,shadow}; if you see it again, check that
+#     RUN survived. Reads like a volume/permissions bug and is neither.
+#   VS Code Dev Containers dies at "check-requirements.sh: getconf: command not
+#     found", or at "node: cannot execute: required file not found" - both are
+#     symptoms. The server's prebuilt node wants an FHS ELF interpreter
+#     (/lib/ld-linux-*) that this rootfs does not have. Fixed below by putting
+#     nix-ld at that path and pointing it at the image's glibc through the
+#     NIX_LD* variables. If it returns, check both survived into the image:
+#       docker run --rm --entrypoint /bin/sh dev -c 'ls -l /lib*/ld-linux-*; env | grep NIX_LD'
+#   ...and if that check comes back EMPTY, the Dockerfile is not the problem:
+#     the image was built from a ref that predates the fix. The remote build
+#     context above, and docker/dev.sh's `build` and `up`, fetch this repo from
+#     GitHub and default to main - by design, so the curl bootstrap needs no
+#     checkout. Only `build-local` (what `just docker-build` runs) builds the
+#     tree you are sitting in. So while a Dockerfile change is unmerged, which
+#     is exactly when you are testing one, `dev.sh up` silently gives you an
+#     image without it:
+#       just docker-build                  # this checkout
+#       ./docker/dev.sh build <branch>     # a branch on GitHub
+#     The same reasoning covers the /etc/passwd entry above, and every future
+#     one: the symptom names a missing fix, not a wrong one, so verify WHICH
+#     tree the image came from before re-reading the RUN step.
+#   "patchelf: open: Text file busy" from bin/code-server - a leftover of the
+#     VSCODE_SERVER_CUSTOM_GLIBC_PATH route. That variable must stay unset;
+#     the nix-ld block below explains why in-place patching cannot work with
+#     the `vscode` volume Dev Containers shares across every container.
 
 FROM nixos/nix:latest
 
@@ -118,6 +153,106 @@ RUN arch="$(uname -m)" \
  && profile="${HM_PROFILE:-$(case "$arch" in aarch64) echo 'alyssa@dev';; *) echo 'alyssa@dev-x86';; esac)}" \
  && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
  && echo "$profile" > /opt/hm-profile
+
+# Materialize /etc/{passwd,group,shadow} as regular files.
+#
+# The nixos/nix base image ships them as ABSOLUTE symlinks into the store
+# (/etc/passwd -> /nix/store/...-base-system/etc/passwd). That is fine for
+# anything running inside the container - the symlinks resolve - but it breaks
+# `docker exec` under OrbStack, and with it every VS Code Dev Containers
+# session, which is the whole point of this image:
+#
+#   Shell server terminated (code: 126, signal: null)
+#   openat etc/passwd: path escapes from parent
+#
+# The exec path resolves the user's entry from the host side, rooted at the
+# container rootfs, using openat2 with RESOLVE_BENEATH semantics - which
+# rejects absolute symlinks outright (they "escape" their parent) rather than
+# re-rooting them the way RESOLVE_IN_ROOT would. `docker run` takes a different
+# code path and is unaffected, so the container starts cleanly and only the
+# first `docker exec` fails, making this look like a volume or permissions bug.
+#
+# Copying the content into place is inert - same bytes, same lookups, and the
+# store paths stay where they are. Nothing here adds users, so these files are
+# static for the life of the image.
+RUN for f in passwd group shadow; do \
+      if [ -L "/etc/$f" ]; then cp -L "/etc/$f" "/tmp/$f" && mv -f "/tmp/$f" "/etc/$f"; fi; \
+    done \
+ && chmod 0644 /etc/passwd /etc/group \
+ && chmod 0600 /etc/shadow
+
+# Let VS Code Server's prebuilt node run here.
+#
+# The server ships a 121 MB glibc-linked node built for FHS: it wants
+# /lib/ld-linux-aarch64.so.1 (x86_64: /lib64/ld-linux-x86-64.so.2) as its ELF
+# interpreter, and this rootfs has no /lib at all, so it dies with a bare
+# "cannot execute: required file not found" that names the binary rather than
+# the missing loader. Before that it fails even earlier, in
+# bin/helpers/check-requirements.sh, on `getconf: command not found`.
+#
+# Put a loader at the path the binary asks for. nix-ld is what NixOS uses for
+# exactly this: a static ELF interpreter that reads the real dynamic linker
+# from $NIX_LD and a library search path from $NIX_LD_LIBRARY_PATH, then hands
+# off to that linker for the one process being started. The binary is never
+# modified, and no other program in the image sees an LD_LIBRARY_PATH. Both
+# variables are load-bearing - nix-ld 2.x with NIX_LD unset panics rather
+# than guessing - so they are ENV here, where every `docker exec` inherits
+# them. Verified 2026-09-03 against the exact server build VS Code 1.135.0
+# pulls: node prints v24.18.1, and bin/code-server --version launches.
+#
+# NOT the VSCODE_SERVER_CUSTOM_GLIBC_* patchelf route Microsoft documents
+# under "Can I run VS Code Server on older Linux distributions?" at
+# https://code.visualstudio.com/docs/remote/faq, which this image tried first.
+# That route has bin/code-server rewrite node's interpreter and rpath in
+# place - and Dev Containers installs the server into a `vscode` Docker
+# volume shared by EVERY devcontainer on the machine, so the rewrite is
+# global. Two failure modes, both hit on the first real open: with a
+# Debian-based devcontainer running the same server build, patchelf dies with
+# "Text file busy" (the binary is executing from the shared volume); and had
+# it succeeded, that Debian container would have inherited a node whose
+# interpreter is /opt/vscode-glibc/linker, a path that exists only here. The
+# patch also only covers bin/code-server: the extension's own container
+# helper execs $HOME/.vscode-server/bin/<commit>/node directly, which the
+# rewrite never reaches on a first start.
+#
+# VSCODE_SERVER_CUSTOM_GLIBC_LINKER is still set - alone, on purpose. It is
+# the first thing check-requirements.sh tests (exit 0 before any of the FHS
+# probing that hits getconf), and bin/code-server only patches when all three
+# variables are present, so one variable keeps the bypass and loses the
+# rewrite. The other bypass, /etc/os-release with ID=nixos, parses the file
+# with `sed`, which is not on PATH in a `docker exec` here, under `set -e`.
+#
+# `--inputs-from` resolves nixpkgs through the flake's own lock rather than
+# the ambient registry, so this is the same glibc the rest of the image
+# already links against - the marginal cost is nix-ld and gcc-lib, not a
+# second libc. `-o` roots them for the GC, matching /opt/hm-activation. The
+# *-pkg links are the GC roots; the unsuffixed ones are what the ENV refers
+# to, so the variables never encode a store path, an architecture, or nix's
+# output-naming rules. That last one is not hypothetical: `-o foo` on a
+# non-default output lands at `foo-lib`, not `foo`, so pointing ENV straight
+# at the `-o` path silently misses libstdc++. The `test`s make that a build
+# failure rather than a runtime one.
+RUN mkdir -p /opt/vscode-glibc \
+ && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/nix-ld-pkg nixpkgs#nix-ld \
+ && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/glibc-pkg  nixpkgs#glibc.out \
+ && nix build --inputs-from path:/opt/dotfiles -o /opt/vscode-glibc/gcc-pkg    nixpkgs#stdenv.cc.cc.lib \
+ && case "$(uname -m)" in \
+      aarch64) ld=ld-linux-aarch64.so.1; interp=/lib/ld-linux-aarch64.so.1   ;; \
+      *)       ld=ld-linux-x86-64.so.2;  interp=/lib64/ld-linux-x86-64.so.2  ;; \
+    esac \
+ && ln -sfn "glibc-pkg/lib/$ld"  /opt/vscode-glibc/linker \
+ && ln -sfn glibc-pkg/lib        /opt/vscode-glibc/libc \
+ && ln -sfn gcc-pkg-lib/lib      /opt/vscode-glibc/libcxx \
+ && mkdir -p "$(dirname "$interp")" \
+ && ln -sfn /opt/vscode-glibc/nix-ld-pkg/libexec/nix-ld "$interp" \
+ && test -x /opt/vscode-glibc/linker \
+ && test -e /opt/vscode-glibc/libc/libc.so.6 \
+ && test -e /opt/vscode-glibc/libcxx/libstdc++.so.6 \
+ && test -x "$interp"
+
+ENV NIX_LD=/opt/vscode-glibc/linker \
+    NIX_LD_LIBRARY_PATH=/opt/vscode-glibc/libc:/opt/vscode-glibc/libcxx \
+    VSCODE_SERVER_CUSTOM_GLIBC_LINKER=/opt/vscode-glibc/linker
 
 ENV PATH=/root/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH
 
