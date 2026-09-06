@@ -15,10 +15,6 @@ _:
 
     taps = [
       {
-        name = "cirruslabs/cli";
-        trusted = true;
-      }
-      {
         name = "charmbracelet/tap";
         trusted = true;
       }
@@ -28,7 +24,6 @@ _:
     # provides them (common.nix / core-packages): asciinema, gh, helix, jj,
     # node. Their brew copies get zapped and the nix ones take over.
     brews = [
-      "cirruslabs/cli/tart" # VM management
       "docker" # CLI only; the daemon is OrbStack (cask below)
       "kondo" # Clean build artifacts
       "llmfit"
