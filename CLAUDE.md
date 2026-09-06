@@ -309,6 +309,44 @@ non-interactive path in the wrapper (`tools/hackmd/token-guard.sh` is the
 worked example: no TTY + no token + a command that needs one = exit 1 with the
 env var to set), and leave the TTY path alone.
 
+### Packaging a Go CLI that nixpkgs doesn't have
+
+`home-manager/modules/tools/workflowy.nix` is the worked example, and the
+decision it turns on is **source build vs. vendored release binaries** - the
+same fork `lib/charm-nur.nix` took the other way for crush.
+
+`buildGoModule` needs two hashes (the `fetchFromGitHub` `hash` and the
+`vendorHash`), and both are obtained the same way: set them to `lib.fakeHash`
+one at a time and read the real value out of the mismatch error. Neither can be
+produced without running Nix, so a bump is a machine-with-Nix operation, not a
+docs edit. Prefer `tag = "v${finalAttrs.version}"` over a literal so the tag
+follows the version, and name `subPackages` so the build doesn't walk a repo
+that also holds libraries and assets.
+
+Upstream's release binaries are a real alternative, not a trap. It is tempting
+to rule them out on macOS signing grounds - **that reasoning is wrong, and this
+paragraph exists because it was committed here before being checked**. Go's own
+linker ad-hoc code-signs every darwin/arm64 binary it links (`NeedCodeSign() =
+IsDarwin() && IsARM64()` in `cmd/link/internal/ld/lib.go`, reaching
+`cmd/internal/codesign`), so a GoReleaser tarball executes on Apple Silicon
+with nobody running `codesign`. Verify a claim like that against the toolchain
+source before it becomes a rule.
+
+What actually decides it is duller: `buildGoModule` covers every supported
+system from one pair of hashes where `fetchurl` needs one per platform, and
+pins auditable source instead of someone's CI output. Against that, the Go
+toolchain lands in the *build* closure - and nothing substitutes for a package
+that isn't in nixpkgs, so every machine really does realise it.
+
+**That build-closure cost is not always transient.** On a normal machine it is
+collectable; inside `docker build` it is permanent, because the Dockerfile
+builds the activation package in an image layer and never garbage-collects, so
+~250MB of compiler is frozen into the image for an 11MB binary. That is what
+keeps `workflowy.nix` out of `common.nix` and in the desktop profiles, the same
+split `./ide/vscode.nix` already has and for the same disk. A from-source
+package that the devcontainer has no working configuration for anyway belongs
+in the profiles, not in the module every profile inherits.
+
 ### External agent skills (`lib/skills-sh.nix`)
 
 Skills from [skills.sh](https://www.skills.sh/) install declaratively through
@@ -703,7 +741,11 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+*Last updated: 2026-08-30 - Corrected the Go-packaging section written earlier the same day: it justified building from source with a macOS signing claim that is false (Go's linker ad-hoc signs every darwin/arm64 binary it links), and understated the cost by calling the build closure transient - it is permanent inside a Docker layer, which is why workflowy.nix moved from common.nix to the desktop profiles*
+
+*2026-08-30 - Documented packaging a Go CLI nixpkgs doesn't carry (`buildGoModule` + the two fake-hash lookups) and the source-vs-release-binaries decision it turns on*
+
+*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 
