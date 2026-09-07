@@ -19,6 +19,13 @@
   # HackMD: the personal account, matching this machine's identity.
   hackmd.account = "personal";
 
+  # Workflowy: the CLI reads ~/.workflowy/api.key, and the module symlinks that
+  # path at whatever this points to, out of the store. Personal key, personal
+  # machine - work.nix imports the same module for the binary but sets no key,
+  # so it stays on the backup fallback until it is given one.
+  age.secrets.workflowy-api-key.file = ../../secrets/personal/workflowy-api-key.age;
+  workflowy.apiKeyFile = config.age.secrets.workflowy-api-key.path;
+
   home = {
     username = "alyssa";
     homeDirectory = "/Users/alyssa";
