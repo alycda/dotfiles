@@ -71,6 +71,34 @@ in
       enable = true;
       nix-direnv.enable = true;
     };
+
+    # mise: named per-directory environments, so "which environment is actually
+    # loaded" has an answer other than reading a .env and hoping. `MISE_ENV=dev`
+    # selects .mise.dev.toml alongside .mise.toml, `mise env` prints what is
+    # live, and `mise exec`/`mise run` execute under it - the envelope pitch
+    # (Show HN, 2024-06-22) without the plaintext SQLite, the interactive
+    # unlock prompt, or the absence from nixpkgs that sank that attempt twice.
+    #
+    # Here rather than in the desktop profiles because it is genuinely
+    # universal: one Rust binary, the same weight class as the jujutsu and
+    # ripgrep already in lib/core-packages.nix, and it evaluates for
+    # aarch64-darwin (including the non-sudo `code` profile, which has no
+    # brew of its own) and both Linux devcontainers alike. The "keep this lean"
+    # rule above is about heavy closures - GUI apps, Node - not a static CLI.
+    #
+    # Deliberately `enable` and nothing else. programs.mise can also own
+    # ~/.config/mise/config.toml through `globalConfig`, which would make it a
+    # /nix/store symlink and break `mise use -g` on its first write: the same
+    # runtime-mutable-config trap as taskbook's ~/.taskbook.json and Claude's
+    # ~/.claude credentials (Configuration Conflicts #8). Install the binary and
+    # the shell hook; leave the state file to mise.
+    #
+    # That hook is free here and *only* here: enableZshIntegration and
+    # enableBashIntegration both default true, and both shells are enabled a few
+    # lines up - home-manager injects hooks only into shells it manages
+    # (Conflict #7). mise sits alongside direnv rather than replacing it; direnv
+    # loads .envrc per directory, mise adds the named-environment axis on top.
+    mise.enable = true;
   };
 
   # Invocable cheatsheets as just's GLOBAL justfile: `just -g <recipe>` from
