@@ -41,6 +41,16 @@ in
   "work/hackmd-api-token.age".publicKeys = [ alyssa ];
   "personal/hackmd-api-token.age".publicKeys = [ alyssa ];
 
+  # Workflowy API key, consumed by the CLI in
+  # home-manager/modules/tools/workflowy.nix. Minted after that module shipped:
+  # it defined `workflowy.apiKeyFile` with nothing to point it at, so every
+  # query on a fresh switch fell through to `--method=backup` and exited 1.
+  #
+  # Personal, not work - it is Alyssa's own Workflowy account, so the directory
+  # carries the identity and the filename needs no suffix, same as the linear
+  # and hackmd keys above. Armored, for the same reason they are.
+  "personal/workflowy-api-key.age".publicKeys = [ alyssa ];
+
   # Venice API key for crush (see cheat crush/venice). Committed value is an
   # encrypted PLACEHOLDER string, not a real key - replace in place with
   # `just edit-secret personal/venice-api-key.age` before wiring it into
