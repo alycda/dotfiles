@@ -1,42 +1,82 @@
+// VS Code Dev Containers front door to the SAME image and volumes that
+// docker/dev.sh runs from a terminal (cmux, the curl bootstrap). One image,
+// one home-manager generation, one Claude login, shared jj state - whichever
+// door you come in through.
+//
+// The image is built once, outside VS Code, with `just docker-build` (or
+// `docker/dev.sh build` when there is no checkout). "image" rather than
+// "build" on purpose: a "build" block would have Dev Containers bake a second
+// ~10GB copy under its own vsc-* tag, and the two would drift.
+//
+// The Dockerfile's /etc/passwd and VSCODE_SERVER_CUSTOM_GLIBC_* fixes are what
+// let a Nix rootfs host the VS Code Server at all - see the Dockerfile header
+// if the container opens under `docker run` but not here.
 {
-    // minimal image for speed
-    "image": "debian:bookworm-slim",
-    "features": {
-        // enable nix
-        "ghcr.io/devcontainers/features/nix:1": {
-            "packages": [], // managed by Home Manager
-            // enable flakes and nix-command globally
-            "extraNixConfig": "experimental-features = nix-command flakes"
-        }
-    },
+    "name": "dotfiles (dev image)",
+    "image": "dev",
+
+    // Same named volumes, same targets as dev.sh's `docker run`, so this
+    // container and a terminal one are interchangeable. Do NOT add a volume
+    // over /nix - the store is baked into the image (Dockerfile header).
+    "mounts": [
+        "source=devhome,target=/root,type=volume",
+        "source=claude-home,target=/root/.claude,type=volume"
+    ],
+
+    // Mount the project at /work, where dev.sh puts it and where the container
+    // rules in ~/.claude/rules/container-env.md say it is. The default
+    // /workspaces/<name> would make those notes wrong in this door only.
+    "workspaceMount": "source=${localWorkspaceFolder},target=/work,type=bind,consistency=cached",
+    "workspaceFolder": "/work",
+
     "customizations": {
         "vscode": {
             "extensions": [
+                // Claude in the panel; Copilot chat is disabled below
+                "anthropic.claude-code",
                 "jjk.jjk",
                 "jnoortheen.nix-ide",
+                "mkhl.direnv",
                 "skellock.just",
                 // replaces git as Source Control
                 "visualjj.visualjj"
             ],
             "settings": {
-                // disable copilot, we want claude
-                "chat.agent.enabled": false,
+                // remove the Copilot chat surface entirely (chat.agent.enabled
+                // only turned off agent mode and left the chat view behind)
+                "chat.disableAIFeatures": true,
                 "editor.wordWrap": "on",
                 "files.exclude": {
                     "**/.jj": true
                 },
-                // "git.autofetch": true,
                 "git.confirmSync": false,
-                // disable git for jj, 
+                // disable git for jj
                 "git.enabled": false,
                 "search.exclude": {
                     "**/.jj": true
                 },
+                // keep only the Jujutsu provider
+                "sourceControl.providers": [
+                    "jujutsu"
+                ],
                 // hide copilot
                 "workbench.secondarySideBar.defaultVisibility": "hidden"
             }
         }
     },
-    // see: https://code.visualstudio.com/docs/sourcecontrol/faq#_why-is-vs-code-warning-me-that-the-git-repository-is-potentially-unsafe (because of nix)
-    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+
+    // Dev Containers starts the container with `--entrypoint /bin/sh` and a
+    // sleep loop, so the image ENTRYPOINT - and the home-manager activation
+    // inside it - never runs on its own. Run it here; it no-ops when the
+    // devhome volume already carries the image's generation, and `true` is the
+    // command it execs afterwards.
+    //
+    // The safe.directory line is the VS Code FAQ fix for a bind mount owned by
+    // another uid (https://code.visualstudio.com/docs/sourcecontrol/faq#_why-is-vs-code-warning-me-that-the-git-repository-is-potentially-unsafe).
+    // It is written to a plain ~/.gitconfig, which git reads alongside the
+    // home-manager-managed ~/.config/git/config, and NOT with --global: that
+    // resolves through the home-manager symlink into /nix/store and is
+    // reverted by the next activation (see home-manager/modules/git.nix).
+    // --replace-all keeps it idempotent across restarts.
+    "postStartCommand": "/opt/dotfiles/docker/entrypoint.sh true && git config --file /root/.gitconfig --replace-all safe.directory ${containerWorkspaceFolder}"
 }

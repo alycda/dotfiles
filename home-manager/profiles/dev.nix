@@ -47,6 +47,16 @@
   # both secrets.
   hackmd.account = "personal";
 
+  # cf-now's R2 profile. Enabled here for the same reason as the HackMD token
+  # above: a container is where credentials most need to arrive on their own,
+  # and this profile's ~/.aws belongs to nothing else - so there is no existing
+  # AWS config for the `path` overrides to displace. Deliberately NOT enabled
+  # in work.nix, where that assumption does not hold.
+  #
+  # The `aws` binary is not installed; summon it with
+  # `nix run nixpkgs#awscli2 -- ...` (see ../modules/tools/cf-now.nix).
+  cfNow.enable = true;
+
   # Configure bash, but do NOT ship a bash. common.nix enables programs.bash so
   # the container's fallback shell gets a prompt and direnv; that module also
   # puts bashInteractive into home.packages, which collides head-on with the

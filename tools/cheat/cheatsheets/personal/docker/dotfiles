@@ -3,3 +3,16 @@ curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh 
 
 # docker resolve a different branch (and script):
 curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/refs/heads/BRANCH_NAME/docker/dev.sh | sh -s -- up BRANCH_NAME
+
+# build only (no checkout needed); the image is tagged `dev`
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- build
+
+# same image from VS Code: open any repo whose .devcontainer.json says
+# "image": "dev" (this dotfiles repo does) and "Reopen in Container".
+# Shares the devhome + claude-home volumes with the terminal container,
+# so one `claude` login and one jj state serve both.
+
+# the two named volumes; wipe devhome to force a fresh activation
+# (the age key in it goes too - see the Dockerfile header to restore it)
+docker volume ls | grep -E 'devhome|claude-home'
+docker volume rm devhome

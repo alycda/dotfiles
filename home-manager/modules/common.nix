@@ -17,6 +17,7 @@ in
     ./dev/nix-lang.nix
     ./tools/agent-skills.nix
     ./tools/agents.nix
+    ./tools/cf-now.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
     ./tools/crush.nix

@@ -43,3 +43,9 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# cf-now writes per-repo publish state (slug -> key) into ./.cfnow/state.json
+# wherever it is run, so running the skill inside any checkout drops an
+# untracked directory in it. No secret - it deliberately never persists a
+# pre-signed URL - but it is machine state, not repo content.
+.cfnow/
