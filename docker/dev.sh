@@ -29,6 +29,10 @@ usage: dev.sh <command>
 env overrides: REPO_URL (default: https://github.com/alycda/dotfiles.git)
                IMAGE    (default: dev)
 
+forwarded into the container when set and non-empty: ANTHROPIC_API_KEY,
+JJ_USER, JJ_EMAIL. `envchain <namespace> dev.sh run` is one way to supply
+them without keeping the values in a file or in shell history.
+
 ssh-agent forwarding and the ragenix age key are manual extras - see the
 Dockerfile header in the repo.
 USAGE
@@ -64,6 +68,29 @@ run_container() {
     -v "$dir":/work -w /work \
     --network host \
     "$IMAGE"
+
+  # Forward host environment the container wants, when it is actually set.
+  # `-e VAR` with no `=value` passes the *host's* current value through, which
+  # is what makes `envchain dev ./docker/dev.sh run` work: envchain puts the
+  # keychain values in this script's environment and docker relays them. With
+  # no envchain they simply come from wherever else the caller exported them.
+  #
+  # Guarded on non-empty, not on set-ness, and that is the whole point for the
+  # jj pair. An empty JJ_USER is not "unconfigured": jj's env layer outranks
+  # every config file, so a blank value silently wins over a later
+  # `jj config set --user user.name` with nothing in the output to say why the
+  # setting had no effect. Forwarding only non-empty values means an unset or
+  # blank variable leaves jj to its config, and git to the agenix git-config
+  # secret (home-manager/modules/git.nix) it already reads.
+  #
+  # Prepending is safe: docker parses options up to the image name, and $IMAGE
+  # is last. Names only, never values - so the no-terminal hint rendered from
+  # "$@" below still cannot print a secret.
+  for _var in ANTHROPIC_API_KEY JJ_USER JJ_EMAIL; do
+    eval "_val=\${$_var:-}"
+    [ -n "$_val" ] && set -- -e "$_var" "$@"
+  done
+  unset _var _val
 
   if in_foreground; then
     if [ -t 0 ]; then
