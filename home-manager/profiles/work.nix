@@ -4,6 +4,10 @@
 {
   imports = [
     ../modules/ide/vscode.nix
+    # Deliberately here rather than common.nix: it builds from Go source,
+    # and the devcontainer image would freeze the whole toolchain into a
+    # layer for a CLI it has no key for. See the module's header comment.
+    ../modules/tools/workflowy.nix
     ../modules/dev/rust.nix
   ];
 

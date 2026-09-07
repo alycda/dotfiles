@@ -41,6 +41,16 @@ in
   "work/hackmd-api-token.age".publicKeys = [ alyssa ];
   "personal/hackmd-api-token.age".publicKeys = [ alyssa ];
 
+  # Workflowy API key, consumed by the CLI in
+  # home-manager/modules/tools/workflowy.nix. Minted after that module shipped:
+  # it defined `workflowy.apiKeyFile` with nothing to point it at, so every
+  # query on a fresh switch fell through to `--method=backup` and exited 1.
+  #
+  # Personal, not work - it is Alyssa's own Workflowy account, so the directory
+  # carries the identity and the filename needs no suffix, same as the linear
+  # and hackmd keys above. Armored, for the same reason they are.
+  "personal/workflowy-api-key.age".publicKeys = [ alyssa ];
+
   # Cloudflare R2 credentials for the cf-now skill, split the way the AWS CLI
   # itself splits them: `r2-config` is the non-secret half (region `auto`, the
   # account-scoped S3 endpoint) and `r2-credentials` is the R2 API token's
