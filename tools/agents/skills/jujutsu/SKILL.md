@@ -10,7 +10,7 @@ description: >
   reach for this skill first when she mentions jj, jujutsu, change IDs, revsets, bookmarks,
   or anything VCS-shaped in a jj repo — even if she just says "commit this" or "what's
   the status," because in a jj repo those words mean different operations. Also trigger
-  when she asks to see two approaches side by side or to compare implementations, since
+  when she asks to see mulitple approaches side by side or to compare implementations, since
   the right mechanism for that is sibling commits.
 allowed-tools: Bash(jj *), Bash(git status), Bash(git log *)
 ---
