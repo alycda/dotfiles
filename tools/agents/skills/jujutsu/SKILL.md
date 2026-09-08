@@ -9,7 +9,9 @@ description: >
   to jj v0.44. Raw `git` commands in a non-colocated jj repo can corrupt state, so always
   reach for this skill first when she mentions jj, jujutsu, change IDs, revsets, bookmarks,
   or anything VCS-shaped in a jj repo — even if she just says "commit this" or "what's
-  the status," because in a jj repo those words mean different operations.
+  the status," because in a jj repo those words mean different operations. Also trigger
+  when she asks to see mulitple approaches side by side or to compare implementations, since
+  the right mechanism for that is sibling commits.
 allowed-tools: Bash(jj *), Bash(git status), Bash(git log *)
 ---
 
@@ -207,6 +209,40 @@ jj next -e                      # set @ to @+
 **`jj new` vs `jj edit`:** `jj new` creates a fresh empty child. `jj edit` makes an
 existing commit the working copy. Default to `jj new`; use `jj edit` only when explicitly
 modifying a specific historical change.
+
+### Presenting options as sibling commits
+
+When Alyssa is choosing between approaches, she often can't decide from a prose
+description — she needs to read the implementations side by side. Build each option as a
+**sibling commit** off the same parent:
+
+```
+jj new <parent> -m "option A: <one-line characterization>"
+# implement A
+
+jj new <parent> -m "option B: <one-line characterization>"
+# implement B
+```
+
+Then show them:
+
+```
+jj log -r '<parent>::'          # the fan
+jj diff --git -r <option-a>     # each option's diff in isolation
+jj diff --git -r <option-b>
+```
+
+Continue from whichever she picks with `jj new <chosen>`, or `jj edit <chosen>` to keep
+building inside it.
+
+**The rejected siblings stay. Do not abandon them, and do not offer to.** They are a
+deliberate paper trail of what was considered; Alyssa cleans them up herself, on her own
+schedule. A dangling described commit costs nothing — it isn't reachable from a bookmark
+so it never pushes, and `jj log` still shows it. Treating "there are dangling commits" as
+a mess to tidy destroys the record of the decision.
+
+Concretely: no `jj abandon` on an option commit, no `jj undo` to unwind the losing
+branch, and no closing summary that ends with "want me to clean these up?"
 
 ---
 
@@ -642,6 +678,10 @@ keep this file under context budget.
 `@` but doesn't abandon `@` automatically unless you move away. To clean up: just
 `jj edit @-` and run another command — empty undescribed commits get abandoned when you
 move away. (Note: this is configurable; behavior assumes default config.)
+
+This auto-abandon applies only to commits that are both empty *and* undescribed. A
+described option commit (see "Presenting options as sibling commits") persists on its
+own — which is what makes leaving the sibling fan lying around safe.
 
 **Detached HEAD warnings from git.** Normal in colocated repos. jj keeps git's HEAD in
 detached state and updates it as `@` moves. Ignore git's warnings about "detached HEAD";
