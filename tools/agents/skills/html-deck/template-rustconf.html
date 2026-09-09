@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DECK TITLE — Subtitle</title>
+<!-- RustConf 2026 theme. Palette and type lifted from the live site's
+     salient-dynamic-styles.css (2026-09-09): accent #ffde52, font colour
+     #091130, plus the extra colours #112260 / #37c3bf / #f74c00 / #a2faf7.
+     Both faces are on Google Fonts (OFL), same as the site serves them:
+     Alfa Slab One (display) and TikTok Sans (everything else).
+     Fallback stacks below keep the deck presentable offline. -->
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=TikTok+Sans:opsz,wght@12..36,300..700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* ── RustConf palette (source: salient-dynamic-styles.css) ── */
+    --navy-deep: #091130;   /* hero background, body text colour */
+    --navy: #112260;        /* secondary navy */
+    --off-white: #fafbff;   /* page background */
+    --paper: #f7f8f8;       /* alternating section background */
+    --rule: #dce0e1;        /* hairline borders */
+    --yellow: #ffde52;      /* THE accent (--nectar-accent-color) */
+    --teal: #37c3bf;        /* button outlines, rules */
+    --mint: #a2faf7;        /* pale tint */
+    --rust: #f74c00;        /* Rust orange — the mark, used sparingly */
+    --electric: #3452ff;    /* rare fourth hue */
+
+    /* ── Semantic tokens. Slides re-bind these; components only use these. ── */
+    --bg: var(--off-white);
+    --surface: #ffffff;
+    --surface-2: var(--paper);
+    --border: var(--rule);
+    --text: var(--navy-deep);
+    --text-dim: #5a6485;    /* navy-deep at ~65% on off-white, opaque */
+    --accent: var(--navy-deep);   /* what the eye lands on, on LIGHT slides */
+    --accent-ink: #ffffff;        /* text sitting on --accent */
+    --marker: var(--teal);        /* rules, outlines, spines */
+    --hl: var(--yellow);          /* highlighter behind emphasis */
+
+    /* Legacy multi-hue tokens from the Ditto template, remapped so decks
+       written against that theme degrade into this one sensibly. */
+    --blue: var(--teal);
+    --green: var(--teal);
+    --purple: var(--electric);
+    --red: var(--rust);
+
+    --font-display: 'Alfa Slab One', 'Roboto Slab', Rockwell, Georgia, serif;
+    --font-body: 'TikTok Sans', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-ui: var(--font-body);   /* eyebrows/labels: sans caps, as on the site */
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --radius: 4px;
+  }
+
+  /* ── Inverted slides: the site's navy hero. Re-binds tokens only. ──
+     To flip the WHOLE deck dark, move this block's declarations into :root. */
+  .slide.navy {
+    --bg: var(--navy-deep);
+    --surface: var(--navy);
+    --surface-2: #0d1740;
+    --border: #26356b;
+    --text: var(--off-white);
+    --text-dim: #a9b3d4;
+    --accent: var(--yellow);
+    --accent-ink: var(--navy-deep);
+    --marker: var(--teal);
+  }
+
+  html { font-size: 18px; }
+
+  body {
+    background: var(--off-white);
+    color: var(--navy-deep);
+    font-family: var(--font-body);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .deck { position: relative; width: 100vw; height: 100vh; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5vh 8vw;
+    background: var(--bg);
+    color: var(--text);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    transform: translateY(10px);
+    will-change: opacity, transform;
+  }
+
+  .slide.active { opacity: 1; visibility: visible; transform: translateY(0); }
+
+  /* ── Motifs ──
+     .cog-bg is the signature: an oversized outlined gear bleeding off the
+     right edge, echoing the conference mark. It is a GENERIC cog drawn here
+     in CSS-embedded SVG — deliberately not the Rust logo, which is a
+     Rust Foundation trademark and must not be redrawn into a deck chrome. */
+  .cog-bg::after {
+    content: '';
+    position: absolute;
+    top: 50%; right: -14vh;
+    width: 78vh; height: 78vh;
+    transform: translateY(-50%);
+    background: no-repeat center/contain
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%2337c3bf'><path d='M50.0 20.0L50.0 10.0M65.0 24.0L70.0 15.4M76.0 35.0L84.6 30.0M80.0 50.0L90.0 50.0M76.0 65.0L84.6 70.0M65.0 76.0L70.0 84.6M50.0 80.0L50.0 90.0M35.0 76.0L30.0 84.6M24.0 65.0L15.4 70.0M20.0 50.0L10.0 50.0M24.0 35.0L15.4 30.0M35.0 24.0L30.0 15.4' stroke-width='7'/><circle cx='50' cy='50' r='34' stroke-width='2.5'/><circle cx='50' cy='50' r='13' stroke-width='2.5'/></g></svg>");
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  .grid-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 64px 64px;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  /* Alias for decks authored against the Ditto template's dot field. */
+  .diamond-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(var(--marker) 1px, transparent 1.5px);
+    background-size: 38px 38px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 100%);
+    mask-image: linear-gradient(90deg, transparent 30%, #000 100%);
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  /* ── Typography ──
+     The site sets only the hero headline in Alfa Slab One; every section
+     heading is TikTok Sans. Keep that split — slab everywhere reads as noise. */
+  .slide-number {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 1.4rem;
+  }
+  .slide-number::after {
+    content: '';
+    display: block;
+    width: 2.6rem;
+    height: 3px;
+    background: var(--marker);
+    margin-top: 0.7rem;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: 4.1rem;
+    line-height: 1.04;
+    font-weight: 400;          /* Alfa Slab One ships one weight */
+    letter-spacing: -0.005em;
+    margin-bottom: 1.4rem;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+
+  h2 {
+    font-family: var(--font-body);
+    font-size: 2.9rem;
+    font-weight: 500;
+    line-height: 1.14;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.6rem;
+  }
+  /* Emphasis is the site's highlighter, not a colour swap: a yellow bar
+     behind the words. On navy slides --accent IS yellow, so use ink instead. */
+  h2 em {
+    font-style: normal;
+    background: linear-gradient(var(--hl), var(--hl)) no-repeat 0 82% / 100% 0.32em;
+    color: var(--navy-deep);
+    padding: 0 0.08em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  h3 {
+    font-family: var(--font-ui);
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.8rem;
+  }
+
+  p, li {
+    font-size: 1.1rem;
+    line-height: 1.62;
+    color: var(--text-dim);
+    max-width: 54ch;
+  }
+  p strong, li strong { color: var(--text); font-weight: 600; }
+
+  .lead {
+    font-size: 1.45rem;
+    color: var(--text);
+    font-weight: 400;
+    line-height: 1.5;
+    max-width: 46ch;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--surface-2);
+    padding: 0.12em 0.4em;
+    border-radius: var(--radius);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  pre {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--marker);
+    border-radius: var(--radius);
+    padding: 1.4rem 1.7rem;
+    overflow-x: auto;
+    max-width: 80ch;
+    color: var(--text);
+  }
+  pre code { background: none; border: none; padding: 0; color: inherit; font-size: 1em; }
+
+  /* ── Title slide (the site's hero: slab headline, left-bottom, navy) ── */
+  .title-slide { justify-content: flex-end; align-items: flex-start; padding-bottom: 12vh; }
+  .title-slide h1 { font-size: 5rem; margin-bottom: 0.9rem; max-width: 20ch; }
+  .title-slide .subtitle {
+    font-family: var(--font-body);
+    font-size: 1.3rem;
+    color: var(--text);
+    font-weight: 400;
+    max-width: 44ch;
+    line-height: 1.45;
+    margin-bottom: 1.6rem;
+  }
+  .title-slide .tag {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    display: inline-block;
+    margin-bottom: 1.6rem;
+  }
+  .title-slide .tag::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 3px;
+    background: var(--accent);
+    margin-top: 0.5rem;
+  }
+  .title-glow {
+    position: absolute;
+    top: 12%; right: 6%;
+    width: 460px; height: 460px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--marker) 22%, transparent) 0%, transparent 62%);
+    filter: blur(70px);
+    pointer-events: none;
+  }
+
+  /* ── Section divider ── */
+  .section-slide { justify-content: center; align-items: center; text-align: center; }
+  .section-slide h2 {
+    font-family: var(--font-display);
+    font-size: 3.6rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    margin-bottom: 0.6rem;
+  }
+  .section-slide .section-sub {
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  .mountain-icon {
+    font-size: 0.9rem;
+    margin-bottom: 0.9rem;
+    display: block;
+    color: var(--marker);
+    font-family: var(--font-mono);
+    letter-spacing: 0.35em;
+  }
+
+  /* ── Layouts ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2.6rem; align-items: start; }
+
+  /* ── Cards. Site cards are square-ish, hairline-bordered, flat white. ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.8rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--marker); }
+  .card.accent::before { background: var(--yellow); }
+  .card.blue::before   { background: var(--teal); }
+  .card.green::before  { background: var(--mint); }
+  .card.purple::before { background: var(--electric); }
+  .card.yellow::before { background: var(--yellow); }
+  .card.rust::before   { background: var(--rust); }
+  .card h3 { font-size: 0.82rem; margin-bottom: 0.6rem; letter-spacing: 0.12em; color: var(--text); }
+  .card p, .card li { font-size: 1rem; line-height: 1.55; }
+  .card ul { list-style: none; padding: 0; }
+  .card li { padding: 0.3rem 0; }
+  .card li::before { content: '→'; margin-right: 0.6rem; color: var(--marker); }
+
+  /* ── Numbered principles ── */
+  .principles { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; margin-top: 0.4rem; }
+  .principle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.6rem 1.9rem;
+    position: relative;
+  }
+  .principle .p-num {
+    font-family: var(--font-display);
+    font-size: 2.6rem;
+    opacity: 0.1;
+    position: absolute;
+    top: 0.3rem; right: 1rem;
+    color: var(--text);
+  }
+  .principle .p-title { font-family: var(--font-body); font-weight: 600; font-size: 1.02rem; margin-bottom: 0.45rem; color: var(--text); }
+  .principle p { font-size: 0.95rem; line-height: 1.5; }
+  .principle.p-accent { border-left: 4px solid var(--yellow); }
+  .principle.p-blue   { border-left: 4px solid var(--teal); }
+  .principle.p-green  { border-left: 4px solid var(--mint); }
+  .principle.p-purple { border-left: 4px solid var(--electric); }
+  .principle.p-rust   { border-left: 4px solid var(--rust); }
+
+  /* ── Contrast: "not this / this" ── */
+  .contrast { display: grid; grid-template-columns: 1fr 1fr; gap: 1.8rem; margin: 1.4rem 0; max-width: 720px; }
+  .contrast-box { padding: 1.4rem 1.7rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); }
+  .contrast-box.no { border-left: 4px solid var(--rust); }
+  .contrast-box.no .contrast-label { color: var(--rust); }
+  .contrast-box.yes { border-left: 4px solid var(--teal); }
+  .contrast-box.yes .contrast-label { color: var(--teal); }
+  .contrast-label {
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+    display: block;
+  }
+  .contrast-box p { font-size: 1.05rem; line-height: 1.5; }
+
+  /* ── Highlight list ── */
+  .hl-list { list-style: none; padding: 0; max-width: 60ch; }
+  .hl-list li {
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 1rem;
+  }
+  .hl-list li:last-child { border-bottom: none; }
+  .hl-list .bullet { font-family: var(--font-mono); color: var(--marker); font-size: 0.8rem; flex-shrink: 0; }
+
+  .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 0.4rem 0; }
+
+  /* ── Legend row ── */
+  .legend { display: flex; gap: 1.8rem; margin-top: 1.2rem; }
+  .legend-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-family: var(--font-ui); font-size: 0.72rem; font-weight: 600;
+    color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .legend-dot { width: 10px; height: 10px; }
+  .legend-dot.blue { background: var(--teal); }
+  .legend-dot.green { background: var(--mint); }
+  .legend-dot.purple { background: var(--electric); }
+  .legend-dot.yellow { background: var(--yellow); }
+  .legend-dot.accent { background: var(--yellow); }
+  .legend-dot.red { background: var(--rust); }
+
+  /* ── Big stat (the one place slab type earns a second outing) ── */
+  .stat { font-family: var(--font-display); font-size: 6.5rem; line-height: 1; color: var(--accent); margin-bottom: 0.6rem; }
+  .stat-label { font-family: var(--font-ui); font-size: 0.85rem; font-weight: 600; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* ── Buttons. The site has exactly two: a teal-outlined square box, and
+       an uppercase underlined text link. Both are reproduced here. ── */
+  .cta {
+    display: inline-block;
+    background: transparent;
+    color: var(--text);
+    border: 2px solid var(--teal);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.95rem 1.7rem;
+    margin-top: 1.2rem;
+    text-decoration: none;
+    border-radius: 0;
+  }
+  .cta.solid { background: var(--yellow); border-color: var(--yellow); color: var(--navy-deep); }
+  .link-cta {
+    display: inline-block;
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text);
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+    margin-top: 1.2rem;
+    margin-right: 1.6rem;
+  }
+
+  /* ── Progress & nav ── */
+  .progress { position: fixed; bottom: 0; left: 0; right: 0; height: 4px; background: var(--rule); z-index: 100; }
+  .progress-bar { height: 100%; background: var(--yellow); transition: width 0.35s ease; }
+  .nav { position: fixed; bottom: 1.6rem; right: 2rem; display: flex; gap: 0.7rem; z-index: 100; }
+  .nav-btn {
+    background: transparent;
+    border: 2px solid var(--teal);
+    color: var(--teal);
+    width: 40px; height: 40px;
+    border-radius: 0;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    transition: background 0.15s, color 0.15s;
+    font-family: var(--font-mono);
+  }
+  .nav-btn:hover { background: var(--teal); color: var(--navy-deep); }
+  .slide-counter {
+    position: fixed;
+    bottom: 1.9rem; left: 2rem;
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    z-index: 100;
+    letter-spacing: 0.12em;
+  }
+
+  /* ── Speaker notes (press N) ── */
+  .notes {
+    position: fixed;
+    bottom: 4rem; left: 2rem; right: 2rem;
+    max-width: 62ch;
+    background: var(--navy-deep);
+    color: #a9b3d4;
+    border-left: 4px solid var(--yellow);
+    border-radius: var(--radius);
+    padding: 1rem 1.4rem;
+    font-size: 0.9rem;
+    z-index: 99;
+    display: none;
+  }
+  .notes.visible { display: block; }
+  .notes .notes-label { font-family: var(--font-ui); font-size: 0.66rem; font-weight: 700; color: var(--yellow); letter-spacing: 0.16em; text-transform: uppercase; display: block; margin-bottom: 0.4rem; }
+
+  /* The chrome is fixed, so it has to survive both grounds. */
+  body:has(.slide.navy.active) .slide-counter { color: #a9b3d4; }
+  body:has(.slide.navy.active) .progress { background: #26356b; }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- ═══ SLIDE 1: TITLE (navy hero, slab headline — the site's front door) ═══ -->
+  <div class="slide title-slide navy cog-bg active" data-slide="0" data-notes="Open with the hook. Pause after the title before clicking forward.">
+    <div class="title-glow"></div>
+    <span class="tag">TAG — Series / Talk Label</span>
+    <h1>Main Title<br><em>Emphasis Line</em></h1>
+    <p class="subtitle">One-sentence framing of what this talk delivers and why the audience should care.</p>
+    <a class="link-cta">Primary CTA</a>
+  </div>
+
+  <!-- ═══ SLIDE 2: LEAD STATEMENT ═══ -->
+  <div class="slide" data-slide="1" data-notes="Slow down here — this is the thesis. Let it breathe.">
+    <span class="slide-number">01 — The Thesis</span>
+    <p class="lead">A single strong claim, stated plainly. This is the idea the rest of the deck defends.</p>
+  </div>
+
+  <!-- ═══ SLIDE 3: TWO-COLUMN CARDS ═══ -->
+  <div class="slide" data-slide="2">
+    <span class="slide-number">02 — Two Forces</span>
+    <h2>The <em>tension</em></h2>
+    <div class="two-col">
+      <div class="card blue">
+        <h3>First Thing</h3>
+        <ul><li>Point one</li><li>Point two</li><li>Point three</li></ul>
+      </div>
+      <div class="card rust">
+        <h3>Second Thing</h3>
+        <ul><li>Point one</li><li>Point two</li><li>Point three</li></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 4: CODE ═══ -->
+  <div class="slide" data-slide="3" data-notes="Walk the code top to bottom. Don't read it verbatim — narrate the intent.">
+    <span class="slide-number">03 — In Practice</span>
+    <h2>What it looks like</h2>
+    <pre><code>fn merge(a: Doc, b: Doc) -> Doc {
+    // CRDT merge: commutative, associative, idempotent
+    a.crdt_join(b)
+}</code></pre>
+  </div>
+
+  <!-- ═══ SLIDE 5: CONTRAST ═══ -->
+  <div class="slide" data-slide="4">
+    <span class="slide-number">04 — The Distinction</span>
+    <h2>Not <em>that</em> — this</h2>
+    <div class="contrast">
+      <div class="contrast-box no">
+        <span class="contrast-label">✗ Common mistake</span>
+        <p>The thing people reach for that doesn't actually work.</p>
+      </div>
+      <div class="contrast-box yes">
+        <span class="contrast-label">✓ Better</span>
+        <p>The approach you're advocating for instead.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 6: NUMBERED PRINCIPLES ═══ -->
+  <div class="slide" data-slide="5">
+    <span class="slide-number">05 — Principles</span>
+    <h2>Four <em>rules</em></h2>
+    <div class="principles">
+      <div class="principle p-accent"><span class="p-num">01</span><div class="p-title">First principle</div><p>Short explanation.</p></div>
+      <div class="principle p-blue"><span class="p-num">02</span><div class="p-title">Second principle</div><p>Short explanation.</p></div>
+      <div class="principle p-green"><span class="p-num">03</span><div class="p-title">Third principle</div><p>Short explanation.</p></div>
+      <div class="principle p-rust"><span class="p-num">04</span><div class="p-title">Fourth principle</div><p>Short explanation.</p></div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 7: BIG STAT ═══ -->
+  <div class="slide section-slide navy grid-bg" data-slide="6">
+    <div class="stat">5×</div>
+    <span class="stat-label">The headline number that lands the point</span>
+  </div>
+
+  <!-- ═══ SLIDE 8: CLOSER ═══ -->
+  <div class="slide section-slide navy cog-bg" data-slide="7" data-notes="End with energy. State the one takeaway, then thank them.">
+    <span class="mountain-icon">◆ ◆ ◆</span>
+    <span class="section-sub">one takeaway — let's go</span>
+    <h2 style="font-size: 4.2rem;">The closer</h2>
+    <a class="cta">Find me after</a>
+  </div>
+
+</div>
+
+<!-- ── Progress bar ── -->
+<div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+
+<!-- ── Navigation ── -->
+<div class="slide-counter"><span id="currentSlide">01</span> / <span id="totalSlides">08</span></div>
+<div class="nav">
+  <button class="nav-btn" onclick="navigate(-1)" aria-label="Previous slide">←</button>
+  <button class="nav-btn" onclick="navigate(1)" aria-label="Next slide">→</button>
+</div>
+
+<!-- ── Speaker notes panel ── -->
+<div class="notes" id="notes"><span class="notes-label">Speaker note (press N to hide)</span><span id="notesText"></span></div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+  let notesOn = false;
+
+  function showSlide(index) {
+    slides.forEach(s => s.classList.remove('active'));
+    slides[index].classList.add('active');
+    document.getElementById('currentSlide').textContent = String(index + 1).padStart(2, '0');
+    document.getElementById('totalSlides').textContent = String(total).padStart(2, '0');
+    document.getElementById('progressBar').style.width = ((index + 1) / total * 100) + '%';
+    const note = slides[index].getAttribute('data-notes') || '';
+    document.getElementById('notesText').textContent = note;
+    document.getElementById('notes').classList.toggle('visible', notesOn && !!note);
+  }
+
+  function navigate(dir) {
+    current = Math.max(0, Math.min(total - 1, current + dir));
+    showSlide(current);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); navigate(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); navigate(-1); }
+    if (e.key === 'Home') { e.preventDefault(); current = 0; showSlide(0); }
+    if (e.key === 'End') { e.preventDefault(); current = total - 1; showSlide(current); }
+    if (e.key === 'n' || e.key === 'N') { notesOn = !notesOn; showSlide(current); }
+  });
+
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) navigate(diff > 0 ? 1 : -1);
+  });
+
+  showSlide(0);
+</script>
+
+</body>
+</html>
