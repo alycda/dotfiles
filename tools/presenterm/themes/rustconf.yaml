@@ -1,0 +1,214 @@
+---
+# RustConf-flavoured presenterm theme.
+#
+# Same palette as tools/agents/skills/html-deck/template-rustconf.html, lifted
+# from rustconf.com's salient-dynamic-styles.css on 2026-09-09:
+#   accent  #ffde52 (--nectar-accent-color)   text  #091130 (--nectar-font-color)
+#   extras  #112260  #37c3bf  #f74c00  #a2faf7  #3452ff
+#
+# The site is light-on-white with a deep-navy hero. A terminal deck inverts
+# that on purpose: the hero navy becomes the ground, because a f8f9fa-style
+# light theme fights every terminal it is projected from.
+#
+# Written against presenterm 0.16.1 (the version nixpkgs pins in flake.lock).
+# Every key here appears in that release's themes/dark.yaml or its theme
+# definition docs; newer keys (column_layout, d2) are deliberately left out.
+#
+# Usage:  presenterm --theme rustconf deck.md
+#    or:  theme: {name: rustconf} in the presentation front matter.
+
+default:
+  margin:
+    percent: 8
+  colors:
+    foreground: palette:white
+    background: palette:navy_deep
+
+# Setext-style slide titles (Title\n=====). Yellow is the one accent; the
+# separator gives the hairline rule the site puts under everything.
+slide_title:
+  alignment: left
+  margin:
+    percent: 8
+  padding_top: 1
+  padding_bottom: 1
+  separator: true
+  bold: true
+  font_size: 2
+  colors:
+    foreground: palette:yellow
+
+# The site's heading ladder is a colour ladder, not a size ladder: navy body
+# text, yellow for the thing you should look at, teal for structure.
+headings:
+  h1:
+    prefix: "█"
+    bold: true
+    colors:
+      foreground: palette:yellow
+  h2:
+    prefix: "▓"
+    bold: true
+    colors:
+      foreground: palette:teal
+  h3:
+    prefix: "▒"
+    colors:
+      foreground: palette:mint
+  h4:
+    prefix: "░"
+    colors:
+      foreground: palette:gray
+  h5:
+    prefix: "░"
+    colors:
+      foreground: palette:gray
+  h6:
+    prefix: "░"
+    colors:
+      foreground: palette:gray
+
+intro_slide:
+  title:
+    alignment: center
+    font_size: 2
+    colors:
+      foreground: palette:yellow
+  subtitle:
+    alignment: center
+    colors:
+      foreground: palette:mint
+  event:
+    alignment: center
+    colors:
+      foreground: palette:teal
+  location:
+    alignment: center
+    colors:
+      foreground: palette:teal
+  date:
+    alignment: center
+    colors:
+      foreground: palette:gray
+  author:
+    alignment: center
+    positioning: page_bottom
+    colors:
+      foreground: palette:white
+  footer: false
+
+code:
+  alignment: center
+  minimum_size: 50
+  minimum_margin:
+    percent: 8
+  # base16-ocean.dark is the closest bundled theme to the navy ground; swap for
+  # Nord-sublime or TwoDark if a talk's code reads better there. The list of
+  # valid names is fixed by syntect — an unknown one fails at render time.
+  theme_name: base16-ocean.dark
+  padding:
+    horizontal: 2
+    vertical: 1
+
+inline_code:
+  colors:
+    foreground: palette:mint
+    background: palette:navy
+
+execution_output:
+  colors:
+    foreground: palette:white
+    background: palette:navy
+  status:
+    running:
+      foreground: palette:teal
+    success:
+      foreground: palette:mint
+    failure:
+      foreground: palette:rust
+    not_started:
+      foreground: palette:gray
+  padding:
+    horizontal: 2
+    vertical: 1
+
+pty_output:
+  colors:
+    foreground: palette:white
+    background: palette:navy
+  cursor:
+    highlight_colors:
+      foreground: palette:navy_deep
+      background: palette:yellow
+
+block_quote:
+  prefix: "▍ "
+  colors:
+    foreground: palette:white
+    background: palette:navy
+    prefix: palette:yellow
+
+alert:
+  prefix: "▍ "
+  base_colors:
+    foreground: palette:white
+    background: palette:navy
+  styles:
+    note:
+      color: palette:teal
+    tip:
+      color: palette:mint
+    important:
+      color: palette:electric
+    warning:
+      color: palette:yellow
+    caution:
+      color: palette:rust
+
+table:
+  alignment: left
+  margin:
+    percent: 8
+
+typst:
+  colors:
+    foreground: palette:white
+    background: palette:navy
+
+mermaid:
+  background: transparent
+  theme: dark
+
+modals:
+  colors:
+    foreground: palette:white
+    background: palette:navy
+  selection_colors:
+    foreground: palette:navy_deep
+    background: palette:yellow
+
+layout_grid:
+  color: palette:teal
+
+# Only {current_slide} and {total_slides} are safe unconditionally — every other
+# variable ({title}, {author}, …) errors out if the front matter omits it.
+footer:
+  style: template
+  left: "RustConf"
+  right: "{current_slide} / {total_slides}"
+  height: 2
+  # Undocumented but present on FooterStyle::Template in 0.16.1.
+  colors:
+    foreground: palette:gray
+
+palette:
+  colors:
+    navy_deep: "091130"
+    navy: "112260"
+    white: "fafbff"
+    yellow: "ffde52"
+    teal: "37c3bf"
+    mint: "a2faf7"
+    rust: "f74c00"
+    electric: "3452ff"
+    gray: "9aa3c4"

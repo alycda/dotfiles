@@ -141,7 +141,8 @@ dotfiles/
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
-│   └── helix/              # Helix config
+│   ├── helix/              # Helix config
+│   └── presenterm/         # Terminal-deck themes (+ a template deck)
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
@@ -418,6 +419,17 @@ been compiling crush from scratch.
    credentials) breaks on first write if home-manager points that path at a
    read-only Nix-store symlink. Install the binary only; leave the state files
    unmanaged. (PRs #44, #10, #38.)
+9. **`xdg.configFile` is not universal - check where the tool actually looks on
+   darwin.** presenterm resolves its config directory as `$XDG_CONFIG_HOME` when
+   set, and otherwise `~/.config` on Linux but **`~/Library/Application
+   Support/presenterm` on macOS** - so a theme delivered via `xdg.configFile`
+   alone is invisible on the machines this repo is mostly for. The failure is
+   quiet in the worst way: the tool reports "theme not found", never a path
+   error, so it reads as a bad theme name rather than a wiring bug.
+   `home-manager/modules/tools/presenterm.nix` links both paths - a store
+   symlink is cheap, and being right on either resolution beats guessing which
+   shell exported what. Before reaching for `xdg.configFile`, confirm the tool
+   follows XDG on darwin; many Rust CLIs use the `dirs` crate, which does not.
 
 ### Tools Nix Can't Fully Manage
 
@@ -703,7 +715,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+*Last updated: 2026-09-09 - Added a RustConf 2026 theme to the html-deck skill and a matching presenterm theme (`tools/presenterm/`), and documented the ninth configuration conflict: presenterm does not follow XDG on macOS, so `xdg.configFile` alone silently fails to deliver a theme there*
+
+*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 
