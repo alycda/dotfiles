@@ -1,4 +1,4 @@
-{ config, pkgs, lib, nix-vscode-extensions, ... }:
+{ pkgs, lib, ... }:
 
 let
   base = import ./vscode-profiles/base.nix { inherit pkgs; };
@@ -9,18 +9,19 @@ let
   mergeProfiles = a: b: lib.recursiveUpdate a b // {
     extensions = (a.extensions or []) ++ (b.extensions or []);
   };
-
-  # Check if we're running under nix-darwin (which has useGlobalPkgs=true)
-  # If so, overlays are set at darwin/configuration.nix and inherited
-  isDarwin = config.targets.darwin or null != null;
 in
 {
-  # Only set overlays for standalone home-manager (non-darwin)
-  # For darwin configs, overlays are inherited via useGlobalPkgs=true
-  nixpkgs.overlays = lib.mkIf (!isDarwin) [
-    nix-vscode-extensions.overlays.default
-  ];
-
+  # No `nixpkgs.overlays` here. `pkgs.vscode-marketplace` comes from the
+  # nix-vscode-extensions overlay, and every place this module can be
+  # evaluated already applies that overlay to the pkgs it hands us: mkHome in
+  # flake.nix, darwin/configuration.nix, and nixos/configuration.nix (all
+  # three with useGlobalPkgs where a system module is involved). This module
+  # used to re-apply it behind a `config.targets.darwin` sniff meant to skip
+  # nix-darwin, but home-manager treats any `nixpkgs.*` setting under
+  # useGlobalPkgs as a conflict - a warning today, slated to become an error -
+  # so the sniff would have to know about NixOS too. Owning the overlay at the
+  # pkgs-construction site is the rule CLAUDE.md already states (Configuration
+  # Conflicts, item 1); this module just consumes the result.
   programs.vscode = {
     enable = true;
 
