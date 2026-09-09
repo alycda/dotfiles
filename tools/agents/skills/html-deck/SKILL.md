@@ -69,7 +69,71 @@ Each is shown working in `template.html`. Pick the ones that fit; delete the res
 - Touch: horizontal swipe.
 - **Step reveal (`data-step`)**: any element with `data-step="N"` starts hidden. → reveals the next step *before* advancing the slide; ← retracts the last one before going back. The slide counter does not move between steps. Elements sharing a number reveal together. This is presenterm's `<!-- pause -->` in spirit — use it to hold a conclusion back until after the audience has read the code.
 - **Skipping a slide (`data-skip`)**: presenterm's `skip_slide`. The slide stays in the file and in DOM order but drops out of the run *and* out of the count. Use it for a slide you cut but don't want to lose — remove the attribute to bring it back. Don't delete a cut slide; skip it, so the reasoning survives in the file.
+- **Presenter sync (`?sync=`)**: optional two-browser mode — see "Two-browser presenter mode" below. Inert unless the parameter is present.
 - **Speaker notes**: put a `data-notes="..."` attribute on any slide; it shows in the notes panel when the presenter presses N. Use these to encode pacing cues (where to slow down, where the user tends to speed up) rather than cramming them on the slide.
+
+## Two-browser presenter mode
+
+Arc fullscreen on the projector, Brave with the speaker notes on the laptop,
+both showing the same deck in step. Opt-in: with no `?sync=` parameter none of
+it runs and the deck makes no network request.
+
+```bash
+node sync-relay.mjs my-deck.html          # serves the deck AND relays state
+#   stage  http://localhost:8080/?sync=http://localhost:8080
+#   notes  http://localhost:8080/?sync=http://localhost:8080&role=notes
+```
+
+**What crosses the wire is state, never keystrokes.** Sending keys would fire
+"toggle notes" in *both* windows, which is exactly backwards — notes visibility
+is a property of the role, not of the deck. The payload is `{slide, steps}` and
+nothing else, so everything role-shaped (notes, the cast overlay, fullscreen)
+stays local by construction. Since step groups are synced as a *count*, the two
+windows agree on reveals without either replaying input.
+
+Either window can drive, so it doesn't matter which browser has keyboard focus.
+`seq` is a Lamport clock that drops stale updates and `from` discards your own
+echo. A window that joins late is handed the current position by the relay
+rather than waiting for the next keypress.
+
+`?role=notes` gives the presenter's window an always-on panel with a NEXT line,
+moves the counter clear of it, and hides the nav buttons. `?room=NAME` keeps two
+decks on one relay from talking to each other.
+
+### Choosing a transport
+
+The relay is local on purpose: the deck already carries a recorded terminal demo
+so dead venue wifi can't break it, and slide navigation shouldn't reintroduce
+the dependency the recording exists to avoid. It's SSE down / POST up rather
+than WebSocket — no framing (so no dependency), and `EventSource` reconnects on
+its own, so a laptop that sleeps mid-talk recovers with no reconnect code.
+
+**This only works when the deck is served from the relay** (or another
+`http://localhost` origin). A deck loaded from the published cf-now `https://`
+URL cannot open a `ws://` or `http://localhost` connection — mixed content — so
+presenting from the published URL means a hosted transport instead.
+
+Adding one is a single function; nothing in the protocol changes:
+
+```js
+Transports.mine = (endpoint, room, onState) => {
+  /* call onState(obj) on each remote update */
+  return { send: state => { /* publish it */ } };
+};
+```
+
+Then `?transport=mine&sync=<endpoint>`. For **Supabase Realtime**, talk to it
+with a raw `WebSocket` rather than `supabase-js` — the deck's one-file,
+no-CDN-dependency rule is worth keeping, and broadcast needs none of the SDK:
+
+- connect to `wss://<ref>.supabase.co/realtime/v1/websocket?apikey=<anon>&vsn=1.0.0`
+- send `{topic: 'realtime:<room>', event: 'phx_join', payload: {config: {broadcast: {self: false}}}, ref: '1'}`
+- publish with `event: 'broadcast'`, and heartbeat `phx_heartbeat` on `phoenix` every 30s
+- read incoming frames where `event === 'broadcast'`
+
+The anon key is public by design, but it still ends up in a URL you may paste
+around — scope it to a broadcast-only channel with RLS rather than reusing a key
+that can reach real tables.
 
 ## Recorded terminal demos (the demo-gods fallback)
 
