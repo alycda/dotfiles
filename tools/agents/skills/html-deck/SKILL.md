@@ -55,6 +55,10 @@ Each is shown working in `template.html`. Pick the ones that fit; delete the res
 - **`.legend`** — color-key row to label a multi-color grid.
 - **`.stat`** + **`.stat-label`** — one giant number for an impact slide.
 - **`.cta`** — brand primary button (yellow fill, dark mono text).
+- **`.title-qr`** — a QR centred on the title slide's `.title-glow`. Its offsets are derived from the glow's (`top:15%`/`right:8%`, 500px), so if you move the glow, move this with it.
+- **`.image-slide`** — full-bleed single image, no chrome: a speaker card, screenshot, or diagram. Scales to the padded box, keeps aspect ratio.
+- **`.two-col.media`** + **`.photo-stack`** — photo-and-text split: portraits stacked in one height-bound frame on the left, a `.lead` and `.hl-list` links on the right. `.photo-stack .credit` sits under the frame for photographer attribution.
+- **`.cast-btn`/`.cast-overlay`/`.cast-screen`** — inline asciicast replay; see "Recorded terminal demos" below.
 - **`.diamond-bg`** — signature Ditto dot/diamond field; **`.grid-bg`** — quieter faint grid. Add either class to any slide.
 
 ## The engine (already in the template — leave it alone unless asked)
@@ -63,11 +67,36 @@ Each is shown working in `template.html`. Pick the ones that fit; delete the res
 - `navigate(±1)`, `showSlide(i)`, a progress bar, and an `NN / NN` counter.
 - Keyboard: → / Space / Enter advance; ← / Backspace go back; Home / End jump; **N toggles speaker notes**.
 - Touch: horizontal swipe.
+- **Step reveal (`data-step`)**: any element with `data-step="N"` starts hidden. → reveals the next step *before* advancing the slide; ← retracts the last one before going back. The slide counter does not move between steps. Elements sharing a number reveal together. This is presenterm's `<!-- pause -->` in spirit — use it to hold a conclusion back until after the audience has read the code.
+- **Skipping a slide (`data-skip`)**: presenterm's `skip_slide`. The slide stays in the file and in DOM order but drops out of the run *and* out of the count. Use it for a slide you cut but don't want to lose — remove the attribute to bring it back. Don't delete a cut slide; skip it, so the reasoning survives in the file.
 - **Speaker notes**: put a `data-notes="..."` attribute on any slide; it shows in the notes panel when the presenter presses N. Use these to encode pacing cues (where to slow down, where the user tends to speed up) rather than cramming them on the slide.
+
+## Recorded terminal demos (the demo-gods fallback)
+
+For a talk with a live demo, record a fallback and embed it. The template ships
+a tiny asciicast player: a `.cast-btn` opens a `.cast-overlay` that replays a
+recording over the slide. Space pauses, Esc closes.
+
+1. `asciinema rec docs/demo.cast` — do the demo, exit the shell.
+2. Paste the file **verbatim** into a `<script type="application/json" id="cast-NAME">`
+   on the slide (header line, then one event per line).
+3. Point the button at it: `<button class="cast-btn" data-cast="cast-NAME">`.
+
+Two deliberate limits: playback caps the gap between events at 2s, so a long
+think-pause in the recording doesn't become a long silence in the room; and the
+parser understands only the ANSI a build log tends to emit (SGR 0/1/2/32/92/96
+plus a CR + erase-line progress line). That's what buys you a player with no
+library, no CDN, and no dependency on the room's wifi. A recording using more
+colors won't break — the extra escapes are simply dropped. If you need a real
+terminal emulator, you need a different tool.
+
+Delete the cast slide, the `.cast-*` CSS, and the cast handler in the script if
+the deck has no recording.
 
 ## Quality bar
 
 - Keep slides sparse — one idea each. The monochrome-plus-yellow system only reads well with whitespace; let the single accent do the work.
 - Prefer the existing components; a deck that uses 4–5 of them consistently looks far better than one with bespoke CSS on every slide.
 - Verify the file opens standalone: the only external request should be the Google Fonts link (Space Grotesk / Inter / Space Mono).
+- The template's images are inline-SVG placeholders so it stays self-contained. Replace them with real files (or a data URI) — never ship a deck with a broken `src`, and always write real `alt` text, since the file outlives the room.
 - Sequential `data-slide` from 0; descriptive `<title>`; meaningful filename.
