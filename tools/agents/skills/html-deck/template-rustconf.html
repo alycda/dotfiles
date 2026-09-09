@@ -99,10 +99,30 @@
   .slide.active { opacity: 1; visibility: visible; transform: translateY(0); }
 
   /* ── Motifs ──
-     .cog-bg is the signature: an oversized outlined gear bleeding off the
-     right edge, echoing the conference mark. It is a GENERIC cog drawn here
-     in CSS-embedded SVG — deliberately not the Rust logo, which is a
-     Rust Foundation trademark and must not be redrawn into a deck chrome. */
+     .code-bg is THE signature of the 2026 site: lines of code with every
+     token redacted into a chunky pointed-hexagon bar - mint, rust orange,
+     yellow and white on navy - with the punctuation glyphs left legible in
+     between. Drawn here as an original pattern in the same visual language;
+     the site's own Hero-Image SVG is their asset, not ours to ship. Its
+     edges carry a small deliberate wobble because theirs are hand-drawn,
+     not ruled. Masked to fade out on the left so headline text sits clear.
+
+     .cog-bg is the quieter alternative: an oversized outlined gear bleeding
+     off the right edge. It is a GENERIC cog - deliberately not the Rust
+     logo, which is a Rust Foundation trademark and must not be redrawn into
+     deck chrome. */
+  .code-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: no-repeat center right / cover
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 640'><polygon points='60,70 92,42 358,42 390,70 358,97 92,96' fill='%23F74C00'/><path d='M450 32Q461.4 58.6 488 70Q461.4 81.4 450 108Q438.6 81.4 412 70Q438.6 58.6 450 32Z' fill='%23A2FAF7'/><polygon points='510,70 542,43 688,43 720,70 688,96 542,97' fill='%23A2FAF7'/><g transform='rotate(45 770 70)'><path d='M770 34Q773.6 66.4 806 70Q773.6 73.6 770 106Q766.4 73.6 734 70Q766.4 66.4 770 34Z' fill='%23FFDE52'/></g><polygon points='830,70 862,42 1098,43 1130,70 1098,96 862,96' fill='%23F74C00'/><path d='M1165 34Q1175.8 59.2 1201 70Q1175.8 80.8 1165 106Q1154.2 80.8 1129 70Q1154.2 59.2 1165 34Z' fill='%23A2FAF7'/><path d='M95 154Q105.8 179.2 131 190Q105.8 200.8 95 226Q84.2 200.8 59 190Q84.2 179.2 95 154Z' fill='%23A2FAF7'/><polygon points='150,190 182,163 308,164 340,190 308,216 182,216' fill='%23A2FAF7'/><g transform='rotate(45 380 190)'><path d='M380 156Q383.4 186.6 414 190Q383.4 193.4 380 224Q376.6 193.4 346 190Q376.6 186.6 380 156Z' fill='%23ffffff'/></g><polygon points='435,190 467,163 783,164 815,190 783,217 467,217' fill='%23F74C00'/><polygon points='850,190 882,165 1058,162 1090,190 1058,218 882,216' fill='%23A2FAF7'/><path d='M1130 156Q1140.2 179.8 1164 190Q1140.2 200.2 1130 224Q1119.8 200.2 1096 190Q1119.8 179.8 1130 156Z' fill='%23A2FAF7'/><polygon points='40,310 72,282 258,282 290,310 258,336 72,338' fill='%23A2FAF7'/><g transform='rotate(45 340 310)'><path d='M340 274Q343.6 306.4 376 310Q343.6 313.6 340 346Q336.4 313.6 304 310Q336.4 306.4 340 274Z' fill='%23FFDE52'/></g><polygon points='400,310 432,282 668,283 700,310 668,337 432,337' fill='%23F74C00'/><path d='M740 272Q751.4 298.6 778 310Q751.4 321.4 740 348Q728.6 321.4 702 310Q728.6 298.6 740 272Z' fill='%23A2FAF7'/><polygon points='800,310 832,283 948,282 980,310 948,336 832,336' fill='%23A2FAF7'/><polygon points='1015,310 1047,284 1193,283 1225,310 1193,336 1047,337' fill='%23F74C00'/><g transform='rotate(45 75 430)'><path d='M75 396Q78.4 426.6 109 430Q78.4 433.4 75 464Q71.6 433.4 41 430Q71.6 426.6 75 396Z' fill='%23ffffff'/></g><polygon points='130,430 162,403 398,402 430,430 398,458 162,458' fill='%23F74C00'/><polygon points='470,430 502,402 598,403 630,430 598,457 502,458' fill='%23A2FAF7'/><path d='M670 394Q680.8 419.2 706 430Q680.8 440.8 670 466Q659.2 440.8 634 430Q659.2 419.2 670 394Z' fill='%23A2FAF7'/><polygon points='725,430 757,404 1033,402 1065,430 1033,459 757,456' fill='%23A2FAF7'/><g transform='rotate(45 1105 430)'><path d='M1105 394Q1108.6 426.4 1141 430Q1108.6 433.6 1105 466Q1101.4 433.6 1069 430Q1101.4 426.4 1105 394Z' fill='%23FFDE52'/></g><polygon points='50,550 82,523 218,524 250,550 218,576 82,577' fill='%23A2FAF7'/><path d='M295 516Q305.2 539.8 329 550Q305.2 560.2 295 584Q284.8 560.2 261 550Q284.8 539.8 295 516Z' fill='%23A2FAF7'/><polygon points='350,550 382,522 678,524 710,550 678,578 382,577' fill='%23F74C00'/><polygon points='750,550 782,524 908,522 940,550 908,578 782,577' fill='%23A2FAF7'/><g transform='rotate(45 975 550)'><path d='M975 516Q978.4 546.6 1009 550Q978.4 553.4 975 584Q971.6 553.4 941 550Q971.6 546.6 975 516Z' fill='%23ffffff'/></g><polygon points='1025,550 1057,523 1143,523 1175,550 1143,578 1057,578' fill='%23F74C00'/></svg>");
+    -webkit-mask-image: linear-gradient(90deg, transparent 48%, #000 82%);
+    mask-image: linear-gradient(90deg, transparent 48%, #000 82%);
+    opacity: 0.9;
+    pointer-events: none;
+  }
+
   .cog-bg::after {
     content: '';
     position: absolute;
@@ -306,6 +326,35 @@
   }
 
   /* ── Layouts ── */
+  /* Token row: a line of "redacted code" you can write by hand. The site's
+     hero leaves the odd real word legible among the bars (RUSTUP, HELLO,
+     PRINTLN!) - that joke is the whole motif, so a slide can spell one out.
+     Keep it to one line and one real word. */
+  .tokens { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .tok { display: inline-block; height: 1.5rem; }
+  .tok.bar {
+    background: var(--mint);
+    clip-path: polygon(0 50%, 14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%);
+    width: 7rem;
+  }
+  .tok.bar.orange { background: var(--rust); }
+  .tok.bar.white  { background: #ffffff; }
+  .tok.bar.w1 { width: 4rem; }
+  .tok.bar.w3 { width: 11rem; }
+  .tok.diamond {
+    width: 1.4rem; height: 1.4rem;
+    background: var(--mint);
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  }
+  .tok.word, .tok.punct {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    line-height: 1.5rem;
+    height: auto;
+    color: var(--yellow);
+    letter-spacing: 0.01em;
+  }
+
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2.6rem; align-items: start; }
 
   /* ── Cards. Site cards are square-ish, hairline-bordered, flat white. ── */
@@ -492,7 +541,7 @@
 <div class="deck">
 
   <!-- ═══ SLIDE 1: TITLE (navy hero, slab headline — the site's front door) ═══ -->
-  <div class="slide title-slide navy cog-bg active" data-slide="0" data-notes="Open with the hook. Pause after the title before clicking forward.">
+  <div class="slide title-slide navy code-bg active" data-slide="0" data-notes="Open with the hook. Pause after the title before clicking forward.">
     <div class="title-glow"></div>
     <span class="tag">TAG — Series / Talk Label</span>
     <h1>Main Title<br><em>Emphasis Line</em></h1>
@@ -568,7 +617,13 @@
 
   <!-- ═══ SLIDE 8: CLOSER ═══ -->
   <div class="slide section-slide navy cog-bg" data-slide="7" data-notes="End with energy. State the one takeaway, then thank them.">
-    <span class="mountain-icon">◆ ◆ ◆</span>
+    <div class="tokens">
+      <span class="tok bar mint w1"></span>
+      <span class="tok diamond"></span>
+      <span class="tok word">RUSTUP</span>
+      <span class="tok bar orange"></span>
+      <span class="tok punct">{</span>
+    </div>
     <span class="section-sub">one takeaway — let's go</span>
     <h2 style="font-size: 4.2rem;">The closer</h2>
     <a class="cta">Find me after</a>

@@ -58,7 +58,8 @@ Palette and type extracted from rustconf.com's `salient-dynamic-styles.css` (202
 - Eyebrows and labels are sans caps with wide tracking (`--font-ui`), not mono. `--font-mono` is for code and the nav chrome only.
 - Emphasis is the site's yellow used as a **highlighter bar** behind `<em>` inside `h2`, not a text-colour swap.
 - Buttons: the site has exactly two, and both are here — `.cta` (square, 2px teal outline, uppercase) and `.link-cta` (uppercase text with a thick underline). `.cta.solid` fills yellow when a slide needs one loud button. Corners are square-to-4px; don't round them.
-- Motif: `.cog-bg` — an oversized outlined gear bleeding off the right edge. It is a **generic cog drawn in inline SVG, deliberately not the Rust logo**, which is a Rust Foundation trademark and must not be redrawn into deck chrome. `.grid-bg` and `.diamond-bg` also work (the latter is kept as an alias so Ditto-themed markup ports cleanly).
+- Motif: `.code-bg` is the signature — the site's hero is **lines of code with every token redacted into a chunky pointed-hexagon bar** (mint, rust orange, yellow, white on navy), punctuation glyphs left legible in between. The template draws its own pattern in that language rather than shipping the site's `Hero-Image` asset, and masks it so it fades out on the left where headline text sits. Its bar edges carry a deliberate wobble: theirs are hand-drawn, not ruled, and clean geometry reads as a different design. `.cog-bg` (an oversized outlined **generic** gear — not the Rust logo, which is a Rust Foundation trademark) is the quieter alternative; `.grid-bg` and `.diamond-bg` also work, the latter kept as an alias so Ditto-themed markup ports cleanly.
+- **`.tokens`** — the same joke as markup, for when a slide should spell one out: a row of `.tok.bar` (`orange`/`white`, widths `w1`/`w3`), `.tok.diamond`, `.tok.punct` for a brace, and one `.tok.word` left legible. The site does this with RUSTUP / HELLO / PRINTLN!. One line, one real word — it stops being a joke at two.
 - The matching terminal theme is `tools/presenterm/themes/rustconf.yaml` — same palette, for `presenterm --theme rustconf`.
 
 ## Components available in both templates
@@ -77,7 +78,8 @@ Each is shown working in the template. Pick the ones that fit; delete the rest.
 - **`.legend`** — color-key row to label a multi-color grid.
 - **`.stat`** + **`.stat-label`** — one giant number for an impact slide.
 - **`.cta`** — primary button. **`.link-cta`** — underlined uppercase text link (RustConf theme).
-- Background motifs: `.grid-bg` in both; `.diamond-bg` in both; `.cog-bg` in the RustConf theme; `.navy` to invert a RustConf slide.
+- Background motifs: `.grid-bg` in both; `.diamond-bg` in both; `.code-bg` and `.cog-bg` in the RustConf theme; `.navy` to invert a RustConf slide.
+- **`.tokens`** + `.tok` (RustConf theme) — a hand-written line of redacted code.
 
 ## The engine (already in the template — leave it alone unless asked)
 
