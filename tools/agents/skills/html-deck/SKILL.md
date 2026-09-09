@@ -100,10 +100,43 @@ rather than waiting for the next keypress.
 moves the counter clear of it, and hides the nav buttons. `?room=NAME` keeps two
 decks on one relay from talking to each other.
 
-This is two windows one person owns, so the protocol is symmetric: either may
-drive. Having *attendees* follow along on their own machines is a different
-problem — it needs roles that are permissions, not presentation. Parked in
-`docs/follow-mode.md`.
+### `?role=viewer` — attendees, with the ending kept back
+
+`stage` and `notes` are two windows one person owns, so between them the
+protocol is symmetric: either may drive. `viewer` is the first role that is a
+**permission** rather than a presentation choice — an attendee on their own
+machine.
+
+A viewer never publishes position, so it cannot move anyone else's deck, and it
+cannot navigate past the furthest slide the presenter has reached. Backwards is
+always free: being able to re-read is the reason this is a lock and not a leash.
+
+- **Detaching is implicit.** Navigating *is* the signal. Nobody should have to
+  find an "unfollow" control before doing the obvious thing.
+- **Re-attaching is explicit and always visible** — `F`, or the badge, which is
+  a button precisely so the way back does not depend on a shortcut nobody
+  mentioned. A detached viewer is never snapped forward automatically; that is
+  the yank they stepped out of the way to avoid.
+- **The high-water mark never retreats.** If you step back to re-explain
+  something, slides already shown stay reachable — content is not yanked away
+  from people still reading it.
+- A viewer gets each slide **fully revealed**. Step reveals are the presenter's
+  pacing device; someone reading at their own rate should not have content
+  hidden for another person's timing.
+
+**This is not a secret.** Every slide is still in the file the viewer
+downloaded — devtools, view-source, or ctrl-F will show the ending. It stops
+idle skipping ahead, which is the real problem (an exercise solution read three
+slides early). It will not stop anyone who decides to look, and it is not meant
+to. Genuinely withholding content means not shipping it, which costs the deck
+the single-file offline property that is the point of it —
+`docs/follow-mode.md` works through that trade.
+
+Without `?sync=`, `?role=viewer` has no presenter to track, so the gate stays
+off rather than locking the deck at slide 1.
+
+Everything past this — attendees at scale, presenter authentication, a reverse
+channel — is parked in `docs/follow-mode.md`.
 
 ### Choosing a transport
 

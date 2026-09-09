@@ -526,6 +526,36 @@
     display: none;
   }
   .notes.visible { display: block; }
+  /* A viewer's deck moves without their input, which is exactly the case this
+     preference is about. Cut the motion, keep the change. */
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .slide.active { transition: none; transform: none; }
+    [data-step] { transition: none; }
+    .progress-bar { transition: none; }
+  }
+
+  /* Viewer follow indicator. Always visible while gated, because the way back
+     to the presenter has to be discoverable without a keyboard shortcut nobody
+     was told about — so it is a button, not a label. */
+  .follow-badge {
+    position: fixed;
+    top: 1.5rem; right: 2rem;
+    z-index: 101;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .follow-badge[data-state="detached"] { color: var(--accent); border-color: var(--accent); }
+  .follow-badge[data-state="locked"]   { color: var(--text); border-color: var(--text-dim); }
+  .follow-badge[data-state="following"] { opacity: 0.55; }
+
   /* The presenter's window (?role=notes): the panel is the point, so give it
      the room. The NEXT line only exists in this role. */
   .notes-next { display: none; }
@@ -717,6 +747,9 @@ let guard = lock()?;</code></pre>
   <button class="nav-btn" onclick="navigate(1)" aria-label="Next slide">→</button>
 </div>
 
+<!-- ── Viewer follow indicator (only ever shown for ?role=viewer) ── -->
+<button class="follow-badge" id="followBadge" hidden></button>
+
 <!-- ── Speaker notes panel ── -->
 <div class="notes" id="notes"><span class="notes-label">Speaker note (press N to hide)</span><span id="notesText"></span><span class="notes-next" id="notesNext"></span></div>
 
@@ -736,9 +769,26 @@ let guard = lock()?;</code></pre>
   // to change what it *is* mid-talk, and the two windows are in different
   // browsers, so there is no shared storage to remember it in.
   const params = new URLSearchParams(location.search);
-  const role = params.get('role') === 'notes' ? 'notes' : 'stage';
+  const ROLES = ['stage', 'notes', 'viewer'];
+  const role = ROLES.includes(params.get('role')) ? params.get('role') : 'stage';
   document.documentElement.classList.add('role-' + role);
   if (role === 'notes') notesOn = true;
+
+  // ── Viewer gating ──
+  // A viewer is an attendee on their own machine. It is the first role that is
+  // a *permission* rather than a presentation choice: a viewer never publishes
+  // position, and cannot walk past where the presenter has reached.
+  //
+  // maxSlide is a high-water mark and never retreats. If the presenter steps
+  // back to re-explain something, content already shown must not be yanked
+  // away from people still reading it.
+  //
+  // What this is NOT is a secret. Every slide is still in the file the viewer
+  // downloaded — devtools, view-source or ctrl-F will show the ending. This
+  // stops idle skipping ahead (an exercise solution three slides early), and
+  // nothing more. See docs/follow-mode.md for what real gating would cost.
+  let maxSlide = 0, presenterAt = 0, following = true;
+  const gated = () => role === 'viewer' && !!bus;
 
   function showSlide(index, stepCount = 0) {
     slides.forEach(s => s.classList.remove('active'));
@@ -793,16 +843,30 @@ let guard = lock()?;</code></pre>
     // Reveal or retract a step before leaving the slide.
     if (dir > 0 && shown < stepNums(current).length) { setSteps(current, shown + 1); publish(); return; }
     if (dir < 0 && shown > 0) { setSteps(current, shown - 1); publish(); return; }
-    current = Math.max(0, Math.min(total - 1, current + dir));
+    const next = Math.max(0, Math.min(total - 1, current + dir));
+    // Forward is gated; back never is — being able to re-read is the reason
+    // this is a lock and not a leash.
+    if (gated() && next > maxSlide) { bumpLock(); return; }
+    if (gated() && next !== current) following = false;   // navigating IS the detach
+    current = next;
     showSlide(current);
     publish();
+    badge();
   }
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); navigate(1); }
     if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); navigate(-1); }
-    if (e.key === 'Home') { e.preventDefault(); current = 0; showSlide(0); publish(); }
-    if (e.key === 'End') { e.preventDefault(); current = total - 1; showSlide(current); publish(); }
+    if (e.key === 'Home') { e.preventDefault(); if (gated()) following = false; current = 0; showSlide(0); publish(); badge(); }
+    if (e.key === 'End') {
+      e.preventDefault();
+      const end = gated() ? maxSlide : total - 1;
+      if (gated() && end !== current) following = false;
+      current = end; showSlide(current); publish(); badge();
+    }
+    // Catch back up. Never automatic: snapping someone forward is exactly the
+    // yank they stepped out of the way to avoid.
+    if ((e.key === 'f' || e.key === 'F') && gated()) { e.preventDefault(); refollow(); }
     if (e.key === 'n' || e.key === 'N') { notesOn = !notesOn; showSlide(current); }
   });
 
@@ -893,7 +957,7 @@ let guard = lock()?;</code></pre>
   let bus = null, seq = 0, applying = false;
 
   function publish() {
-    if (!bus || applying) return;
+    if (!bus || applying || role === 'viewer') return;   // a viewer has no authority
     bus.send({ from: clientId, seq: ++seq, slide: current, steps: shownSteps(current) });
   }
 
@@ -909,10 +973,50 @@ let guard = lock()?;</code></pre>
     if (typeof msg.slide !== 'number' || msg.slide < 0 || msg.slide >= total) return;
     if (msg.seq < seq) return;
     seq = Math.max(seq, msg.seq || 0);
+    presenterAt = msg.slide;
+    maxSlide = Math.max(maxSlide, msg.slide);   // high-water: never retreats
+    if (gated() && !following) { badge(); return; }   // detached: note it, do not move them
     applying = true;                       // suppress the echo publish()
     current = msg.slide;
-    showSlide(current, msg.steps || 0);
+    // A viewer gets the slide fully revealed. Step reveals are the presenter's
+    // pacing device — holding a conclusion back until the room has read the
+    // code — and someone reading at their own rate should not have content
+    // hidden from them for another person's timing.
+    showSlide(current, role === 'viewer' ? stepNums(msg.slide).length : (msg.steps || 0));
     applying = false;
+    badge();
+  }
+
+  function refollow() {
+    following = true;
+    current = presenterAt;
+    showSlide(current, role === 'viewer' ? stepNums(current).length : 0);
+    badge();
+  }
+
+  // ── Viewer chrome ──
+  let lockTimer = null;
+  function bumpLock() {
+    const el = document.getElementById('followBadge');
+    if (!el) return;
+    el.dataset.state = 'locked';
+    el.textContent = 'the presenter has not got here yet';
+    clearTimeout(lockTimer);
+    lockTimer = setTimeout(badge, 1600);
+  }
+
+  function badge() {
+    const el = document.getElementById('followBadge');
+    if (!el) return;
+    if (!gated()) { el.hidden = true; return; }
+    el.hidden = false;
+    if (following) {
+      el.dataset.state = 'following';
+      el.textContent = 'following the presenter';
+    } else {
+      el.dataset.state = 'detached';
+      el.textContent = 'presenter on ' + String(presenterAt + 1).padStart(2, '0') + ' — press F to follow';
+    }
   }
 
   // ── Transports ──
@@ -1002,7 +1106,10 @@ let guard = lock()?;</code></pre>
     else console.warn('html-deck: no such transport:', kind);
   }
 
+  document.getElementById('followBadge').addEventListener('click', () => { if (gated()) refollow(); });
+
   showSlide(0);
+  badge();
 </script>
 
 </body>
