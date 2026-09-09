@@ -30,7 +30,9 @@ ci: lint check
 
 export USER := shell("whoami")
 
-manager := if os() == "macos" { "darwin-rebuild" } else { "home-manager" }
+# /etc/NIXOS is the marker file NixOS itself uses to tell a NixOS install from
+# any other Linux, where the flake is applied with standalone home-manager.
+manager := if os() == "macos" { "darwin-rebuild" } else if path_exists("/etc/NIXOS") == "true" { "nixos-rebuild" } else { "home-manager" }
 
 # may require sudo
 _rebuild USER="alyssa@dev":
@@ -39,6 +41,12 @@ _rebuild USER="alyssa@dev":
 # darwin requires sudo, so we use home-manager for non-sudo "code" user on OSX
 _rebuild-code:
     home-manager switch -b backup --flake .#code
+
+# requires sudo. The only nixosConfiguration today is slowpoke (the 2012 MBP);
+# `alyssa@*` names are homeConfigurations, `ditto`/`shesfast` are darwin.
+[group('nixos')]
+nixos-switch HOST="slowpoke":
+    sudo nixos-rebuild switch --flake .#{{HOST}}
 
 # requires sudo
 [group('darwin')]
