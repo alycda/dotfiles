@@ -55,6 +55,10 @@ Each is shown working in `template.html`. Pick the ones that fit; delete the res
 - **`.legend`** — color-key row to label a multi-color grid.
 - **`.stat`** + **`.stat-label`** — one giant number for an impact slide.
 - **`.cta`** — brand primary button (yellow fill, dark mono text).
+- **`.title-qr`** — a QR centred on the title slide's `.title-glow`. Its offsets are derived from the glow's (`top:15%`/`right:8%`, 500px), so if you move the glow, move this with it.
+- **`.image-slide`** — full-bleed single image, no chrome: a speaker card, screenshot, or diagram. Scales to the padded box, keeps aspect ratio.
+- **`.two-col.media`** + **`.photo-stack`** — photo-and-text split: portraits stacked in one height-bound frame on the left, a `.lead` and `.hl-list` links on the right. `.photo-stack .credit` sits under the frame for photographer attribution.
+- **`.cast-btn`/`.cast-overlay`/`.cast-screen`** — inline asciicast replay; see "Recorded terminal demos" below.
 - **`.diamond-bg`** — signature Ditto dot/diamond field; **`.grid-bg`** — quieter faint grid. Add either class to any slide.
 
 ## The engine (already in the template — leave it alone unless asked)
@@ -63,11 +67,155 @@ Each is shown working in `template.html`. Pick the ones that fit; delete the res
 - `navigate(±1)`, `showSlide(i)`, a progress bar, and an `NN / NN` counter.
 - Keyboard: → / Space / Enter advance; ← / Backspace go back; Home / End jump; **N toggles speaker notes**.
 - Touch: horizontal swipe.
+- **Step reveal (`data-step`)**: any element with `data-step="N"` starts hidden. → reveals the next step *before* advancing the slide; ← retracts the last one before going back. The slide counter does not move between steps. Elements sharing a number reveal together. This is presenterm's `<!-- pause -->` in spirit — use it to hold a conclusion back until after the audience has read the code.
+- **Skipping a slide (`data-skip`)**: presenterm's `skip_slide`. The slide stays in the file and in DOM order but drops out of the run *and* out of the count. Use it for a slide you cut but don't want to lose — remove the attribute to bring it back. Don't delete a cut slide; skip it, so the reasoning survives in the file.
+- **Presenter sync (`?sync=`)**: optional two-browser mode — see "Two-browser presenter mode" below. Inert unless the parameter is present.
 - **Speaker notes**: put a `data-notes="..."` attribute on any slide; it shows in the notes panel when the presenter presses N. Use these to encode pacing cues (where to slow down, where the user tends to speed up) rather than cramming them on the slide.
+
+## Two-browser presenter mode
+
+Arc fullscreen on the projector, Brave with the speaker notes on the laptop,
+both showing the same deck in step. Opt-in: with no `?sync=` parameter none of
+it runs and the deck makes no network request.
+
+```bash
+node sync-relay.mjs my-deck.html          # serves the deck AND relays state
+#   stage  http://localhost:8080/?sync=http://localhost:8080
+#   notes  http://localhost:8080/?sync=http://localhost:8080&role=notes
+```
+
+**What crosses the wire is state, never keystrokes.** Sending keys would fire
+"toggle notes" in *both* windows, which is exactly backwards — notes visibility
+is a property of the role, not of the deck. The payload is `{slide, steps}` and
+nothing else, so everything role-shaped (notes, the cast overlay, fullscreen)
+stays local by construction. Since step groups are synced as a *count*, the two
+windows agree on reveals without either replaying input.
+
+Either window can drive, so it doesn't matter which browser has keyboard focus.
+`seq` is a Lamport clock that drops stale updates and `from` discards your own
+echo. A window that joins late is handed the current position by the relay
+rather than waiting for the next keypress.
+
+`?role=notes` gives the presenter's window an always-on panel with a NEXT line,
+moves the counter clear of it, and hides the nav buttons. `?room=NAME` keeps two
+decks on one relay from talking to each other.
+
+### `?role=viewer` — attendees, with the ending kept back
+
+`stage` and `notes` are two windows one person owns, so between them the
+protocol is symmetric: either may drive. `viewer` is the first role that is a
+**permission** rather than a presentation choice — an attendee on their own
+machine.
+
+A viewer never publishes position, so it cannot move anyone else's deck, and it
+cannot navigate past the furthest slide the presenter has reached. Backwards is
+always free: being able to re-read is the reason this is a lock and not a leash.
+
+- **Detaching is implicit.** Navigating *is* the signal. Nobody should have to
+  find an "unfollow" control before doing the obvious thing.
+- **Re-attaching is explicit and always visible** — `F`, or the badge, which is
+  a button precisely so the way back does not depend on a shortcut nobody
+  mentioned. A detached viewer is never snapped forward automatically; that is
+  the yank they stepped out of the way to avoid.
+- **The high-water mark never retreats.** If you step back to re-explain
+  something, slides already shown stay reachable — content is not yanked away
+  from people still reading it.
+- A viewer gets each slide **fully revealed**. Step reveals are the presenter's
+  pacing device; someone reading at their own rate should not have content
+  hidden for another person's timing.
+
+**This is not a secret.** Every slide is still in the file the viewer
+downloaded — devtools, view-source, or ctrl-F will show the ending. It stops
+idle skipping ahead, which is the real problem (an exercise solution read three
+slides early). It will not stop anyone who decides to look, and it is not meant
+to. Genuinely withholding content means not shipping it, which costs the deck
+the single-file offline property that is the point of it —
+`docs/follow-mode.md` works through that trade.
+
+Without `?sync=`, `?role=viewer` has no presenter to track, so the gate stays
+off rather than locking the deck at slide 1.
+
+Everything past this — attendees at scale, presenter authentication, a reverse
+channel — is parked in `docs/follow-mode.md`.
+
+### Choosing a transport
+
+The relay is local on purpose: the deck already carries a recorded terminal demo
+so dead venue wifi can't break it, and slide navigation shouldn't reintroduce
+the dependency the recording exists to avoid. It's SSE down / POST up rather
+than WebSocket — no framing (so no dependency), and `EventSource` reconnects on
+its own, so a laptop that sleeps mid-talk recovers with no reconnect code.
+
+**This only works when the deck is served from the relay** (or another
+`http://localhost` origin). A deck loaded from the published cf-now `https://`
+URL cannot open a `ws://` or `http://localhost` connection — mixed content — so
+presenting from the published URL means a hosted transport instead.
+
+Adding one is a single function; nothing in the protocol changes:
+
+```js
+Transports.mine = (endpoint, room, onState) => {
+  /* call onState(obj) on each remote update */
+  return { send: state => { /* publish it */ } };
+};
+```
+
+Then `?transport=mine&sync=<endpoint>`. Two ship in the template:
+
+| `?transport=` | When |
+| --- | --- |
+| `sse` (default) | Local relay. Offline, no account. Requires the deck be served from the relay or another `http://localhost` origin. |
+| `supabase` | Supabase Realtime broadcast. Use when presenting from the published (https) URL, or when the two machines aren't the same one. |
+
+```
+?transport=supabase&sync=https://<ref>.supabase.co&key=<publishable-key>&room=talk
+```
+
+The Supabase adapter talks to Realtime over a **raw `WebSocket`, not
+`supabase-js`** — broadcast needs none of the SDK, and a CDN bundle would cost
+the deck the single-file, works-offline property that is the point of it. It
+speaks Phoenix channels: `phx_join` on `realtime:<room>`, `broadcast` frames
+either way, and a `heartbeat` on the `phoenix` topic every 25s (Phoenix closes
+a channel that stops heartbeating). The scheme follows the endpoint, so a
+self-hosted Supabase on plain `http://` works as well as the hosted one.
+
+Broadcast is **ephemeral** — nothing is written to the database, which is the
+right shape for a position that means nothing once the talk ends. The cost is
+that there's no history for a late joiner, so the deck sends a `hello` on
+connect and whoever is further along answers. (The local relay replays
+last-state server-side, so `hello` is redundant there and harmless — the clock
+drops whichever copy lands second.)
+
+The publishable key sits in the URL. It's public by design, but the URL is a
+thing you paste around, so scope it to a broadcast-only channel rather than
+reusing a key that can reach real tables.
+
+## Recorded terminal demos (the demo-gods fallback)
+
+For a talk with a live demo, record a fallback and embed it. The template ships
+a tiny asciicast player: a `.cast-btn` opens a `.cast-overlay` that replays a
+recording over the slide. Space pauses, Esc closes.
+
+1. `asciinema rec docs/demo.cast` — do the demo, exit the shell.
+2. Paste the file **verbatim** into a `<script type="application/json" id="cast-NAME">`
+   on the slide (header line, then one event per line).
+3. Point the button at it: `<button class="cast-btn" data-cast="cast-NAME">`.
+
+Two deliberate limits: playback caps the gap between events at 2s, so a long
+think-pause in the recording doesn't become a long silence in the room; and the
+parser understands only the ANSI a build log tends to emit (SGR 0/1/2/32/92/96
+plus a CR + erase-line progress line). That's what buys you a player with no
+library, no CDN, and no dependency on the room's wifi. A recording using more
+colors won't break — the extra escapes are simply dropped. If you need a real
+terminal emulator, you need a different tool.
+
+Delete the cast slide, the `.cast-*` CSS, and the cast handler in the script if
+the deck has no recording.
 
 ## Quality bar
 
 - Keep slides sparse — one idea each. The monochrome-plus-yellow system only reads well with whitespace; let the single accent do the work.
 - Prefer the existing components; a deck that uses 4–5 of them consistently looks far better than one with bespoke CSS on every slide.
 - Verify the file opens standalone: the only external request should be the Google Fonts link (Space Grotesk / Inter / Space Mono).
+- The template's images are inline-SVG placeholders so it stays self-contained. Replace them with real files (or a data URI) — never ship a deck with a broken `src`, and always write real `alt` text, since the file outlives the room.
 - Sequential `data-slide` from 0; descriptive `<title>`; meaningful filename.

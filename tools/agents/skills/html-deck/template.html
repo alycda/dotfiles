@@ -182,6 +182,63 @@
   }
   pre code { background: none; border: none; padding: 0; color: inherit; font-size: 1em; }
 
+  /* ── Inline asciicast replay (optional — delete if the deck has no recording) ──
+     A terminal overlay drawn over the slide. It understands only the subset of
+     ANSI an asciinema recording of a build tends to contain: SGR 0/1/2/32/92/96
+     and a CR + erase-line progress line. That is deliberate — it needs no player
+     library, no CDN, and no wifi in the room. Colours here are literal rather
+     than brand tokens because a terminal is a terminal. */
+  .cast-btn {
+    align-self: flex-start;
+    margin-top: 1rem;
+    background: none;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    padding: 0.5rem 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .cast-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: none;
+    flex-direction: column;
+    padding: 2.2rem 2.6rem;
+    background: #11111b;
+  }
+  .cast-overlay.on { display: flex; }
+  .cast-screen {
+    flex: 1;
+    margin: 0;
+    overflow: auto;
+    max-width: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    color: #cdd6f4;
+  }
+  .cast-screen .b { font-weight: 700; }
+  .cast-screen .d { opacity: 0.6; }
+  .cast-screen .g { color: #a6e3a1; }
+  .cast-screen .c { color: #89dceb; }
+  .cast-hint {
+    /* Right-aligned: the deck's slide counter is fixed at bottom-left and
+       paints above the overlay, so a left-aligned hint collides with it. */
+    align-self: flex-end;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    margin-top: 0.8rem;
+  }
+
   /* ── Title slide ── */
   .title-slide { justify-content: flex-end; align-items: flex-start; padding-bottom: 12vh; }
   .title-slide h1 { font-size: 5.5rem; margin-bottom: 0.8rem; }
@@ -214,6 +271,19 @@
     pointer-events: none;
   }
 
+  /* QR sits on the glow's origin: the glow is a 500px circle at top:15%/right:8%,
+     so its centre is 250px in from both edges; the QR is centred on that point.
+     Move the glow and you must move this with it. */
+  .title-qr {
+    position: absolute;
+    top: calc(15% + 250px);
+    right: calc(8% + 250px);
+    width: 240px; height: 240px;
+    transform: translate(50%, -50%);
+    border-radius: 8px;
+    z-index: 1;
+  }
+
   /* ── Section divider ── */
   .section-slide { justify-content: center; align-items: center; text-align: center; }
   .section-slide h2 { font-size: 3.8rem; margin-bottom: 0.5rem; }
@@ -235,6 +305,62 @@
 
   /* ── Layouts ── */
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start; }
+
+  /* Full-bleed image slide: one image, no chrome. The image scales to the
+     slide's padded box and keeps its aspect ratio; square cards fill the
+     height, wide ones fill the width. */
+  .image-slide { justify-content: center; align-items: center; }
+  .image-slide img {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 24px 80px #00000099;
+  }
+
+  /* Photo + text split: an image on the left, a short lead and a couple of
+     links on the right. Quiet by design; it is backstory, not the argument. */
+  .two-col.media { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
+
+  /* Portrait photos stacked in one frame; the frame is height-bound so a
+     tall phone photo never overflows the slide. Stack them by giving the
+     later <img> a data-step, so the second lands on a keypress. */
+  .photo-stack {
+    position: relative;
+    /* The credit hangs 1.8rem below the frame, so the frame must leave room for
+       it: the margin reserves that space and the height keeps the whole column
+       inside a 720p slide. Raise the height and the credit clips on a laptop. */
+    height: 68vh;
+    margin-bottom: 1.8rem;
+    justify-self: center;
+    aspect-ratio: 3 / 4;
+    max-width: 100%;
+  }
+  .photo-stack img {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  .photo-stack .credit {
+    position: absolute;
+    left: 0; right: 0; bottom: -1.8rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-align: center;
+  }
+  .photo-stack .credit a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--border); }
+
+  /* ── Step reveal ── */
+  /* Anything with data-step starts hidden; → shows the next step before
+     advancing the slide, ← hides the last one before going back. The slide
+     counter never moves. Presenterm's <!-- pause -->, in spirit. Several
+     elements may share a step number; they reveal together. */
+  [data-step] { opacity: 0; transition: opacity 0.7s ease; }
+  [data-step].on { opacity: 1; }
 
   /* ── Cards (color variants: accent|blue|green|purple|yellow) ── */
   .card {
@@ -317,6 +443,7 @@
   }
   .hl-list li:last-child { border-bottom: none; }
   .hl-list .bullet { font-family: var(--font-mono); color: var(--accent); font-size: 0.8rem; flex-shrink: 0; }
+  .hl-list a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--accent); }
 
   /* ── Card grid (repeat(N,1fr)) ── */
   .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin: 0.5rem 0; }
@@ -399,6 +526,62 @@
     display: none;
   }
   .notes.visible { display: block; }
+  /* A viewer's deck moves without their input, which is exactly the case this
+     preference is about. Cut the motion, keep the change. */
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .slide.active { transition: none; transform: none; }
+    [data-step] { transition: none; }
+    .progress-bar { transition: none; }
+  }
+
+  /* Viewer follow indicator. Always visible while gated, because the way back
+     to the presenter has to be discoverable without a keyboard shortcut nobody
+     was told about — so it is a button, not a label. */
+  .follow-badge {
+    position: fixed;
+    top: 1.5rem; right: 2rem;
+    z-index: 101;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .follow-badge[data-state="detached"] { color: var(--accent); border-color: var(--accent); }
+  .follow-badge[data-state="locked"]   { color: var(--text); border-color: var(--text-dim); }
+  .follow-badge[data-state="following"] { opacity: 0.55; }
+
+  /* The presenter's window (?role=notes): the panel is the point, so give it
+     the room. The NEXT line only exists in this role. */
+  .notes-next { display: none; }
+  :root.role-notes .notes {
+    bottom: 2rem;
+    max-width: none;
+    font-size: 1.15rem;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  /* The panel is bottom-anchored and full width in this role, and the deck's
+     chrome is also bottom-anchored at z-index 100 — so it lands on top of the
+     panel. Move the counter up out of the way and drop the nav buttons, which
+     a presenter driving from the keyboard does not need. */
+  :root.role-notes .slide-counter { bottom: auto; top: 1.5rem; }
+  :root.role-notes .nav { display: none; }
+  :root.role-notes .notes-next {
+    display: block;
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
   .notes .notes-label { font-family: var(--font-mono); font-size: 0.65rem; color: var(--yellow); letter-spacing: 0.15em; text-transform: uppercase; display: block; margin-bottom: 0.4rem; }
 </style>
 </head>
@@ -409,6 +592,8 @@
   <!-- ═══ SLIDE 1: TITLE ═══ -->
   <div class="slide title-slide diamond-bg active" data-slide="0" data-notes="Open with the hook. Pause after the title before clicking forward.">
     <div class="title-glow"></div>
+    <!-- Optional: a QR centred on the glow. Delete if the talk has no link. -->
+    <img class="title-qr" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'%3E%3Crect width='240' height='240' fill='%231d1d1d'/%3E%3Crect x='1' y='1' width='238' height='238' fill='none' stroke='%23333333'/%3E%3Ctext x='50%25' y='50%25' fill='%239c9c9c' font-family='monospace' font-size='12' text-anchor='middle' dominant-baseline='middle'%3EQR%3C/text%3E%3C/svg%3E" alt="QR code linking to the talk repo">
     <span class="tag">TAG — Series / Talk Label</span>
     <h1>Main Title<br><em>Emphasis Line</em></h1>
     <p class="subtitle">One-sentence framing of what this talk delivers and why the audience should care.</p>
@@ -481,8 +666,69 @@
     <span class="stat-label">The headline number that lands the point</span>
   </div>
 
-  <!-- ═══ SLIDE 8: CLOSER ═══ -->
-  <div class="slide section-slide diamond-bg" data-slide="7" data-notes="End with energy. State the one takeaway, then thank them.">
+  <!-- ═══ SLIDE 8: FULL-BLEED IMAGE ═══ -->
+  <!-- One image, no chrome — a speaker card, a screenshot, a diagram. -->
+  <div class="slide image-slide" data-slide="7" data-notes="Let the image carry it. Say one sentence, then move.">
+    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 360'%3E%3Crect width='640' height='360' fill='%231d1d1d'/%3E%3Crect x='1' y='1' width='638' height='358' fill='none' stroke='%23333333'/%3E%3Ctext x='50%25' y='50%25' fill='%239c9c9c' font-family='monospace' font-size='24' text-anchor='middle' dominant-baseline='middle'%3E16%3A9 image%3C/text%3E%3C/svg%3E" alt="Describe the image for anyone reading the file, not just the room">
+  </div>
+
+  <!-- ═══ SLIDE 9: PHOTO + TEXT (step reveal) ═══ -->
+  <!-- Backstory layout: stacked portraits left, a lead and links right. The
+       second photo and its credit share data-step="1", so one press lands both. -->
+  <div class="slide" data-slide="8" data-notes="Press → once to bring in the second photo before you talk about it.">
+    <span class="slide-number">08 — Backstory</span>
+    <h2>Where this <em>came from</em></h2>
+    <div class="two-col media">
+      <div class="photo-stack">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'%3E%3Crect width='300' height='400' fill='%231d1d1d'/%3E%3Crect x='1' y='1' width='298' height='398' fill='none' stroke='%23333333'/%3E%3Ctext x='50%25' y='50%25' fill='%239c9c9c' font-family='monospace' font-size='12' text-anchor='middle' dominant-baseline='middle'%3Ephoto 1%3C/text%3E%3C/svg%3E" alt="First photo, shown immediately">
+        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 400'%3E%3Crect width='300' height='400' fill='%231d1d1d'/%3E%3Crect x='1' y='1' width='298' height='398' fill='none' stroke='%23333333'/%3E%3Ctext x='50%25' y='50%25' fill='%239c9c9c' font-family='monospace' font-size='12' text-anchor='middle' dominant-baseline='middle'%3Ephoto 2%3C/text%3E%3C/svg%3E" data-step="1" alt="Second photo, revealed on the first keypress">
+        <span class="credit" data-step="1">photo: <a href="https://example.com" target="_blank" rel="noopener">credit the photographer</a></span>
+      </div>
+      <div>
+        <p class="lead">Prior Art</p>
+        <ul class="hl-list">
+          <li><span class="bullet">talk</span><a href="https://example.com" target="_blank" rel="noopener">the earlier version of this</a></li>
+          <li><span class="bullet">code</span><a href="https://example.com" target="_blank" rel="noopener">the repo it grew out of</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 10: STEP REVEAL ═══ -->
+  <!-- data-step works on any element. The counter does not move between steps. -->
+  <div class="slide" data-slide="9" data-notes="Show the code, let them read it, THEN press → for the conclusion.">
+    <span class="slide-number">09 — Build It Up</span>
+    <h2>One idea at a <em>time</em></h2>
+    <pre data-step="1"><code>// Revealed on the first press.
+let guard = lock()?;</code></pre>
+    <p class="lead" data-step="2">And the point of it, on the second.</p>
+  </div>
+
+  <!-- ═══ SLIDE 11: ASCIICAST REPLAY ═══ -->
+  <!-- The demo-gods fallback: a recorded terminal session, played inline with
+       no player library and no network. Record with `asciinema rec demo.cast`
+       and paste the file verbatim into the <script type="application/json">.
+       Delete this slide, the .cast-* CSS, and the cast handler if unused. -->
+  <div class="slide" data-slide="10" data-notes="Only reach for this if the live demo dies. Esc closes it.">
+    <span class="slide-number">10 — Live</span>
+    <h2>The <em>demo</em></h2>
+    <p class="lead">Run it for real. This is the fallback if the room's wifi disagrees.</p>
+    <button class="cast-btn" data-cast="cast-demo">&#9654; replay the recording &mdash; docs/demo.cast</button>
+    <div class="cast-overlay"><pre class="cast-screen"></pre><span class="cast-hint">space pauses &middot; esc closes</span></div>
+    <script type="application/json" id="cast-demo">
+{"version": 2, "width": 100, "height": 30}
+[0.0, "o", "$ cargo test\r\n"]
+[0.6, "o", "\u001b[2m   Compiling\u001b[0m demo v0.1.0\r\n"]
+[1.2, "o", "\u001b[1m\u001b[32m    Finished\u001b[0m test profile in 1.2s\r\n"]
+[0.4, "o", "\u001b[96mrunning 2 tests\u001b[0m\r\n"]
+[0.5, "o", "test ffi::round_trip ... \u001b[32mok\u001b[0m\r\n"]
+[0.5, "o", "test ffi::null_guard ... \u001b[32mok\u001b[0m\r\n"]
+[0.6, "o", "\r\n\u001b[1m\u001b[32mtest result: ok\u001b[0m. 2 passed; 0 failed\r\n"]
+    </script>
+  </div>
+
+  <!-- ═══ SLIDE 12: CLOSER ═══ -->
+  <div class="slide section-slide diamond-bg" data-slide="11" data-notes="End with energy. State the one takeaway, then thank them.">
     <div class="title-glow" style="top:30%; right:15%;"></div>
     <span class="mountain-icon">◆ ◆ ◆</span>
     <span class="section-sub">one takeaway — let's go</span>
@@ -501,36 +747,126 @@
   <button class="nav-btn" onclick="navigate(1)" aria-label="Next slide">→</button>
 </div>
 
+<!-- ── Viewer follow indicator (only ever shown for ?role=viewer) ── -->
+<button class="follow-badge" id="followBadge" hidden></button>
+
 <!-- ── Speaker notes panel ── -->
-<div class="notes" id="notes"><span class="notes-label">Speaker note (press N to hide)</span><span id="notesText"></span></div>
+<div class="notes" id="notes"><span class="notes-label">Speaker note (press N to hide)</span><span id="notesText"></span><span class="notes-next" id="notesNext"></span></div>
 
 <script>
-  const slides = document.querySelectorAll('.slide');
+  // data-skip is presenterm's skip_slide: the slide stays in the file and in
+  // DOM order, but out of the run and out of the count. Remove the attribute
+  // to bring it back. Handy for a slide you cut but do not want to lose.
+  const slides = document.querySelectorAll('.slide:not([data-skip])');
   const total = slides.length;
   let current = 0;
   let notesOn = false;
 
-  function showSlide(index) {
+  // ── Roles (see SKILL.md, "Two-browser presenter mode") ──
+  // ?role=notes is the window the presenter looks at: notes always up, plus a
+  // NEXT line. Anything else is the stage window the room sees. The role is a
+  // URL parameter and not a keystroke on purpose — a window must not be able
+  // to change what it *is* mid-talk, and the two windows are in different
+  // browsers, so there is no shared storage to remember it in.
+  const params = new URLSearchParams(location.search);
+  const ROLES = ['stage', 'notes', 'viewer'];
+  const role = ROLES.includes(params.get('role')) ? params.get('role') : 'stage';
+  document.documentElement.classList.add('role-' + role);
+  if (role === 'notes') notesOn = true;
+
+  // ── Viewer gating ──
+  // A viewer is an attendee on their own machine. It is the first role that is
+  // a *permission* rather than a presentation choice: a viewer never publishes
+  // position, and cannot walk past where the presenter has reached.
+  //
+  // maxSlide is a high-water mark and never retreats. If the presenter steps
+  // back to re-explain something, content already shown must not be yanked
+  // away from people still reading it.
+  //
+  // What this is NOT is a secret. Every slide is still in the file the viewer
+  // downloaded — devtools, view-source or ctrl-F will show the ending. This
+  // stops idle skipping ahead (an exercise solution three slides early), and
+  // nothing more. See docs/follow-mode.md for what real gating would cost.
+  let maxSlide = 0, presenterAt = 0, following = true;
+  const gated = () => role === 'viewer' && !!bus;
+
+  function showSlide(index, stepCount = 0) {
     slides.forEach(s => s.classList.remove('active'));
     slides[index].classList.add('active');
+    setSteps(index, stepCount);
     document.getElementById('currentSlide').textContent = String(index + 1).padStart(2, '0');
     document.getElementById('totalSlides').textContent = String(total).padStart(2, '0');
     document.getElementById('progressBar').style.width = ((index + 1) / total * 100) + '%';
     const note = slides[index].getAttribute('data-notes') || '';
     document.getElementById('notesText').textContent = note;
-    document.getElementById('notes').classList.toggle('visible', notesOn && !!note);
+    // The presenter's window keeps the panel up even on a slide with no note,
+    // because the NEXT line lives in it.
+    document.getElementById('notes').classList.toggle('visible', notesOn && (!!note || role === 'notes'));
+    showNext(index);
+  }
+
+  function showNext(index) {
+    const el = document.getElementById('notesNext');
+    if (!el || role !== 'notes') return;
+    const nxt = slides[index + 1];
+    const head = nxt && nxt.querySelector('h1, h2, .lead');
+    el.textContent = !nxt ? 'NEXT — end of deck'
+      : 'NEXT — ' + (head ? head.textContent.trim().replace(/\s+/g, ' ').slice(0, 90)
+                          : 'slide ' + (index + 2));
+  }
+
+  // ── Steps ──
+  // Elements sharing a data-step value reveal together, so the unit of state
+  // is the *group index*, not the element. That is what makes a step position
+  // a number small enough to sync.
+  function stepNums(index) {
+    return [...new Set(Array.from(slides[index].querySelectorAll('[data-step]'))
+      .map(el => el.dataset.step))].sort((a, b) => Number(a) - Number(b));
+  }
+
+  function shownSteps(index) {
+    const nums = stepNums(index);
+    let n = 0;
+    while (n < nums.length &&
+           slides[index].querySelector('[data-step="' + nums[n] + '"]').classList.contains('on')) n++;
+    return n;
+  }
+
+  function setSteps(index, count) {
+    const nums = stepNums(index);
+    slides[index].querySelectorAll('[data-step]')
+      .forEach(el => el.classList.toggle('on', nums.indexOf(el.dataset.step) < count));
   }
 
   function navigate(dir) {
-    current = Math.max(0, Math.min(total - 1, current + dir));
+    const shown = shownSteps(current);
+    // Reveal or retract a step before leaving the slide.
+    if (dir > 0 && shown < stepNums(current).length) { setSteps(current, shown + 1); publish(); return; }
+    if (dir < 0 && shown > 0) { setSteps(current, shown - 1); publish(); return; }
+    const next = Math.max(0, Math.min(total - 1, current + dir));
+    // Forward is gated; back never is — being able to re-read is the reason
+    // this is a lock and not a leash.
+    if (gated() && next > maxSlide) { bumpLock(); return; }
+    if (gated() && next !== current) following = false;   // navigating IS the detach
+    current = next;
     showSlide(current);
+    publish();
+    badge();
   }
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); navigate(1); }
     if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); navigate(-1); }
-    if (e.key === 'Home') { e.preventDefault(); current = 0; showSlide(0); }
-    if (e.key === 'End') { e.preventDefault(); current = total - 1; showSlide(current); }
+    if (e.key === 'Home') { e.preventDefault(); if (gated()) following = false; current = 0; showSlide(0); publish(); badge(); }
+    if (e.key === 'End') {
+      e.preventDefault();
+      const end = gated() ? maxSlide : total - 1;
+      if (gated() && end !== current) following = false;
+      current = end; showSlide(current); publish(); badge();
+    }
+    // Catch back up. Never automatic: snapping someone forward is exactly the
+    // yank they stepped out of the way to avoid.
+    if ((e.key === 'f' || e.key === 'F') && gated()) { e.preventDefault(); refollow(); }
     if (e.key === 'n' || e.key === 'N') { notesOn = !notesOn; showSlide(current); }
   });
 
@@ -541,7 +877,239 @@
     if (Math.abs(diff) > 50) navigate(diff > 0 ? 1 : -1);
   });
 
+  // ── Inline asciicast replay (optional — delete with the .cast-* CSS if unused) ──
+  // Each .cast-btn names a <script type="application/json"> holding an asciicast
+  // v2 file verbatim: a header line, then one [time, "o", "text"] event per line.
+  // Playback is capped at 2s between events so a long pause in the recording
+  // does not become a long pause in the room. Space pauses, Esc closes.
+  document.querySelectorAll('.cast-btn').forEach(btn => btn.addEventListener('click', () => {
+    const slide = btn.closest('.slide');
+    const overlay = slide.querySelector('.cast-overlay');
+    const screen = slide.querySelector('.cast-screen');
+    const events = document.getElementById(btn.dataset.cast).textContent.trim().split('\n').slice(1)
+      .map(l => JSON.parse(l)).filter(e => e[1] === 'o');
+    let lines = [[]], style = {b: 0, d: 0, col: ''}, paused = false, timer = null, i = 0, stopped = false;
+    const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const paint = () => {
+      screen.innerHTML = lines.map(l => l.map(s =>
+        `<span class="${(s.b ? 'b ' : '') + (s.d ? 'd ' : '') + s.col}">${esc(s.t)}</span>`).join('')).join('\n');
+      screen.scrollTop = screen.scrollHeight;
+    };
+    const feed = text => {
+      const re = /\x1b\[([0-9;]*)([A-Za-z])|\r\n|\r|\n|[^\x1b\r\n]+/g;
+      let m;
+      while ((m = re.exec(text))) {
+        const tok = m[0];
+        if (tok === '\n' || tok === '\r\n') lines.push([]);
+        else if (tok === '\r') { /* a progress line: CR, then an erase-line we handle below */ }
+        else if (tok[0] === '\x1b') {
+          if (m[2] === 'K') lines[lines.length - 1] = [];
+          else if (m[2] === 'm') for (const n of (m[1] || '0').split(';')) {
+            if (n === '0') style = {b: 0, d: 0, col: ''};
+            else if (n === '1') style.b = 1;
+            else if (n === '2') style.d = 1;
+            else if (n === '32' || n === '92') style.col = 'g';
+            else if (n === '96') style.col = 'c';
+          }
+        } else lines[lines.length - 1].push({t: tok, ...style});
+      }
+    };
+    const step = () => {
+      if (stopped || paused) return;
+      if (i >= events.length) return;
+      feed(events[i][2]); paint();
+      i += 1;
+      if (i < events.length) timer = setTimeout(step, Math.min(events[i][0], 2) * 1000);
+    };
+    const close = () => {
+      stopped = true; clearTimeout(timer);
+      overlay.classList.remove('on');
+      document.removeEventListener('keydown', keys, true);
+    };
+    // Capture phase, so the deck's own arrow/space bindings do not fire while
+    // the overlay is up.
+    const keys = e => {
+      e.stopPropagation(); e.preventDefault();
+      if (e.key === 'Escape') close();
+      else if (e.key === ' ') { paused = !paused; if (!paused) step(); }
+    };
+    document.addEventListener('keydown', keys, true);
+    overlay.classList.add('on');
+    screen.innerHTML = '';
+    timer = setTimeout(step, 400);
+  }));
+
+  // ── Presenter sync ────────────────────────────────────────────────────
+  // Two browsers, one deck: Arc fullscreen on the projector, Brave with the
+  // notes on the laptop. Entirely opt-in — with no ?sync= parameter none of
+  // this runs and the deck makes no network request at all.
+  //
+  // What crosses the wire is STATE, never keystrokes. Sending keys would mean
+  // "toggle notes" firing in both windows, which is exactly backwards: notes
+  // visibility is a property of the *role*, not of the deck. So the payload is
+  // the position and nothing else, and everything role-shaped — notes, the
+  // cast overlay, fullscreen — stays local by construction.
+  //
+  // Either window may drive; whichever has keyboard focus wins. `seq` is a
+  // Lamport clock, so a message older than what we have already applied is
+  // dropped, and `from` discards our own echo off a broadcasting relay.
+  const clientId = Math.random().toString(36).slice(2);
+  let bus = null, seq = 0, applying = false;
+
+  function publish() {
+    if (!bus || applying || role === 'viewer') return;   // a viewer has no authority
+    bus.send({ from: clientId, seq: ++seq, slide: current, steps: shownSteps(current) });
+  }
+
+  // Supabase broadcast keeps no history, so a window joining mid-talk has
+  // nothing to catch up from. Ask on connect and let the others answer. The
+  // local relay replays last-state server-side, so there this is redundant but
+  // harmless: the clock drops whichever copy arrives second.
+  function hello() { if (bus) bus.send({ from: clientId, hello: true }); }
+
+  function applyRemote(msg) {
+    if (!msg || msg.from === clientId) return;
+    if (msg.hello) { publish(); return; }
+    if (typeof msg.slide !== 'number' || msg.slide < 0 || msg.slide >= total) return;
+    if (msg.seq < seq) return;
+    seq = Math.max(seq, msg.seq || 0);
+    presenterAt = msg.slide;
+    maxSlide = Math.max(maxSlide, msg.slide);   // high-water: never retreats
+    if (gated() && !following) { badge(); return; }   // detached: note it, do not move them
+    applying = true;                       // suppress the echo publish()
+    current = msg.slide;
+    // A viewer gets the slide fully revealed. Step reveals are the presenter's
+    // pacing device — holding a conclusion back until the room has read the
+    // code — and someone reading at their own rate should not have content
+    // hidden from them for another person's timing.
+    showSlide(current, role === 'viewer' ? stepNums(msg.slide).length : (msg.steps || 0));
+    applying = false;
+    badge();
+  }
+
+  function refollow() {
+    following = true;
+    current = presenterAt;
+    showSlide(current, role === 'viewer' ? stepNums(current).length : 0);
+    badge();
+  }
+
+  // ── Viewer chrome ──
+  let lockTimer = null;
+  function bumpLock() {
+    const el = document.getElementById('followBadge');
+    if (!el) return;
+    el.dataset.state = 'locked';
+    el.textContent = 'the presenter has not got here yet';
+    clearTimeout(lockTimer);
+    lockTimer = setTimeout(badge, 1600);
+  }
+
+  function badge() {
+    const el = document.getElementById('followBadge');
+    if (!el) return;
+    if (!gated()) { el.hidden = true; return; }
+    el.hidden = false;
+    if (following) {
+      el.dataset.state = 'following';
+      el.textContent = 'following the presenter';
+    } else {
+      el.dataset.state = 'detached';
+      el.textContent = 'presenter on ' + String(presenterAt + 1).padStart(2, '0') + ' — press F to follow';
+    }
+  }
+
+  // ── Transports ──
+  // A transport is (endpoint, room, onState, onReady) => ({ send }). That is
+  // the whole interface: call onState for each remote update, onReady once the
+  // link is live, and publish a state in send(). Swapping backends means adding
+  // one of these; nothing above changes.
+  const Transports = {};
+
+  // Local relay (default): SSE down, POST up. See sync-relay.mjs — one Node
+  // file, no dependencies, no account, and no wifi. EventSource reconnects on
+  // its own, so a closed lid mid-talk recovers without any code here.
+  Transports.sse = (endpoint, room, onState, onReady) => {
+    const q = '?room=' + encodeURIComponent(room);
+    const src = new EventSource(endpoint + '/events' + q);
+    src.addEventListener('open', () => onReady && onReady());
+    src.addEventListener('message', e => {
+      try { onState(JSON.parse(e.data)); } catch (_) { /* ignore a malformed frame */ }
+    });
+    return {
+      send: state => fetch(endpoint + '/state' + q, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+        keepalive: true,
+      }).catch(() => { /* the relay will resync on the next move */ }),
+    };
+  };
+
+  // Supabase Realtime, spoken as a raw WebSocket rather than through
+  // supabase-js: broadcast needs none of the SDK, and a CDN bundle would cost
+  // the deck the single-file, works-offline property that is the point of it.
+  // The wire protocol is Phoenix channels — join a topic, then push and
+  // receive `broadcast` frames. Broadcast is ephemeral: nothing is written to
+  // the database, which is the right shape for a position that is meaningless
+  // once the talk ends.
+  //
+  //   ?transport=supabase&sync=https://<ref>.supabase.co&key=<publishable-key>
+  Transports.supabase = (endpoint, room, onState, onReady) => {
+    // Scheme follows the endpoint, so a self-hosted Supabase on plain http
+    // works as well as the hosted wss:// one.
+    const insecure = /^(http|ws):\/\//.test(endpoint);
+    const host = endpoint.replace(/^wss?:\/\//, '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    const key = params.get('key') || '';
+    const topic = 'realtime:' + room;
+    let sock, ref = 0, beat = null, backoff = 500;
+
+    const push = (event, payload, onTopic) => {
+      if (!sock || sock.readyState !== 1) return false;
+      sock.send(JSON.stringify({ topic: onTopic || topic, event, payload, ref: String(++ref) }));
+      return true;
+    };
+
+    const open = () => {
+      sock = new WebSocket((insecure ? 'ws://' : 'wss://') + host + '/realtime/v1/websocket?apikey=' +
+                           encodeURIComponent(key) + '&vsn=1.0.0');
+      sock.addEventListener('open', () => {
+        backoff = 500;
+        push('phx_join', { config: { broadcast: { self: false }, presence: { key: '' } } });
+        // Phoenix closes a channel that stops heartbeating.
+        beat = setInterval(() => push('heartbeat', {}, 'phoenix'), 25000);
+        if (onReady) onReady();
+      });
+      sock.addEventListener('message', e => {
+        let m;
+        try { m = JSON.parse(e.data); } catch (_) { return; }
+        if (m.event === 'broadcast' && m.payload && m.payload.payload) onState(m.payload.payload);
+      });
+      sock.addEventListener('close', () => {
+        clearInterval(beat);
+        // Unlike EventSource, a WebSocket does not reconnect itself.
+        backoff = Math.min(backoff * 2, 10000);
+        setTimeout(open, backoff);
+      });
+      sock.addEventListener('error', () => sock.close());
+    };
+    open();
+
+    return { send: state => push('broadcast', { type: 'broadcast', event: 'deck', payload: state }) };
+  };
+
+  const syncUrl = params.get('sync');
+  if (syncUrl) {
+    const kind = params.get('transport') || 'sse';
+    const room = params.get('room') || 'deck';
+    if (Transports[kind]) bus = Transports[kind](syncUrl.replace(/\/+$/, ''), room, applyRemote, hello);
+    else console.warn('html-deck: no such transport:', kind);
+  }
+
+  document.getElementById('followBadge').addEventListener('click', () => { if (gated()) refollow(); });
+
   showSlide(0);
+  badge();
 </script>
 
 </body>
