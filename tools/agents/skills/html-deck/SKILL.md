@@ -100,6 +100,11 @@ rather than waiting for the next keypress.
 moves the counter clear of it, and hides the nav buttons. `?room=NAME` keeps two
 decks on one relay from talking to each other.
 
+This is two windows one person owns, so the protocol is symmetric: either may
+drive. Having *attendees* follow along on their own machines is a different
+problem — it needs roles that are permissions, not presentation. Parked in
+`docs/follow-mode.md`.
+
 ### Choosing a transport
 
 The relay is local on purpose: the deck already carries a recorded terminal demo
@@ -122,18 +127,35 @@ Transports.mine = (endpoint, room, onState) => {
 };
 ```
 
-Then `?transport=mine&sync=<endpoint>`. For **Supabase Realtime**, talk to it
-with a raw `WebSocket` rather than `supabase-js` — the deck's one-file,
-no-CDN-dependency rule is worth keeping, and broadcast needs none of the SDK:
+Then `?transport=mine&sync=<endpoint>`. Two ship in the template:
 
-- connect to `wss://<ref>.supabase.co/realtime/v1/websocket?apikey=<anon>&vsn=1.0.0`
-- send `{topic: 'realtime:<room>', event: 'phx_join', payload: {config: {broadcast: {self: false}}}, ref: '1'}`
-- publish with `event: 'broadcast'`, and heartbeat `phx_heartbeat` on `phoenix` every 30s
-- read incoming frames where `event === 'broadcast'`
+| `?transport=` | When |
+| --- | --- |
+| `sse` (default) | Local relay. Offline, no account. Requires the deck be served from the relay or another `http://localhost` origin. |
+| `supabase` | Supabase Realtime broadcast. Use when presenting from the published (https) URL, or when the two machines aren't the same one. |
 
-The anon key is public by design, but it still ends up in a URL you may paste
-around — scope it to a broadcast-only channel with RLS rather than reusing a key
-that can reach real tables.
+```
+?transport=supabase&sync=https://<ref>.supabase.co&key=<publishable-key>&room=talk
+```
+
+The Supabase adapter talks to Realtime over a **raw `WebSocket`, not
+`supabase-js`** — broadcast needs none of the SDK, and a CDN bundle would cost
+the deck the single-file, works-offline property that is the point of it. It
+speaks Phoenix channels: `phx_join` on `realtime:<room>`, `broadcast` frames
+either way, and a `heartbeat` on the `phoenix` topic every 25s (Phoenix closes
+a channel that stops heartbeating). The scheme follows the endpoint, so a
+self-hosted Supabase on plain `http://` works as well as the hosted one.
+
+Broadcast is **ephemeral** — nothing is written to the database, which is the
+right shape for a position that means nothing once the talk ends. The cost is
+that there's no history for a late joiner, so the deck sends a `hello` on
+connect and whoever is further along answers. (The local relay replays
+last-state server-side, so `hello` is redundant there and harmless — the clock
+drops whichever copy lands second.)
+
+The publishable key sits in the URL. It's public by design, but the URL is a
+thing you paste around, so scope it to a broadcast-only channel rather than
+reusing a key that can reach real tables.
 
 ## Recorded terminal demos (the demo-gods fallback)
 

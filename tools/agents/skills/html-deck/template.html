@@ -897,8 +897,15 @@ let guard = lock()?;</code></pre>
     bus.send({ from: clientId, seq: ++seq, slide: current, steps: shownSteps(current) });
   }
 
+  // Supabase broadcast keeps no history, so a window joining mid-talk has
+  // nothing to catch up from. Ask on connect and let the others answer. The
+  // local relay replays last-state server-side, so there this is redundant but
+  // harmless: the clock drops whichever copy arrives second.
+  function hello() { if (bus) bus.send({ from: clientId, hello: true }); }
+
   function applyRemote(msg) {
     if (!msg || msg.from === clientId) return;
+    if (msg.hello) { publish(); return; }
     if (typeof msg.slide !== 'number' || msg.slide < 0 || msg.slide >= total) return;
     if (msg.seq < seq) return;
     seq = Math.max(seq, msg.seq || 0);
@@ -909,17 +916,19 @@ let guard = lock()?;</code></pre>
   }
 
   // ── Transports ──
-  // A transport is (endpoint, room, onState) => ({ send }). That is the whole
-  // interface: call onState for each remote update, and publish one in send().
-  // Swapping backends means adding one of these; nothing above changes.
+  // A transport is (endpoint, room, onState, onReady) => ({ send }). That is
+  // the whole interface: call onState for each remote update, onReady once the
+  // link is live, and publish a state in send(). Swapping backends means adding
+  // one of these; nothing above changes.
   const Transports = {};
 
   // Local relay (default): SSE down, POST up. See sync-relay.mjs — one Node
   // file, no dependencies, no account, and no wifi. EventSource reconnects on
   // its own, so a closed lid mid-talk recovers without any code here.
-  Transports.sse = (endpoint, room, onState) => {
+  Transports.sse = (endpoint, room, onState, onReady) => {
     const q = '?room=' + encodeURIComponent(room);
     const src = new EventSource(endpoint + '/events' + q);
+    src.addEventListener('open', () => onReady && onReady());
     src.addEventListener('message', e => {
       try { onState(JSON.parse(e.data)); } catch (_) { /* ignore a malformed frame */ }
     });
@@ -933,11 +942,63 @@ let guard = lock()?;</code></pre>
     };
   };
 
+  // Supabase Realtime, spoken as a raw WebSocket rather than through
+  // supabase-js: broadcast needs none of the SDK, and a CDN bundle would cost
+  // the deck the single-file, works-offline property that is the point of it.
+  // The wire protocol is Phoenix channels — join a topic, then push and
+  // receive `broadcast` frames. Broadcast is ephemeral: nothing is written to
+  // the database, which is the right shape for a position that is meaningless
+  // once the talk ends.
+  //
+  //   ?transport=supabase&sync=https://<ref>.supabase.co&key=<publishable-key>
+  Transports.supabase = (endpoint, room, onState, onReady) => {
+    // Scheme follows the endpoint, so a self-hosted Supabase on plain http
+    // works as well as the hosted wss:// one.
+    const insecure = /^(http|ws):\/\//.test(endpoint);
+    const host = endpoint.replace(/^wss?:\/\//, '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    const key = params.get('key') || '';
+    const topic = 'realtime:' + room;
+    let sock, ref = 0, beat = null, backoff = 500;
+
+    const push = (event, payload, onTopic) => {
+      if (!sock || sock.readyState !== 1) return false;
+      sock.send(JSON.stringify({ topic: onTopic || topic, event, payload, ref: String(++ref) }));
+      return true;
+    };
+
+    const open = () => {
+      sock = new WebSocket((insecure ? 'ws://' : 'wss://') + host + '/realtime/v1/websocket?apikey=' +
+                           encodeURIComponent(key) + '&vsn=1.0.0');
+      sock.addEventListener('open', () => {
+        backoff = 500;
+        push('phx_join', { config: { broadcast: { self: false }, presence: { key: '' } } });
+        // Phoenix closes a channel that stops heartbeating.
+        beat = setInterval(() => push('heartbeat', {}, 'phoenix'), 25000);
+        if (onReady) onReady();
+      });
+      sock.addEventListener('message', e => {
+        let m;
+        try { m = JSON.parse(e.data); } catch (_) { return; }
+        if (m.event === 'broadcast' && m.payload && m.payload.payload) onState(m.payload.payload);
+      });
+      sock.addEventListener('close', () => {
+        clearInterval(beat);
+        // Unlike EventSource, a WebSocket does not reconnect itself.
+        backoff = Math.min(backoff * 2, 10000);
+        setTimeout(open, backoff);
+      });
+      sock.addEventListener('error', () => sock.close());
+    };
+    open();
+
+    return { send: state => push('broadcast', { type: 'broadcast', event: 'deck', payload: state }) };
+  };
+
   const syncUrl = params.get('sync');
   if (syncUrl) {
     const kind = params.get('transport') || 'sse';
     const room = params.get('room') || 'deck';
-    if (Transports[kind]) bus = Transports[kind](syncUrl.replace(/\/+$/, ''), room, applyRemote);
+    if (Transports[kind]) bus = Transports[kind](syncUrl.replace(/\/+$/, ''), room, applyRemote, hello);
     else console.warn('html-deck: no such transport:', kind);
   }
 
