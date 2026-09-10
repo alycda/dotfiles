@@ -4,6 +4,11 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ## Dev container
 
+### Dev image
+The container image this repo builds to serve as a complete development environment, with the home-manager closure built in at image-build time rather than installed when a container starts.
+
+Its filesystem is a Nix store rather than a conventional Unix layout: the standard library and system-binary directories are absent, and several configuration files that do sit in the usual place are symlinks pointing into the store. This is load-bearing rather than incidental. External tooling that assumes a conventional layout fails against this image while working normally everywhere else — prebuilt binaries that expect a system dynamic linker, and host-side path resolution that refuses to follow a symlink out of its parent directory, are the two recurring shapes. Such failures characteristically report something other than the layout, so the reported error is rarely the place to start.
+
 ### Baked generation
 The home-manager generation built into the dev image at image-build time. The container entrypoint re-activates it only when the volume's home profile is missing or its active generation differs — so hand-activated generations inside a running container are ephemeral, and the baked generation is what every restart converges back to.
 
