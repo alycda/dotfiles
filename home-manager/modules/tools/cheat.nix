@@ -12,13 +12,20 @@ let
     buildInputs = [ pkgs.makeWrapper ];
     postBuild = ''
       wrapProgram $out/bin/cheat \
-        --set CHEAT_CONFIG_PATH "${cheatConf}"
+        --set-default CHEAT_CONFIG_PATH "${cheatConf}"
     '';
   };
 in
 {
   home.packages = [ cheatWrapped ];
-  
-  # Also set it in session variables for consistency
+
+  # --set-default above, not --set: --set emits an unconditional
+  # `export CHEAT_CONFIG_PATH=...` into the wrapper, which clobbers the
+  # caller's value. That made this sessionVariables line dead code, and made
+  # `CHEAT_CONFIG_PATH=./conf.yml cheat foo` silently read the store config
+  # instead - so previewing an edited sheet needed a full rebuild, or an
+  # unwrapped cheat. With --set-default the store config is the fallback and
+  # an explicit env var wins, which is what both this line and an ad-hoc
+  # override expect.
   home.sessionVariables.CHEAT_CONFIG_PATH = "${cheatConf}";
 }

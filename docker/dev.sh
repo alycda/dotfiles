@@ -7,7 +7,10 @@
 #   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
 #
 # The justfile's docker-* recipes delegate here - this file is the single
-# source of truth for how the container is built and run.
+# source of truth for how the container is built and run, and its usage text
+# is the single source of truth for WHICH command to reach for. That text is
+# reachable from a machine with nothing checked out:
+#   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- help
 
 set -eu
 
@@ -18,13 +21,30 @@ usage() {
   cat <<'USAGE'
 usage: dev.sh <command>
 
-  build [ref]    build the image; docker fetches the repo itself (no clone
-                 needed). ref pins a branch/tag, default: default branch
-  build-local    build from the checkout containing this script
-  run [dir]      start the container, mounting dir (default: current
-                 directory) at /work. devhome + claude-home volumes persist
-                 nix/jj/ssh state and Claude auth across --rm
-  up [ref]       build then run the current directory
+Numbered because the thing that bites is "does this rebuild?". The image
+bakes the whole home-manager/flake closure at BUILD time, so a newer
+claude-code - or any other flake input - only arrives via 1, 2 or 4. On bad
+wifi, 3 is the one you want: no network, no rebuild, straight into a shell.
+
+  1. up [ref]      build from GitHub, then run $PWD          REBUILDS
+  2. build [ref]   build from GitHub, don't run              REBUILDS
+  3. run [dir]     start the image you already built         no rebuild
+  4. build-local   build from the checkout holding this      REBUILDS
+                   script - for hacking on the dotfiles
+  5. help          this text
+
+  [ref] pins a branch/tag/commit, default: the repo's default branch.
+  [dir] is mounted at /work, default: the current directory.
+
+No checkout, no git, no just? Every command is curl-able, same numbers:
+  curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
+  curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- run
+
+6. Inside the container, once per machine: gh auth login --web && claude login
+
+"run" is not "resume": every container is --rm and is gone when you exit.
+What persists is the devhome + claude-home volumes - nix profile, jj, ssh,
+gh and Claude auth - so a fresh container is not a fresh machine.
 
 env overrides: REPO_URL (default: https://github.com/alycda/dotfiles.git)
                IMAGE    (default: dev)

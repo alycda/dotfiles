@@ -79,15 +79,54 @@ _login:
     gh auth login --web
     claude login
 
-# Build the dev container image from this checkout
+# ---------------------------------------------------------------------------
+# Dev container lifecycle. Numbered because the difference that bites is
+# "does this rebuild?" - the image bakes the whole flake closure at BUILD
+# time, so a newer claude-code (or any flake input) only lands via 1, 2 or 4.
+# Step 3 starts a fresh container from whatever image you last built: no
+# network, no rebuild, which is the one you want on slow wifi.
+#
+#   0. no checkout at all (a fresh non-admin account):
+#      curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
+#      ...same script, same subcommands - swap `up` for `run`/`help` as below.
+#   1. just docker-up [ref]      build from GitHub, then run    REBUILDS
+#   2. just docker-build [ref]   build from GitHub, no run      REBUILDS
+#   3. just docker-run [dir]     run the image you have         no rebuild
+#   4. just docker-build-local   build from THIS checkout       REBUILDS
+#   5. just docker-help          the same list, from dev.sh
+#   6. just _login               once per machine, inside the container
+#
+# [ref] pins a branch/tag/commit (e.g. a flake-update PR branch); default is
+# the repo's default branch. Recipe names deliberately match dev.sh's
+# subcommands 1:1 so there is only one vocabulary to remember - note that
+# `docker-build` therefore now builds from GitHub, and building the checkout
+# you are standing in is `docker-build-local`.
+# ---------------------------------------------------------------------------
+
+# 5. Print the dev.sh cheatsheet (the single source of truth for these)
 [group('docker')]
-docker-build:
+docker-help:
+    ./docker/dev.sh help
+
+# 1. Build from GitHub, then run the current directory (REBUILDS)
+[group('docker')]
+docker-up ref="":
+    ./docker/dev.sh up {{ quote(ref) }}
+
+# 2. Build the image from GitHub; docker fetches the repo itself (REBUILDS)
+[group('docker')]
+docker-build ref="":
+    ./docker/dev.sh build {{ quote(ref) }}
+
+# 4. Build the image from this checkout - for hacking on the dotfiles (REBUILDS)
+[group('docker')]
+docker-build-local:
     ./docker/dev.sh build-local
 
-# Run the dev container, mounting the current directory at /work
+# 3. Run the image you already built, mounting dir at /work (no rebuild)
 [group('docker')]
 docker-run dir=invocation_directory():
-    ./docker/dev.sh run {{dir}}
+    ./docker/dev.sh run {{ quote(dir) }}
 
 # Assemble the combined agent instruction capsule (public layers + local overlay)
 [group('agents')]
