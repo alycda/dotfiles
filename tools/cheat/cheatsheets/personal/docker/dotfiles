@@ -1,3 +1,25 @@
+# Am I stale? Compare what's RUNNING against what this IMAGE pinned.
+# Agree = old but faithful, rebuild below. Disagree = image drift, a
+# different bug: docs/solutions/runtime-errors/dev-container-image-drift-*.md
+readlink -f "$(command -v claude)"
+jq -r '.nodes["claude-code-nix"].locked | "\(.rev[0:12])  \(.lastModified|todate)"' /opt/dotfiles/flake.lock
+
+# /opt/dotfiles is the image's OWN baked source - not the checkout at /work,
+# which pins whatever branch you happen to be standing on. Run from anywhere.
+
+# Rebuild or not? The image freezes the whole flake closure at build time, so
+# a newer claude-code only arrives via a command that rebuilds:
+#   up / build / build-local  ->  REBUILDS (needs network)
+#   run                       ->  no rebuild, no network, image you have
+# `run` is not `resume`: containers are --rm; devhome + claude-home persist.
+# Full write-up: docs/solutions/runtime-errors/dev-image-pins-the-flake-at-build-time.md
+
+# jump the weekly cron: build the open lockfile-update PR instead of main
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up automation/flake-update
+
+# the numbered list of every dev.sh command, no checkout required
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- help
+
 # docker resolve the _script_ itself
 curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
 
