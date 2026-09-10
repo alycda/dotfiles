@@ -180,6 +180,31 @@ Run it from whatever directory you want mounted at `/work`. Rebuilding after
 a flake change is the same one-liner again — there's no local checkout to
 keep in sync.
 
+The one distinction worth internalising, because forgetting it costs either a
+stale toolchain or a full rebuild on hotel wifi: **the image bakes the flake
+closure at build time.** `up` and `build` rebuild (new `claude-code`, new
+anything); `run` starts a fresh container from the image you already have —
+no network, but frozen at whatever that build pinned. Swap the subcommand at
+the end of the same one-liner:
+
+| Want | Subcommand | Rebuilds? |
+|---|---|---|
+| Latest everything, then a shell | `up [ref]` | yes |
+| Latest everything, no shell yet | `build [ref]` | yes |
+| A shell, now, offline | `run [dir]` | no |
+| A shell from *this* checkout's edits | `build-local` | yes |
+
+`[ref]` pins a branch/tag/commit — `up automation/flake-update` builds the
+open lockfile-update PR rather than `main`. The numbered version of this
+table is the script's own help, which needs nothing checked out:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- help
+```
+
+With a checkout, `just docker-help` prints the same thing, and the
+`just docker-{up,build,run,build-local}` recipes mirror the subcommands 1:1.
+
 `docker/dev.sh` is the single source of truth for the build and run commands:
 the volume set, the working directory and the network mode all live there, and
 the `just docker-*` recipes delegate to it. This README deliberately points at
