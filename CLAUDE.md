@@ -335,6 +335,21 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   (e.g. compound-engineering) belongs in
   `tools/agents/plugins/catalog.json`, not here — a plugin already carries
   its skills, so installing them via nix-skills too would duplicate them
+- **Tailor by layering, not by forking.** When an indexed skill has the
+  right rule set but generic triggers, pin it here and write a thin repo
+  skill that delegates to it and carries only what is specific to this
+  workflow: which surfaces get which mode, what the local glossary is,
+  which sibling skills hand off to it. `tools/agents/skills/ste100` on top
+  of `asd-ste100` is the worked example — no rule text of its own, and it
+  reads `CONCEPTS.md` as the project's technical-name dictionary, which is
+  how a controlled-language skill gets a word list without redistributing
+  ASD's. Re-authoring the rules locally would have meant maintaining a
+  3,500-word fork for a 150-line difference.
+- **Pins lag the linter, not just the prose.** An indexed rev can predate a
+  file the skill's own SKILL.md references (asd-ste100's `scripts/ste-lint.py`
+  was added after the 2026-08-30 index). Say so in the pin's comment and give
+  the dependent skill a fallback, rather than assuming the install matches
+  upstream HEAD
 
 ### When nixpkgs lags: prefer the vendor's own Nix repo over NUR
 
@@ -703,7 +718,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+*Last updated: 2026-09-14 - Recorded the layer-not-fork pattern for tailoring an indexed skill (`ste100` over the pinned `asd-ste100`, with `CONCEPTS.md` as its dictionary) and the reminder that a nix-skills pin can predate a file the skill's own text references*
+
+*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 

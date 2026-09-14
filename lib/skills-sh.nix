@@ -59,6 +59,25 @@ nix-skills: final: _: {
         name = "here-now";
       };
 
+      # https://www.skills.sh/danyuchn/asd-ste100-skill
+      # ASD-STE100 (Simplified Technical English) rule engine: the 53-rule
+      # summary, the strict / STE-flavored mode split, worked examples, and (on
+      # upstream master) a stdlib-only linter, scripts/ste-lint.py. The repo's
+      # own `ste100` skill (tools/agents/skills/ste100) carries no rule text and
+      # delegates to this one; it maps the rules onto this repo's surfaces.
+      #
+      # Pin lag, worth knowing at install time: the rev nix-skills indexed on
+      # 2026-08-30 predates the linter. Until the index re-resolves the repo
+      # (`nix flake update nix-skills` once it has), scripts/ste-lint.py is
+      # absent from the installed skill and `ste100` falls back to linting from
+      # the rule table. Path "." means the repo root is the skill.
+      asd-ste100 = mkSkill {
+        owner = "danyuchn";
+        repo = "asd-ste100-skill";
+        path = ".";
+        name = "asd-ste100";
+      };
+
       # https://www.skills.sh/supabase/agent-skills/supabase-postgres-best-practices
       # Postgres performance/schema/RLS guidance across 8 priority categories.
       supabase-postgres-best-practices = mkSkill {

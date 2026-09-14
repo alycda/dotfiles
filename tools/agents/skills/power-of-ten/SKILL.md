@@ -1,0 +1,173 @@
+---
+name: power-of-ten
+description: >
+  Apply NASA/JPL's Power of Ten rules while writing systems code, not only
+  when reviewing it: Rust crates that expose an `extern "C"` surface, FFI
+  shims, callbacks crossing a language boundary, `unsafe` blocks, and the
+  Dart/JS code that calls them. Trigger on "power of ten", "power of 10",
+  "holzmann", "safety-critical", "bounded", "assertion density", or when
+  Alyssa is about to write or edit an `extern "C"` function, an `unsafe`
+  block, a callback registered with foreign code, or a loop over
+  foreign-owned memory. Carries no rule text: it reads the rubric the
+  code-critic agent judges against and adds the Rust/FFI mapping of each
+  rule, so the same ten rules guide the writing and the review.
+---
+
+# Power of Ten
+
+Gerard Holzmann's ten rules (NASA/JPL, 2006) were written for C on
+spacecraft. Alyssa's daily work is a Rust core behind `extern "C"` shims,
+called from Dart, JS/wasm, Swift, and C. The rules map cleanly, but the
+mapping is not in the rubric, and `code-critic` re-derives it on every
+review. This skill writes it down once, for use before the code exists.
+
+## The rules live in the rubric
+
+Read `~/.agents/rubrics/power-of-ten.md` before you apply this skill. It is
+the ten rules verbatim. `code-critic` is built from the same file, so what
+this skill guides and what the critic judges cannot drift.
+
+If that file does not exist, say so and stop. Do not reconstruct the rules
+from memory. `agents.nix` deploys `tools/agents/rubrics/` to that path.
+
+## Rule by rule, in Rust at an FFI boundary
+
+Each entry names the rule, the Rust form, and the check that proves it.
+
+1. **Simple control flow, no recursion.** No recursion in any function
+   reachable from an `extern "C"` entry point or a foreign-invoked callback;
+   walk trees with an explicit stack and a bound. No panic may reach an
+   `extern "C"` frame: on Rust 1.81 and later that aborts the process, and
+   before it was undefined behavior. Wrap the body in
+   `std::panic::catch_unwind` and convert to an error code. `extern
+   "C-unwind"` is a deliberate choice with a comment, never a default.
+   Check: `grep -n 'extern "C"' | grep -v catch_unwind` on the shim module
+   lists every unguarded entry point.
+
+2. **Every loop has a fixed upper bound.** Iterate over a slice or a
+   `take(n)`. A `loop {}` carries a counted retry bound, not a condition.
+   Never scan foreign memory for a sentinel: a C string from the caller
+   arrives with a length parameter, or is bounded with `CStr::from_bytes_until_nul`
+   over a slice of known length, never `CStr::from_ptr` on untrusted input.
+   Check: every `while` and `loop` in the shim has a bound named in the
+   same function.
+
+3. **No dynamic allocation after initialization.** The literal rule does
+   not fit Rust. Its purpose does: predictable memory ownership. At the
+   boundary that means the same side allocates and frees. Prefer
+   caller-provided buffers (`*mut u8`, `len`) to returning allocated memory.
+   Every `<thing>_new` that hands ownership to foreign code has a
+   `<thing>_free` beside it, and no other path frees that memory. No
+   allocation inside a callback invoked from a foreign thread unless the
+   contract says the callback may allocate.
+   Check: `_new` and `_free` pairs match one-to-one in the header.
+
+4. **Functions fit on one page, about 60 lines.** Applies as written. An
+   `extern "C"` shim does validation, conversion, one call into safe Rust,
+   and conversion back. Logic belongs in the safe function it calls.
+   Check: `clippy::too_many_lines` at its default of 100 catches the worst;
+   set it to 60 for the shim crate.
+
+5. **Two assertions per function, with recovery.** The rule requires an
+   explicit recovery action, so at the boundary an assertion is a runtime
+   check that returns an error code, not a panic: null pointer, zero or
+   oversized length, misaligned pointer, invalid enum discriminant, handle
+   already closed. Inside safe Rust, `debug_assert!` states invariants.
+   Never `unwrap` or `expect` on anything that came from the caller.
+   Check: each `extern "C"` function has at least one check per pointer
+   parameter and one per length parameter, before the first dereference.
+
+6. **Smallest scope for every data object.** No `static mut`. Shared state
+   goes behind `OnceLock`, `Mutex`, or a handle the caller owns. Declare at
+   first use. A `thread_local!` is a scope decision and needs a comment
+   saying which thread owns it and why.
+   Check: `grep -rn 'static mut'` is empty.
+
+7. **Check every return value; validate every parameter.** Every function
+   returning `Result` or a status code is `#[must_use]`. Enable
+   `unused_results` and `clippy::let_underscore_must_use` in the shim
+   crate, so a dropped error is a compile error, not a code review find.
+   Parameter validation is rule 5's checks; nullable pointers are
+   `Option<&T>` or `Option<extern "C" fn(...)>`, which are FFI-safe and force
+   the check at the type level.
+   Check: no `let _ =` on a `Result` in the shim.
+
+8. **Preprocessor use limited.** Rust's equivalents are `macro_rules!`,
+   proc macros, `cfg`, and `build.rs`. A macro expands to complete items
+   and exists to remove boilerplate that would otherwise be copied per
+   type; it never hides control flow or a dereference. Keep `cfg` to
+   platform selection at module boundaries, not scattered through function
+   bodies. Generated bindings (bindgen, cbindgen, ffigen) live in one
+   module that is never hand-edited.
+   Check: no `cfg` inside a function body in the shim crate.
+
+9. **Pointers restricted: one dereference, no function pointers.** Raw
+   pointers exist only inside the `extern "C"` function that received them.
+   Convert to a reference or a slice immediately after the rule 5 checks,
+   and pass only safe types inward. One level of dereference: a `**T`
+   out-parameter is allowed for the handle-out pattern only, and nowhere
+   else. Function pointers are unavoidable for callbacks, so the rule's
+   spirit applies: every callback has a typed `extern "C" fn` signature,
+   is nullable only as `Option<extern "C" fn>`, is never produced by
+   `transmute`, and carries a `*mut c_void` user-data pointer whose owner
+   and lifetime are named in the `# Safety` section.
+   Check: `slice::from_raw_parts` and `&*ptr` appear only in the shim
+   module, never in the crate it calls.
+
+10. **All warnings on, pedantic, and static analysis daily.** In source:
+    `#![warn(clippy::pedantic)]` on the shim crate,
+    `#![deny(unsafe_op_in_unsafe_fn)]`, and `#![warn(missing_docs)]` so
+    every `extern "C"` function gets a `# Safety` section. In CI only,
+    never in source: `RUSTFLAGS=-Dwarnings`, `cargo clippy -- -D warnings`,
+    and `cargo miri test` over the crate's `unsafe` code. Local: `bacon`
+    with clippy as the default job, per preferred-tooling.
+    Check: the CI job exists and is red on a warning.
+
+## The other side of the boundary
+
+The rules bind the foreign side too, and the shim cannot enforce them
+there. When writing the Dart, JS, Swift, or C caller:
+
+- Rule 3: the caller frees what the shim says it owns, with the `_free`
+  the shim provides, and nothing else. A finalizer is a backstop for a
+  leak, never the primary release path.
+- Rule 7: every status code the shim returns is checked at the call site.
+- Rule 9: the user-data pointer handed to a callback stays alive for
+  exactly the lifetime the `# Safety` section names.
+
+State the mapping for that language in one line when you write the
+caller; this skill does not carry it.
+
+## Handoffs
+
+- **code-critic** judges finished code against this rubric, TigerStyle,
+  and Test Desiderata. Use this skill before, the critic after. Do not ask
+  the critic to write.
+- **ste100** owns the prose in `# Safety` sections and error strings, in
+  strict mode. This skill says what the section must state; ste100 says
+  how to state it so it has one reading.
+- **TigerStyle** (`~/.agents/rubrics/tiger-style.md`) covers design goals
+  and assertion style beyond these ten rules. Read it when the question is
+  architecture rather than a function.
+
+## Process
+
+1. Name the boundary: which language calls in, on which thread, and who
+   owns each pointer that crosses. If any of those is unknown, ask before
+   writing.
+2. Read the rubric.
+3. Write the `# Safety` section first. It states the rule 3, 5, and 9
+   contracts. Code that cannot satisfy its own section is wrong, not the
+   section.
+4. Write the shim: checks (rule 5), conversion (rule 9), one call into safe
+   Rust (rule 4), conversion back, error code out (rule 7). Catch panics
+   (rule 1).
+5. Run the checks listed under each rule that the change touches. Report
+   which rules the change could not satisfy and why; a bound that does not
+   exist in the protocol is a finding for Alyssa, not a rule to skip
+   silently.
+
+## Output
+
+The code, then one line per rule the change bends or cannot meet, in the
+form `Rule N: <what> <why>`. Nothing when every rule holds.
