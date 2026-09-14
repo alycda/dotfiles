@@ -125,6 +125,18 @@ in
     # ~/.claude/rules (claude-code.nix), crush loads it via context_paths
     # (crush.nix).
     ".agents/rules/outbound-comment-gate.md".source = ../../../tools/agents/rules/outbound-comment-gate.md;
+    # The judging rubrics, deployed as files as well as being concatenated
+    # into the critic agents below. A rubric that exists only inside a critic
+    # is review-only: nothing can load it while writing. Deploying the
+    # directory gives a skill a stable path to read one on demand
+    # (tools/agents/skills/power-of-ten reads power-of-ten.md from here), so
+    # the critic and the skill share one canonical copy instead of drifting.
+    # recursive: one symlink per file, so the directory stays open to
+    # additions from elsewhere.
+    ".agents/rubrics" = {
+      source = ../../../tools/agents/rubrics;
+      recursive = true;
+    };
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.

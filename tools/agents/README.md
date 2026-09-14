@@ -75,6 +75,10 @@ re-derive the one-liners rather than letting the two drift.
   `code-critic` (TigerStyle, NASA Power of Ten, Test Desiderata from
   `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
   principles/techniques/products, judging process rather than code),
+- deploys `tools/agents/rubrics/` to `~/.agents/rubrics/` as plain files too,
+  so a skill can read a rubric while *writing* rather than only a critic
+  judging afterward (`skills/power-of-ten` reads `power-of-ten.md` from
+  there; the critic and the skill share the one copy),
 - symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
   natively.
 
