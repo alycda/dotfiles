@@ -88,6 +88,7 @@ let
   ];
 
   externalSkills = {
+    asd-ste100 = pkgs.skills-sh.asd-ste100;
     here-now = pkgs.skills-sh.here-now;
     supabase-postgres-best-practices = pkgs.skills-sh.supabase-postgres-best-practices;
   };
