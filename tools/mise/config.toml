@@ -10,6 +10,9 @@
 #   ln -s ~/dotfiles/tools/helix ~/.config/helix   # same config Nix reads
 #   git config --global include.path ~/dotfiles/tools/git/config
 #   mise install
+#   mise run gh-login         # makes an SSH key first if there is none
+#   mise run macos-defaults
+#   mise run dock
 #
 # Link the directory, not just this file: `mise use -g <tool>` edits the file in
 # place through the link, so new tools show up here as a diff to commit.
@@ -26,6 +29,71 @@ gh = "latest"     # log in once: mise run gh-login
 # Tasks are one-time setup steps you run by hand (`mise run <task>`), written
 # so that running one again does nothing. Never make them run automatically,
 # e.g. from a hook: a login prompt with no terminal attached just hangs.
+[tasks.ssh-key]
+description = "Create an SSH key for GitHub, unless one exists"
+# gh-login uses SSH, so this runs first. The key gets the default name
+# (id_ed25519). The Host block below makes ssh store the passphrase in the
+# macOS keychain on first use and reload the key after a reboot. Without it,
+# GitHub only works while some other key (e.g. tangled.org's) is in the agent.
+run = '''
+if [ -f ~/.ssh/id_ed25519 ]; then
+  echo "ssh: ~/.ssh/id_ed25519 already exists"
+else
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  ssh-keygen -t ed25519 -C "$(whoami)@$(hostname -s)" -f ~/.ssh/id_ed25519
+fi
+if ! grep -qx 'Host github.com' ~/.ssh/config 2>/dev/null; then
+  printf '\nHost github.com\n    AddKeysToAgent yes\n    UseKeychain yes\n    IdentityFile ~/.ssh/id_ed25519\n' >> ~/.ssh/config
+  echo "ssh: added a github.com block to ~/.ssh/config"
+fi
+'''
+
 [tasks.gh-login]
-description = "Log gh in, unless it already is"
-run = "gh auth status >/dev/null 2>&1 && echo 'gh: already logged in' || gh auth login"
+description = "Log gh in over SSH, unless it already is"
+depends = ["ssh-key"]
+# Logging in with --git-protocol ssh offers to upload ~/.ssh/id_ed25519.pub.
+# If gh was already logged in, upload the key directly unless GitHub has it.
+run = '''
+if ! gh auth status >/dev/null 2>&1; then
+  gh auth login --git-protocol ssh
+elif gh ssh-key list 2>/dev/null | grep -qF "$(cut -d' ' -f2 ~/.ssh/id_ed25519.pub)"; then
+  echo "gh: logged in, and GitHub has ~/.ssh/id_ed25519.pub"
+else
+  gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(whoami)@$(hostname -s)"
+fi
+'''
+
+[tasks.macos-defaults]
+description = "Apply macOS user settings (no admin needed)"
+# Scrolling: turn off "natural" (reversed) scrolling. Takes full effect after
+# logging out and back in.
+run = "defaults write -g com.apple.swipescrolldirection -bool false"
+
+[tasks.dock]
+description = "Reset the Dock's apps to this list"
+# Replaces the Dock's app list, so drag-and-drop changes are lost: edit the list
+# here instead. The Downloads stack (persistent-others) is left alone. Every
+# app must exist, or its tile shows as "?"; the /Applications ones are casks in
+# darwin/modules/homebrew.nix, installed by the admin account.
+run = '''
+defaults write com.apple.dock persistent-apps -array
+for app in \
+  /Applications/Claude.app \
+  /Applications/WorkFlowy.app \
+  "/Applications/Brave Browser.app" \
+  /Applications/cmux.app \
+  "/Applications/Visual Studio Code.app" \
+  /System/Applications/Launchpad.app \
+  /System/Applications/Mail.app \
+  /System/Applications/Reminders.app \
+  /System/Applications/Notes.app \
+  /System/Applications/Freeform.app \
+  /Applications/Arc.app \
+  ~/Applications/VisualJJ.app
+do
+  [ -d "$app" ] || echo "dock: missing $app"
+  defaults write com.apple.dock persistent-apps -array-add \
+    "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>$app</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
+done
+killall Dock
+'''
