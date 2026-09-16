@@ -3,6 +3,12 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/tools/mise/bootstrap.sh | sh
 #
+# To try a branch before it merges, clone that branch too: the URL only picks
+# which copy of this script runs, and the clone otherwise gets the default
+# branch, which may not have tools/mise yet.
+#
+#   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/BRANCH/tools/mise/bootstrap.sh | REF=BRANCH sh
+#
 # POSIX sh because it runs before anything from this repo is installed. Safe
 # to run again: every step checks before it changes anything.
 #
@@ -18,6 +24,7 @@ set -eu
 
 DOTFILES="${DOTFILES:-$HOME/dotfiles}"
 REPO_URL="${REPO_URL:-https://github.com/alycda/dotfiles.git}"
+REF="${REF:-}"
 MISE="${MISE_INSTALL_PATH:-$HOME/.local/bin/mise}"
 ZSHRC="${ZDOTDIR:-$HOME}/.zshrc"
 
@@ -49,7 +56,19 @@ else
     say "git needs the Command Line Tools; ask an admin to run: xcode-select --install"
     exit 1
   fi
-  git clone "$REPO_URL" "$DOTFILES" </dev/null
+  if [ -n "$REF" ]; then
+    git clone --branch "$REF" "$REPO_URL" "$DOTFILES" </dev/null
+  else
+    git clone "$REPO_URL" "$DOTFILES" </dev/null
+  fi
+fi
+
+# Everything below links into the checkout. If it has no tools/mise (the
+# default branch before this merged, or an old checkout), the links would
+# dangle and `mise install` would quietly install nothing.
+if [ ! -f "$DOTFILES/tools/mise/config.toml" ]; then
+  say "$DOTFILES has no tools/mise/config.toml; check out a branch that has it (git -C $DOTFILES checkout <branch>), or clone one with REF=<branch>"
+  exit 1
 fi
 
 # 2. mise, and its activate line in .zshrc. mise.run/zsh does both, but it only
