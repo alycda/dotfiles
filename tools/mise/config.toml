@@ -74,7 +74,8 @@ description = "Reset the Dock's apps to this list"
 # Replaces the Dock's app list, so drag-and-drop changes are lost: edit the list
 # here instead. The Downloads stack (persistent-others) is left alone. Every
 # app must exist, or its tile shows as "?"; the /Applications ones are casks in
-# darwin/modules/homebrew.nix, installed by the admin account.
+# darwin/modules/homebrew-personal.nix (this machine is shesfast), installed
+# by the admin account.
 run = '''
 defaults write com.apple.dock persistent-apps -array
 for app in \
