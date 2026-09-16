@@ -8,6 +8,7 @@
 #   echo 'eval "$(~/.local/bin/mise activate zsh)"' >> ~/.zshrc
 #   ln -s ~/dotfiles/tools/mise ~/.config/mise
 #   ln -s ~/dotfiles/tools/helix ~/.config/helix   # same config Nix reads
+#   git config --global include.path ~/dotfiles/tools/git/config
 #   mise install
 #
 # Link the directory, not just this file: `mise use -g <tool>` edits the file in
