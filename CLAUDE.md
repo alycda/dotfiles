@@ -141,7 +141,9 @@ dotfiles/
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
-│   └── helix/              # Helix config
+│   ├── helix/              # Helix config
+│   └── mise/               # Global mise config for the no-Nix, non-admin account
+│                           #   (linked by hand to ~/.config/mise, not by a module)
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
@@ -459,6 +461,14 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   because nixpkgs lagged the VSCode extension by a full minor version. The failure
   mode is nasty: a skewed CLI surfaced only as an opaque **"Interrupted"** with no
   version message. If the extension misbehaves, suspect the pin first. (PR #26.)
+- **An account with no Nix gets its tools from mise.** A non-admin macOS account
+  can't run `darwin-rebuild` and doesn't use home-manager, so `tools/mise/config.toml`
+  lists its handful of tools. Link the *directory* (`ln -s ~/dotfiles/tools/mise
+  ~/.config/mise`) and `mise use -g` edits the tracked file in place with comments
+  kept, so a new tool shows up as a diff. Keep the list short and prefer aqua
+  (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
+  compiles from source. This does not replace `lib/core-packages.nix`; the
+  containers still get their tools from Nix.
 
 ## Migration Workflow
 
@@ -703,7 +713,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+*Last updated: 2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
+
+*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 

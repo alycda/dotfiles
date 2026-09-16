@@ -1,0 +1,29 @@
+# Global mise config for the macOS account that has no Nix and no admin rights.
+# Every other account gets its tools from home-manager; this one can't run a
+# switch, so mise installs prebuilt binaries into ~/.local/share/mise instead.
+#
+# Nothing wires this in automatically. Link the whole directory by hand, once:
+#
+#   curl -fsSL https://mise.run | sh
+#   echo 'eval "$(~/.local/bin/mise activate zsh)"' >> ~/.zshrc
+#   ln -s ~/dotfiles/tools/mise ~/.config/mise
+#   mise install
+#
+# Link the directory, not just this file: `mise use -g <tool>` edits the file in
+# place through the link, so new tools show up here as a diff to commit.
+#
+# Keep this list short. A tool belongs here only if this account really uses
+# it. Anything the containers also need goes in lib/core-packages.nix.
+
+[tools]
+claude = "latest" # aqua:anthropics/claude-code
+helix = "latest"  # aqua:helix-editor/helix
+jj = "latest"     # aqua:jj-vcs/jj (prebuilt; the cargo:jj-cli fallback compiles)
+gh = "latest"     # log in once: mise run gh-login
+
+# Tasks are one-time setup steps you run by hand (`mise run <task>`), written
+# so that running one again does nothing. Never make them run automatically,
+# e.g. from a hook: a login prompt with no terminal attached just hangs.
+[tasks.gh-login]
+description = "Log gh in, unless it already is"
+run = "gh auth status >/dev/null 2>&1 && echo 'gh: already logged in' || gh auth login"
