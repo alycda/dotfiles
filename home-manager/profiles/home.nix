@@ -4,6 +4,10 @@
 {
   imports = [
     ../modules/ide/vscode.nix
+    # Deliberately here rather than common.nix: it builds from Go source,
+    # and the devcontainer image would freeze the whole toolchain into a
+    # layer for a CLI it has no key for. See the module's header comment.
+    ../modules/tools/workflowy.nix
   ];
 
   # Live-edit agent skills from the local checkout (module imported via
@@ -14,6 +18,13 @@
 
   # HackMD: the personal account, matching this machine's identity.
   hackmd.account = "personal";
+
+  # Workflowy: the CLI reads ~/.workflowy/api.key, and the module symlinks that
+  # path at whatever this points to, out of the store. Personal key, personal
+  # machine - work.nix imports the same module for the binary but sets no key,
+  # so it stays on the backup fallback until it is given one.
+  age.secrets.workflowy-api-key.file = ../../secrets/personal/workflowy-api-key.age;
+  workflowy.apiKeyFile = config.age.secrets.workflowy-api-key.path;
 
   home = {
     username = "alyssa";
