@@ -58,7 +58,19 @@ You don't need all three. This repo leverages Home Manager with flakes in a [dev
 
 Step 0 is always the same: stage the age personal key from an existing
 machine, or you get a working-but-anonymous environment (activation warns;
-no decrypted git identity, no private overlay). Then follow the tree:
+no decrypted git identity, no private overlay). Then let `install.sh` work
+out which path fits. With no flags it only reports and recommends, changing
+nothing:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/install.sh | sh -s -- --nix   # or --mise
+```
+
+`--nix` installs Nix if you're an admin, then runs `darwin-rebuild switch`
+(macOS admin, profile defaults to the Mac's hostname) or `home-manager switch`
+(everyone else, `--profile` required). `--mise` is for accounts that can't use
+Nix: it clones and runs `tools/mise/bootstrap.sh`. The tree it follows:
 
 ```mermaid
 flowchart TD
@@ -66,11 +78,11 @@ flowchart TD
     K0 --> Q1{admin rights?}
 
     Q1 -- "yes — fresh machine" --> Q2{nix installed?}
-    Q2 -- no --> N1["install Nix, multi-user<br/>(issue #29 one-liner)"]
+    Q2 -- no --> N1["install Nix, multi-user<br/>(install.sh --nix does this)"]
     N1 --> Q3{OS?}
     Q2 -- yes --> Q3
     Q3 -- macOS --> W1["⚠ ditto only: gh auth BEFORE the switch —<br/>brew bundle clones a private tap over https<br/>mid-activation"]
-    W1 --> D1["darwin-rebuild switch --flake .#ditto"]
+    W1 --> D1["darwin-rebuild switch --flake .#HOSTNAME<br/>(ditto or shesfast)"]
     Q3 -- Linux --> D2["home-manager switch --flake .#alyssa@work-dev"]
 
     Q1 -- "no — new user on a set-up machine" --> Q4{"docker app installed globally?<br/>(OrbStack / Docker Desktop, admin's brew)"}
@@ -81,13 +93,15 @@ flowchart TD
     Q5 -- yes --> Q6{"in nix-users group?<br/>(daemon socket is group-locked)"}
     Q6 -- no --> A1["admin, once:<br/>sudo dseditgroup -o edit -a USER -t user nix-users"]
     A1 --> Q6
+    Q6 -- "no, and no admin handy" --> M1["install.sh --mise<br/>(mise tools + shared config, no Nix)"]
     Q6 -- yes --> H1["home-manager switch --flake .#code<br/>⚠ blocked today: profile hardcodes user 'code'"]
-    Q5 -- no --> A2[ask admin: install OrbStack or Nix]
+    Q5 -- no --> M1
 
     D1 --> S1["STEP 1 — always: just _login<br/>(gh auth login --web + claude login)<br/>per-device OAuth, by design — see note below"]
     D2 --> S1
     C2 --> S1
     H1 --> S1
+    M1 --> S2["mise run gh-login<br/>(SSH key + gh login)"]
 ```
 
 **Step 1 is always `just _login`** (gh + Claude, one recipe): each machine
@@ -135,8 +149,8 @@ Verified end-to-end on a clean tart VM (macOS Tahoe base image), 2026-07-01.
     - `nix build .#darwinConfigurations.ditto.system`
     - `sudo ./result/sw/bin/darwin-rebuild switch --flake .#ditto`
 1. Rebuild after changes
-    - `just _rebuild ditto` (the only `darwinConfiguration` is `ditto`;
-      `alyssa@*` names are Linux/devcontainer `homeConfigurations`)
+    - `just _rebuild ditto` (the `darwinConfigurations` are `ditto` and
+      `shesfast`; `alyssa@*` and `code` are standalone `homeConfigurations`)
 
 > Gotchas seen on a fresh machine: the user the flake hardcodes
 > (`alyssaevans`) must exist before switching; the Homebrew prefix must be
