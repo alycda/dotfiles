@@ -14,6 +14,11 @@ result-*
 # would otherwise bust the closure layer.
 **/node_modules
 
+# Cargo build output for the in-tree language server (tools/presenterm-lsp).
+# lib/presenterm-lsp.nix selects its source with lib.fileset, so target/ never
+# reaches the store either way - this just keeps it out of `git status`.
+**/target/
+
 
 
 # General

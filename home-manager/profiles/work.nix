@@ -5,6 +5,9 @@
   imports = [
     ../modules/ide/vscode.nix
     ../modules/dev/rust.nix
+    # presenterm + its language server; see the note in home.nix for why this
+    # is a profile import and not a common.nix one.
+    ../modules/tools/presenterm.nix
   ];
 
   # Live-edit agent skills from the local checkout (module imported via

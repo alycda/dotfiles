@@ -135,13 +135,17 @@ dotfiles/
 ├── lib/
 │   ├── charm-nur.nix       # scoped overlay for charmbracelet/nur (crush)
 │   ├── core-packages.nix   # Packages shared by devShells + home-manager
+│   ├── presenterm-lsp.nix  # buildRustPackage for the in-tree deck language server
 │   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
-│   └── helix/              # Helix config
+│   ├── helix/              # Helix config
+│   └── presenterm-lsp/     # Rust language server + checker for presenterm decks,
+│                           #   mirroring a pinned presenterm version's comment
+│                           #   grammar; editors/vscode/ is its VS Code client
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
@@ -431,6 +435,19 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   `buildRustPackage` from source, and **never commit a `lib.fakeHash` placeholder**
   — the derivation can't build. PR #19 tried to package `envelope` from source with
   fakeHash and was abandoned; it now installs via a Homebrew cask.
+  **But that warning is about *external* source trees, not in-tree ones.** The
+  hash problem is the vendored-dependency FOD: `cargoHash` can only be obtained
+  by building and copying it out of the mismatch error, which is unobtainable
+  without Nix and is a second thing to keep in sync forever. A crate that lives
+  in this repo has its `Cargo.lock` in-tree, so `cargoLock.lockFile` fetches each
+  dependency by the checksum already recorded there and there is no hash at all —
+  exactly the `importNpmLock` argument one section up, and why
+  `lib/presenterm-lsp.nix` is a `buildRustPackage` without contradicting #19.
+  Two things that only bite in-tree: select `src` with `lib.fileset` (a bare
+  directory drags `target/` into the store and invalidates the path on every
+  local `cargo build`), and remember `tests/` must be *in* that fileset — cargo
+  does not fail on a missing `tests/` directory, it runs nothing, so `checkPhase`
+  goes green having verified only the unit tests.
 - **Installer-script tools under home-manager activation** (the lazydiff pattern,
   see `home-manager/profiles/work.nix`). Five things bite, all non-obvious:
   1. Run the installer in `lib.hm.dag.entryAfter [ "writeBoundary" ]`, guarded so it
@@ -497,12 +514,25 @@ When migrating changes from experimental branches:
    `lib/core-packages.nix`, and `work.nix` all feed the headless devcontainers,
    so gate a desktop-only tool (`lib.optional
    stdenv.hostPlatform.isDarwin`) rather than shipping it into a container.
-4. **Shell integration is a separate step from installing the binary.** If the
+4. **A store path in a `common.nix`-reachable module drags its build into the
+   container.** `lib.getExe pkg` inside `modules/tools/helix.nix` or `crush.nix`
+   is a real dependency edge, so a from-source build lands in the headless
+   devcontainer image for an editor integration nobody uses there — the same
+   closure argument as the GUI rule, but much easier to miss because one
+   innocuous-looking interpolation causes it. For a tool that is always launched
+   from a shell (helix, crush), name the binary bare and let PATH resolve it;
+   when it's absent both log one line and carry on. Spend the store path where
+   PATH is genuinely unreliable: **VS Code launched from Finder or the Dock
+   inherits launchd's PATH, not a login shell's**, so `~/.nix-profile/bin` is
+   routinely invisible to it — that's the classic "works in my terminal" report,
+   and why `tools/presenterm-lsp/editors/vscode/extension.js` has an absolute
+   store path substituted in at build time.
+5. **Shell integration is a separate step from installing the binary.** If the
    tool needs a shell hook (direnv's eval, a directory-changing command like
    worktrunk's `wt switch`), add it to `interactiveShellInit` / `initExtra` and
    guard it so it only loads when the binary is on PATH. (PRs #23, #24.)
-5. Document any conflicts or special considerations
-6. Commit with clear reasoning
+6. Document any conflicts or special considerations
+7. Commit with clear reasoning
 
 ### Creating a New Machine Profile
 
@@ -703,7 +733,16 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+*Last updated: 2026-09-16 - Recorded that PR #19's `buildRustPackage` warning is
+about external source trees only (an in-tree `Cargo.lock` means
+`cargoLock.lockFile` and no hash at all), plus the two in-tree-only traps
+(`lib.fileset` for `src`, `tests/` must be in it or `checkPhase` verifies
+nothing); and added the rule that a store path in a `common.nix`-reachable
+module drags its build into the devcontainer, with VS Code's launchd PATH as
+the one case worth spending a store path on — all from adding
+`tools/presenterm-lsp`*
+
+*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 

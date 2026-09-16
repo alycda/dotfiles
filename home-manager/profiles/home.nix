@@ -4,6 +4,11 @@
 {
   imports = [
     ../modules/ide/vscode.nix
+    # presenterm + its language server. A desktop-profile import rather than
+    # a common.nix one: the VS Code extension carries a nodejs closure and the
+    # server is a from-source Rust build, neither of which the headless
+    # devcontainer has any use for.
+    ../modules/tools/presenterm.nix
   ];
 
   # Live-edit agent skills from the local checkout (module imported via

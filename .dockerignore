@@ -37,6 +37,12 @@
 # behind. ~50MB, and it rewrites itself on every npm run.
 **/node_modules
 
+# Cargo build output, same story again: lib/presenterm-lsp.nix picks the
+# crate's sources with lib.fileset, so target/ is never read - but it is
+# hundreds of MB that would ride in through `COPY . /opt/dotfiles` and bust
+# the closure layer on every local `cargo build`.
+**/target
+
 # Docs, CI and editor config: read by humans, GitHub and VS Code, never by the
 # flake. CLAUDE.md is the most frequently edited file in the repo, which is
 # exactly why it should not be able to invalidate the closure build. The copy

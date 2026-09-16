@@ -1,0 +1,40 @@
+{
+  "name": "presenterm-lsp",
+  "displayName": "presenterm",
+  "description": "Diagnostics, completion, hover and slide outline for presenterm decks",
+  "version": "0.1.0",
+  "publisher": "alycda",
+  "license": "BSD-2-Clause",
+  "private": true,
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "presenterm",
+      "properties": {
+        "presenterm.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the presenterm-lsp binary. Empty uses the build-time path, then $PRESENTERM_LSP_PATH, then PATH."
+        },
+        "presenterm.alwaysActivate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Analyse every markdown file instead of only those that look like presenterm decks."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "9.0.1"
+  }
+}

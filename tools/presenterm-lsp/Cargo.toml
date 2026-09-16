@@ -1,0 +1,30 @@
+[package]
+name = "presenterm-lsp"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+description = "Language server for presenterm decks: diagnostics, completion, hover and outline"
+license = "BSD-2-Clause"
+repository = "https://github.com/alycda/dotfiles"
+
+[[bin]]
+name = "presenterm-lsp"
+path = "src/main.rs"
+
+[dependencies]
+# rust-analyzer's LSP crates: synchronous, no async runtime. A deck validator
+# is request/response with no long-running work, so tokio would buy nothing
+# and cost ~70 crates of build time on every machine that lacks a cache.
+lsp-server = "0.7"
+lsp-types = "0.95"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Pinned to match presenterm's own dependency (0.16.1 Cargo.toml line 29).
+# The command grammar is deserialized with the *same* crate and the same
+# `singleton_map` adapter, so what this server accepts is what presenterm
+# accepts - not a re-implementation that can drift in the parser layer.
+serde_yaml = "0.9"
+
+[dev-dependencies]
+serde_json = "1"
+

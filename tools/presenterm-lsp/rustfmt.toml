@@ -1,0 +1,4 @@
+# Matches presenterm's own rustfmt.toml, so a side-by-side diff of
+# src/command.rs against upstream's comment.rs is not noise.
+max_width = 120
+use_small_heuristics = "Max"
