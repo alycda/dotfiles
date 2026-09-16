@@ -2,15 +2,16 @@
 # Every other account gets its tools from home-manager; this one can't run a
 # switch, so mise installs prebuilt binaries into ~/.local/share/mise instead.
 #
-# Nothing wires this in automatically. Link the whole directory by hand, once:
+# Set up with tools/mise/bootstrap.sh, which is safe to run again:
 #
-#   curl -fsSL https://mise.run | sh
-#   echo 'eval "$(~/.local/bin/mise activate zsh)"' >> ~/.zshrc
-#   ln -s ~/dotfiles/tools/mise ~/.config/mise
-#   ln -s ~/dotfiles/tools/helix ~/.config/helix   # same config Nix reads
-#   git config --global include.path ~/dotfiles/tools/git/config
-#   mise install
-#   mise run gh-login         # makes an SSH key first if there is none
+#   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/tools/mise/bootstrap.sh | sh
+#
+# It clones ~/dotfiles over https, installs mise with https://mise.run/zsh
+# (which also adds the activate line to ~/.zshrc), links ~/.config/mise and
+# ~/.config/helix into the checkout, includes tools/git/config from
+# ~/.gitconfig, and runs `mise install`. Then run the tasks that ask questions:
+#
+#   mise run gh-login         # SSH key, gh login, checkout remote to SSH
 #   mise run macos-defaults
 #   mise run dock
 #
@@ -53,6 +54,9 @@ description = "Log gh in over SSH, unless it already is"
 depends = ["ssh-key"]
 # Logging in with --git-protocol ssh offers to upload ~/.ssh/id_ed25519.pub.
 # If gh was already logged in, upload the key directly unless GitHub has it.
+# Last, bootstrap.sh cloned ~/dotfiles over https, and this account has no git
+# credential helper, so pushing needs SSH. Switch the remote once GitHub
+# accepts the key (ssh -T exits 1 even on success, hence the grep).
 run = '''
 if ! gh auth status >/dev/null 2>&1; then
   gh auth login --git-protocol ssh
@@ -61,6 +65,17 @@ elif gh ssh-key list 2>/dev/null | grep -qF "$(cut -d' ' -f2 ~/.ssh/id_ed25519.p
 else
   gh ssh-key add ~/.ssh/id_ed25519.pub --title "$(whoami)@$(hostname -s)"
 fi
+remote=$(git -C ~/dotfiles remote get-url origin 2>/dev/null || true)
+case "$remote" in
+  https://github.com/*)
+    if ssh -T -o StrictHostKeyChecking=accept-new git@github.com 2>&1 | grep -q "successfully authenticated"; then
+      git -C ~/dotfiles remote set-url origin "git@github.com:${remote#https://github.com/}"
+      echo "gh: ~/dotfiles now pushes over SSH ($(git -C ~/dotfiles remote get-url origin))"
+    else
+      echo "gh: GitHub doesn't accept the SSH key yet; ~/dotfiles stays on $remote"
+    fi
+    ;;
+esac
 '''
 
 [tasks.macos-defaults]
