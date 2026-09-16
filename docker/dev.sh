@@ -8,11 +8,18 @@
 #
 # The justfile's docker-* recipes delegate here - this file is the single
 # source of truth for how the container is built and run.
+#
+# The image can come from three places - `build` (docker fetches the repo),
+# `build-local` (this checkout) or `pull` (the prebuilt one the dev-image
+# workflow pushed to GHCR, .github/workflows/dev-image.yml) - and all three
+# end at the same local tag, $IMAGE. `run` and .devcontainer.json only ever
+# name that tag, so where the image came from is invisible to them.
 
 set -eu
 
 REPO_URL="${REPO_URL:-https://github.com/alycda/dotfiles.git}"
 IMAGE="${IMAGE:-dev}"
+REGISTRY_IMAGE="${REGISTRY_IMAGE:-ghcr.io/alycda/dev}"
 
 usage() {
   cat <<'USAGE'
@@ -21,13 +28,18 @@ usage: dev.sh <command>
   build [ref]    build the image; docker fetches the repo itself (no clone
                  needed). ref pins a branch/tag, default: default branch
   build-local    build from the checkout containing this script
+  pull [tag]     skip the build: pull the prebuilt image from GHCR and tag it
+                 as IMAGE. tag is latest (default), a branch name, or
+                 sha-<short> - whatever the dev-image workflow pushed
   run [dir]      start the container, mounting dir (default: current
                  directory) at /work. devhome + claude-home volumes persist
                  nix/jj/ssh state and Claude auth across --rm
   up [ref]       build then run the current directory
+  start [tag]    pull then run the current directory
 
-env overrides: REPO_URL (default: https://github.com/alycda/dotfiles.git)
-               IMAGE    (default: dev)
+env overrides: REPO_URL       (default: https://github.com/alycda/dotfiles.git)
+               IMAGE          (default: dev)
+               REGISTRY_IMAGE (default: ghcr.io/alycda/dev)
 
 ssh-agent forwarding and the ragenix age key are manual extras - see the
 Dockerfile header in the repo.
@@ -97,6 +109,32 @@ USAGE
   exit 1
 }
 
+# Pull the prebuilt image and retag it as $IMAGE, so the rest of this script
+# and .devcontainer.json keep naming `dev` whether it was built or pulled.
+# The workflow tags a branch build with the branch name, `/` replaced by `-`
+# (docker/metadata-action's ref sanitizing), so accept the ref as typed and
+# do the same. `docker pull` re-fetches a moved tag; `docker run` alone would
+# keep using whatever `latest` was the first time.
+pull_image() {
+  tag="$(printf '%s' "${1:-latest}" | tr '/' '-')"
+  if ! docker pull "$REGISTRY_IMAGE:$tag"; then
+    # The build fallback takes a git ref: the branch as typed, or for a
+    # sha-<short> tag the commit itself (docker's remote context accepts one).
+    ref="${1:-}"
+    ref="${ref#sha-}"
+    [ "$ref" = latest ] && ref=
+    cat >&2 <<HINT
+dev.sh: could not pull $REGISTRY_IMAGE:$tag
+  "denied"    - the package is private (see the dev-image workflow header) or
+                you are logged in to ghcr.io as a user without access
+  "not found" - nothing built with that tag; dispatch the dev-image workflow
+                on that ref first, or build it here instead: dev.sh build $ref
+HINT
+    exit 1
+  fi
+  docker tag "$REGISTRY_IMAGE:$tag" "$IMAGE"
+}
+
 cmd="${1:-}"
 [ $# -gt 0 ] && shift
 
@@ -107,11 +145,18 @@ case "$cmd" in
   build-local)
     docker build -t "$IMAGE" "$(dirname "$0")/.."
     ;;
+  pull)
+    pull_image "${1:-}"
+    ;;
   run)
     run_container "${1:-$PWD}"
     ;;
   up)
     docker build -t "$IMAGE" "$REPO_URL${1:+#$1}"
+    run_container "$PWD"
+    ;;
+  start)
+    pull_image "${1:-}"
     run_container "$PWD"
     ;;
   ''|-h|--help|help)

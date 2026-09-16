@@ -15,6 +15,12 @@
 #   docker build -t dev https://github.com/alycda/dotfiles.git#branch
 # ...or from a local clone:
 #   git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
+# ...or skip the build: .github/workflows/dev-image.yml (manual dispatch)
+# builds this file on GitHub's arm64 runners and pushes ghcr.io/alycda/dev,
+# tagged latest (main only), <branch> and sha-<short>. The local `dev` tag is
+# the seam - docker/dev.sh `pull` retags the pulled image as it, so `run` and
+# .devcontainer.json never learn where the image came from:
+#   docker pull ghcr.io/alycda/dev && docker tag ghcr.io/alycda/dev dev
 # Run:
 #   docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work --network host dev
 # ...or open the repo in VS Code and "Reopen in Container": .devcontainer.json
@@ -112,6 +118,11 @@
 #     image without it:
 #       just docker-build                  # this checkout
 #       ./docker/dev.sh build <branch>     # a branch on GitHub
+#       ./docker/dev.sh pull <branch>      # ...prebuilt, after dispatching
+#                                          #    dev-image.yml on that branch
+#     A pulled image can also just say which commit it is:
+#       docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' dev
+#     (empty for a local build - nothing labels those).
 #     The same reasoning covers the /etc/passwd entry above, and every future
 #     one: the symptom names a missing fix, not a wrong one, so verify WHICH
 #     tree the image came from before re-reading the RUN step.

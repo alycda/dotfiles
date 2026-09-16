@@ -1,12 +1,14 @@
 # Machine: Apple Silicon Mac via Docker container
 
-Claude Code runs inside an aarch64-linux container (image: `dev`, built with
-`docker build -t dev .` from the dotfiles repo) on an Apple Silicon Mac. This
-image exists so a macOS user account with NO admin rights and NO Nix install
-(git clone over https, curl, and docker are the only tools) still gets the
-full home-manager environment: the `alyssa@dev` closure is baked into the
-image and activated at container start. Dotfiles:
-https://github.com/alycda/dotfiles (its `Dockerfile` covers the build).
+Claude Code runs inside an aarch64-linux container (image: `dev`, either
+built with `docker build -t dev .` from the dotfiles repo or pulled prebuilt
+from `ghcr.io/alycda/dev`, which the repo's `dev-image.yml` workflow builds
+from the same Dockerfile) on an Apple Silicon Mac. This image exists so a
+macOS user account with NO admin rights and NO Nix install (git clone over
+https, curl, and docker are the only tools) still gets the full home-manager
+environment: the `alyssa@dev` closure is baked into the image and activated
+at container start. Dotfiles: https://github.com/alycda/dotfiles (its
+`Dockerfile` covers the build).
 
 There are no hardware or software ceilings here: the host is modern, the CPU
 is fast, and current Linux tooling runs natively. If you come across

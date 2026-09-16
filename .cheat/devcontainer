@@ -2,6 +2,8 @@
 # docker/dev.sh, so VS Code and a cmux terminal share one Claude login + jj state).
 # Build the image first - the devcontainer does not build it:
 just docker-build
+# ...or pull the one GitHub built (dev-image.yml, manual dispatch; retags as `dev`):
+just docker-pull            # latest = main
 # then VS Code: "Dev Containers: Reopen in Container"
 
 # `just docker-build` builds THIS CHECKOUT. dev.sh's `build`/`up` do not - they
@@ -9,8 +11,11 @@ just docker-build
 # is unmerged they give you an image without it (and VS Code then fails with a
 # symptom the Dockerfile header blames on the missing fix). Name the branch:
 ./docker/dev.sh build BRANCH_NAME
+./docker/dev.sh pull BRANCH_NAME    # prebuilt: dispatch dev-image.yml on the branch first
 # which tree did the image actually come from?
 docker run --rm --entrypoint /bin/sh dev -c 'ls -l /lib*/ld-linux-*; env | grep NIX_LD'
+# a pulled image carries the commit as a label (empty = built locally):
+docker inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' dev
 
 # same config from a terminal, no VS Code (npm i -g @devcontainers/cli):
 devcontainer up --workspace-folder .
