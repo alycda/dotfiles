@@ -1,0 +1,170 @@
+name: Dev image
+
+# Prebuild the `dev` container image on GitHub's own arm64 runners and publish
+# it to GHCR, so a machine with nothing but docker can `pull` it instead of
+# spending ~25 minutes building the ~10GB home-manager closure locally
+# (issue #104). docker/dev.sh `pull` and `start` are the consumer side.
+#
+# Manual only. `workflow_dispatch` is the sole trigger, on purpose: every run
+# downloads and pushes a ~10GB image, and the image only needs to move when
+# someone wants a newer one. Trigger it from the Actions tab or
+# `gh workflow run dev-image.yml [--ref <branch>]`. Note that the workflow
+# only appears in the Actions UI once this file is on the default branch; a
+# dispatch on a branch then builds *that branch's* tree, which is how to get
+# a prebuilt image for an unmerged Dockerfile change (the Dockerfile header
+# explains why `dev.sh build` alone can't).
+#
+# What gets tagged (docker/metadata-action below):
+#   sha-<short>   every run - the exact commit, and what `dev.sh pull` should
+#                 name when reproducing a report
+#   <branch>      every run - the ref that was built, `/` replaced by `-`
+#   latest        default branch only. A branch build must never move the tag
+#                 the curl bootstrap pulls.
+#
+# Native arm64, not QEMU: the closure build is CPU-bound nix work, and
+# emulating it would take hours. `ubuntu-24.04-arm` is free for public repos.
+# Nothing here builds the amd64 (`alyssa@dev-x86`) variant: the 2012 MBP that
+# uses it is the disk-constrained machine and builds locally; adding it is a
+# `runs-on: ubuntu-24.04` matrix entry plus a manifest step, when wanted.
+#
+# Secrets never enter the image. The Dockerfile has no build-time secret and
+# the ragenix identity is `docker cp`'d into a running container; keep it
+# that way. If a build-time secret is ever unavoidable, it must be a BuildKit
+# `--mount=type=secret` - a COPY followed by rm still ships the file in the
+# earlier layer, and on a public package registry deletion is not revocation
+# (rotate first, then delete every affected version, then rebuild).
+#
+# One-time setup after the first successful run: the package GHCR creates is
+# private by default, so `docker pull` from the no-admin Mac account is
+# refused until it is made public at
+#   https://github.com/users/alycda/packages/container/dev/settings
+# (Package settings -> Danger Zone -> Change visibility). Pushing from a
+# workflow with GITHUB_TOKEN links the package to this repository, which is
+# also what lets the delete steps below act on it.
+
+on:
+  workflow_dispatch:
+
+# A second dispatch on the same ref supersedes a running one - only the newest
+# tree is worth the ~10GB push. Different refs build in parallel.
+concurrency:
+  group: dev-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/dev
+
+jobs:
+  build:
+    name: Build and push (arm64)
+    runs-on: ubuntu-24.04-arm
+    # Measured ~25 minutes on an M-series Mac (see .dockerignore); a 4-core
+    # runner and a cold nix cache are slower.
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      # Issue #104 counted ~14GB free on the runner against a ~10GB closure,
+      # and buildx keeps the compressed blobs it pushes next to the snapshots
+      # it built them from. Drop the preinstalled toolchains nothing here uses
+      # before finding out how close that is; each rm is guarded because the
+      # arm64 image does not ship all of them. `df` before and after so the
+      # margin is in the log, not guessed at.
+      - name: Free runner disk
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # latest=false: the default `auto` only adds `latest` for tag pushes,
+          # so it is inert here anyway; spelling it out keeps the rule in one
+          # place - the raw line below is the only thing that moves `latest`.
+          flavor: latest=false
+          tags: |
+            type=sha
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          # org.opencontainers.image.{source,revision,...}: `source` is what
+          # ties the package to this repo on GHCR, `revision` is how a pulled
+          # image answers "which commit is this?" (.cheat/devcontainer).
+          labels: ${{ steps.meta.outputs.labels }}
+          # Off, and load-bearing for the prune step below. With provenance
+          # (buildx's default) the push is an image *index* whose real image
+          # manifest and attestation manifest both appear on GHCR as separate
+          # untagged versions; deleting "untagged versions" then deletes the
+          # halves the tagged index points at, and the tag 404s on pull. With
+          # both off, a single-platform build pushes one plain manifest, and
+          # an untagged version is genuinely an orphan.
+          provenance: false
+          sbom: false
+          # No layer cache. `COPY . /opt/dotfiles` sits directly above the
+          # closure build, so the big layer is invalidated by any change to
+          # the tree, and an unchanged tree is exactly when nobody dispatches
+          # this. The GHA cache is capped at 10GB per repo besides.
+
+      # Every push to a moving tag (`latest`, a branch name) strands the
+      # previous manifest as an untagged version. GHCR storage is free for
+      # public packages, but the package page fills with digests otherwise.
+      # Non-fatal: by now the image is pushed and tagged, which is the job;
+      # a refused delete should not paint the run red.
+      - name: Delete untagged versions
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: dev
+          package-type: container
+          delete-only-untagged-versions: "true"
+
+      # Branch builds leave sha-tagged versions behind that nothing moves
+      # off. Keep the newest 5 of everything, but only decide that on the
+      # default branch: there the version just pushed is the newest and
+      # carries `latest`, so it is kept by construction. Deciding it on a
+      # branch build could drop `latest` after five branch builds in a row.
+      - name: Keep the newest 5 versions
+        if: github.ref_name == github.event.repository.default_branch
+        uses: actions/delete-package-versions@v5
+        continue-on-error: true
+        with:
+          package-name: dev
+          package-type: container
+          min-versions-to-keep: 5
+
+      - name: Summary
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          {
+            echo "## Pushed"
+            echo
+            echo '```'
+            echo "$TAGS"
+            echo '```'
+            echo
+            echo "Pull with \`docker/dev.sh pull ${GITHUB_REF_NAME}\` (or \`pull sha-${GITHUB_SHA::7}\`); \`dev.sh start\` pulls \`latest\` and runs."
+          } >> "$GITHUB_STEP_SUMMARY"
