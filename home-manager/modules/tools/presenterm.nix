@@ -38,8 +38,22 @@ let
 
   presenterm-lsp = pkgs.callPackage ../../../lib/presenterm-lsp.nix { };
 
-  extensionSource = ../../../tools/presenterm-lsp/editors/vscode;
+  extensionRoot = ../../../tools/presenterm-lsp/editors/vscode;
   extensionId = "alycda.presenterm-lsp";
+
+  # Only the two files the extension actually ships. Interpolating the bare
+  # directory would copy whatever is sitting there into the store - and the
+  # documented npm bump procedure runs npm in it, so a stray node_modules/
+  # would silently change this derivation's hash on one machine and not
+  # another. importNpmLock below still reads the real directory, because it
+  # wants package.json and package-lock.json from a path it can resolve.
+  extensionSource = lib.fileset.toSource {
+    root = extensionRoot;
+    fileset = lib.fileset.unions [
+      (extensionRoot + "/package.json")
+      (extensionRoot + "/extension.js")
+    ];
+  };
 
   # Same importNpmLock reasoning as ./hackmd.nix: the lockfile is the pin and
   # there is no npmDepsHash to regenerate. The tree here is 8 packages
@@ -47,7 +61,7 @@ let
   # so none of hackmd's override surgery is needed - if a future bump balloons
   # that, this comment is the place to say why.
   nodeModules = pkgs.importNpmLock.buildNodeModules {
-    npmRoot = extensionSource;
+    npmRoot = extensionRoot;
     inherit (pkgs) nodejs;
   };
 
