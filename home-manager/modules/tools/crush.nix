@@ -46,6 +46,20 @@ in
           "${config.home.homeDirectory}/.agents/rules/outbound-comment-gate.md"
         ];
       };
+      # Deck checking inside crush, so an agent editing slides.md sees the
+      # same diagnostics helix and VS Code do rather than silently producing a
+      # deck that will not build. Bare command name for the same reason as
+      # ./helix.nix: crush is launched from a shell, and a store path here
+      # would couple this module to a from-source Rust build. The server is
+      # installed by ./presenterm.nix; without it crush reports one
+      # unavailable LSP and continues.
+      lsp.presenterm = {
+        command = "presenterm-lsp";
+        filetypes = [
+          "md"
+          "markdown"
+        ];
+      };
       hooks.PreToolUse = [
         {
           name = "outbound-gate";

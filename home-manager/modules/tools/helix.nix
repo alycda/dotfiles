@@ -83,12 +83,19 @@
           file-types = [ "json" "jsonc" "geojson" ];
           indent = { tab-width = 2; unit = "  "; };
         }
-        # Grammar checking for prose via harper-ls.
-        # No marksman/markdown-oxide installed, so harper-ls is the only
-        # markdown server here - listing it replaces helix's defaults.
+        # Grammar checking for prose via harper-ls, and deck checking for
+        # presenterm slides. Both attach to every markdown buffer: helix has
+        # no way to scope a server to a subset of a language's files, and
+        # presenterm-lsp stays silent unless the buffer is actually a deck
+        # (activation is by content - see modules/tools/presenterm.nix).
+        # No marksman/markdown-oxide installed, so this list replaces helix's
+        # defaults rather than adding to them.
         {
           name = "markdown";
-          language-servers = [ "harper-ls" ];
+          language-servers = [
+            "harper-ls"
+            "presenterm-lsp"
+          ];
         }
         # Grammar-check commit messages too - this repo values meaningful,
         # well-written commits (see CLAUDE.md commit strategy).
@@ -108,6 +115,20 @@
           args = [ "--stdio" ];
           config.harper-ls.diagnosticSeverity = "hint";
         };
+
+        # presenterm-lsp: in-tree deck checker, built by
+        # lib/presenterm-lsp.nix and installed by
+        # modules/tools/presenterm.nix (a desktop-profile import).
+        #
+        # A bare command name rather than `lib.getExe presenterm-lsp` on
+        # purpose. This module is reached from common.nix, which the headless
+        # x86 devcontainer also inherits; a store-path reference here would
+        # pull a from-source Rust build into that image for an editor
+        # integration nobody uses there - the same closure argument that keeps
+        # GUI editors out of common.nix. Helix is always launched from a shell,
+        # so PATH resolution is reliable, and when the binary is absent helix
+        # logs one failed-to-start line and carries on with harper-ls.
+        presenterm-lsp.command = "presenterm-lsp";
 
         rust-analyzer.config = {
           check.command = "clippy";
