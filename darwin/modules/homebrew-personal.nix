@@ -30,6 +30,10 @@ _:
     brews = [
       "cirruslabs/cli/tart" # VM management
       "docker" # CLI only; the daemon is OrbStack (cask below)
+      # Keychain-backed secrets as env vars. The non-admin account on this
+      # machine uses this copy from /opt/homebrew/bin, since it can run brew
+      # formulae but not install them.
+      "envchain"
       "kondo" # Clean build artifacts
       "llmfit"
       "ollama"

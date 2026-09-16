@@ -31,6 +31,7 @@ _:
     # Formulae (CLI packages)
     brews = [
       "cirruslabs/cli/tart" # Ditto - VM management
+      "envchain"        # Keychain-backed secrets as env vars
       "envelope"
       "hunk"
       "kondo"           # Clean build artifacts
