@@ -1,3 +1,4 @@
+# rustfmt and rust-analyzer come from rustup, not from Nix or mise.
 [[language]]
 name = "rust"
 auto-format = true

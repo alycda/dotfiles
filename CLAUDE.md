@@ -469,6 +469,13 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
   compiles from source. This does not replace `lib/core-packages.nix`; the
   containers still get their tools from Nix.
+- **Share a tool's config with that account as a plain file, not a generator.**
+  Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
+  loads config anyway (`fromTOML` for helix, git's `include`), and link or
+  include the same file on the mise account. Anything tied to a store path, a
+  secret, or an installed package stays in the Nix module. `helix.nix` is the
+  worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
+  hand", and now reads them.
 
 ## Migration Workflow
 
@@ -713,7 +720,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
+*Last updated: 2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
+
+*2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
 
 *2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
