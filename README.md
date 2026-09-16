@@ -10,6 +10,11 @@ dotfiles/
 |   ├── profiles/
 |   |   └── ditto.nix
 |   └── configuration.nix
+├── nixos/                  # NixOS (Linux system config)
+|   ├── profiles/
+|   |   ├── slowpoke.nix            # 2012 MacBook Pro, dual-booted next to Catalina
+|   |   └── slowpoke-hardware.nix   # label-based stand-in for nixos-generate-config
+|   └── configuration.nix
 ├── home-manager/
 |   ├── modules/
 |   |   ├── dev/            # language tooling (nix-lang, rust)
@@ -71,7 +76,8 @@ flowchart TD
     Q2 -- yes --> Q3
     Q3 -- macOS --> W1["⚠ ditto only: gh auth BEFORE the switch —<br/>brew bundle clones a private tap over https<br/>mid-activation"]
     W1 --> D1["darwin-rebuild switch --flake .#ditto"]
-    Q3 -- Linux --> D2["home-manager switch --flake .#alyssa@work-dev"]
+    Q3 -- "Linux (NixOS)" --> D3["nixos-rebuild switch --flake .#slowpoke<br/>(see NixOS setup below)"]
+    Q3 -- "Linux (other)" --> D2["home-manager switch --flake .#alyssa@work-dev"]
 
     Q1 -- "no — new user on a set-up machine" --> Q4{"docker app installed globally?<br/>(OrbStack / Docker Desktop, admin's brew)"}
     Q4 -- yes --> C1["open -a OrbStack<br/>(daemon + CLI context for THIS user)"]
@@ -86,6 +92,7 @@ flowchart TD
 
     D1 --> S1["STEP 1 — always: just _login<br/>(gh auth login --web + claude login)<br/>per-device OAuth, by design — see note below"]
     D2 --> S1
+    D3 --> S1
     C2 --> S1
     H1 --> S1
 ```
@@ -144,6 +151,46 @@ Verified end-to-end on a clean tart VM (macOS Tahoe base image), 2026-07-01.
 > nix-darwin now runs `brew` as that user; `tailscale-app`'s pkg installer
 > fails inside VMs (system-extension approval) — expected in CI, fine on
 > hardware.
+
+### NixOS setup (2012 MacBook Pro, dual boot)
+
+The `slowpoke` configuration targets the mid-2012 15" Retina MacBook Pro
+(MacBookPro10,1) that `docker/CLAUDE.md` describes from inside a container,
+installed *next to* the existing Catalina, not over it. Nothing below touches
+the firmware; the worst case is a partition table Internet Recovery
+(<kbd>CMD</kbd>+<kbd>OPT</kbd>+<kbd>R</kbd>) repairs by reinstalling Catalina.
+
+Not yet verified on the hardware. Two things only a live boot can settle are
+called out in `nixos/profiles/slowpoke.nix`: whether the panel needs the
+GRUB gmux writes to come up on the Intel GPU (`forceIntegratedGpu`), and
+whether COSMIC's Wayland compositor is usable on it.
+
+1. **Test-drive first, from a stick.** Any x86_64 UEFI ISO boots: `dd` it to
+   USB, hold <kbd>OPT</kbd> at power-on, pick the orange EFI entry. A live
+   session never writes to the internal disk. Expect **no WiFi** on the
+   stick (the BCM4331 firmware is unfree and no ISO ships it): bring a USB
+   Ethernet adapter or iPhone USB tethering. If the screen stays black, add
+   `nomodeset` to the kernel line for that session.
+1. Time Machine backup. This is the actual insurance; the rest is low-risk.
+1. In macOS Disk Utility, shrink the APFS container to free space for
+   Linux. Leave Apple's 200 MB EFI partition alone.
+1. Boot the NixOS installer (over Ethernet or tethering), partition the
+   freed space into a 1 GB ESP and an ext4 root, and format them with the
+   labels `nixos/profiles/slowpoke-hardware.nix` expects - the config refers
+   to partitions by label precisely so it is correct before the disk exists:
+    - `mkfs.fat -F32 -n BOOT /dev/sdaN` and `mkfs.ext4 -L nixos /dev/sdaM`
+    - `mount /dev/disk/by-label/nixos /mnt && mkdir -p /mnt/boot && mount /dev/disk/by-label/BOOT /mnt/boot`
+1. Stage the age key (step 0 above) and clone this repo into `/mnt/home/alyssa/dotfiles`,
+   then install from it - no `nixos-generate-config` needed, the hardware
+   file is committed:
+    - `nixos-install --flake /mnt/home/alyssa/dotfiles#slowpoke`
+    - after first boot, diff `/etc/nixos/hardware-configuration.nix` (if you
+      did generate one) against the committed file for the initrd module list
+1. Reboot, hold <kbd>OPT</kbd>, pick "EFI Boot". GRUB is installed at the
+   removable-media path because Apple firmware ignores NVRAM boot entries;
+   macOS stays selectable from the same picker.
+1. Rebuild after changes: `just nixos-switch` (or `just _rebuild slowpoke`,
+   which resolves to `nixos-rebuild` when `/etc/NIXOS` exists).
 
 ### Devcontainer (Linux sandboxed environment)
 
@@ -221,6 +268,7 @@ As long as you have docker or an [ephemeral environment in the cloud](https://ep
 | Directory | Tool | Purpose |
 |-----------|------|---------|
 | `darwin/` | nix-darwin | macOS system config (dock, defaults, homebrew)
+| `nixos/` | NixOS | Linux system config for the 2012 MacBook Pro (boot loader, firmware, desktop); mirrors `darwin/` in shape
 | `home-manager/` | Home Manager | User packages and dotfiles (cross-platform)
 | `lib/` | Nix | `core-packages.nix`, imported by both devShells and home-manager so ephemeral `nix develop` and persistent profiles stay consistent
 | `tools/` | (plain files) | Non-Nix tool content wired in by modules: `agents/` instruction overlay, `cheat/` cheatsheets, `claude/` rules, `helix/` config

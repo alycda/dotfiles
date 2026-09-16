@@ -114,6 +114,11 @@ dotfiles/
 │   │   └── homebrew.nix    # Homebrew taps/casks/brews
 │   └── profiles/           # Machine-specific configs
 │       └── ditto.nix       # Work machine (the only darwinConfiguration)
+├── nixos/                  # NixOS (Linux system config) - mirrors darwin/
+│   ├── configuration.nix   # Shared NixOS config (nix settings, overlays, fonts)
+│   └── profiles/
+│       ├── slowpoke.nix            # 2012 MacBook Pro: boot loader, wifi firmware, COSMIC
+│       └── slowpoke-hardware.nix   # label-based stand-in for nixos-generate-config
 ├── home-manager/           # User-level configuration
 │   ├── modules/
 │   │   ├── common.nix      # Shared across all profiles (no GUI)
@@ -159,11 +164,18 @@ dotfiles/
 
 ### System vs User Configuration
 
-**Darwin (System-level)** - Use for:
+**Darwin / NixOS (System-level)** - Use for:
 - System services that need root access (like homebrew)
 - macOS system defaults (dock, finder, etc.)
-- Machine-specific hardware configurations
+- Machine-specific hardware configurations (on NixOS: boot loader, firmware,
+  the desktop environment, the user account itself)
 - Packages that need system-level installation
+
+`nixos/` mirrors `darwin/` on purpose: a shared `configuration.nix` (nix
+settings, `allowUnfree`, the same four overlays, fonts) plus a per-machine
+profile, wired by `mkNixos` in `flake.nix` next to `mkDarwin`, with
+home-manager as a system module under `useGlobalPkgs`. When a rule below says
+"darwin system level", read it as "the system level of whichever OS".
 
 **Home Manager (User-level)** - Use for:
 - User packages and tools
@@ -173,7 +185,7 @@ dotfiles/
 
 **Rule of thumb**: If it doesn't need sudo, it probably belongs in home-manager.
 
-**Fonts are system-level.** Install Nerd Fonts via darwin `fonts.packages`, not
+**Fonts are system-level.** Install Nerd Fonts via darwin or NixOS `fonts.packages`, not
 per-user home-manager — a font is a shared resource every terminal app (Warp,
 etc.) must see. TUIs that render glyph icons (gh-dash) show mojibake if the font
 is only in a user profile. (Lesson from PR #20.)
@@ -192,6 +204,39 @@ updates brew and then self-breaks on its next rebuild against a stale pin. When
 this bites, repin to a rev whose brew call matches current brew — and remember the
 fixing rev may run `brew` as the configured user (`sudo --user=`), which requires
 that user own the Homebrew prefix. (Lesson from PR #35.)
+
+### NixOS on Intel Mac hardware (`nixos/profiles/slowpoke.nix`)
+
+The 2012 MacBook Pro is a Mac first and a PC second, and three of its
+NixOS settings exist only because of that. All three are commented at the
+site; the summary here is so nobody "simplifies" them back to the defaults.
+
+- **GRUB at the removable path, `canTouchEfiVariables = false`.** Apple
+  firmware ignores the NVRAM boot entries `efibootmgr` writes, so the
+  default systemd-boot recipe installs fine and then never appears in the
+  Option-key picker. `efiInstallAsRemovable` puts GRUB at
+  `EFI/BOOT/BOOTX64.EFI`, the path every firmware tries unprompted; NixOS
+  refuses that combination unless EFI variables are left alone. GRUB rather
+  than systemd-boot because only GRUB can run the gmux `outb` writes that
+  put the Retina panel on the Intel GPU (behind `forceIntegratedGpu`; it
+  costs the external display ports, which are wired to the NVIDIA chip).
+- **Unfree wifi firmware, pinned by version.** The BCM4331 works with the
+  in-tree b43 driver only with the 6.30.163.46 blob (it carries the HT-PHY);
+  `hardware.firmware` names that package directly rather than trusting
+  `networking.enableB43Firmware` to pick it. No live ISO ships it, so the
+  first boot is wired.
+- **Filesystems by label, not UUID.** `nixos-generate-config` writes UUIDs,
+  which don't exist until the disk is partitioned - but CI evaluates every
+  configuration (`eval-configurations.sh`, now including
+  `nixosConfigurations`) and a NixOS config with no root filesystem fails
+  evaluation. `slowpoke-hardware.nix` is hand-written against labels the
+  README's install steps create, so the config is correct before the
+  hardware is. It also owns `nixpkgs.hostPlatform`, which is why `mkNixos`
+  takes no `system` argument.
+
+Written without the machine to test on (no nix in the sandbox, github.com
+blocked), so the first `nixos-rebuild` is the real check; CI's eval is the
+floor, not the ceiling.
 
 ### Module Organization
 
@@ -387,7 +432,7 @@ been compiling crush from scratch.
 
 ### Configuration Conflicts to Avoid
 
-1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
+1. **Overlays**: Set `nixpkgs.overlays` ONLY where `pkgs` is constructed — `darwin/configuration.nix`, `nixos/configuration.nix`, and `mkHome` in `flake.nix` — never in a home-manager module. Under `useGlobalPkgs` home-manager treats any `nixpkgs.*` setting in a home module as a conflict (a warning today, slated to become an error). `modules/ide/vscode.nix` used to re-apply the marketplace overlay behind a darwin sniff; that was removed when the NixOS path arrived, because the sniff would have had to learn every system module type.
 2. **Rust-analyzer**: Don't install standalone - rustup provides it (conflicts otherwise)
 3. **Shell paths**: Use system shells (e.g., `terminal.integrated.defaultProfile.osx = "zsh"`) instead of nix-managed paths
 4. **Base-image package collisions**: The `nixos/nix` image ships its own populated `nix-env` profile in the container, so anything home-manager installs can collide with a package already there and abort activation. This has bitten three times (`git-minimal` #34, `man-db` #60, `bash` #74). Three remedies, chosen by who needs the program:
@@ -703,7 +748,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+*Last updated: 2026-09-09 - Added `nixos/` for dual-booting the 2012 MacBook Pro into NixOS next to Catalina: documented the three Mac-specific settings (removable-path GRUB with EFI variables untouched, version-pinned b43 firmware, label-based filesystems so CI can evaluate the config before the disk exists), extended CI's eval script to nixosConfigurations, and generalised the overlay rule to "wherever pkgs is constructed" after removing the vscode module's darwin-sniffing overlay*
+
+*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 

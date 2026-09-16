@@ -84,6 +84,40 @@
         ];
       };
 
+      # For NixOS + home-manager (native Linux). Mirrors mkDarwin: a shared
+      # system module, a machine profile, ragenix, and home-manager as a
+      # system module with useGlobalPkgs so the overlays set in
+      # nixos/configuration.nix reach the user profile. No `system` argument:
+      # the machine's hardware module sets nixpkgs.hostPlatform, so the
+      # platform is defined once rather than here and there.
+      mkNixos = username: nixosProfile: homeProfile:
+        nixpkgs.lib.nixosSystem {
+          specialArgs = { inherit nix-vscode-extensions claude-code-nix nix-skills charm-nur; };
+
+          modules = [
+            ./nixos/configuration.nix
+            ./nixos/profiles/${nixosProfile}.nix
+            ragenix.nixosModules.default
+
+            home-manager.nixosModules.home-manager
+            {
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                backupFileExtension = "hm-backup";
+                extraSpecialArgs = { inherit nix-vscode-extensions; };
+                users.${username} = {
+                  imports = [
+                    ragenix.homeManagerModules.default
+                    ./home-manager/modules/common.nix
+                    ./home-manager/profiles/${homeProfile}.nix
+                  ];
+                };
+              };
+            }
+          ];
+        };
+
       # For nix-darwin + home-manager (macOS)
       mkDarwin = system: username: darwinProfile: homeProfile:
         darwin.lib.darwinSystem {
@@ -123,6 +157,12 @@
       darwinConfigurations = {
         "ditto" = mkDarwin "aarch64-darwin" "alyssaevans" "ditto" "work";
         "shesfast" = mkDarwin "aarch64-darwin" "alyssa" "shesfast" "home";
+      };
+
+      # NixOS systems (use nixos-rebuild)
+      nixosConfigurations = {
+        # 2012 MacBook Pro, dual-booted next to Catalina
+        "slowpoke" = mkNixos "alyssa" "slowpoke" "home";
       };
 
       # Linux/devcontainer systems (use home-manager)
