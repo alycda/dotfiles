@@ -36,6 +36,8 @@ description = "Create an SSH key for GitHub, unless one exists"
 # (id_ed25519). The Host block below makes ssh store the passphrase in the
 # macOS keychain on first use and reload the key after a reboot. Without it,
 # GitHub only works while some other key (e.g. tangled.org's) is in the agent.
+# UseKeychain is macOS-only; IgnoreUnknown keeps the block valid for Linux ssh,
+# which otherwise rejects the whole config file.
 run = '''
 if [ -f ~/.ssh/id_ed25519 ]; then
   echo "ssh: ~/.ssh/id_ed25519 already exists"
@@ -44,7 +46,7 @@ else
   ssh-keygen -t ed25519 -C "$(whoami)@$(hostname -s)" -f ~/.ssh/id_ed25519
 fi
 if ! grep -qx 'Host github.com' ~/.ssh/config 2>/dev/null; then
-  printf '\nHost github.com\n    AddKeysToAgent yes\n    UseKeychain yes\n    IdentityFile ~/.ssh/id_ed25519\n' >> ~/.ssh/config
+  printf '\nHost github.com\n    AddKeysToAgent yes\n    IgnoreUnknown UseKeychain\n    UseKeychain yes\n    IdentityFile ~/.ssh/id_ed25519\n' >> ~/.ssh/config
   echo "ssh: added a github.com block to ~/.ssh/config"
 fi
 '''
