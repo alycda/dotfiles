@@ -75,7 +75,7 @@ flowchart TD
 
     Q1 -- "no — new user on a set-up machine" --> Q4{"docker app installed globally?<br/>(OrbStack / Docker Desktop, admin's brew)"}
     Q4 -- yes --> C1["open -a OrbStack<br/>(daemon + CLI context for THIS user)"]
-    C1 --> C2["curl -fsSL https://raw.githubusercontent.com/<br/>alycda/dotfiles/main/docker/dev.sh | sh -s -- up"]
+    C1 --> C2["curl -fsSL https://raw.githubusercontent.com/<br/>alycda/dotfiles/main/docker/dev.sh | sh -s -- start<br/>(pulls the prebuilt image; `up` builds it instead)"]
     C1 -.-> C3["alt: git clone https + VS Code devcontainer<br/>(needs the same daemon)"]
     Q4 -- no --> Q5{"/nix exists? (global daemon)"}
     Q5 -- yes --> Q6{"in nix-users group?<br/>(daemon socket is group-locked)"}
@@ -169,16 +169,25 @@ Verified end-to-end on a clean tart VM (macOS Tahoe base image), 2026-07-01.
 ### Plain Docker (no Nix, no VSCode, no gh — not even git)
 
 For a machine (or user account) where all you have is `docker` — e.g. a fresh
-non-admin user on a Mac whose Nix install belongs to another account. Docker
-fetches the repo itself (BuildKit remote build context over https):
+non-admin user on a Mac whose Nix install belongs to another account. The
+image is prebuilt on GitHub's arm64 runners (`.github/workflows/dev-image.yml`,
+dispatched by hand) and published to `ghcr.io/alycda/dev`, so the fast path
+is a pull:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- start
 ```
 
-Run it from whatever directory you want mounted at `/work`. Rebuilding after
-a flake change is the same one-liner again — there's no local checkout to
-keep in sync.
+Run it from whatever directory you want mounted at `/work`. There's no local
+checkout to keep in sync, but the image only moves when someone dispatches
+the workflow: after a change lands on `main` (the weekly flake update
+included), dispatch `Dev image` from the Actions tab, then the same
+one-liner re-pulls `latest`. The local build is still there as the fallback
+(nothing published yet, an amd64 machine — the workflow publishes arm64
+only and `pull` refuses a mismatch — or a change nobody dispatched):
+`sh -s -- up` has Docker fetch the repo itself (BuildKit remote build
+context over https) and bake the closure locally, ~25 minutes on an
+M-series Mac.
 
 `docker/dev.sh` is the single source of truth for the build and run commands:
 the volume set, the working directory and the network mode all live there, and

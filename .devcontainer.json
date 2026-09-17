@@ -3,8 +3,9 @@
 // one home-manager generation, one Claude login, shared jj state - whichever
 // door you come in through.
 //
-// The image is built once, outside VS Code, with `just docker-build` (or
-// `docker/dev.sh build` when there is no checkout). "image" rather than
+// The image is made once, outside VS Code: `just docker-pull` takes the
+// prebuilt one from GHCR, `just docker-build` builds this checkout (or
+// `docker/dev.sh pull` / `build` when there is no checkout). "image" rather than
 // "build" on purpose: a "build" block would have Dev Containers bake a second
 // ~10GB copy under its own vsc-* tag, and the two would drift.
 //

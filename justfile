@@ -110,6 +110,11 @@ _login:
 docker-build:
     ./docker/dev.sh build-local
 
+# Pull the prebuilt dev image from GHCR instead of building (tag: latest, a branch, or sha-<short>)
+[group('docker')]
+docker-pull tag='latest':
+    ./docker/dev.sh pull {{tag}}
+
 # Run the dev container, mounting the current directory at /work
 [group('docker')]
 docker-run dir=invocation_directory():

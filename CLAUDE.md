@@ -708,6 +708,54 @@ on the branch anyway and writes a compare link into the job summary before
 failing. Full write-up:
 `docs/solutions/ci-errors/github-actions-not-permitted-to-create-pull-requests.md`
 
+### Dev image prebuild: `dev-image.yml`
+
+`.github/workflows/dev-image.yml` builds the `Dockerfile` on GitHub's native
+arm64 runners (`ubuntu-24.04-arm`, free for public repos) and pushes it to
+`ghcr.io/alycda/dev`, so the no-admin Mac account pulls a ~10GB image instead
+of spending ~25 minutes baking the closure itself (issue #104). It is
+`workflow_dispatch` **only** - nothing rebuilds on push - and it appears in
+the Actions tab only once the file is on `main`. Dispatching it on a branch
+builds that branch's tree, which is the missing third answer to "which tree
+did my image come from" (Dockerfile header): `dev.sh pull <branch>` next to
+`build <branch>` and `just docker-build`.
+
+Decisions that are easy to undo by accident:
+
+- **The local `dev` tag is the seam.** `docker/dev.sh pull` retags the pulled
+  image as `dev`, so `run`, `up`'s sibling `start`, and `.devcontainer.json`
+  never learn where the image came from. Don't teach them the registry name.
+- **`latest` moves only from the default branch** (`enable={{is_default_branch}}`
+  in the metadata step). Every run also tags `sha-<short>` and the ref name
+  with every character outside `[A-Za-z0-9._-]` replaced by `-`
+  (metadata-action's rule), which `dev.sh pull` applies to what you type.
+- **`pull` asks for the daemon's own platform.** The workflow publishes
+  linux/arm64 only, and a plain single-arch manifest pulls *successfully*
+  onto an amd64 daemon; `--platform` is what turns that into an error instead
+  of an arm64 rootfs retagged over the 2012 MBP's local build.
+- **`provenance: false` and `sbom: false` are load-bearing**, not
+  minimalism. buildx's default provenance turns the push into an image index
+  whose real manifest shows up on GHCR as an *untagged* version - and the
+  workflow's "delete untagged versions" prune step would then delete the
+  half the tag points at. A single-platform build with both off pushes one
+  plain manifest, so an untagged version is a genuine orphan. Note what
+  that step therefore does *not* do: a superseded `latest` keeps its
+  `sha-` tag, so it is never untagged; only the keep-newest-N step ages it
+  out, and `sha-` tags are not durable for that reason.
+- **The keep-newest-N prune runs on `main` only.** There the version just
+  pushed is the newest and carries `latest`, so it survives by construction;
+  on a branch, N branch builds in a row would age `latest` out.
+- **No build-time secrets, ever.** The ragenix identity enters a *running*
+  container via `docker cp`. A `COPY` then `rm` still ships the file in the
+  earlier layer, and on a public package deleting a version is not
+  revocation. If a build secret is ever unavoidable it is a BuildKit
+  `--mount=type=secret`.
+
+One-time manual step after the first run: GHCR creates the package private,
+so `docker pull` from the no-admin account is refused until it is made public
+in the package's settings (Danger Zone → Change visibility). The workflow
+header carries the URL.
+
 ### Entity diff (informational, non-blocking)
 
 `.github/workflows/entity-diff.yml` runs [Sem](https://github.com/Ataraxy-Labs/sem)'s
@@ -738,7 +786,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-16 - Documented the manual `dev-image.yml` workflow that prebuilds the dev image on GHCR (issue #104): why `latest` only moves from main, why provenance must stay off next to an untagged-version prune, and the local `dev` tag as the seam that keeps `run`/devcontainer ignorant of where the image came from*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
