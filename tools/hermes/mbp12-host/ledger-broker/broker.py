@@ -49,6 +49,16 @@ TOOLS = [
     {"name": "ledger_backup",
      "description": "Archive the beancount source to iCloud following the standing convention (_backups/beancount-backup-YYYYMMDD.tar.gz). Verifies the archive extracts and matches before reporting success. Runs weekly on its own; use this only for an on-demand backup, e.g. before a bulk edit.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {"name": "ledger_add_budget",
+     "description": "Add ONE Fava budget directive. Fava budgets are native \u2014 no extension is needed and none should be added; this ledger has used custom \"budget\" since 2022. Supply the fields separately, never a line of beancount. The account must already be opened, period is daily/weekly/monthly/quarterly/yearly, and the ledger is bean-checked and restored if the directive breaks it. Date defaults to Jan 1 of the current year.",
+     "inputSchema": {"type": "object",
+                     "properties": {"account": {"type": "string"},
+                                    "period": {"type": "string",
+                                               "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"]},
+                                    "amount": {"type": "number"},
+                                    "date": {"type": "string"}},
+                     "required": ["account", "period", "amount"],
+                     "additionalProperties": False}},
 ]
 
 
@@ -71,6 +81,19 @@ def spawn(cmd, logname):
 
 
 def call_tool(name, args):
+    if name == "ledger_add_budget":
+        acct = str(args.get("account", "")).strip()
+        per = str(args.get("period", "")).strip().lower()
+        amt = args.get("amount")
+        dt = str(args.get("date", "")).strip()
+        if not acct or amt is None:
+            return "ERROR: account and amount are required", True
+        cmd = [f"{BIN}/add-budget.py", "--account", acct,
+               "--period", per, "--amount", str(amt)]
+        if dt:
+            cmd += ["--date", dt]
+        return run(cmd, timeout=300)
+
     if name == "ledger_backup":
         return run([f"{BIN}/backup-ledger.sh"], timeout=300)
 
