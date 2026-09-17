@@ -39,6 +39,17 @@ warrants raw power (computer control etc.).
     reminders, docker watchdog, weekly backup, Venice balance watch. Hermes
     itself has no LaunchAgent: it runs only in `boxed/`.
 
+## Names in this directory are placeholders
+
+`BankA`, `CardB`, `StoreC`, `PayrollI`, `LedgerDocs` and the like are
+substitutions. The host's scripts name real institutions; this repo is public,
+so every file here is `map(host file)` via `~/ledger-ingest/.public-name-map.py`
+on the MBP (host-only: it contains the real names). Consequences: nothing here
+runs as-is, and syncing host → repo means filter first, then
+`.public-name-map.py --check` over the outgoing `git log -p`. Planned
+replacement: classifier tables move into a data file in the ledger repo and the
+scripts read it, at which point the map goes away.
+
 ## Not tracked (per-machine provisioning)
 
 Venice key, API_SERVER_KEY/HERMES_API_TOKEN pair, HERMES_PASSWORD, Signal
