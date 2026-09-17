@@ -75,6 +75,16 @@ url = "https://proton.me/download/pass-cli/{{version}}/pass-cli-macos-x86_64"
 checksum = "sha256:275f6159f63d152ecdd9d4e2969ef515291619005e0d30ab762daee26081621c"
 bin = "pass-cli"
 
+# One backup of $HOME with the same script and excludes home-manager uses
+# (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
+# Needs ~/.config/restic/env with RESTIC_REPOSITORY and RESTIC_PASSWORD:
+#   mise run decrypt personal/restic-env.age ~/.config/restic/env
+# Run by hand, like every task here; this is the machine being emptied out,
+# so a snapshot before each round of deleting is the whole point.
+[tasks.backup]
+description = "Back up $HOME with restic, or run a restic command against the repo"
+run = "~/dotfiles/tools/restic/backup.sh"
+
 # agenix is a Nix activation module, so it cannot run here. This is the part
 # of it this machine needs: decrypt one secret to one path, owner-only.
 # Run by hand; never from a hook (see ../config.toml on why tasks don't
