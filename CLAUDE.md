@@ -710,17 +710,25 @@ Decisions that are easy to undo by accident:
   image as `dev`, so `run`, `up`'s sibling `start`, and `.devcontainer.json`
   never learn where the image came from. Don't teach them the registry name.
 - **`latest` moves only from the default branch** (`enable={{is_default_branch}}`
-  in the metadata step). Every run also tags `sha-<short>` and the branch name
-  with `/` replaced by `-`, which `dev.sh pull` mirrors when translating a ref.
+  in the metadata step). Every run also tags `sha-<short>` and the ref name
+  with every character outside `[A-Za-z0-9._-]` replaced by `-`
+  (metadata-action's rule), which `dev.sh pull` applies to what you type.
+- **`pull` asks for the daemon's own platform.** The workflow publishes
+  linux/arm64 only, and a plain single-arch manifest pulls *successfully*
+  onto an amd64 daemon; `--platform` is what turns that into an error instead
+  of an arm64 rootfs retagged over the 2012 MBP's local build.
 - **`provenance: false` and `sbom: false` are load-bearing**, not
   minimalism. buildx's default provenance turns the push into an image index
   whose real manifest shows up on GHCR as an *untagged* version - and the
   workflow's "delete untagged versions" prune step would then delete the
   half the tag points at. A single-platform build with both off pushes one
-  plain manifest, so an untagged version is a genuine orphan.
+  plain manifest, so an untagged version is a genuine orphan. Note what
+  that step therefore does *not* do: a superseded `latest` keeps its
+  `sha-` tag, so it is never untagged; only the keep-newest-N step ages it
+  out, and `sha-` tags are not durable for that reason.
 - **The keep-newest-N prune runs on `main` only.** There the version just
   pushed is the newest and carries `latest`, so it survives by construction;
-  on a branch, five branch builds in a row would age `latest` out.
+  on a branch, N branch builds in a row would age `latest` out.
 - **No build-time secrets, ever.** The ragenix identity enters a *running*
   container via `docker cp`. A `COPY` then `rm` still ships the file in the
   earlier layer, and on a public package deleting a version is not
