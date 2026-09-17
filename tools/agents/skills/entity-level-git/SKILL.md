@@ -17,7 +17,12 @@ description: >
   entity-diff comment CI posts on PRs. The entity-level answer is cheaper and
   more precise than reading whole files — consult the skill even for tasks you
   could muddle through with plain git and grep.
-allowed-tools: Bash(sem *), Bash(weave *), Bash(weave-cli *), Bash(inspect *), Bash(git status), Bash(git log *), Bash(git diff *)
+# Read-only subcommands only. Deliberately NOT `Bash(sem *)` / `Bash(weave *)`:
+# a wildcard would pre-approve sem setup/login/cloud/update and weave setup,
+# which the body says never to run unprompted - the permission prompt is the
+# backstop for those rules, so the allowlist must not remove it. `inspect
+# review` is excluded too: it sends code to an LLM API.
+allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(inspect diff *), Bash(inspect pr *), Bash(inspect file *), Bash(git status), Bash(git log *), Bash(git diff *)
 ---
 
 # Entity-Level Git (sem, weave, inspect)
@@ -40,14 +45,23 @@ yourself.
 
 ## Availability and fallback
 
-- **Not in nixpkgs** (as of 2026-08), so `nix run nixpkgs#...` cannot summon
-  them. On the darwin machines they come from Homebrew (`sem-cli` from core;
-  `weave` and `inspect` from `ataraxy-labs/tap` — see
-  `darwin/modules/homebrew.nix`). Elsewhere: `cargo install --git` per each
-  repo's README.
+- **Each comes from a different place** (verified 2026-09-16):
+
+  | Tool | nixpkgs | Installed on the desktop machines via |
+  |---|---|---|
+  | `weave` | yes — `nixpkgs#weave` | home-manager (`profiles/home.nix`, `work.nix`) |
+  | `sem` | **no — and the name is taken** | Homebrew core, as `sem-cli` |
+  | `inspect` | no | Homebrew, `ataraxy-labs/tap/inspect` |
+
+- **`nixpkgs#sem` is a different program** (the Semaphore CI CLI). `nix run
+  nixpkgs#sem` summons the wrong tool and its errors won't say so. Only weave
+  can be borrowed with the nix-summon trick: `nix run nixpkgs#weave -- ...`.
 - **Sandboxes usually won't have them.** Per the preferred-tooling fallback
-  rule: don't hand-install in a throwaway environment — fall back to `git
-  diff` / normal merge / reading the diff, and say which path you took.
+  rule: `nix run` weave if nix is present; for sem and inspect don't
+  hand-install in a throwaway environment — fall back to `git diff` / reading
+  the diff, and say which path you took.
+- sem has a `sem update` self-updater. Don't run it: the binary is
+  brew-managed, and a self-update fights the package manager.
 - Check with `command -v sem weave inspect` before building a plan around them.
 
 ## sem — entity diffs, blame, impact
@@ -55,24 +69,39 @@ yourself.
 Reach for `sem` when you'd otherwise read a diff or grep for callers:
 
 ```bash
-sem diff                       # entity-level working-tree diff
+sem diff                       # entity-level working-tree diff (git diff syntax works)
 sem diff --staged              # staged only
-sem diff --format json         # machine-readable (also: markdown, plain)
-sem impact <entity>            # dependency graph: what breaks if this changes
-sem impact <entity> --tests    # ...including which tests cover it
+sem diff --no-cosmetics        # drop formatting-only changes: the formatter-churn case
+sem diff --json                # machine-readable; carries entity IDs for `impact`
+sem impact <entity>            # deps, dependents, transitive impact, tests
+sem impact <entity> --tests    # only the affected test entities
+sem impact <entity> --depth 0  # unlimited transitive depth (default is 2)
+sem callers <entity>           # direct callers only — cheaper than full impact
+sem refs <entity>              # what the entity itself calls
+sem find <name>                # locate an entity's definition
 sem blame <file>               # who last modified each entity in the file
-sem log <entity>               # history of one function/class
-sem log --limit 200            # no entity: repo hotspots
+sem log <entity>               # history of one function/class (-v shows content diffs)
+sem log --limit 200            # no entity: repo hotspots + co-change pairs (default scans 50)
 sem entities <path> --json     # list parsed entities
 sem context <entity>           # token-budgeted LLM context for an entity
 ```
 
+Commands checked against `sem 0.25.0`. When an entity name is ambiguous, pass
+`--file <path>` to disambiguate.
+
 Notes:
 
 - **Before large refactors**, run `sem impact` on the entities you're about to
-  change — it's the cheap version of "read every caller".
+  change — it's the cheap version of "read every caller". For a rename,
+  `sem callers` is usually the whole answer.
 - `sem setup` rewires `git diff` output globally and `sem unsetup` reverts it.
   That mutates the user's git config: **propose it, never run it unprompted.**
+- **Everything above runs locally, and that is the default** — cloud is "off
+  until you enable it" and telemetry is "local by default — nothing uploaded"
+  (sem's own help text). `sem login`, `sem cloud`, `sem review`, `sem xref`
+  and `sem telemetry on` change that by sending repo-derived data to Ataraxy's
+  servers. On a machine holding work code that is the user's call alone:
+  never run them, and don't suggest them as a performance fix.
 - `sem mcp` serves these as MCP tools (`sem_impact`, `sem_context`, `sem_diff`,
   `sem_entities`, `sem_blame`, `sem_log`). If a `sem` MCP server is already
   registered in the session, prefer its tools over shelling out.
@@ -88,13 +117,22 @@ merges at entity granularity instead; unsupported file types silently fall
 back to normal line merging.
 
 ```bash
-weave setup             # enable: writes .gitattributes + merge driver config
-weave setup --local     # .git/info/attributes instead (nothing committed)
-weave setup --global    # all repos via ~/.gitconfig
-weave unsetup           # revert to standard git merge
-weave-cli preview <branch>   # dry-run a merge without committing anything
+weave preview <branch>          # dry-run merging <branch> into HEAD; read-only
+weave preview <branch> --file f # ...for one file
+weave summary <file>            # structured summary of weave conflict markers
+weave setup                     # enable: writes .gitattributes + merge driver config
+weave setup --local             # .git/info/attributes instead (nothing committed)
+weave unsetup                   # revert to standard git merge
 ```
 
+Commands checked against `weave 0.3.6`, which ships three binaries: `weave`
+(the CLI above), `weave-driver` (what git/jj invoke), and `weave-mcp`. Older
+READMEs call the CLI `weave-cli` and show a `setup --global`; neither exists
+in this version, so don't propose them.
+
+- **Start with `weave preview`.** It changes nothing, so it's safe to run
+  unprompted, and it answers "would weave have dissolved these conflicts?"
+  before anyone commits to configuring a merge driver.
 - `weave setup` **mutates repo config and possibly tracked files**
   (`.gitattributes`): propose it and let the user choose the variant; don't
   run it unprompted. `--local` is the least invasive.
@@ -120,7 +158,13 @@ weave-cli preview <branch>   # dry-run a merge without committing anything
 ## inspect — review triage by structural risk
 
 Reach for `inspect` when facing a large diff or PR and the question is "where
-should review attention go":
+should review attention go".
+
+**Unverified:** unlike the sem and weave sections, these commands were
+transcribed from inspect's README and have not been checked against a real
+binary — and that README route already got two weave commands wrong. Run
+`inspect --help` first and trust it over this list; correct this section when
+you do.
 
 ```bash
 inspect diff HEAD~1              # triage last commit (also ranges: main..feature)

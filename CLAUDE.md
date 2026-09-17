@@ -718,9 +718,15 @@ without reading the full diff. It's display-only: no config, no API keys,
 and it never fails the build, so it doesn't gate merging alongside the
 lint/check jobs above.
 
-Sem is also installed locally (`sem-cli` via homebrew), alongside its
-siblings weave (entity-level merge driver) and inspect (review triage) from
-the same Ataraxy Labs stack. Usage guidance lives in the
+Sem is also installed locally, alongside its siblings weave (entity-level
+merge driver) and inspect (review triage) from the same Ataraxy Labs stack.
+The three arrive by three routes, each the least-bad available: weave from
+nixpkgs (desktop profiles), sem from homebrew-core as `sem-cli` (nixpkgs'
+`sem` attribute is an unrelated Semaphore CI tool — same name, wrong
+program), and inspect from the `ataraxy-labs/tap` brew tap because nothing
+else carries it. That tap is a known activation risk (see "A third-party tap
+runs its Ruby inside your activation" above); it is accepted for one formula
+and documented at the tap declaration. Usage guidance lives in the
 `entity-level-git` skill (`tools/agents/skills/entity-level-git/`), not
 here — tool-specific depth belongs in on-demand skills, with only a
 compact pointer in the always-loaded `tools/agents/preferred-tooling.md`.
@@ -747,7 +753,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-16 - Corrected the entity-level-git work after merging main: "none of sem/weave/inspect are in nixpkgs" had been written into the skill and preferred-tooling from a sandbox with no `nix` to check it, and was wrong — nixpkgs carries weave, and its `sem` is a different program entirely. Moved weave to nixpkgs per the third-party-tap lesson, re-verified every sem and weave command against real binaries (two weave commands were wrong), and narrowed the skill's `allowed-tools` from wildcards to read-only subcommands, since a wildcard pre-approves the very `setup`/`login` commands the skill says never to run unprompted. Rule worth keeping: an availability claim about a package set is a checkable fact — check it, or mark it unverified*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
