@@ -13,6 +13,12 @@ draft="$1"
 "$DOCKER" exec fava-custom sh -c '
   draft="$1"
   { cat /data/main.beancount; echo; echo "include \"import/$draft\""; } > /data/.draft-gate.beancount
-  bean-check /data/.draft-gate.beancount; rc=$?
+  # A draft may carry document directives for the PDF it is about, which is
+  # still import/<name>.pdf until approval files it. beancount reports the
+  # missing target as an error; that is not a books problem, so drop those
+  # (and their echoed directive line) before deciding.
+  out=$(bean-check /data/.draft-gate.beancount 2>&1)
   rm -f /data/.draft-gate.beancount /data/.draft-gate.beancount.picklecache
-  exit $rc' sh "$draft"
+  real=$(printf "%s\n" "$out" | grep -v "File does not exist:" | grep -v "^ *[0-9-]* document " | grep -v "^ *$")
+  printf "%s\n" "$out"
+  [ -z "$real" ]' sh "$draft"
