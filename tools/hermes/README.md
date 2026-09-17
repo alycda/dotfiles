@@ -16,17 +16,28 @@ warrants raw power (computer control etc.).
   network — it consumes untrusted PDF text). `state/` and `workspace.env`
   are secrets/runtime and never tracked; `*.env.example` documents the keys.
 - `boxed/skills/ledger/` — the boxed ledger skill: all ledger operations via
-  the host MCP broker's five verbs; read-only fava for browsing; deliverables
+  the host MCP broker's fixed verbs; read-only fava for browsing; deliverables
   to `/artifacts` (iCloud → Obsidian) only.
 - `mbp12-host/` — the host-side privilege boundary and pipeline:
   - `ledger-broker/` — stdlib-python MCP server (127.0.0.1:8643, bearer
-    token) exposing exactly ledger_status/check/ingest/draft/approve.
-  - `ledger-ingest/` — inbox watcher pipeline: classify → contained
-    bookkeeper draft → bean-check gate → git commit → Signal notify;
-    `approve.sh` = host-side fixed-prompt one-shot with revert rails.
+    token) exposing exactly ledger_status/check/ingest/draft/read_import/
+    approve/backup/add_budget. Every write verb takes validated fields or a
+    basename, never beancount text, and runs behind bean-check + restore.
+  - `ledger-ingest/` — inbox watcher pipeline (v3: the iCloud inbox is a
+    queue, PDFs are moved out once byte-verified): extract → classify →
+    contained bookkeeper draft → bean-check gate → git commit → Signal
+    notify; `approve.sh` = host-side fixed-prompt one-shot with revert rails.
+    `touch ~/ledger-ingest/PAUSED` stops all model calls during bulk
+    catch-up. Also here: `backup-ledger.sh` (weekly verified iCloud
+    archive), `venice-watch.sh` (hourly balance/burn alert),
+    `sweep-processed.py` (archive statements already in the ledger, under
+    fava's `statements/<Account/Path>/<date>.pdf` documents convention),
+    `add-budget.py`, and the `verify-*` scripts.
   - `signal-cli/` — dockerized signal-cli daemon (Temurin 25), state
     bind-mounted for offline sync; loopback :8080.
-  - `launchd/` — the two host LaunchAgents (broker, inbox watcher).
+  - `launchd/` — the six host LaunchAgents: broker, inbox watcher, due-date
+    reminders, docker watchdog, weekly backup, Venice balance watch. Hermes
+    itself has no LaunchAgent: it runs only in `boxed/`.
 
 ## Not tracked (per-machine provisioning)
 
