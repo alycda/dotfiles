@@ -42,8 +42,15 @@ _:
     # trust here instead of imperative per-machine `brew trust`.
     taps = [
       {
-        # Ataraxy Labs entity-level git stack (weave, inspect below; sem comes
-        # from core as sem-cli). See the entity-level-git agent skill.
+        # Here for exactly one formula: inspect, the only member of the
+        # Ataraxy Labs entity-level git stack that neither nixpkgs nor
+        # homebrew-core carries (weave comes from nixpkgs in the desktop
+        # profiles; sem from core as sem-cli). Known cost: a third-party tap
+        # runs its Ruby inside activation and can abort a switch - see
+        # docs/solutions/build-errors/third-party-tap-formula-aborts-darwin-rebuild.md.
+        # If it ever raises, deleting this tap and the inspect brew is the
+        # fix; the entity-level-git skill already degrades when inspect is
+        # absent.
         name = "ataraxy-labs/tap";
         trusted = true;
       }
@@ -57,8 +64,7 @@ _:
     # Formulae (CLI packages)
     brews = [
       "ataraxy-labs/tap/inspect" # Entity-level PR review triage (ataraxy-labs/inspect)
-      "ataraxy-labs/tap/weave"   # Entity-level merge driver (ataraxy-labs/weave)
-      "envchain"        # Keychain-backed secrets as env vars
+      "envchain"       # Keychain-backed secrets as env vars
       "envelope"
       "hunk"
       "kondo"           # Clean build artifacts

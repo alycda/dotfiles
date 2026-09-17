@@ -26,6 +26,12 @@
       # Homebrew 6.0 and took activation down with it; pinned below current
       # because tart 2.35.0+ only runs on macOS 26. Both in lib/tart.nix.
       (import ../../lib/tart.nix pkgs)
+      # Entity-level merge driver (Ataraxy Labs; see the entity-level-git
+      # skill). From nixpkgs, not the ataraxy-labs brew tap, for the same
+      # reason as tart above: a tap formula that raises aborts activation,
+      # and nixpkgs has this one. Desktop-only: ~230 MiB closure, too heavy
+      # for lib/core-packages.nix. Ships weave, weave-driver and weave-mcp.
+      weave
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
     ];
   };
