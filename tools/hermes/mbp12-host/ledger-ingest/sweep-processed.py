@@ -21,9 +21,12 @@ deleted, and unclassifiable files are never touched.
                                        # 22a16c8; the amount-coverage heuristic
                                        # scored them 70-87% anyway)
 
-Every archived statement gets a `document` directive appended to
-statements.beancount (included from main.beancount), dated by the statement
-closing date, so it shows on the account's Documents tab in fava.
+Archive layout is beancount/fava's documents convention (option "documents"
+"statements" in main.beancount): statements/<Account/Path>/<closing-date>.pdf.
+Both beancount and fava auto-discover date-prefixed files there, so no
+`document` directives are written. Extraction text goes to
+statements/.cache/<account-leaf>-<closing-date>.txt — a dated .txt inside an
+account directory would be discovered as a document too.
 """
 import argparse, os, re, shutil, sys, datetime
 
@@ -31,8 +34,8 @@ LEDGER = "/Users/alyssa/ledger"
 IMPORT = os.path.join(LEDGER, "import")
 ARCHIVE = os.path.join(LEDGER, "statements")
 LOG = "/Users/alyssa/ledger-ingest/sweep.log"
-DOCS = os.path.join(LEDGER, "statements.beancount")
 TXT_CACHE = os.path.join(IMPORT, ".cache")
+ARCHIVE_TXT = os.path.join(ARCHIVE, ".cache")
 CLS_ACCOUNT = {
     "carda": "Liabilities:Credit:BankA:CardA",
     "loana": "Liabilities:Credit:BankA:LoanA",
@@ -43,25 +46,6 @@ CLS_ACCOUNT = {
     "cardf": "Liabilities:Credit:BankF:CardF",
 }
 
-
-def add_document(date, acct, relpath):
-    """Append a document directive unless one for relpath already exists."""
-    existing = open(DOCS, errors="replace").read() if os.path.exists(DOCS) else ""
-    if '"%s"' % relpath in existing:
-        return False
-    with open(DOCS, "a") as f:
-        if not existing:
-            f.write("; Archived statements (statements/<account>/), written by\n"
-                    "; ledger-ingest/sweep-processed.py. One document directive per\n"
-                    "; PDF, dated by the statement closing date.\n\n")
-        f.write('%s document %s "%s"\n' % (date, acct, relpath))
-    return True
-
-
-# ---- classification --------------------------------------------------------
-# Filename patterns first (cheap, unambiguous), then statement text. A file we
-# cannot place is reported and left alone — archiving an unknown statement is
-# how you lose one.
 FILENAME_RULES = [
     (re.compile(r'^loana-'),                          "Liabilities:Credit:BankA:LoanA"),
     (re.compile(r'^\d{2}-\d{2}-\d{4}$'),              "Liabilities:Credit:StoreC"),
@@ -83,6 +67,8 @@ CLOSING = [
     re.compile(r'Closing\s+Date\s*:?\s*(\d{1,2}/\d{1,2}/\d{2,4})', re.I),
     re.compile(r'Statement\s+Date\s*:?\s*(\d{1,2}/\d{1,2}/\d{2,4})', re.I),
     re.compile(r'through\s+(\d{1,2}/\d{1,2}/\d{2,4})', re.I),
+    # Card B (IssuerB): "31 day billing cycle from 07/22/2026 to 08/21/2026"
+    re.compile(r'billing\s+cycle\s+from\s+\d{1,2}/\d{1,2}/\d{2,4}\s+to\s+(\d{1,2}/\d{1,2}/\d{2,4})', re.I),
 ]
 
 def classify(stem, text):
@@ -226,9 +212,9 @@ def main():
 
         d = closing_date(text)
         cls = acct.split(":")[-1].lower()
-        newname = ("%s-%s.pdf" % (cls, d)) if d else ("%s-%s.pdf" % (cls, stem))
-        dest = os.path.join(ARCHIVE, cls)
-        note = "-> statements/%s/%s%s" % (cls, newname, "  (trusted)" if trusted else "")
+        newname = ("%s.pdf" % d) if d else ("%s.pdf" % stem)
+        dest = os.path.join(ARCHIVE, *acct.split(":"))
+        note = "-> %s/%s%s" % (os.path.relpath(dest, LEDGER), newname, "  (trusted)" if trusted else "")
         if not d:
             note += "  (no closing date found — kept original stem)"
 
@@ -242,10 +228,9 @@ def main():
             for p in (os.path.join(TXT_CACHE, pdf + ".txt"), os.path.join(IMPORT, pdf + ".txt"),
                       os.path.join(IMPORT, stem + ".txt"), os.path.join(IMPORT, stem + ".beancount")):
                 if os.path.exists(p):
-                    shutil.move(p, os.path.join(dest, os.path.splitext(newname)[0]
-                                                + os.path.splitext(p)[1]))
-            if d:
-                add_document(d, acct, "statements/%s/%s" % (cls, newname))
+                    os.makedirs(ARCHIVE_TXT, exist_ok=True)
+                    shutil.move(p, os.path.join(ARCHIVE_TXT, "%s-%s%s" % (cls, os.path.splitext(newname)[0],
+                                                                        os.path.splitext(p)[1])))
             moved += 1
         rows.append((stem, cls, len(stmt), len(hit), cov, note))
 
@@ -259,20 +244,6 @@ def main():
     print("\n%d files, %d qualify at >=%.0f%% coverage, %d moved%s"
           % (len(rows), qualify, args.threshold, moved,
              "" if args.apply else "  (DRY RUN — rerun with --apply)"))
-
-    # Backfill directives for statements archived before this script wrote them.
-    if args.apply:
-        added = 0
-        for cls in (sorted(os.listdir(ARCHIVE)) if os.path.isdir(ARCHIVE) else []):
-            acct = CLS_ACCOUNT.get(cls)
-            if not acct:
-                continue
-            for fn in sorted(os.listdir(os.path.join(ARCHIVE, cls))):
-                m = re.match(r'^%s-(\d{4}-\d{2}-\d{2})\.pdf$' % re.escape(cls), fn)
-                if m and add_document(m.group(1), acct, "statements/%s/%s" % (cls, fn)):
-                    added += 1
-        if added:
-            print("backfilled %d document directive(s) into statements.beancount" % added)
 
     if args.apply and moved:
         with open(LOG, "a") as f:

@@ -45,6 +45,7 @@ ACCOUNTS = [
     (re.compile(r'^[a-z]+_\d{4}_monthly_statement$'), "Liabilities:Credit:BankA:CardA"),
     # archived by sweep-processed.py: statements/<account>/<account>-<closing>.txt
     (re.compile(r'^carda-\d{4}-'), "Liabilities:Credit:BankA:CardA"),
+    (re.compile(r'^loana-\d{4}-'), "Liabilities:Credit:BankA:LoanA"),
     (re.compile(r'^storec-\d{4}-'), "Liabilities:Credit:StoreC"),
     (re.compile(r'^cardb-\d{4}-'), "Liabilities:Credit:CardB"),
 ]
@@ -64,7 +65,7 @@ def parse_date(s):
 latest = {}
 # newest statement may be in import/ (pending) or already archived under statements/
 for path in (glob.glob(os.path.join(ledger, "import", ".cache", "*.txt"))
-             + glob.glob(os.path.join(ledger, "statements", "*", "*.txt"))):
+             + glob.glob(os.path.join(ledger, "statements", ".cache", "*.txt"))):
     name = os.path.basename(path)[:-8] if path.endswith(".pdf.txt") else os.path.basename(path)[:-4]
     acct = account_for(name)
     if not acct:

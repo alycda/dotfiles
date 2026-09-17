@@ -26,10 +26,13 @@ Ledger root is /ledger — read whatever context you need (main.beancount, the
 matching YYYY/transactions.beancount month section, accounts/).
 
 Write EXACTLY ONE new file: /ledger/import/$base.draft.beancount containing:
- 1. a '; PLAN:' comment block: the target filename per the slug convention
-    (import/$base -> YYYY/<statement-date>.<slug>.pdf, paystubs bare
-    YYYY-MM-DD.pdf), the '** Month YYYY' section the entries belong in, and
-    the document directive line(s)
+ 1. a '; PLAN:' comment block: the target filename — statements go to
+    statements/<Account/Path>/<closing-date>.pdf (auto-discovered, NO document
+    directive for that account; multi-account statements: file under the
+    first account and add '../statements/...' directives for the others),
+    paystubs stay bare YYYY/YYYY-MM-DD.pdf with their two directives — the
+    '** Month YYYY' section the entries belong in, and any explicit document
+    directive line(s)
  2. the draft beancount entries (flags, tags, links per conventions; for
     deposits add the day-after balance assertion per the bookkeeper rules)
 If you cannot process it confidently, write '; REVIEW_NEEDED: <reason>' as

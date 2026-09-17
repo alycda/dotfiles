@@ -4,6 +4,16 @@
 # bean-check; commit on clean, git-revert on failure.
 # Usage: approve.sh <pdf-basename>   (e.g. 2026-07-31.pdf)
 set -uo pipefail
+
+# PAUSE SWITCH: while ~/ledger-ingest/PAUSED exists, make no model calls.
+# Used during bulk catch-up, when statements are dropped into the inbox in
+# batches and auto-drafting each one would cost ~$1.62 a piece. Extraction,
+# OCR, classification, gating and notification all still run — only the
+# expensive step is skipped, and the PDF stays pending for later.
+if [ -f /Users/alyssa/ledger-ingest/PAUSED ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') ${1:-?} -> SKIPPED (pipeline PAUSED; rm ~/ledger-ingest/PAUSED to resume)"
+  exit 75
+fi
 HERMES=/Users/alyssa/.local/bin/hermes
 LEDGER=/Users/alyssa/ledger
 BIN=/Users/alyssa/ledger-ingest
@@ -23,11 +33,15 @@ PROVIDER="${LEDGER_APPROVE_PROVIDER:-openai-api}"
 prompt="You are running UNATTENDED executing an APPROVED filing plan. Ledger
 root: $LEDGER. The draft $LEDGER/$draft contains a '; PLAN:' block and
 beancount entries. Execute EXACTLY that plan:
- 1. mv the PDF $LEDGER/import/$name to the PLAN's target YYYY/ filename.
- 2. Append the draft's entries and document directive(s) into the PLAN's
-    '** Month YYYY' section of the matching YYYY/transactions.beancount,
+ 1. mv the PDF $LEDGER/import/$name to the PLAN's target path (creating
+    directories as needed): statements/<Account/Path>/<closing-date>.pdf for
+    statements, YYYY/YYYY-MM-DD.pdf for paystubs. Move
+    $LEDGER/import/.cache/$name.txt to statements/.cache/<leaf>-<date>.txt
+    for a statement (delete it for a paystub).
+ 2. Append the draft's entries and any explicit document directive(s) into the
+    PLAN's '** Month YYYY' section of the matching YYYY/transactions.beancount,
     keeping date order (document directives grouped at the section end).
- 3. Delete $LEDGER/$draft and $LEDGER/import/$name.txt.
+ 3. Delete $LEDGER/$draft.
 HARD LIMITS: touch ONLY those files; do NOT run git; do NOT run bean-check
 (the pipeline does); do NOT adjust any amount, date, or account from what the
 draft says; if the PLAN is ambiguous or the month section is missing, output
