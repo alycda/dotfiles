@@ -21,6 +21,11 @@
 
     packages = with pkgs; [
       taskbook # interim CLI task manager; desktop-only (Node closure, not for containers)
+      # VM management, for verifying a switch on a clean macOS image. Was a
+      # cirruslabs/cli brew until that tap's formula stopped loading under
+      # Homebrew 6.0 and took activation down with it; pinned below current
+      # because tart 2.35.0+ only runs on macOS 26. Both in lib/tart.nix.
+      (import ../../lib/tart.nix pkgs)
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
     ];
   };

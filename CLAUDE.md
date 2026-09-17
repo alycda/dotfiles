@@ -195,6 +195,22 @@ this bites, repin to a rev whose brew call matches current brew — and remember
 fixing rev may run `brew` as the configured user (`sudo --user=`), which requires
 that user own the Homebrew prefix. (Lesson from PR #35.)
 
+**A third-party tap runs its Ruby inside your activation.** `brew bundle` loads
+every formula in `brews`, so a tap that raises takes the whole
+`darwin-rebuild switch` with it — on a machine where no `.nix` file changed,
+at a time chosen by `onActivation.autoUpdate`. The `cirruslabs/cli` tart
+formula started raising when Homebrew 6.0 *disabled* declaring `depends_on
+:macos` twice; `brew update` could not fix it (origin/main had the same file)
+and neither could waiting (five upstream PRs, three closed unmerged, and the
+formula is GoReleaser-generated `DO NOT EDIT`). Prefer nixpkgs for anything
+nixpkgs actually has — a pinned input moves when you run `nix flake update`,
+not when a background `brew update` decides. Two traps on the way out: a green
+`nix build` of a *prebuilt-binary* derivation verifies a hash, not an ABI (run
+`<store-path>/bin/<prog> --version` — nixpkgs' tart built fine and then died in
+dyld on macOS 15), and `cleanup = "zap"` cannot remove a formula it cannot
+load, so uninstall by hand before the switch. Full write-up:
+`docs/solutions/build-errors/third-party-tap-formula-aborts-darwin-rebuild.md`
+
 ### Module Organization
 
 **Common modules** (`home-manager/modules/common.nix`):
@@ -727,6 +743,13 @@ This document should evolve as patterns emerge. When you:
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
 *2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
+
+*2026-09-06 - Recorded that a third-party Homebrew tap executes its
+formula Ruby inside activation and can abort a whole `darwin-rebuild switch`
+with no local change, after the cirruslabs/cli tart formula started raising
+under Homebrew 6.0; includes the two traps found routing around it (a green
+`nix build` of a prebuilt binary proves nothing about whether it runs, and
+`cleanup = "zap"` cannot uninstall a formula it cannot load)*
 
 *2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 

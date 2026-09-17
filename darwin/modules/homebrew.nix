@@ -42,10 +42,6 @@ _:
     # trust here instead of imperative per-machine `brew trust`.
     taps = [
       {
-        name = "cirruslabs/cli";
-        trusted = true;
-      }
-      {
         name = "getditto/build-infra";
         clone_target = "git@github.com:getditto/homebrew-build-infra.git";
         trusted = true;
@@ -54,7 +50,6 @@ _:
 
     # Formulae (CLI packages)
     brews = [
-      "cirruslabs/cli/tart" # Ditto - VM management
       "envchain"        # Keychain-backed secrets as env vars
       "envelope"
       "hunk"
