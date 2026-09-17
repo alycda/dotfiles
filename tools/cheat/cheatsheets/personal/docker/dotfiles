@@ -1,10 +1,16 @@
-# docker resolve the _script_ itself
+# fast path: pull the image GitHub built (dev-image.yml, dispatched by hand;
+# arm64 only) and run - docker resolves the _script_ itself
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- start
+
+# build it here instead (amd64 machine, or a tree nobody dispatched yet)
 curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
 
-# docker resolve a different branch (and script):
+# a different branch: the script from that branch, and its image or its tree
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/refs/heads/BRANCH_NAME/docker/dev.sh | sh -s -- start BRANCH_NAME
 curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/refs/heads/BRANCH_NAME/docker/dev.sh | sh -s -- up BRANCH_NAME
 
-# build only (no checkout needed); the image is tagged `dev`
+# pull or build only, no run (no checkout needed); the image is tagged `dev`
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- pull
 curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- build
 
 # same image from VS Code: open any repo whose .devcontainer.json says

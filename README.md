@@ -178,13 +178,16 @@ is a pull:
 curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- start
 ```
 
-Run it from whatever directory you want mounted at `/work`. Picking up a
-newer image is the same one-liner again — `start` re-pulls `latest` — and
-there's no local checkout to keep in sync. The local build is still there as
-the fallback (no arm64 image published yet, an amd64 machine, or a change
-that hasn't been dispatched): `sh -s -- up` has Docker fetch the repo itself
-(BuildKit remote build context over https) and bake the closure locally,
-~25 minutes on an M-series Mac.
+Run it from whatever directory you want mounted at `/work`. There's no local
+checkout to keep in sync, but the image only moves when someone dispatches
+the workflow: after a change lands on `main` (the weekly flake update
+included), dispatch `Dev image` from the Actions tab, then the same
+one-liner re-pulls `latest`. The local build is still there as the fallback
+(nothing published yet, an amd64 machine — the workflow publishes arm64
+only and `pull` refuses a mismatch — or a change nobody dispatched):
+`sh -s -- up` has Docker fetch the repo itself (BuildKit remote build
+context over https) and bake the closure locally, ~25 minutes on an
+M-series Mac.
 
 `docker/dev.sh` is the single source of truth for the build and run commands:
 the volume set, the working directory and the network mode all live there, and
