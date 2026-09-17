@@ -12,6 +12,18 @@ deleted, and unclassifiable files are never touched.
   ./sweep-processed.py                 # report only
   ./sweep-processed.py --apply         # move the ones that qualify
   ./sweep-processed.py --threshold 95  # stricter coverage bar
+  ./sweep-processed.py --trust Liabilities:Credit:BankA:CardA
+                                       # archive that account on the strength of
+                                       # its reconciliation anchor, skipping the
+                                       # coverage bar (2026-08-29 decision: the
+                                       # BANKA card + LOANA were reconciled
+                                       # statement-by-statement and anchored in
+                                       # 22a16c8; the amount-coverage heuristic
+                                       # scored them 70-87% anyway)
+
+Every archived statement gets a `document` directive appended to
+statements.beancount (included from main.beancount), dated by the statement
+closing date, so it shows on the account's Documents tab in fava.
 """
 import argparse, os, re, shutil, sys, datetime
 
@@ -19,6 +31,32 @@ LEDGER = "/Users/alyssa/ledger"
 IMPORT = os.path.join(LEDGER, "import")
 ARCHIVE = os.path.join(LEDGER, "statements")
 LOG = "/Users/alyssa/ledger-ingest/sweep.log"
+DOCS = os.path.join(LEDGER, "statements.beancount")
+TXT_CACHE = os.path.join(IMPORT, ".cache")
+CLS_ACCOUNT = {
+    "carda": "Liabilities:Credit:BankA:CardA",
+    "loana": "Liabilities:Credit:BankA:LoanA",
+    "cardb": "Liabilities:Credit:CardB",
+    "storec": "Liabilities:Credit:StoreC",
+    "cardd": "Liabilities:Credit:BankD:CardD",
+    "storee": "Liabilities:Credit:StoreE",
+    "cardf": "Liabilities:Credit:BankF:CardF",
+}
+
+
+def add_document(date, acct, relpath):
+    """Append a document directive unless one for relpath already exists."""
+    existing = open(DOCS, errors="replace").read() if os.path.exists(DOCS) else ""
+    if '"%s"' % relpath in existing:
+        return False
+    with open(DOCS, "a") as f:
+        if not existing:
+            f.write("; Archived statements (statements/<account>/), written by\n"
+                    "; ledger-ingest/sweep-processed.py. One document directive per\n"
+                    "; PDF, dated by the statement closing date.\n\n")
+        f.write('%s document %s "%s"\n' % (date, acct, relpath))
+    return True
+
 
 # ---- classification --------------------------------------------------------
 # Filename patterns first (cheap, unambiguous), then statement text. A file we
@@ -145,6 +183,9 @@ def main():
                     help="percent of statement amounts that must appear (default 90)")
     ap.add_argument("--min-amounts", type=int, default=5,
                     help="skip statements with fewer distinct amounts than this")
+    ap.add_argument("--trust", action="append", default=[], metavar="ACCOUNT",
+                    help="archive this account's statements without the coverage bar "
+                         "(its reconciliation anchor is the evidence); repeatable")
     args = ap.parse_args()
 
     book = ledger_amounts()
@@ -154,7 +195,9 @@ def main():
         if not pdf.endswith(".pdf"):
             continue
         stem = pdf[:-4]
-        tpath = os.path.join(IMPORT, pdf + ".txt")
+        tpath = os.path.join(TXT_CACHE, pdf + ".txt")
+        if not os.path.exists(tpath):
+            tpath = os.path.join(IMPORT, pdf + ".txt")
         if not os.path.exists(tpath):
             tpath = os.path.join(IMPORT, stem + ".txt")
         if not os.path.exists(tpath):
@@ -167,16 +210,17 @@ def main():
             rows.append((stem, "-", 0, 0, 0.0, "UNCLASSIFIED — skipped"))
             continue
 
+        trusted = acct in args.trust
         stmt = amounts(text)
-        if len(stmt) < args.min_amounts:
+        if len(stmt) < args.min_amounts and not trusted:
             rows.append((stem, acct.split(":")[-1], len(stmt), 0, 0.0, "too few amounts — skipped"))
             continue
 
         posted = book.get(acct, set())
         hit = stmt & posted
-        cov = 100.0 * len(hit) / len(stmt)
+        cov = 100.0 * len(hit) / len(stmt) if stmt else 0.0
 
-        if cov < args.threshold:
+        if cov < args.threshold and not trusted:
             rows.append((stem, acct.split(":")[-1], len(stmt), len(hit), cov, "NOT in ledger — kept"))
             continue
 
@@ -184,7 +228,7 @@ def main():
         cls = acct.split(":")[-1].lower()
         newname = ("%s-%s.pdf" % (cls, d)) if d else ("%s-%s.pdf" % (cls, stem))
         dest = os.path.join(ARCHIVE, cls)
-        note = "-> statements/%s/%s" % (cls, newname)
+        note = "-> statements/%s/%s%s" % (cls, newname, "  (trusted)" if trusted else "")
         if not d:
             note += "  (no closing date found — kept original stem)"
 
@@ -195,11 +239,13 @@ def main():
                 rows.append((stem, cls, len(stmt), len(hit), cov, "TARGET EXISTS — kept"))
                 continue
             shutil.move(os.path.join(IMPORT, pdf), target)
-            for side in (pdf + ".txt", stem + ".txt", stem + ".beancount"):
-                p = os.path.join(IMPORT, side)
+            for p in (os.path.join(TXT_CACHE, pdf + ".txt"), os.path.join(IMPORT, pdf + ".txt"),
+                      os.path.join(IMPORT, stem + ".txt"), os.path.join(IMPORT, stem + ".beancount")):
                 if os.path.exists(p):
                     shutil.move(p, os.path.join(dest, os.path.splitext(newname)[0]
-                                                + os.path.splitext(side)[1]))
+                                                + os.path.splitext(p)[1]))
+            if d:
+                add_document(d, acct, "statements/%s/%s" % (cls, newname))
             moved += 1
         rows.append((stem, cls, len(stmt), len(hit), cov, note))
 
@@ -213,6 +259,20 @@ def main():
     print("\n%d files, %d qualify at >=%.0f%% coverage, %d moved%s"
           % (len(rows), qualify, args.threshold, moved,
              "" if args.apply else "  (DRY RUN — rerun with --apply)"))
+
+    # Backfill directives for statements archived before this script wrote them.
+    if args.apply:
+        added = 0
+        for cls in (sorted(os.listdir(ARCHIVE)) if os.path.isdir(ARCHIVE) else []):
+            acct = CLS_ACCOUNT.get(cls)
+            if not acct:
+                continue
+            for fn in sorted(os.listdir(os.path.join(ARCHIVE, cls))):
+                m = re.match(r'^%s-(\d{4}-\d{2}-\d{2})\.pdf$' % re.escape(cls), fn)
+                if m and add_document(m.group(1), acct, "statements/%s/%s" % (cls, fn)):
+                    added += 1
+        if added:
+            print("backfilled %d document directive(s) into statements.beancount" % added)
 
     if args.apply and moved:
         with open(LOG, "a") as f:
