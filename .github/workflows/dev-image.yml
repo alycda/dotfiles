@@ -15,9 +15,13 @@ name: Dev image
 # explains why `dev.sh build` alone can't).
 #
 # What gets tagged (docker/metadata-action below):
-#   sha-<short>   every run - the exact commit, and what `dev.sh pull` should
-#                 name when reproducing a report
-#   <branch>      every run - the ref that was built, `/` replaced by `-`
+#   sha-<short>   every run - the exact commit. Not durable: the keep-N prune
+#                 below ages these out, so name one to pin a report for days,
+#                 not months.
+#   <branch>      every run - the ref that was built (or the tag, for a
+#                 dispatch on a tag ref), every character outside
+#                 [A-Za-z0-9._-] replaced by `-`; docker/dev.sh applies the
+#                 same rule to what you type
 #   latest        default branch only. A branch build must never move the tag
 #                 the curl bootstrap pulls.
 #
@@ -73,7 +77,11 @@ jobs:
       # it built them from. Drop the preinstalled toolchains nothing here uses
       # before finding out how close that is; each rm is guarded because the
       # arm64 image does not ship all of them. `df` before and after so the
-      # margin is in the log, not guessed at.
+      # margin is in the log, not guessed at. If the first run still dies
+      # with ENOSPC, the next lever is moving docker's data-root (and with it
+      # the buildx builder's state volume) onto the runner's larger scratch
+      # disk, /mnt on the x64 images - unverified for the arm64 image, which
+      # is why it is not done blind here.
       - name: Free runner disk
         run: |
           df -h /
@@ -101,6 +109,7 @@ jobs:
           tags: |
             type=sha
             type=ref,event=branch
+            type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
@@ -128,12 +137,20 @@ jobs:
           # the tree, and an unchanged tree is exactly when nobody dispatches
           # this. The GHA cache is capped at 10GB per repo besides.
 
-      # Every push to a moving tag (`latest`, a branch name) strands the
-      # previous manifest as an untagged version. GHCR storage is free for
-      # public packages, but the package page fills with digests otherwise.
+      # A moving tag (`latest`, a branch name) does NOT strand the manifest
+      # it moves off: every run also tags sha-<short>, so the superseded
+      # version keeps that tag and is the keep-N step's business below. What
+      # this catches is the genuinely tagless: a push the concurrency rule
+      # above cancelled part-way, and - should anyone turn provenance back
+      # on - the attestation manifests that would then appear. GHCR storage
+      # is free for public packages; this is about the package page not
+      # filling with digests.
       # Non-fatal: by now the image is pushed and tagged, which is the job;
-      # a refused delete should not paint the run red.
+      # a refused delete should not paint the run red. The outcome goes in
+      # the summary instead, so a delete the token cannot make is visible
+      # rather than a silently growing package.
       - name: Delete untagged versions
+        id: prune-untagged
         uses: actions/delete-package-versions@v5
         continue-on-error: true
         with:
@@ -142,22 +159,28 @@ jobs:
           delete-only-untagged-versions: "true"
 
       # Branch builds leave sha-tagged versions behind that nothing moves
-      # off. Keep the newest 5 of everything, but only decide that on the
+      # off. Keep the newest 10 of everything, but only decide that on the
       # default branch: there the version just pushed is the newest and
       # carries `latest`, so it is kept by construction. Deciding it on a
-      # branch build could drop `latest` after five branch builds in a row.
-      - name: Keep the newest 5 versions
+      # branch build could drop `latest` after ten branch builds in a row.
+      # The count is over every ref, so a run of branch builds does age out
+      # main's older sha- versions - which is why the header calls those
+      # tags non-durable rather than promising otherwise.
+      - name: Keep the newest 10 versions
+        id: prune-old
         if: github.ref_name == github.event.repository.default_branch
         uses: actions/delete-package-versions@v5
         continue-on-error: true
         with:
           package-name: dev
           package-type: container
-          min-versions-to-keep: 5
+          min-versions-to-keep: 10
 
       - name: Summary
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
+          PRUNE_UNTAGGED: ${{ steps.prune-untagged.outcome }}
+          PRUNE_OLD: ${{ steps.prune-old.outcome }}
         run: |
           {
             echo "## Pushed"
@@ -166,5 +189,7 @@ jobs:
             echo "$TAGS"
             echo '```'
             echo
-            echo "Pull with \`docker/dev.sh pull ${GITHUB_REF_NAME}\` (or \`pull sha-${GITHUB_SHA::7}\`); \`dev.sh start\` pulls \`latest\` and runs."
+            echo "Pull any of these with \`docker/dev.sh pull <tag>\`; \`dev.sh start\` pulls \`latest\` and runs."
+            echo
+            echo "Prune: untagged versions \`$PRUNE_UNTAGGED\`, keep-newest \`$PRUNE_OLD\` (\`skipped\` off the default branch; \`failure\` means the token could not delete and the package is growing)."
           } >> "$GITHUB_STEP_SUMMARY"
