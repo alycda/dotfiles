@@ -10,6 +10,7 @@ the full architecture (broker, MCP, containment rationale).
 - Broker (host): ~/ledger-broker/broker.py, launchd com.alyssa.ledger-broker, 127.0.0.1:8643
 - Artifacts: containers write /artifacts -> iCloud/Hermes -> Obsidian
 - Draft runner: /ledger ro + /ledger/import rw, own network (untrusted PDF input)
+- REBUILD.md      — in-container installs (typst, pymupdf venv) to restore after a rebuild
 
 Intended dotfiles capture (issue #40 shape): this compose + the ledger skill
 + curated skill surface; secrets provisioned per-machine.
