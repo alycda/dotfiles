@@ -61,7 +61,7 @@ def main(year):
     first_prev = last_new = None
     missing = []
     for mn in MONTHS:
-        stmt = os.path.join(IMPORT, "%s_%d_monthly_statement.pdf.txt" % (mn, year))
+        stmt = os.path.join(IMPORT, ".cache", "%s_%d_monthly_statement.pdf.txt" % (mn, year))
         rec  = os.path.join(IMPORT, "%s_%d.reconcile.beancount" % (mn, year))
         if not os.path.exists(stmt):
             print("%-11s  ** statement missing **" % mn); continue

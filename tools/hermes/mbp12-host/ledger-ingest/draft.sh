@@ -21,7 +21,7 @@ prompt="You are running UNATTENDED in a pipeline. First read these three files:
 Then act as that bookkeeper agent.
 
 Task: draft ledger entries for the new document /ledger/import/$base
-(classifier hint: $class). Its extracted text is in /ledger/import/$base.txt.
+(classifier hint: $class). Its extracted text is in /ledger/import/.cache/$base.txt.
 Ledger root is /ledger — read whatever context you need (main.beancount, the
 matching YYYY/transactions.beancount month section, accounts/).
 
