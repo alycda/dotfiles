@@ -8,7 +8,10 @@ set -uo pipefail
 DOCKER=/usr/local/bin/docker
 COMPOSE_DIR=/Users/alyssa/hermes-boxed
 base="$1"; class="$2"
-MODEL="${LEDGER_DRAFT_MODEL:-claude-sonnet-5}"
+# GLM by default: 1.40/4.40 per Mtok vs sonnet-5's 3/15. A verification run on
+# 2026-07-28 cost $2.99 because this defaulted to sonnet AND the draft runner
+# still allowed 90 tool iterations. Override per-run with LEDGER_DRAFT_MODEL.
+MODEL="${LEDGER_DRAFT_MODEL:-zai-org-glm-5.2}"
 PROVIDER="${LEDGER_DRAFT_PROVIDER:-openai-api}"
 
 prompt="You are running UNATTENDED in a pipeline. First read these three files:
@@ -35,6 +38,16 @@ the file's only content instead — never guess accounts.
 HARD LIMITS: only /ledger/import is writable (everything else is a read-only
 mount — do not try); do not do arithmetic to verify balances (the pipeline
 runs bean-check); keep chat output to one short line."
+
+# PAUSE SWITCH: while ~/ledger-ingest/PAUSED exists, make no model calls.
+# Used during bulk catch-up, when statements are dropped into the inbox in
+# batches and auto-drafting each one would cost ~$1.62 a piece. Extraction,
+# OCR, classification, gating and notification all still run — only the
+# expensive step is skipped, and the PDF stays pending for later.
+if [ -f /Users/alyssa/ledger-ingest/PAUSED ]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') ${1:-?} -> SKIPPED (pipeline PAUSED; rm ~/ledger-ingest/PAUSED to resume)"
+  exit 75
+fi
 
 # Preflight: Venice 402 surfaces from hermes ONLY as "no final response was
 # produced", which reads like an agent failure. Fail loudly and leave the PDF
