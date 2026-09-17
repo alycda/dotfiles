@@ -20,9 +20,10 @@ description: >
 # Read-only subcommands only. Deliberately NOT `Bash(sem *)` / `Bash(weave *)`:
 # a wildcard would pre-approve sem setup/login/cloud/update and weave setup,
 # which the body says never to run unprompted - the permission prompt is the
-# backstop for those rules, so the allowlist must not remove it. `inspect
-# review` is excluded too: it sends code to an LLM API.
-allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(inspect diff *), Bash(inspect pr *), Bash(inspect file *), Bash(git status), Bash(git log *), Bash(git diff *)
+# backstop for those rules, so the allowlist must not remove it. Also excluded:
+# `inspect review` (sends code to an LLM API) and `inspect comment` (posts to
+# GitHub).
+allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(inspect diff *), Bash(inspect predict *), Bash(inspect pr *), Bash(inspect file *), Bash(git status), Bash(git log *), Bash(git diff *)
 ---
 
 # Entity-Level Git (sem, weave, inspect)
@@ -47,17 +48,17 @@ yourself.
 
 - **Each comes from a different place** (verified 2026-09-16):
 
-  | Tool | nixpkgs | Installed via | On which Macs |
+  | Tool | nixpkgs | Installed via | Where |
   |---|---|---|---|
-  | `weave` | yes — `nixpkgs#weave` | home-manager (`profiles/home.nix`, `work.nix`) | both |
-  | `sem` | **no — and the name is taken** | Homebrew core, as `sem-cli` | both |
-  | `inspect` | no | Homebrew, `ataraxy-labs/tap/inspect` | **work (`ditto`) only** |
+  | `weave` | yes — `nixpkgs#weave` | home-manager (`profiles/home.nix`, `work.nix`) | both Macs |
+  | `sem` | **no — and the name is taken** | Homebrew core, as `sem-cli` | both Macs |
+  | `inspect` | no | `lib/inspect.nix` — upstream's release binary, repointed at nixpkgs' openssl | both Macs |
 
-  inspect's tap is declared only in `darwin/modules/homebrew.nix`; the
-  personal Mac (`shesfast`, `homebrew-personal.nix`) does not carry it, so
-  expect `inspect: command not found` there. Don't "fix" that by adding the
-  tap: it would put a third-party tap on a second machine's activation path,
-  which is the user's decision, not an agent's.
+  None of the three reach the linux devcontainers. inspect is **not** installed
+  from Ataraxy's Homebrew tap, and must not be: that formula's pinned checksum
+  went stale when upstream moved the release tag, so it cannot install, and a
+  brew that cannot install aborts `darwin-rebuild`. `lib/inspect.nix` has the
+  full story. If inspect is ever missing, don't reach for the tap.
 
 - **`nixpkgs#sem` is a different program** (the Semaphore CI CLI). `nix run
   nixpkgs#sem` summons the wrong tool and its errors won't say so. Only weave
@@ -166,33 +167,56 @@ in this version, so don't propose them.
 Reach for `inspect` when facing a large diff or PR and the question is "where
 should review attention go".
 
-**Unverified:** unlike the sem and weave sections, these commands were
-transcribed from inspect's README and have not been checked against a real
-binary — and that README route already got two weave commands wrong. Run
-`inspect --help` first and trust it over this list; correct this section when
-you do.
-
 ```bash
-inspect diff HEAD~1              # triage last commit (also ranges: main..feature)
-inspect diff HEAD~1 --context    # include dependency details
-inspect diff HEAD~1 --min-risk high
-inspect diff HEAD~1 --format json     # or markdown
-inspect pr 42                    # triage a GitHub PR (shells out to gh)
-inspect file src/main.rs         # uncommitted changes in one file
-inspect review HEAD~1            # triage + LLM review of highest-risk entities
-inspect review HEAD~1 --max-entities 20
+inspect diff HEAD~1                 # triage a commit or range (main..feature, abc123)
+inspect diff HEAD~1 --min-risk high # critical | high | medium | low
+inspect diff HEAD~1 --context       # add dependency context
+inspect diff HEAD~1 --dependents    # ...plus full source of callers/consumers
+inspect diff HEAD~1 --format json   # terminal (default) | json | markdown
+inspect predict HEAD~1              # UNCHANGED entities at risk of breaking
+inspect file src/main.rs            # uncommitted changes in one file
+inspect pr 42                       # a PR, diffed from local refs
+inspect pr 42 --remote owner/repo   # ...via the GitHub API, no checkout needed
 ```
 
-- **Triage needs no API key** — it classifies entities (text-only / syntax /
-  functional) and scores risk from the dependency graph locally. Only
-  `inspect review` calls an LLM: Anthropic by default via `ANTHROPIC_API_KEY`,
-  or `--provider openai` / `--provider ollama` / `--api-base <url>`. Keys come
-  from the environment (agenix-managed), never from tracked files.
-- Use triage output to order your own review: read `functional`/high-risk
-  entities first, skim or skip text-only ones.
-- inspect also ships an MCP server (`inspect-mcp`: `inspect_triage`,
-  `inspect_entity`, `inspect_group`, `inspect_file`, `inspect_stats`,
-  `inspect_risk_map`) — prefer it if registered in the session.
+Commands checked against `inspect 0.1.1` (there is no `--version`; `-C <path>`
+points any subcommand at another repo). `inspect pr` in local mode runs a
+read-only `gh pr view` to learn the branch names; `--remote` authenticates
+with `GITHUB_TOKEN`, falling back to `gh`'s login.
+
+- **Triage is local and needs no API key** — verified by running it with every
+  key unset. The JSON carries, per entity, `risk_level`
+  (Critical/High/Medium/Low), a `risk_score`, `classification` (`Text`,
+  `Functional`, or combinations such as `TextFunctional`), `blast_radius`,
+  and dependent/dependency names. Order your own review by it: functional and
+  high-risk first, `Text`-only last.
+- **Check `entity_type` before trusting the scores.** inspect parses ~19
+  languages (Rust, TS/JS, Python, Go, Java, C/C++, Bash, ...) — **not Nix**.
+  A file it cannot parse is cut into 20-line `chunk` entities named like
+  `lines 21-40`, with no dependency graph behind them; Markdown becomes
+  `heading`s and TOML `property`s. On the dotfiles repo one real commit came
+  back as 19 nix chunks, 10 headings, and 2 actual shell `function`s. Chunk
+  scores say "lines changed", not "this is risky" — for a mostly-Nix diff,
+  inspect adds little over reading it.
+- **Two subcommands write to GitHub: `inspect comment` posts review comments
+  on a PR, and the MCP tool `inspect_post_review` does the same.** Posting is
+  outward-facing and covered by the outbound message gate
+  (`tools/agents/rules/outbound-comment-gate.md`): show the rendered
+  body and the destination, and wait for approval. Never run either
+  unprompted. (`inspect grep --remote` only reads.)
+- **`inspect review` sends code to an LLM provider.** It is the only
+  subcommand that does: Anthropic by default via `ANTHROPIC_API_KEY`
+  (default model `claude-sonnet-4-5-20250929`, top 10 entities), or
+  `--provider openai|ollama`, or `--api-base <url>`. Treat it like any other
+  upload of work code — the user's call. It also accepts `--api-key <KEY>`:
+  never use that flag, because a key on the command line lands in shell
+  history and the process list. Keys come from the environment.
+- MCP: upstream's `inspect-mcp` exposes `inspect_triage`, `inspect_entity`,
+  `inspect_group`, `inspect_file`, `inspect_stats`, `inspect_risk_map`,
+  `inspect_search`, `inspect_predict`, `inspect_pr`, and the write tool
+  `inspect_post_review` (names read from the v0.1.1 source, not from a running
+  server). It is **not installed here**: upstream publishes no release binary
+  for it, and `lib/inspect.nix` packages the CLI only.
 
 ## Choosing between them
 
@@ -200,5 +224,6 @@ inspect review HEAD~1 --max-entities 20
 - About to change something → `sem impact` first
 - Merge conflict, or planning parallel agents on one codebase → `weave`
 - Big diff/PR, limited attention → `inspect diff` / `inspect pr`
+- "What did this change put at risk that it didn't touch?" → `inspect predict`
 - History questions ("when did this function change / who owns it") →
   `sem log` / `sem blame`

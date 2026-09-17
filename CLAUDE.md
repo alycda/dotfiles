@@ -135,6 +135,7 @@ dotfiles/
 ├── lib/
 │   ├── charm-nur.nix       # scoped overlay for charmbracelet/nur (crush)
 │   ├── core-packages.nix   # Packages shared by devShells + home-manager
+│   ├── inspect.nix         # Ataraxy inspect: release binary repointed at nix openssl
 │   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
@@ -723,11 +724,12 @@ merge driver) and inspect (review triage) from the same Ataraxy Labs stack.
 The three arrive by three routes, each the least-bad available: weave from
 nixpkgs (desktop profiles), sem from homebrew-core as `sem-cli` (nixpkgs'
 `sem` attribute is an unrelated Semaphore CI tool — same name, wrong
-program), and inspect from the `ataraxy-labs/tap` brew tap because nothing
-else carries it — on the work Mac (`ditto`) only; `homebrew-personal.nix`
-(`shesfast`) has sem but not the tap. That tap is a known activation risk (see "A third-party tap
-runs its Ruby inside your activation" above); it is accepted for one formula
-and documented at the tap declaration. Usage guidance lives in the
+program), and inspect from `lib/inspect.nix`, which fetches upstream's
+release binary and repoints it at nixpkgs' openssl. inspect is pointedly
+*not* from the `ataraxy-labs/tap` brew tap: that formula's checksum went
+stale when upstream moved the release tag, so it cannot install — a live
+instance of "A third-party tap runs its Ruby inside your activation" above.
+Usage guidance lives in the
 `entity-level-git` skill (`tools/agents/skills/entity-level-git/`), not
 here — tool-specific depth belongs in on-demand skills, with only a
 compact pointer in the always-loaded `tools/agents/preferred-tooling.md`.
@@ -754,7 +756,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Corrected the entity-level-git work after merging main: "none of sem/weave/inspect are in nixpkgs" had been written into the skill and preferred-tooling from a sandbox with no `nix` to check it, and was wrong — nixpkgs carries weave, and its `sem` is a different program entirely. Moved weave to nixpkgs per the third-party-tap lesson, re-verified every sem and weave command against real binaries (two weave commands were wrong), and narrowed the skill's `allowed-tools` from wildcards to read-only subcommands, since a wildcard pre-approves the very `setup`/`login` commands the skill says never to run unprompted. Rule worth keeping: an availability claim about a package set is a checkable fact — check it, or mark it unverified*
+*Last updated: 2026-09-16 - Verified inspect against a real binary and found its declared install route could never have worked: the ataraxy-labs/tap formula pins a checksum upstream invalidated by moving the v0.1.1 tag, so the brew fails and would abort activation. Replaced it with `lib/inspect.nix` (release binary, tart-style). Two lessons, both already in the tap write-up and both nearly repeated: a tap's risk is its maintenance, so check the formula's age and hash before declaring it, not after; and a prebuilt binary that runs on *this* machine proves little — this one linked Homebrew's openssl by absolute path, so `otool -L` is part of verifying any fetched macOS binary*
+
+*2026-09-16 - Corrected the entity-level-git work after merging main: "none of sem/weave/inspect are in nixpkgs" had been written into the skill and preferred-tooling from a sandbox with no `nix` to check it, and was wrong — nixpkgs carries weave, and its `sem` is a different program entirely. Moved weave to nixpkgs per the third-party-tap lesson, re-verified every sem and weave command against real binaries (two weave commands were wrong), and narrowed the skill's `allowed-tools` from wildcards to read-only subcommands, since a wildcard pre-approves the very `setup`/`login` commands the skill says never to run unprompted. Rule worth keeping: an availability claim about a package set is a checkable fact — check it, or mark it unverified*
 
 *2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
