@@ -1,0 +1,16 @@
+# Hostname allowlist for the egress proxy - POSIX extended regexes, one per
+# line, matched (case-insensitively) against the request's host.
+#
+# EMPTY BY DEFAULT ON PURPOSE. With FilterDefaultDeny Yes in tinyproxy.conf,
+# a file with no patterns denies everything, which is the whole point of the
+# default `no-internet` mode. Adding a line here is a deliberate act.
+#
+# Anchor your patterns. `docs.ditto.live` unanchored also matches
+# `docs.ditto.live.attacker.example`, because it is a substring match.
+#
+# To let the agent read the Ditto docs and nothing else:
+#
+#   ^docs\.ditto\.live$
+#
+# Remember what an allowlisted host actually is: a full-bandwidth, bidirectional
+# channel to that host. It is a smaller door, not a one-way window.

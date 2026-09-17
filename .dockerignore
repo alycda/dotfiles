@@ -51,6 +51,12 @@ CLAUDE.md
 .vscode/
 .devcontainer.json
 
+# The hermes-box stack: its own compose project, built and run on the HOST by
+# docker/hermes-box/hermes-box.sh. Nothing in the dev image reads it, and the
+# allowlist is the kind of file you edit often - which is exactly the edit that
+# should not invalidate the closure layer above `COPY . /opt/dotfiles`.
+docker/hermes-box/
+
 # The build's own instructions. Docker reads the Dockerfile and this file
 # directly from disk before it assembles the context, so excluding them costs
 # nothing - and it is the difference between an edit to a RUN step near the

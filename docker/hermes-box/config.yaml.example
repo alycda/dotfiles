@@ -1,0 +1,67 @@
+# Seed config for Hermes in a box. `hermes-box.sh init` copies this to
+# $HERMES_BOX_DATA/config.yaml (default ~/.hermes-box/config.yaml), which is
+# then yours to edit - it is never overwritten again.
+#
+# Everything in here is depth. The boundary is compose.yaml's `internal: true`
+# network: none of these keys is load-bearing for "cannot reach the internet",
+# and a fresh Hermes release that adds a new outbound feature does not weaken
+# the box, because the box has no route for it to use.
+
+model:
+  # Upstream's cli-config.yaml.example says both `default:` and `model:` work
+  # as the key name here. Set this to something you actually have:
+  #   host-model mode : `ollama list` on the host
+  #   contained mode  : ./hermes-box.sh pull <model>, then ./hermes-box.sh models
+  # Size it against RAM, not ambition (vet with llmfit; >~50% of RAM is a bad
+  # idea, and on the 2012 MBP the OOM killer is not theoretical).
+  default: "qwen2.5-coder:14b"
+
+  # `custom` is how upstream documents reaching a local OpenAI-compatible
+  # server, ollama included (docs/integrations/providers: "local Ollama is
+  # reached via the Custom Endpoint flow"). The built-in `ollama-cloud`
+  # provider is the hosted one - not this.
+  provider: custom
+
+  # `ollama` is a network alias inside the box. In host-model mode it is the
+  # socat shim (which forwards to the host's ollama and can forward nowhere
+  # else); in contained mode it is the ollama container. Same URL either way.
+  # The /v1 suffix is required, and no trailing slash.
+  base_url: "http://ollama:11434/v1"
+  api_key: "none"
+
+  # Hermes rejects a context window under 64k for agent use with tools, and
+  # ollama defaults to 4k under 24GB of VRAM. This key caps/validates on the
+  # Hermes side; the SERVER is what actually decides, and it cannot be set over
+  # the OpenAI-compatible API - start ollama with OLLAMA_CONTEXT_LENGTH=64000
+  # (contained mode does this for you) or bake num_ctx into a Modelfile.
+  context_length: 64000
+
+agent:
+  # Removes web_search / web_extract everywhere (CLI and every gateway
+  # platform), per docs/user-guide/configuration "Global Toolset Disable".
+  # Defence in depth only - with no route, those tools fail anyway. The point
+  # is that the agent is not left rattling a locked door on every task.
+  disabled_toolsets:
+    - web
+
+terminal:
+  # `local` = the agent's shell commands run inside THIS container. That is the
+  # right answer here: the container is the sandbox. Do not switch this to
+  # `docker` in the box - it would need a docker socket, and handing the agent
+  # the socket hands it the daemon, which is the whole boundary.
+  backend: local
+
+database:
+  # SQLite WAL needs a native filesystem. /opt/data is a bind mount from the
+  # host, which on Docker Desktop for Mac is grpcfuse (2012 MBP) or virtiofs.
+  # Upstream's docker page says to use DELETE mode there.
+  journal_mode: delete
+
+# Not set here, deliberately:
+#
+# - updates: Hermes asks GitHub for the tip of main at most once per 24h. There
+#   is no documented "never check" switch; in the box the call simply fails and
+#   retries in an hour. With the allowlist door open it is a 403 in the proxy
+#   log, which is arguably better - you can SEE what it tried to reach.
+# - gateway platforms (Telegram/Discord/Slack): configuring one would be asking
+#   for an inbound channel this box does not have. Use `hermes-box.sh chat`.

@@ -1,0 +1,159 @@
+# Hermes in a box: the agent gets a local model and nothing else.
+#
+# The claim this file makes, and `hermes-box.sh verify` checks, is narrow and
+# testable: the container Hermes runs in has NO ROUTE off the host. Not "we set
+# HTTP_PROXY", not "we disabled the web tools" - no default route, so a socket
+# has nowhere to go regardless of what the agent, a skill, an MCP server, or a
+# shell command it writes decides to try.
+#
+#   ┌─ hermes-box (internal: true - docker adds no gateway, no NAT) ──────────┐
+#   │                                                                        │
+#   │   hermes ────────► ollama  (alias of ollama-shim, or the contained      │
+#   │                             ollama service)                            │
+#   │      └───────────► egress-proxy:8888   [only with --profile allowlist]  │
+#   └────────────────────────┬──────────────────────┬────────────────────────┘
+#                            │                      │
+#              ollama-shim ──┘                      └── egress-proxy
+#              (socat, one fixed                        (tinyproxy, deny-by-
+#               destination)                             default hostnames)
+#                            │                      │
+#   ┌─ hermes-box-egress (ordinary bridge) ─────────────────────────────────┐
+#   │   the host's ollama on :11434            the internet                 │
+#   └───────────────────────────────────────────────────────────────────────┘
+#
+# Only the two door containers have a foot on both networks. Hermes has one
+# interface, on a network that cannot reach anything the doors do not hand it.
+#
+# Driven by ./hermes-box.sh (the single source of truth for env + profiles);
+# `just hermes-box-*` delegates there. A bare `docker compose` works too, but
+# you must export HERMES_BOX_DATA and HERMES_BOX_WORKSPACE yourself.
+
+name: hermes-box
+
+x-net: &net
+  build:
+    context: ./net
+  image: hermes-box-net:local
+  restart: unless-stopped
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+
+services:
+  # The agent. One network interface, no default route on it.
+  hermes:
+    image: nousresearch/hermes-agent:${HERMES_BOX_TAG:-latest}
+    container_name: hermes-box
+    command: gateway run
+    restart: unless-stopped
+    # /opt/data is the whole of Hermes' state: config.yaml, .env, sessions,
+    # memories, skills, SOUL.md. A separate dir from ~/.hermes on purpose, so
+    # the box shares no credentials with any host install.
+    volumes:
+      - ${HERMES_BOX_DATA:?run ./hermes-box.sh, or export HERMES_BOX_DATA}:/opt/data
+      - ${HERMES_BOX_WORKSPACE:?run ./hermes-box.sh, or export HERMES_BOX_WORKSPACE}:/workspace:${HERMES_BOX_WORKSPACE_MODE:-rw}
+    working_dir: /workspace
+    environment:
+      # Set unconditionally, including when no proxy is running: an unresolvable
+      # proxy fails fast and loudly, which is the behaviour you want from a box
+      # whose default answer is no. NO_PROXY keeps model traffic off that path.
+      HTTP_PROXY: http://egress-proxy:8888
+      HTTPS_PROXY: http://egress-proxy:8888
+      http_proxy: http://egress-proxy:8888
+      https_proxy: http://egress-proxy:8888
+      NO_PROXY: ollama,localhost,127.0.0.1
+      no_proxy: ollama,localhost,127.0.0.1
+      HERMES_UID: ${HERMES_BOX_UID:-1000}
+      HERMES_GID: ${HERMES_BOX_GID:-1000}
+    security_opt: [no-new-privileges:true]
+    # No cap_drop: [ALL] here - the image's s6 supervision tree needs
+    # chown/setuid/setgid/kill to run its services. Dropping them buys a
+    # broken container, not a safer one. The claim is about the network.
+    mem_limit: ${HERMES_BOX_MEM:-4g}
+    pids_limit: ${HERMES_BOX_PIDS:-512}
+    networks: [box]
+    # Deliberately no `ports:`. The gateway API and dashboard are how you'd let
+    # something else drive the agent; publishing them is a separate decision.
+
+  # Door 1, default mode: a fixed-destination TCP shim to the host's ollama, so
+  # the model keeps running on the host's GPU (Metal on Apple Silicon) while the
+  # agent still cannot address the host. socat knows exactly one destination -
+  # it cannot be talked into another.
+  ollama-shim:
+    <<: *net
+    container_name: hermes-box-ollama-shim
+    profiles: [host-model]
+    command:
+      - socat
+      - -d
+      - TCP-LISTEN:11434,fork,reuseaddr
+      - TCP:${HERMES_BOX_OLLAMA_UPSTREAM:-host.docker.internal:11434}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      box:
+        # Hermes' config says http://ollama:11434/v1 in both modes; which
+        # container answers to that name is what the mode picks.
+        aliases: [ollama]
+      egress: {}
+
+  # Door 1, contained mode: ollama itself inside the box, on the internal
+  # network only. Nothing reaches the host; nothing reaches a registry either,
+  # so models arrive via the explicit `hermes-box.sh pull` step below.
+  ollama:
+    image: ollama/ollama:${HERMES_BOX_OLLAMA_TAG:-latest}
+    container_name: hermes-box-ollama
+    profiles: [contained-model]
+    restart: unless-stopped
+    environment:
+      # Hermes refuses a window under 64k for agent use with tools, and ollama
+      # defaults far lower (4k under 24GB of VRAM). Server-side is the only
+      # place this can be set - it is not reachable over the OpenAI-compatible
+      # API. See docs/integrations/providers.
+      OLLAMA_CONTEXT_LENGTH: ${HERMES_BOX_CONTEXT:-64000}
+    volumes:
+      - ollama-models:/root/.ollama
+    mem_limit: ${HERMES_BOX_OLLAMA_MEM:-8g}
+    networks: [box]
+
+  # The same ollama, same model volume, wired to the OUTSIDE instead of the box.
+  # Used only by `hermes-box.sh pull`, never up at the same time as the agent.
+  # Fetching a model is a deliberate, auditable act, not something the agent can
+  # decide to do.
+  ollama-fetch:
+    image: ollama/ollama:${HERMES_BOX_OLLAMA_TAG:-latest}
+    container_name: hermes-box-ollama-fetch
+    profiles: [fetch]
+    volumes:
+      - ollama-models:/root/.ollama
+    networks: [egress]
+
+  # Door 2, opt-in: the allowlist. Off by default - the box's default answer to
+  # the internet is no. `hermes-box.sh up --allowlist` turns it on, and
+  # net/allowlist decides what it will carry.
+  egress-proxy:
+    <<: *net
+    container_name: hermes-box-egress-proxy
+    profiles: [allowlist]
+    # Start as the unprivileged user the alpine package ships, rather than
+    # starting as root and needing CAP_SETUID/CAP_SETGID to get there.
+    user: tinyproxy
+    command: [tinyproxy, -d, -c, /etc/tinyproxy/tinyproxy.conf]
+    volumes:
+      - ./net/tinyproxy.conf:/etc/tinyproxy/tinyproxy.conf:ro
+      - ${HERMES_BOX_ALLOWLIST:-./net/allowlist}:/etc/tinyproxy/allowlist:ro
+    networks: [box, egress]
+
+networks:
+  # internal: true is the whole security claim. Docker attaches no gateway and
+  # installs no masquerade rule for this network, so containers on it have no
+  # default route - verifiable in one line:
+  #   docker network inspect hermes-box -f '{{.Internal}}'
+  box:
+    name: hermes-box
+    internal: true
+  egress:
+    name: hermes-box-egress
+
+volumes:
+  ollama-models:
+    name: hermes-box-ollama-models
