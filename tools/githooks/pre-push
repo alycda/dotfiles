@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# pre-push secret scan — blocks pushes containing credentials OR account-shaped
+# numbers.
+#
+# Written after a real incident: a bank loan account number was committed as a
+# statement-classifier string match and pushed to a PUBLIC repo. The sweep at the
+# time looked for API keys, tokens, and phone numbers — but NOT for bare long
+# digit strings, so it sailed through. GitHub's native secret scanning would not
+# have caught it either: account numbers match no partner pattern.
+#
+# Scans the COMMIT RANGE BEING PUSHED (not the working tree) — that is what
+# actually leaves the machine.
+#
+# Install:  git config core.hooksPath tools/githooks
+# Bypass:   SKIP_SECRET_SCAN=1 git push        (use deliberately, not by reflex)
+# Allowlist: .secretscanignore — one ERE per line, '#' comments. Matched against
+#            "path:line". Prefer narrow entries over broad ones.
+
+set -uo pipefail
+
+[ "${SKIP_SECRET_SCAN:-}" = "1" ] && { echo "pre-push: secret scan SKIPPED (SKIP_SECRET_SCAN=1)"; exit 0; }
+
+remote_name="${1:-origin}"
+repo_root=$(git rev-parse --show-toplevel) || exit 0
+ignore_file="$repo_root/.secretscanignore"
+
+# Patterns. Keep each one narrow enough to stay actionable.
+read -r -d '' PATTERNS <<'EOF'
+(BEGIN|END) (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY
+sk-[A-Za-z0-9_-]{20,}
+ghp_[A-Za-z0-9]{30,}
+github_pat_[A-Za-z0-9_]{30,}
+gho_[A-Za-z0-9]{30,}
+xox[baprs]-[A-Za-z0-9-]{10,}
+AKIA[0-9A-Z]{16}
+tskey-[A-Za-z0-9-]{10,}
+AIza[0-9A-Za-z_-]{30,}
+Bearer +[A-Za-z0-9._~+/-]{20,}
+(api[_-]?key|secret|password|passwd|token)[\"' ]*[:=][\"' ]*[A-Za-z0-9._~+/-]{12,}
+[0-9]{3}-[0-9]{2}-[0-9]{4}
+[0-9]{3}-[0-9]{8,}
+\b[0-9]{9,19}\b
+\+1[0-9]{10}\b
+EOF
+
+# Which commits are actually going out? stdin: <local ref> <local sha> <remote ref> <remote sha>
+# Collect the COMMITS being pushed, then diff each against its parent via
+# `git show`, which handles root commits (no parent) correctly. An earlier
+# version built "base^..sha" ranges and silently scanned NOTHING on a new
+# branch whose first commit was a root commit.
+commits=""
+while read -r _lref lsha _rref rsha; do
+    [ -z "${lsha:-}" ] && continue
+    case "$lsha" in *[!0]*) ;; *) continue ;; esac          # deleting a ref
+    case "$rsha" in
+        *[!0]*) c=$(git rev-list "$rsha..$lsha" 2>/dev/null) ;;
+        *)      c=$(git rev-list "$lsha" --not --remotes="$remote_name" 2>/dev/null) ;;
+    esac
+    commits="$commits $c"
+done
+commits=$(printf '%s' "$commits" | tr ' ' '\n' | grep -E '^[0-9a-f]{7,40}$' | sort -u)
+[ -z "$commits" ] && { echo "pre-push: nothing new to scan"; exit 0; }
+
+added=$(mktemp); trap 'rm -f "$added"' EXIT
+for c in $commits; do
+    git show --format= --unified=0 --no-color --diff-filter=ACM "$c" 2>/dev/null \
+      | awk '
+          /^\+\+\+ b\// { path=substr($0,7); next }
+          /^\+/ && !/^\+\+\+/ { print path ":" substr($0,2) }
+        ' >> "$added"
+done
+[ ! -s "$added" ] && exit 0
+
+# Drop paths that are inherently example-laden or machine-generated.
+grep -vE '^(.*/)?(.*\.lock|.*\.min\.(js|css)|flake\.lock|package-lock\.json|yarn\.lock|.*cheatsheets/.*):' "$added" > "$added.f" 2>/dev/null || cp "$added" "$added.f"
+mv "$added.f" "$added"
+
+hits=0
+report=""
+while IFS= read -r pat; do
+    [ -z "$pat" ] && continue
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        # allowlist
+        if [ -f "$ignore_file" ]; then
+            skip=0
+            while IFS= read -r ig; do
+                case "$ig" in ''|\#*) continue ;; esac
+                if printf '%s' "$line" | grep -qE "$ig"; then skip=1; break; fi
+            done < "$ignore_file"
+            [ "$skip" = 1 ] && continue
+        fi
+        hits=$((hits+1))
+        report="${report}  [${pat}]
+    ${line:0:160}
+"
+    done < <(grep -hoE ".{0,40}${pat}.{0,20}" "$added" 2>/dev/null | sort -u | head -5)
+done <<< "$PATTERNS"
+
+if [ "$hits" -gt 0 ]; then
+    cat >&2 <<BANNER
+
+  ┌────────────────────────────────────────────────────────────┐
+  │  PUSH BLOCKED — possible secret or account number          │
+  └────────────────────────────────────────────────────────────┘
+
+$report
+  $hits match(es) in lines this push would ADD.
+
+  Long digit runs are flagged on purpose: a bank account number is not a
+  credential, so no scanner's built-in patterns catch it — that is exactly
+  how one previously reached a public repo.
+
+  Fix it, or allowlist a genuine false positive by adding an ERE to
+  .secretscanignore (matched against "path:line" — keep it narrow).
+
+  Deliberate override:  SKIP_SECRET_SCAN=1 git push
+
+BANNER
+    exit 1
+fi
+
+echo "pre-push: secret scan clean"
+exit 0
