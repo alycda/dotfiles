@@ -1,5 +1,6 @@
 # Agenix secrets configuration
-# Run `agenix -e secrets/<name>.age` to create/edit encrypted secrets
+# Run `just edit-secret <name>.age` (repo root) to create/edit secrets -
+# bare agenix lacks the --rules and -i flags (see cheat agenix/edit)
 #
 # Usage in home-manager:
 #   age.secrets.example.file = ../../secrets/example.age;
@@ -25,4 +26,42 @@ in
   # reliably survive the trip into a commit.
   "work/linear-api-key.age".publicKeys = [ alyssa ];
   "personal/linear-api-key.age".publicKeys = [ alyssa ];
+
+  # HackMD API token, consumed by the hackmd-cli wrapper
+  # (home-manager/modules/tools/hackmd.nix). Same convention as the Linear keys
+  # above: the *directory* carries the account, so neither filename needs a
+  # suffix, and a profile picks one with `hackmd.account = "personal" | "work"`.
+  #
+  # Both ciphertexts came from PR #59, which wired these secrets to a HackMD MCP
+  # server. That module is superseded by the CLI, but the secrets outlived it -
+  # a token is a token whichever process spends it. Their plaintext has never
+  # been read in this repo's history that is visible here, so treat the values
+  # as unverified until a decrypt proves otherwise: `just edit-secret
+  # personal/hackmd-api-token.age` opens the current value for inspection.
+  "work/hackmd-api-token.age".publicKeys = [ alyssa ];
+  "personal/hackmd-api-token.age".publicKeys = [ alyssa ];
+
+  # Cloudflare R2 credentials for the cf-now skill, split the way the AWS CLI
+  # itself splits them: `r2-config` is the non-secret half (region `auto`, the
+  # account-scoped S3 endpoint) and `r2-credentials` is the R2 API token's
+  # access key ID / secret. Both are encrypted because the endpoint embeds the
+  # 32-hex Cloudflare account ID, which is not a credential but is not worth
+  # publishing in a public repo either.
+  #
+  # These existed as unmanaged plaintext in the devhome volume for a month
+  # before landing here: ~/.aws/{config,credentials} were symlinks into the
+  # agenix runtime dir with no ciphertext behind them and no age.secrets entry,
+  # so the *only* copy was a file that a volume reset would have destroyed with
+  # nothing to restore from. Recovery would have meant re-minting the token in
+  # the Cloudflare dashboard.
+  #
+  # Personal, not work: this is Alyssa's own Cloudflare account.
+  "personal/r2-config.age".publicKeys = [ alyssa ];
+  "personal/r2-credentials.age".publicKeys = [ alyssa ];
+
+  # Venice API key for crush (see cheat crush/venice). Committed value is an
+  # encrypted PLACEHOLDER string, not a real key - replace in place with
+  # `just edit-secret personal/venice-api-key.age` before wiring it into
+  # home-manager. Armored, like the linear keys above.
+  "personal/venice-api-key.age".publicKeys = [ alyssa ];
 }

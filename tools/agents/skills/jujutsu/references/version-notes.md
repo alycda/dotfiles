@@ -1,15 +1,15 @@
-# jj v0.43 Version Notes
+# jj v0.44 Version Notes
 
-The jujutsu skill is pinned to jj v0.43. This file documents what differs from older
+The jujutsu skill is pinned to jj v0.44. This file documents what differs from older
 tutorials and blog posts, which flags are **removed** (not merely deprecated), and what
 to watch when upgrading further.
 
 Load this when:
 - A command from a tutorial doesn't work as expected
 - jj prints an "unknown flag" or "unexpected argument" error
-- Alyssa asks "what changed in v0.43?"
+- Alyssa asks "what changed in v0.44?"
 
-Every claim below was verified against `jj --version` = 0.43.0 via `--help` output.
+Every claim below was verified against `jj --version` = 0.44.0 via `--help` output.
 
 ---
 
@@ -31,17 +31,63 @@ you are creating — `--named` "automatically tracks the bookmark if it is new."
 
 ### `jj describe --edit` — removed
 
-`--editor` still exists but **does not mean the same thing**. In v0.43 it "forces an
+`--editor` still exists but **does not mean the same thing**. In v0.44 it "forces an
 editor to open when using `--stdin` or `--message`", i.e. it is a modifier on a supplied
 message, not a standalone "open the editor" flag. Irrelevant for agent use, which always
 passes `-m`.
 
 ---
 
+## Revset syntax changes in v0.44 — these fail confusingly
+
+Two revset behaviours changed. Neither produces an error that points at the real
+cause, and both spellings appear throughout older notes.
+
+### The `all:` modifier is gone
+
+A multi-commit revset passed to `-d`/`--onto` used to need an explicit `all:` prefix
+to confirm "yes, I meant more than one commit". In v0.44 the prefix is a parse error,
+and the message blames the colon rather than the modifier:
+
+```
+$ jj rebase -r done -d 'all:heads(parents(done))'
+Error: Failed to parse revset: `:` is not an infix operator
+Hint: Did you mean `::` for DAG range?
+```
+
+The hint is a red herring — nothing here wants a DAG range. Drop the prefix; a bare
+revset resolving to several commits is now accepted on its own:
+
+```
+jj rebase -r done -d 'heads(parents(done))'
+```
+
+### `description()` matches exactly, not as a substring
+
+`description("foo")` is an **exact** match in v0.44. A miss returns the empty set
+with exit status 0 — no error, no warning — so a script capturing it into a variable
+gets an empty string and fails later, somewhere unrelated.
+
+The exact form also fails when the description looks correct, because jj stores
+descriptions with a trailing newline:
+
+```
+description("oops")            -> <empty>
+description(exact:"branch-b")  -> <empty>   # the description IS "branch-b"
+description(substring:"oops")  -> nkylquwn
+description(glob:"*oops*")     -> nkylquwn
+```
+
+**Use `substring:` or `glob:` for descriptions.** The bare form only matches if you
+supply the entire description including its newline, which in practice never happens.
+
+---
+
+
 ## The `--destination` → `--onto` rename (still just an alias)
 
 The destination flag for `jj rebase`, `jj split`, and `jj revert` is canonically
-`--onto`/`-o`. The old spellings are registered as plain aliases in v0.43:
+`--onto`/`-o`. The old spellings are registered as plain aliases in v0.44:
 
 ```
 -o, --onto <REVSETS>
@@ -66,8 +112,8 @@ writes should use `-o`.
 
 The per-remote `remotes.<name>.auto-track-bookmarks` key that older notes describe as the
 replacement for `git.auto-local-bookmark` / `git.push-new-bookmarks` is **not** present in
-v0.43's defaults. Don't write it into a config expecting it to take effect. The relevant
-real keys in v0.43:
+v0.44's defaults. Don't write it into a config expecting it to take effect. The relevant
+real keys in v0.44:
 
 ```toml
 [git]
@@ -88,7 +134,7 @@ See `gitignore-recovery.md`.
 
 ## New since the older notes: `jj bookmark advance`
 
-v0.43 has a `jj bookmark advance` subcommand (alias `a`) — "Advance the closest bookmarks
+v0.44 has a `jj bookmark advance` subcommand (alias `a`) — "Advance the closest bookmarks
 to a target revision." It is configured by two revset keys:
 
 ```toml
@@ -108,11 +154,11 @@ ergonomic sugar over `jj bookmark move <name> --to @` that finds the bookmark fo
 
 ### `jj file untrack` still requires the path to be ignored first
 
-v0.43's help is explicit: "Paths to untrack. They must already be ignored. The paths
+v0.44's help is explicit: "Paths to untrack. They must already be ignored. The paths
 could be ignored via a .gitignore or .git/info/exclude (in colocated workspaces)."
 
 So Rule 2 in SKILL.md's file-tracking section stands unchanged, and upstream issue
-jj-vcs/jj#5225 (untrack without gitignoring first) is **still open** as of v0.43.
+jj-vcs/jj#5225 (untrack without gitignoring first) is **still open** as of v0.44.
 
 ### `jj new --insert-before` / `--insert-after` apply per-commit
 
@@ -169,10 +215,10 @@ Tutorials that may show older syntax:
 - **Steve Klabnik's tutorial** (jj-tutorial.github.io) — uses `-d` in rebase examples;
   still runs via the alias. Mental-model content unchanged.
 - **Chris Krycho's "jj init"** and follow-ups — uses `-d`. Same.
-- **Official jj docs** — version-pinned; use the version switcher for v0.43 at
+- **Official jj docs** — version-pinned; use the version switcher for v0.44 at
   `https://docs.jj-vcs.dev/`.
 
-If a tutorial command fails in v0.43, check in this order:
+If a tutorial command fails in v0.44, check in this order:
 
 1. Is it `--allow-new`? → use `--named <name>=<rev>`.
 2. Is it `describe --edit`? → pass `-m` instead.

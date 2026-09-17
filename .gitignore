@@ -5,6 +5,15 @@ result-*
 # Ignore automatically generated direnv output
 .direnv
 
+# npm scratch. tools/hackmd/ is a pin: only package.json and package-lock.json
+# are read (by pkgs.importNpmLock, see home-manager/modules/tools/hackmd.nix).
+# The documented bump procedure runs npm in that directory, and a plain
+# `npm install` there - rather than the `--package-lock-only` the procedure
+# calls for - leaves ~50MB of node_modules sitting untracked and commit-ready.
+# .dockerignore excludes it too: tools/ is in the image build context, so it
+# would otherwise bust the closure layer.
+**/node_modules
+
 
 
 # General
@@ -34,3 +43,9 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# cf-now writes per-repo publish state (slug -> key) into ./.cfnow/state.json
+# wherever it is run, so running the skill inside any checkout drops an
+# untracked directory in it. No secret - it deliberately never persists a
+# pre-signed URL - but it is machine state, not repo content.
+.cfnow/

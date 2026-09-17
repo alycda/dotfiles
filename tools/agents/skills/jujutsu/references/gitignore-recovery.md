@@ -26,7 +26,7 @@ in any visible commit. Adding a pattern to `.gitignore` does not retroactively u
 
 **Fact 2.** `jj file untrack <path>` requires `<path>` to be in `.gitignore` at the
 moment the command runs. Otherwise the next auto-snapshot retracks. This is jj-vcs/jj
-issue #5225, open as of jj v0.43.
+issue #5225, open as of jj v0.44.
 
 **Fact 3.** Rebasing past a new ancestor commit does not strip already-tracked content
 from the rebased commits. The rebase reapplies each commit's diff, and that diff still

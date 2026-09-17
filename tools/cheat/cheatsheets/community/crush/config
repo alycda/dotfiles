@@ -1,0 +1,44 @@
+# DRAFT - field names verified against crush 0.88.1 source; the values are
+# examples to tune once the crush MCP roster and permission gates are decided.
+# JSON config: ./crush.json or .crush.json (project), ~/.config/crush/crush.json
+# (global). crushrc is the bash-form sibling for providers/models/options.
+
+# MCP servers - "mcp": name -> config; type is stdio | sse | http.
+# HTTP/SSE header values get shell expansion ($VAR, $(cmd)) at startup,
+# so tokens stay in the environment, never in the file:
+#   "mcp": {
+#     "linear": {
+#       "type": "stdio",
+#       "command": "npx", "args": ["-y", "mcp-remote", "<url>"],
+#       "env": { "LINEAR_API_KEY": "$LINEAR_API_KEY" }
+#     },
+#     "internal-http": {
+#       "type": "http",
+#       "url": "http://127.0.0.1:3000/mcp",
+#       "headers": { "Authorization": "Bearer $SOME_TOKEN" },
+#       "enabled_tools": ["get_issue", "list_issues"],   # allowlist per server
+#       "disabled_tools": ["delete_issue"],              # or blocklist
+#       "timeout": 60
+#     }
+#   }
+
+# Tool permissions - which tools skip the prompt (like Claude's allow rules):
+#   "permissions": { "allowed_tools": ["view", "grep", "ls"] }
+
+# Hide built-in tools from the agent entirely:
+#   "options": { "disabled_tools": ["sourcegraph"] }
+
+# Hooks - event -> list of {matcher, command, timeout}; matcher is a regex
+# on the tool name, empty = all tools. Same shape as Claude Code hooks:
+#   "hooks": {
+#     "PreToolUse": [
+#       { "name": "outbound gate", "matcher": "bash", "command": "<script>", "timeout": 30 }
+#     ]
+#   }
+
+# Per-agent scoping (inside an agent definition): allowed_tools plus
+# allowed_mcp { "server": ["tool", ...] } - null tool list = all of that
+# server's tools; omitted allowed_mcp = all servers.
+
+# The nuclear option (bypasses ALL permission prompts - dangerous):
+crush --yolo

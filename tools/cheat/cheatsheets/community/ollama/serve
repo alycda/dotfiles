@@ -1,0 +1,18 @@
+# The ollama CLI is only a client: `ollama list` hanging with "timed out
+# waiting for server to start" means nothing is listening on :11434.
+
+# To start the server (menu-bar app; installed via the ollama-app cask):
+open -a Ollama
+
+# Or run it in the foreground instead (logs in the terminal, ctrl-c to stop):
+ollama serve
+
+# To check it's up and see what's available:
+curl -s http://127.0.0.1:11434/v1/models | jq -r '.data[].id'
+ollama list
+
+# To get a model / free the RAM it holds after use:
+ollama pull <model>
+ollama stop <model>
+
+# To stop the server: quit the menu-bar app (Ollama icon -> Quit).

@@ -8,12 +8,100 @@
 # Canonical surface: ~/.agents/AGENTS.md. Claude-oriented tools reach the same
 # files through ~/.claude/includes/ symlinks; Codex loads it via a managed
 # ~/.codex/AGENTS.md symlink. See tools/agents/README.md.
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 let
   agentsDir = "${config.home.homeDirectory}/.agents";
   # Out-of-store symlinks so the Claude includes track the live ~/.agents files
   # (and the *decrypted* overlay), not immutable store copies.
   oosLink = config.lib.file.mkOutOfStoreSymlink;
+
+  # The managed import block for ~/.claude/CLAUDE.md, in precedence order:
+  # entrypoint first (it carries the composition contract), private overlay last
+  # (authoritative on conflict). Claude Code concatenates imports where they
+  # appear, so this ordering is the precedence, not decoration.
+  #
+  # agents-company-values.md and agents-personal-constitution-distilled.md are
+  # deliberately absent: AGENTS.md already imports ~/.agents/company-values.md
+  # and ~/.agents/persona-core.md by absolute path (verified expanding via the
+  # InstructionsLoaded audit log), and persona-core carries the constitution's
+  # values as one-liners - listing either here would load the layer twice. The
+  # include symlinks stay for the capsule and for anyone importing directly.
+  #
+  # Block-level HTML comments are stripped before Claude Code injects the file
+  # into context, so the markers cost no tokens.
+  claudeImportBlock = pkgs.writeText "claude-agents-imports.md" ''
+    <!-- BEGIN managed: agents overlay -->
+    <!-- Regenerated on every home-manager activation.
+         Source: home-manager/modules/tools/agents.nix. Edits here are lost. -->
+    @includes/agents-entrypoint.md
+    @includes/agents-preferred-tooling.md
+    @includes/agents-instructions.private.md
+    <!-- END managed: agents overlay -->
+  '';
+
+  # Rewrite the managed block in place rather than appending import lines.
+  #
+  # Appending could not express precedence (a new layer always landed last) and
+  # needed a bespoke grep-vxF removal for every line a past generation had
+  # appended - the block is regenerated wholesale instead, so adding, removing,
+  # or reordering a layer is a one-line edit above with no migration.
+  #
+  # ~/.claude/CLAUDE.md stays hand-edited: everything outside the markers is
+  # preserved verbatim. Only the block and known legacy bare import lines are
+  # touched.
+  claudeMdSync = pkgs.writeShellScript "claude-md-sync-agents" ''
+    set -eu
+
+    md=$1
+    block=$2
+
+    mkdir -p "$(dirname "$md")"
+    [ -f "$md" ] || : > "$md"
+
+    # The awk strip below treats everything after BEGIN as managed until it
+    # sees END, so an unpaired marker would silently swallow the hand-edited
+    # remainder of the file. The markers are invisible HTML comments in a file
+    # meant to be hand-edited, and README.md shows both of them in a fenced
+    # block that is easy to paste - assume they will get mangled eventually.
+    #
+    # Skip rather than fail: a mangled marker is not a reason to abort an
+    # otherwise good activation, and whatever imports are already in the file
+    # keep working until the markers are repaired.
+    begins=$(grep -c '^<!-- BEGIN managed: agents overlay' "$md" || :)
+    ends=$(grep -c '^<!-- END managed: agents overlay' "$md" || :)
+    if [ "$begins" != "$ends" ] || [ "$begins" -gt 1 ]; then
+      echo "claude-md-sync: refusing to rewrite $md" >&2
+      echo "  found $begins BEGIN and $ends END markers, expected one of each" >&2
+      echo "  (or none). Rewriting now would delete hand-edited content." >&2
+      exit 0
+    fi
+
+    tmp=$md.hm-sync.$$
+    # $md.new too: on ENOSPC the group write below fails, set -e aborts before
+    # the mv, and a partial file would otherwise sit next to CLAUDE.md forever.
+    trap 'rm -f "$tmp" "$md.new"' EXIT
+
+    # Strip the previous managed block, plus any bare import line an
+    # append-era generation left behind. Everything else is hand-edited.
+    ${pkgs.gawk}/bin/awk '
+      /^<!-- BEGIN managed: agents overlay/ { inblock = 1; next }
+      /^<!-- END managed: agents overlay/   { inblock = 0; next }
+      inblock { next }
+      $0 == "@includes/agents-entrypoint.md"                      { next }
+      $0 == "@includes/agents-company-values.md"                  { next }
+      $0 == "@includes/agents-preferred-tooling.md"               { next }
+      $0 == "@includes/agents-personal-constitution.md"           { next }
+      $0 == "@includes/agents-personal-constitution-distilled.md" { next }
+      $0 == "@includes/agents-instructions.private.md"            { next }
+      $0 == "@rules/outbound-comment-gate.md"                     { next }
+      { print }
+    ' "$md" > "$tmp"
+
+    # Drop leading blank lines so the block lands at line 1 and the file does
+    # not grow one blank line per activation.
+    { cat "$block"; echo; ${pkgs.gnused}/bin/sed "/./,\$!d" "$tmp"; } > "$md.new"
+    mv "$md.new" "$md"
+  '';
   # Critic subagents: persona (frontmatter + enforcer instructions) canonical
   # in tools/agents/, judged-against material appended beneath as layers.
   # On-demand rubrics instead of always-loaded context — store-safe; only
@@ -26,14 +114,28 @@ in
   home.file = {
     ".agents/AGENTS.md".source = ../../../tools/agents/AGENTS.md;
     ".agents/company-values.md".source = ../../../tools/agents/company-values.md;
+    ".agents/persona-core.md".source = ../../../tools/agents/persona-core.md;
+    # Full constitution stays deployed for on-demand reads (AGENTS.md points at
+    # it) and for the Claude include below — it's just no longer in the default
+    # composition for context-constrained surfaces.
     ".agents/personal-constitution.md".source = ../../../tools/agents/personal-constitution.md;
     ".agents/preferred-tooling.md".source = ../../../tools/agents/preferred-tooling.md;
     ".agents/personal-constitution-distilled.md".source = ../../../tools/agents/personal-constitution-distilled.md;
+    # Cross-tool home of the outbound-comment gate; Claude mounts it at
+    # ~/.claude/rules (claude-code.nix), crush loads it via context_paths
+    # (crush.nix).
+    ".agents/rules/outbound-comment-gate.md".source = ../../../tools/agents/rules/outbound-comment-gate.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.
-    # Claude always-loads the *distilled* constitution; the full version is
-    # on-demand via the constitution-critic subagent below.
+    # Constitution values reach Claude as persona-core's one-liners (via the
+    # entrypoint); the full version is on-demand via constitution-critic below.
+    #
+    # The entrypoint include is what makes Claude Code read AGENTS.md at all.
+    # Claude Code reads CLAUDE.md and has no AGENTS.md fallback, so without
+    # this the canonical entrypoint reached Codex only and Claude never saw
+    # the identity, communication, or working-agreement sections.
+    ".claude/includes/agents-entrypoint.md".source = oosLink "${agentsDir}/AGENTS.md";
     ".claude/includes/agents-company-values.md".source = oosLink "${agentsDir}/company-values.md";
     ".claude/includes/agents-preferred-tooling.md".source = oosLink "${agentsDir}/preferred-tooling.md";
     ".claude/includes/agents-personal-constitution-distilled.md".source = oosLink "${agentsDir}/personal-constitution-distilled.md";
@@ -72,30 +174,15 @@ in
     ".codex/AGENTS.md".source = oosLink "${agentsDir}/AGENTS.md";
   };
 
-  # Claude actually loads the layers through these imports. Same idempotent
-  # append pattern (and same ordering rationale) as claudeOutboundCommentGate
-  # in ../claude-code.nix: only append after linkGeneration so the include
-  # symlinks the lines point at already exist. The private include may dangle
-  # until agenix decrypts the overlay; Claude Code skips unresolvable imports,
-  # so the public layers still load.
+  # Claude actually loads the layers through these imports. entryAfter
+  # linkGeneration (not just writeBoundary): the block must only be written
+  # once the include symlinks it points at have been linked - otherwise a
+  # failure later in activation leaves CLAUDE.md importing files that do not
+  # exist. The private include may still dangle until agenix decrypts the
+  # overlay; Claude Code skips unresolvable imports, so the public layers
+  # still load.
   home.activation.claudeAgentsImports = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-    claudeMd="$HOME/.claude/CLAUDE.md"
-    run mkdir -p "$HOME/.claude"
-    # The full constitution moved behind the constitution-critic subagent;
-    # drop the stale always-loaded import a previous generation appended.
-    staleLine="@includes/agents-personal-constitution.md"
-    if [ -f "$claudeMd" ] && grep -qxF "$staleLine" "$claudeMd"; then
-      run sh -c 'grep -vxF "$1" "$2" > "$2.tmp" && mv "$2.tmp" "$2"' _ "$staleLine" "$claudeMd"
-    fi
-    for importLine in \
-      "@includes/agents-company-values.md" \
-      "@includes/agents-preferred-tooling.md" \
-      "@includes/agents-personal-constitution-distilled.md" \
-      "@includes/agents-instructions.private.md"; do
-      if [ ! -f "$claudeMd" ] || ! grep -qxF "$importLine" "$claudeMd"; then
-        run sh -c 'printf "\n%s\n" "$1" >> "$2"' _ "$importLine" "$claudeMd"
-      fi
-    done
+    run ${claudeMdSync} "$HOME/.claude/CLAUDE.md" ${claudeImportBlock}
   '';
 
   # Identity and secretsDir are configured in ../git.nix; this only adds

@@ -1,10 +1,13 @@
 # Helix - modal text editor
-# Config files live in tools/helix/ (TOML format for easy editing)
-# This module uses programs.helix for proper home-manager integration
+# Config files live in tools/helix/ and are read directly (fromTOML), so
+# editing the TOML is the whole change; this module adds the LSP packages.
 #
 # NOTE: devShell provides basic helix only (for cheat's $EDITOR).
 # Full helix with LSPs and config requires home-manager switch.
 { pkgs, lib, ... }:
+let
+  inherit (builtins) fromTOML readFile;
+in
 {
   # Language servers and tools that helix uses
   # (rust-analyzer and rustfmt provided by rustup, not here)
@@ -43,94 +46,18 @@
     swift-format          # Swift formatter (sourcekit-lsp from Xcode)
   ];
 
+  # The TOML files in tools/helix are the config, read as they are. The
+  # account with no Nix links that same directory to ~/.config/helix
+  # (see tools/mise/config.toml), so both setups load identical settings
+  # and there is no second copy to translate by hand.
   programs.helix = {
     enable = true;
-
-    # Settings from tools/helix/config.toml
-    settings = {
-      theme = "mine";
-      editor = {
-        soft-wrap.enable = true;
-        rulers = [ 72 80 100 120 ];
-        color-modes = true;
-        inline-diagnostics = {
-          cursor-line = "hint";
-          other-lines = "hint";
-        };
-      };
-    };
-
-    # Language config from tools/helix/languages.toml
-    languages = {
-      language = [
-        {
-          name = "rust";
-          auto-format = true;
-          formatter = { command = "rustfmt"; };
-        }
-        {
-          name = "javascript";
-          language-servers = [ "typescript-language-server" ];
-        }
-        {
-          name = "typescript";
-          indent = { tab-width = 2; unit = "  "; };
-          roots = [ "deno.json" "package.json" "tsconfig.json" ];
-        }
-        {
-          name = "json";
-          language-servers = [ "vscode-json-languageserver" ];
-          file-types = [ "json" "jsonc" "geojson" ];
-          indent = { tab-width = 2; unit = "  "; };
-        }
-        # Grammar checking for prose via harper-ls.
-        # No marksman/markdown-oxide installed, so harper-ls is the only
-        # markdown server here - listing it replaces helix's defaults.
-        {
-          name = "markdown";
-          language-servers = [ "harper-ls" ];
-        }
-        # Grammar-check commit messages too - this repo values meaningful,
-        # well-written commits (see CLAUDE.md commit strategy).
-        {
-          name = "git-commit";
-          language-servers = [ "harper-ls" ];
-        }
-      ];
-
-      # rust-analyzer config (binary provided by rustup)
-      language-server = {
-        # harper-ls: offline grammar/spell checker (binary from pkgs.harper).
-        # Surface suggestions as "hint" so they match the non-intrusive
-        # inline-diagnostics style configured in editor.inline-diagnostics.
-        harper-ls = {
-          command = "harper-ls";
-          args = [ "--stdio" ];
-          config.harper-ls.diagnosticSeverity = "hint";
-        };
-
-        rust-analyzer.config = {
-          check.command = "clippy";
-          inlayHints = {
-            bindingModeHints.enable = true;
-            closingBraceHints.minLines = 10;
-            closureReturnTypeHints.enable = "with_block";
-            discriminantHints.enable = "fieldless";
-            lifetimeElisionHints.enable = "skip_trivial";
-            typeHints.hideClosureInitialization = false;
-          };
-        };
-      };
-    };
-
-    # Custom theme
-    themes = {
-      mine = {
-        inherits = "boo_berry";
-        "ui.background" = {};
-        "ui.cursor.primary.select" = { fg = "berry"; bg = "bubblegum"; };
-        "ui.cursor.primary.insert" = { fg = "berry"; bg = "mint"; };
-      };
-    };
+    settings = fromTOML (readFile ../../../tools/helix/config.toml);
+    languages = fromTOML (readFile ../../../tools/helix/languages.toml);
+    themes.mine = fromTOML (readFile ../../../tools/helix/themes/mine.toml);
   };
+
+  # Global file-picker ignore rules. The linked directory already gives the
+  # other account this file, so deploy it here too to keep them identical.
+  xdg.configFile."helix/ignore".source = ../../../tools/helix/ignore;
 }

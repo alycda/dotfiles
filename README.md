@@ -75,7 +75,7 @@ flowchart TD
 
     Q1 -- "no — new user on a set-up machine" --> Q4{"docker app installed globally?<br/>(OrbStack / Docker Desktop, admin's brew)"}
     Q4 -- yes --> C1["open -a OrbStack<br/>(daemon + CLI context for THIS user)"]
-    C1 --> C2["docker build -t dev https://github.com/alycda/dotfiles.git<br/>&& docker run -it --rm -v devhome:/root<br/>-v claude-home:/root/.claude -v $PWD:/work -w /work dev"]
+    C1 --> C2["curl -fsSL https://raw.githubusercontent.com/<br/>alycda/dotfiles/main/docker/dev.sh | sh -s -- up"]
     C1 -.-> C3["alt: git clone https + VS Code devcontainer<br/>(needs the same daemon)"]
     Q4 -- no --> Q5{"/nix exists? (global daemon)"}
     Q5 -- yes --> Q6{"in nix-users group?<br/>(daemon socket is group-locked)"}
@@ -173,25 +173,27 @@ non-admin user on a Mac whose Nix install belongs to another account. Docker
 fetches the repo itself (BuildKit remote build context over https):
 
 ```sh
-docker build -t dev https://github.com/alycda/dotfiles.git && docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
 ```
 
 Run it from whatever directory you want mounted at `/work`. Rebuilding after
 a flake change is the same one-liner again — there's no local checkout to
-keep in sync. The same flow, curl-able (`docker/dev.sh` is the single source
-of truth for the build/run commands; the `just docker-*` recipes delegate to
-it):
+keep in sync.
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/docker/dev.sh | sh -s -- up
-```
+`docker/dev.sh` is the single source of truth for the build and run commands:
+the volume set, the working directory and the network mode all live there, and
+the `just docker-*` recipes delegate to it. This README deliberately points at
+the script rather than repeating its flags — hand-written copies of that
+command have drifted from the real one before (#86). The `Dockerfile` header
+carries the one annotated copy, with the optional extras (ssh-agent
+forwarding, the ragenix key) and troubleshooting.
 
 If you *do* want a local checkout (e.g. to hack on the dotfiles from the
 host):
 
 ```sh
-git clone https://github.com/alycda/dotfiles && cd dotfiles && docker build -t dev .
-docker run -it --rm -v devhome:/root -v claude-home:/root/.claude -v "$PWD":/work -w /work dev
+git clone https://github.com/alycda/dotfiles && cd dotfiles
+./docker/dev.sh build-local && ./docker/dev.sh run
 ```
 
 The build bakes the home-manager closure for your CPU into the image (arm64 →

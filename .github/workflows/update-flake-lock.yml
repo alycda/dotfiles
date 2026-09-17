@@ -1,0 +1,197 @@
+name: Update flake.lock
+
+# Weekly (and on-demand) flake input updates, validated before a PR is opened.
+#
+# PRs created with the default GITHUB_TOKEN never trigger `pull_request`
+# workflows (GitHub's anti-recursion rule), so this workflow compensates
+# twice over:
+#   1. It runs the full validation itself (the same commands as nix.yml's
+#      check job) before creating the PR, so a PR only ever appears for a
+#      lockfile that already evaluates cleanly.
+#   2. After opening the PR it starts nix.yml on the update branch via
+#      `gh workflow run` — workflow_dispatch is exempt from the
+#      anti-recursion rule — so the PR also carries real check runs that
+#      branch protection can consume.
+# nix.yml additionally triggers on direct pushes to automation/flake-update,
+# so a manual fixup commit on the PR branch is re-validated by normal CI
+# (bot pushes don't fire that trigger; human pushes do).
+# (statix/deadnix are skipped here: a lockfile-only commit — enforced via
+# add-paths below — cannot change .nix sources.)
+#
+# Requires the repo setting "Allow GitHub Actions to create and approve
+# pull requests" (Settings → Actions → General → Workflow permissions).
+# The very first dispatch of this workflow died on exactly that — the API
+# returns "GitHub Actions is not permitted to create or approve pull
+# requests" — so PR creation is now non-fatal: the validated branch is
+# already pushed at that point, CI still runs on it, and the step summary
+# links straight to the compare page so the update can be opened by hand.
+# The weekly schedule below is only safe *because* of that wiring: nothing
+# reaches a PR unvalidated, and the PR that appears carries real check runs
+# even though no human dispatched it.
+#
+# Two things to know about `schedule:`:
+#   - It only fires for the copy of this file on the default branch, so
+#     editing the cron on a feature branch changes nothing until it merges.
+#   - GitHub disables scheduled workflows in repos with no activity for 60
+#     days, and emails the owner to re-enable them (Actions tab → this
+#     workflow → "Enable workflow").
+# On a scheduled run `inputs.flake-inputs` is empty, so every input updates.
+
+on:
+  schedule:
+    # Mondays, 07:23 UTC — a week is roughly the cadence at which the inputs
+    # this flake tracks (nixpkgs unstable, the nix-skills index, charm-nur)
+    # actually move. The odd minute is deliberate: GitHub queues scheduled
+    # runs across all of Actions, and on-the-hour slots are the congested
+    # ones, so a run asked for at :00 can start much later than requested.
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      flake-inputs:
+        description: "Space-separated inputs to update (empty = all, e.g. 'nixpkgs nix-skills charm-nur')"
+        required: false
+        default: ""
+
+# Serialize runs: a newer run cancels an in-flight one — including the weekly
+# schedule cancelling a manual dispatch that happens to overlap it, which is
+# only ever a few minutes lost. A later run also force-pushes
+# automation/flake-update, so a still-open update PR is rolled forward onto
+# the newest lockfile rather than a second one being opened beside it. That
+# is what makes an unreviewed weekly PR harmless, and it is also why a
+# narrow manual dispatch ('nixpkgs' alone, say) should be merged before the
+# next Monday: the schedule updates everything and will replace it.
+concurrency:
+  group: update-flake-lock
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write # lets the last step dispatch nix.yml onto the update branch
+
+jobs:
+  update:
+    name: Update inputs and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Always update against main, regardless of which ref the
+          # workflow_dispatch branch picker happened to be on.
+          ref: main
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update flake inputs
+        env:
+          FLAKE_INPUTS: ${{ inputs.flake-inputs }}
+        run: |
+          set -o pipefail -o noglob
+          # Bare input names/paths only (e.g. 'nixpkgs', 'ragenix/crane').
+          # Reject anything else before it reaches nix: flags like
+          # --override-input could repoint an input at an arbitrary repo,
+          # and globs would expand against repo files.
+          for tok in $FLAKE_INPUTS; do
+            if [[ ! "$tok" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+              echo "::error::not a flake input name: $tok"
+              exit 1
+            fi
+          done
+          # word-splitting is intentional: one arg per input name; with no
+          # names given the expansion is empty and all inputs update
+          # shellcheck disable=SC2086
+          nix flake update $FLAKE_INPUTS 2>&1 | tee "$RUNNER_TEMP/update.log"
+
+      - name: Detect lockfile changes
+        id: diff
+        run: |
+          if git diff --quiet flake.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "All requested inputs are already up to date." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate updated flake
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          nix flake check --all-systems
+          ./.github/scripts/eval-configurations.sh
+          nix flake show
+
+      - name: Write PR body
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "Automated \`nix flake update\`, validated by [this workflow run]($RUN_URL) before the PR was opened. The nix.yml checks on this PR re-run the same validation on the branch itself."
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/update.log"
+            echo '```'
+          } > "$RUNNER_TEMP/pr-body.md"
+
+      - name: Create pull request
+        id: pr
+        if: steps.diff.outputs.changed == 'true'
+        # Non-fatal: by the time this step can fail, the validated lockfile is
+        # already pushed to automation/flake-update. Aborting the job here would
+        # throw away the CI dispatch below and leave the branch unexplained, so
+        # the run continues and "Report unopened pull request" fails it at the
+        # end with instructions.
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: main
+          branch: automation/flake-update
+          delete-branch: true
+          add-paths: flake.lock
+          title: "Update flake.lock"
+          body-path: ${{ runner.temp }}/pr-body.md
+          commit-message: |
+            Update flake.lock
+
+            Automated input update from the update-flake-lock workflow.
+
+      - name: Run CI checks on the update branch
+        # 'none' means create-pull-request found the branch and PR already
+        # current, so there is nothing new to check. An empty value means the
+        # step above failed — the branch may still have been pushed before the
+        # failure, and if it was, it deserves check runs like any other; the
+        # ls-remote guard is what tells the two apart.
+        if: steps.diff.outputs.changed == 'true' && steps.pr.outputs.pull-request-operation != 'none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git ls-remote --exit-code --heads origin automation/flake-update >/dev/null; then
+            gh workflow run nix.yml --ref automation/flake-update -R "$GITHUB_REPOSITORY"
+          else
+            echo "::notice::automation/flake-update was never pushed; no checks to dispatch."
+          fi
+
+      - name: Verify the update PR is open
+        # Ask GitHub rather than trusting the step above, because two distinct
+        # paths end with a pushed branch and no PR: the creation call being
+        # refused, and a re-dispatch finding the branch already current
+        # ('none'), where create-pull-request skips PR creation entirely and
+        # would otherwise leave the run green with nothing to review.
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMPARE_URL: ${{ github.server_url }}/${{ github.repository }}/compare/main...automation/flake-update?expand=1
+          SETTINGS_URL: ${{ github.server_url }}/${{ github.repository }}/settings/actions
+        run: |
+          if [ -n "$(gh pr list -R "$GITHUB_REPOSITORY" --head automation/flake-update \
+                       --state open --json number --jq '.[].number')" ]; then
+            exit 0
+          fi
+          echo "::error::Lockfile validated and pushed, but no pull request is open for it — see the job summary."
+          {
+            echo "## Lockfile validated — pull request not opened"
+            echo
+            echo "The updated \`flake.lock\` passed the full check-job validation and is pushed to \`automation/flake-update\`. Only the PR itself is missing, so **nothing is lost**: [open the pull request by hand]($COMPARE_URL)."
+            echo
+            echo "If the step log says *\"GitHub Actions is not permitted to create or approve pull requests\"*, tick **Allow GitHub Actions to create and approve pull requests** under [Settings → Actions → General]($SETTINGS_URL), in the Workflow permissions section. A greyed-out checkbox means the same switch is off at the account level (Settings → Actions → General), which overrides the per-repo one."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

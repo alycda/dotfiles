@@ -15,7 +15,6 @@
 
   # DARWIN System-level packages for Ditto machine
   environment.systemPackages = with pkgs; [
-    clock-rs
     xcodegen
   ];
 

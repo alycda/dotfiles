@@ -1,0 +1,30 @@
+# crush treats ollama as a first-class provider TYPE (not plain openai-compat):
+# it enumerates the endpoint's /v1/models itself and backfills each model's
+# context window from ollama's /api/show. No model add lines, no API key,
+# fully offline - the fallback when casper is unreachable or rate-limited.
+
+# To start the server (ollama-app cask) and get a model:
+open -a Ollama
+ollama pull <model>
+ollama list
+
+# To wire it, in ~/.config/crush/crushrc:
+#   provider add ollama --type ollama \
+#     --base-url "http://127.0.0.1:11434/v1"
+
+# To see exactly what crush will discover:
+curl -s http://127.0.0.1:11434/v1/models | jq -r '.data[].id'
+
+# Memory check before pulling anything big: local models are vetted with
+# llmfit; anything that fits poorly (>~50% of RAM) is a bad idea.
+
+# To launch on ollama: there is NO --model flag. Either pick once in the TUI -
+# command palette (ctrl+p) -> switch model - which persists across sessions,
+# or pin the default in crush.json so every launch starts on ollama:
+#   "models": {
+#     "large": { "provider": "ollama", "model": "<id from ollama list>" },
+#     "small": { "provider": "ollama", "model": "<id from ollama list>" }
+#   }
+
+# One-shot check that the wiring works end to end:
+crush run "say hi"

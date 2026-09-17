@@ -1,0 +1,14 @@
+{
+  "name": "hackmd-cli-env",
+  "version": "2.5.1",
+  "private": true,
+  "description": "Pin-only package whose sole dependency is the published @hackmd/hackmd-cli. Nix builds node_modules from the sibling package-lock.json via pkgs.importNpmLock; see home-manager/modules/tools/hackmd.nix.",
+  "license": "MIT",
+  "dependencies": {
+    "@hackmd/hackmd-cli": "2.5.1"
+  },
+  "overrides": {
+    "typescript": "5.9.3",
+    "oclif": "npm:@oclif/core@2.8.2"
+  }
+}

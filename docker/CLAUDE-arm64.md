@@ -26,8 +26,10 @@ its constraints apply to this container.
   once inside the container (`claude` → login, `gh auth login`) and it
   persists.
 - The Nix store is baked into the image; never mount a volume over `/nix`.
-- This file is re-copied from `/opt/dotfiles/docker/CLAUDE-arm64.md` on every
-  container start - edit it in the dotfiles repo, not here.
+- This file ships inside the home-manager generation as
+  `~/.claude/rules/container-env.md`, so Claude Code loads it in every session
+  regardless of what is mounted at `/work`. It updates when the generation
+  does - edit it in the dotfiles repo (`docker/CLAUDE-arm64.md`), not here.
 
 ## Troubleshooting startup
 

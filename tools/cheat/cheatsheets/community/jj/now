@@ -1,0 +1,2 @@
+jj new -m "$(date -Iseconds)"
+jj describe -m "$(date -Iseconds)"

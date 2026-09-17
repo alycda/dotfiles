@@ -1,0 +1,24 @@
+# "What is crush actually loading?" - never ask the model: it paraphrases the
+# BUILT-IN system prompt (internal/agent/templates/coder.md.tpl), not truth.
+# The final request = builtin template + global context + project context
+# + skills XML + tool schemas. Each is inspectable:
+
+# 1. The built-in system prompt template (crush source via nix):
+SRC=$(NIXPKGS_ALLOW_UNFREE=1 nix build --impure nixpkgs#crush.src --print-out-paths --no-link)
+bat "$SRC/internal/agent/templates/coder.md.tpl"
+
+# 2. Global context files (nix-managed - see tools/crush.nix):
+jq -r '.options.global_context_paths[]' ~/.config/crush/crush.json
+
+# 3. Project context: whichever of crush's default names exist in the cwd
+# and the git root (first match per name wins):
+ls .github/copilot-instructions.md .cursorrules CLAUDE.md CLAUDE.local.md \
+   GEMINI.md crush.md CRUSH.md CRUSH.local.md AGENTS.md 2>/dev/null
+
+# 4. Skills: see cheat crush/skills (scan order + CRUSH_SKILLS_DIR clean room)
+
+# 5. GROUND TRUTH for any provider (local or remote): put a logging litellm
+# passthrough between crush and the endpoint, then read the exact request:
+#   litellm --model openai/<id> --api_base "$CASPER_BASE_URL/v1" --detailed_debug --port 4401
+#   # crushrc: point the provider's --base-url at http://127.0.0.1:4401
+# Works identically for ollama (api_base http://127.0.0.1:11434/v1).

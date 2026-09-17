@@ -6,18 +6,20 @@
 CURRENT=$(readlink -f /root/.local/state/nix/profiles/home-manager 2>/dev/null)
 BAKED=$(readlink -f /opt/hm-activation)
 
-# Keep Claude's user-level memory current. /root/.claude is its own volume
-# (claude-home) so auth/.credentials.json survives devhome resets - but that
-# volume shadows the CLAUDE.md baked into the image, so refresh it from the
-# flake source on every start. Only touches CLAUDE.md, never the credentials.
-# The doc is per-architecture: the x86 one describes the frozen 2012 MBP, the
-# arm64 one a modern Apple Silicon host.
-case "$(uname -m)" in
-  aarch64) claude_md=CLAUDE-arm64.md ;;
-  *)       claude_md=CLAUDE.md ;;
-esac
-mkdir -p /root/.claude
-cp -f "/opt/dotfiles/docker/$claude_md" /root/.claude/CLAUDE.md 2>/dev/null || true
+# Nothing here touches /root/.claude/CLAUDE.md any more.
+#
+# This used to `cp -f` the per-arch container doc over CLAUDE.md on every
+# start, to beat the claude-home volume shadowing the copy baked into the
+# image. It ran unconditionally, *before* the conditional activation below -
+# so on the second start against a warm devhome volume the cp clobbered the
+# import block home-manager had written on the first start, and the skipped
+# activation never put it back. The whole agent-instruction overlay went
+# missing for every session after the first.
+#
+# The container doc is now a home-manager file at ~/.claude/rules/, which
+# Claude Code loads on its own with no import line and nothing to overwrite.
+# It arrives with the generation and updates when the generation does. See
+# home-manager/profiles/dev.nix.
 
 if [ ! -e /root/.nix-profile ] || [ "$CURRENT" != "$BAKED" ]; then
   echo ">> activating home-manager generation ($(cat /opt/hm-profile 2>/dev/null || echo unknown))"
