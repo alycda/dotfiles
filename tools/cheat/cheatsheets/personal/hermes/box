@@ -1,0 +1,32 @@
+# Hermes in a box: local model, no route to the internet.
+# Full write-up + threat model: docker/hermes-box/README.md
+
+# First run (host's ollama keeps the GPU; the agent still can't address the host)
+cd ~/dotfiles/docker/hermes-box
+./hermes-box.sh init            # ~/.hermes-box + seeded config.yaml
+$EDITOR ~/.hermes-box/config.yaml   # model.default must be a model you have
+./hermes-box.sh up
+./hermes-box.sh verify          # DO THIS. It has a control and can say "inconclusive".
+./hermes-box.sh chat
+
+# Fully self-contained instead (CPU-only: no GPU passthrough on macOS docker)
+export HERMES_BOX_MODE=contained-model
+./hermes-box.sh pull qwen2.5-coder:14b   # opens the fetch door, pulls, closes it
+./hermes-box.sh up
+
+# The one claim, checkable without the script:
+docker network inspect hermes-box -f '{{.Internal}}'        # true
+docker exec hermes-box awk '$2=="00000000"' /proc/net/route # empty = no default route
+
+# Let exactly one host through (anchored! a bare pattern is a substring match):
+#   echo '^docs\.ditto\.live$' >> docker/hermes-box/net/allowlist
+./hermes-box.sh up --allowlist
+./hermes-box.sh proxy-log       # every allow and deny, by hostname
+
+# Read-only workspace when the agent should look and not touch:
+HERMES_BOX_WORKSPACE_MODE=ro ./hermes-box.sh up
+
+# NOT the same thing: `just -g docker-net` makes a bridge network, which has a
+# gateway and NAT. It segments containers from each other, not from the internet.
+
+# Runnable: just hermes-box <command>

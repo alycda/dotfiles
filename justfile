@@ -199,3 +199,11 @@ rekey-secrets:
     set -euo pipefail
     key="$(just _age-identity)"
     ragenix --rules secrets/secrets.nix -i "$key" --rekey
+
+# Hermes in a box: local/ollama models, no route to the internet.
+# docker/hermes-box/hermes-box.sh is the source of truth (as dev.sh is for the
+# dev image); this is a passthrough so `just hermes-box verify` works from the
+# repo root. See docker/hermes-box/README.md.
+[group('docker')]
+hermes-box *args:
+    ./docker/hermes-box/hermes-box.sh {{args}}
