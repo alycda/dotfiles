@@ -47,11 +47,17 @@ yourself.
 
 - **Each comes from a different place** (verified 2026-09-16):
 
-  | Tool | nixpkgs | Installed on the desktop machines via |
-  |---|---|---|
-  | `weave` | yes — `nixpkgs#weave` | home-manager (`profiles/home.nix`, `work.nix`) |
-  | `sem` | **no — and the name is taken** | Homebrew core, as `sem-cli` |
-  | `inspect` | no | Homebrew, `ataraxy-labs/tap/inspect` |
+  | Tool | nixpkgs | Installed via | On which Macs |
+  |---|---|---|---|
+  | `weave` | yes — `nixpkgs#weave` | home-manager (`profiles/home.nix`, `work.nix`) | both |
+  | `sem` | **no — and the name is taken** | Homebrew core, as `sem-cli` | both |
+  | `inspect` | no | Homebrew, `ataraxy-labs/tap/inspect` | **work (`ditto`) only** |
+
+  inspect's tap is declared only in `darwin/modules/homebrew.nix`; the
+  personal Mac (`shesfast`, `homebrew-personal.nix`) does not carry it, so
+  expect `inspect: command not found` there. Don't "fix" that by adding the
+  tap: it would put a third-party tap on a second machine's activation path,
+  which is the user's decision, not an agent's.
 
 - **`nixpkgs#sem` is a different program** (the Semaphore CI CLI). `nix run
   nixpkgs#sem` summons the wrong tool and its errors won't say so. Only weave

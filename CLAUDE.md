@@ -724,7 +724,8 @@ The three arrive by three routes, each the least-bad available: weave from
 nixpkgs (desktop profiles), sem from homebrew-core as `sem-cli` (nixpkgs'
 `sem` attribute is an unrelated Semaphore CI tool — same name, wrong
 program), and inspect from the `ataraxy-labs/tap` brew tap because nothing
-else carries it. That tap is a known activation risk (see "A third-party tap
+else carries it — on the work Mac (`ditto`) only; `homebrew-personal.nix`
+(`shesfast`) has sem but not the tap. That tap is a known activation risk (see "A third-party tap
 runs its Ruby inside your activation" above); it is accepted for one formula
 and documented at the tap declaration. Usage guidance lives in the
 `entity-level-git` skill (`tools/agents/skills/entity-level-git/`), not
