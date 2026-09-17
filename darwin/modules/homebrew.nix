@@ -40,20 +40,14 @@ _:
     # Homebrew 6.0 enables HOMEBREW_REQUIRE_TAP_TRUST by default: loading a
     # formula from an untrusted third-party tap aborts activation, so declare
     # trust here instead of imperative per-machine `brew trust`.
+    #
+    # Deliberately absent: ataraxy-labs/tap. Its inspect formula pins a sha256
+    # for the v0.1.1 source tarball that upstream invalidated by moving the
+    # tag two hours later (2026-04-02) and never refreshed, so the install
+    # cannot pass its checksum - and it would drag Homebrew's own rust in as a
+    # build dependency, against the rustup-only rule. inspect comes from
+    # lib/inspect.nix instead; weave from nixpkgs; sem from core below.
     taps = [
-      {
-        # Here for exactly one formula: inspect, the only member of the
-        # Ataraxy Labs entity-level git stack that neither nixpkgs nor
-        # homebrew-core carries (weave comes from nixpkgs in the desktop
-        # profiles; sem from core as sem-cli). Known cost: a third-party tap
-        # runs its Ruby inside activation and can abort a switch - see
-        # docs/solutions/build-errors/third-party-tap-formula-aborts-darwin-rebuild.md.
-        # If it ever raises, deleting this tap and the inspect brew is the
-        # fix; the entity-level-git skill already degrades when inspect is
-        # absent.
-        name = "ataraxy-labs/tap";
-        trusted = true;
-      }
       {
         name = "getditto/build-infra";
         clone_target = "git@github.com:getditto/homebrew-build-infra.git";
@@ -63,8 +57,7 @@ _:
 
     # Formulae (CLI packages)
     brews = [
-      "ataraxy-labs/tap/inspect" # Entity-level PR review triage (ataraxy-labs/inspect)
-      "envchain"       # Keychain-backed secrets as env vars
+      "envchain"      # Keychain-backed secrets as env vars
       "envelope"
       "hunk"
       "kondo"           # Clean build artifacts

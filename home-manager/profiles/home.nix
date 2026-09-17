@@ -32,6 +32,10 @@
       # and nixpkgs has this one. Desktop-only: ~230 MiB closure, too heavy
       # for lib/core-packages.nix. Ships weave, weave-driver and weave-mcp.
       weave
+      # Entity-level review triage, weave's sibling. Upstream release binary
+      # repointed at nixpkgs' openssl - not the brew tap, whose formula can no
+      # longer pass its checksum. The reasoning is in lib/inspect.nix.
+      (import ../../lib/inspect.nix pkgs)
       # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
     ];
   };
