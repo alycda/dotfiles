@@ -142,6 +142,8 @@ dotfiles/
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
 │   ├── helix/              # Helix config
+│   ├── restic/             # backup.sh + excludes.txt, shared by the home-manager
+│   │                       #   restic module and the mise accounts' `backup` task
 │   └── mise/               # Global mise config for the no-Nix, non-admin account
 │                           #   (bootstrap.sh links it to ~/.config/mise; no module)
 │                           #   mbp12/ is a separate, fully pinned config for the 2012
@@ -149,6 +151,7 @@ dotfiles/
 │                           #   `latest` pins above never load on it
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
+├── docs/backup-strategy.md # the two-tier backup plan (restic offsite, rclone offload)
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
 │                           #   workflow patterns - by category, with YAML frontmatter
 │                           #   (module, tags, problem_type). Relevant when implementing
@@ -474,6 +477,23 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
   compiles from source. This does not replace `lib/core-packages.nix`; the
   containers still get their tools from Nix.
+- **A scheduled job on macOS is a launchd agent, and the store path is what
+  gets the TCC grant.** `home-manager/modules/tools/restic.nix` schedules
+  `restic-backup` with `launchd.agents` (a slot missed while asleep runs at
+  the next wake; cron skips it). Full Disk Access is granted per binary path,
+  so every restic bump moves the binary and silently revokes it: protected
+  directories vanish from the snapshot and restic exits 3. Treat exit 3 in
+  the log after a bump as "re-grant", not "flake". The wrapper also keeps
+  nixpkgs' openssh off PATH on purpose so Apple's ssh, the one that reads the
+  login keychain, is what restic's sftp backend execs.
+- **A secret a module needs before it can exist is committed as an encrypted
+  placeholder.** `secrets/personal/restic-env.age` (and venice-api-key before
+  it) ship as `PLACEHOLDER` so the module evaluates, switches, and CI's
+  config evaluation passes with no real credential in the tree; the consumer
+  refuses to run against the placeholder value rather than doing something
+  irreversible with it (`restic init` would key a repository to the word).
+  `age -a -r <recipient>` from `secrets/secrets.nix` needs no private key,
+  so anyone can mint the placeholder; only `just edit-secret` replaces it.
 - **Share a tool's config with that account as a plain file, not a generator.**
   Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
   loads config anyway (`fromTOML` for helix, git's `include`), and link or
@@ -725,7 +745,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-17 - Added the restic backup tier (`tools/restic/` shared script + excludes, `modules/tools/restic.nix`, `docs/backup-strategy.md`), the launchd/TCC lesson, and the encrypted-placeholder-secret pattern; recorded in `tools/mise/mbp12/config.toml` that importing `_SecTrustCopyCertificateChain` is what predicts a Go binary dying on macOS 10.15*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
