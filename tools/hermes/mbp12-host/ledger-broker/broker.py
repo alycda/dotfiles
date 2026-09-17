@@ -39,7 +39,7 @@ TOOLS = [
      "inputSchema": {"type": "object", "properties": {"file": {"type": "string"}},
                      "required": ["file"], "additionalProperties": False}},
     {"name": "ledger_read_import",
-     "description": "Read a staged text file from import/: extracted statement text (*.txt), drafts (*.draft.beancount), or class sidecars. Read-only; PDFs themselves are not served — read the .txt extract.",
+     "description": "Read a staged text file by bare name: extracted statement text (<pdf name>.txt, found in import/.cache/ or import/), drafts (*.draft.beancount), or class sidecars. Read-only; PDFs themselves are not served — read the .txt extract.",
      "inputSchema": {"type": "object", "properties": {"file": {"type": "string"}},
                      "required": ["file"], "additionalProperties": False}},
     {"name": "ledger_approve",
@@ -126,9 +126,17 @@ def call_tool(name, args):
         if not (f.endswith(".txt") or f.endswith(".draft.beancount")
                 or f.endswith(".class") or f.endswith(".md")):
             return "ERROR: only .txt / .draft.beancount / .class / .md are readable", True
-        path = f"{LEDGER}/import/{f}"
-        if not os.path.isfile(path):
-            return f"ERROR: no such file: import/{f}", True
+        # ingest v3 (2026-08-29) moved extracted statement text out of import/
+        # into import/.cache/ so fava's Import page stops listing it twice. The
+        # caller still passes a bare name (valid_name rejects "/"), so the
+        # lookup order lives here. import/ stays as the fallback for text
+        # extracted before v3. From 08-29 until this fix every .txt read
+        # failed with "no such file", i.e. the agent could not read statements.
+        dirs = ["import/.cache", "import"] if f.endswith(".txt") else ["import"]
+        path = next((f"{LEDGER}/{d}/{f}" for d in dirs
+                     if os.path.isfile(f"{LEDGER}/{d}/{f}")), None)
+        if path is None:
+            return f"ERROR: no such file: {f} (looked in {', '.join(dirs)})", True
         try:
             return open(path, errors="replace").read()[:16000] or "(empty file)", False
         except OSError as e:
