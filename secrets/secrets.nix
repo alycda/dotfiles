@@ -64,4 +64,18 @@ in
   # `just edit-secret personal/venice-api-key.age` before wiring it into
   # home-manager. Armored, like the linear keys above.
   "personal/venice-api-key.age".publicKeys = [ alyssa ];
+
+  # restic repository for the offsite backup (home-manager/modules/tools/
+  # restic.nix; the mise accounts decrypt the same file by hand). An env file,
+  # sourced by tools/restic/backup.sh:
+  #   RESTIC_REPOSITORY=sftp:USER@USER.rsync.net:restic   (or s3:... for R2)
+  #   RESTIC_PASSWORD=...
+  # One secret rather than two because they are only ever used together, and
+  # the URL embeds the rsync.net login / R2 account ID, which is not a
+  # credential but is not worth publishing either (the r2-config reasoning).
+  # Committed value is an encrypted PLACEHOLDER, like venice-api-key: replace
+  # in place with `just edit-secret personal/restic-env.age`. Armored.
+  # The password is the only key to every snapshot; keep a copy in Proton
+  # Pass, not just here.
+  "personal/restic-env.age".publicKeys = [ alyssa ];
 }

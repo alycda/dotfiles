@@ -1,0 +1,28 @@
+# Offsite backup. Repo + password come from secrets/personal/restic-env.age
+# (home-manager wraps as restic-backup; mise accounts: mise run backup).
+# Strategy: docs/backup-strategy.md
+
+# first time, per repository
+just edit-secret personal/restic-env.age   # RESTIC_REPOSITORY + RESTIC_PASSWORD
+restic-backup init
+
+# the scheduled run, by hand (backup $HOME, then forget --prune)
+restic-backup
+
+# anything else: args go straight to restic with the repo loaded
+restic-backup snapshots
+restic-backup check --read-data-subset=1/20   # verify a slice of pack data
+restic-backup ls latest --host ditto ~/Documents
+restic-backup restore latest --target /tmp/r --include ~/Documents/x
+restic-backup mount /tmp/restic-mount          # browse; needs macFUSE or FUSE-T
+restic-backup stats --mode raw-data            # what the repo actually stores
+
+# offload, in this order: snapshot first, then move, so the cold copy is never the only one
+restic-backup && rclone move ~/Videos/old r2:cold/videos/old
+
+# second site: copy snapshots between repositories (rsync.net <-> R2)
+restic -r sftp:USER@USER.rsync.net:restic copy --from-repo s3:...  --from-password-file ...
+
+# launchd
+tail -f ~/Library/Logs/restic-backup.log
+launchctl list | grep restic

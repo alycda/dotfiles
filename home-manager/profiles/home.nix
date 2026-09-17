@@ -15,6 +15,10 @@
   # HackMD: the personal account, matching this machine's identity.
   hackmd.account = "personal";
 
+  # Offsite backup of $HOME (../modules/tools/restic.nix). Darwin only: this
+  # is the laptop; a container has nothing to snapshot.
+  resticBackup.enable = pkgs.stdenv.hostPlatform.isDarwin;
+
   home = {
     username = "alyssa";
     homeDirectory = "/Users/alyssa";
