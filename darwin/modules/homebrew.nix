@@ -26,6 +26,7 @@ _:
 
     # Formulae (CLI packages)
     brews = [
+      "envchain"        # Keychain-backed secrets as env vars
       "envelope"
       "hunk"
       "kondo"           # Clean build artifacts

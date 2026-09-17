@@ -25,6 +25,10 @@ _:
     # node. Their brew copies get zapped and the nix ones take over.
     brews = [
       "docker" # CLI only; the daemon is OrbStack (cask below)
+      # Keychain-backed secrets as env vars. The non-admin account on this
+      # machine uses this copy from /opt/homebrew/bin, since it can run brew
+      # formulae but not install them.
+      "envchain"
       "kondo" # Clean build artifacts
       "llmfit"
       "ollama"

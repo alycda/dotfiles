@@ -12,44 +12,37 @@ The command `hx` launches the editor. Press `?` in normal mode to see available 
 
 ## Configuration
 
-This directory contains helix configuration files that serve as:
-1. **Documentation** - Human-readable reference for the config
-2. **Source of truth** - Manually translated to Nix in `home-manager/modules/tools/helix.nix`
+The TOML files in this directory are the config. Both kinds of account read
+them as they are:
 
-## Architecture
+- **Nix accounts:** `home-manager/modules/tools/helix.nix` reads each file with
+  `fromTOML` and adds the language servers as packages. Edit the TOML, then run
+  `home-manager switch`.
+- **The account with no Nix (mise):** link the directory once, and edits apply
+  the next time helix starts:
+  ```sh
+  ln -s ~/dotfiles/tools/helix ~/.config/helix
+  ```
+  That account has helix from mise but none of the language servers.
+  `hx --health` lists them as `not found in $PATH`, and helix just doesn't
+  start them.
+
+## Why not the devShell?
+
+Helix doesn't support a `HELIX_CONFIG_DIR` environment variable, and `--config`
+only loads `config.toml`, not `languages.toml` or `themes/`. So the devShell
+ships helix (for cheat's `$EDITOR`) and language servers but no config.
 
 | Context | Helix | Config | LSPs |
 |---------|-------|--------|------|
 | `nix develop .#tools` | basic | none | none |
 | `nix develop` | basic | none | ✓ available |
 | home-manager | full | ✓ | ✓ |
-
-### Why this split?
-
-Helix doesn't support a `HELIX_CONFIG_DIR` environment variable. The `--config` flag only loads `config.toml`, not `languages.toml` or `themes/`. This means:
-
-- **devShell**: Provides helix binary + LSPs, but no configuration. Helix here is primarily for cheat's `$EDITOR`.
-- **home-manager**: Uses `programs.helix` to generate `~/.config/helix/` with full configuration.
-
-### Future improvement
-
-If helix adds `HELIX_CONFIG_DIR` support, we could:
-```nix
-shellHook = ''
-  export HELIX_CONFIG_DIR="${./tools/helix}"
-'';
-```
-
-This would give devShell users the same config as home-manager without duplication.
+| mise account (linked dir) | full | ✓ | none |
 
 ## Files
 
 - `config.toml` - Editor settings (theme, rulers, diagnostics)
-- `languages.toml` - Language server configurations
+- `languages.toml` - Language and language server settings
 - `themes/mine.toml` - Custom theme (inherits boo_berry)
-
-## Updating config
-
-1. Edit the TOML files here for reference
-2. Update `home-manager/modules/tools/helix.nix` with the Nix equivalent
-3. Run `home-manager switch` to apply
+- `ignore` - Global file-picker ignore rules
