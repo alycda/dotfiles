@@ -100,7 +100,7 @@ _:
       "visual-studio-code"
       # Kept on this machine even though ditto dropped it for cmux; remove
       # deliberately once cmux is confirmed as the daily terminal here too.
-      "warp"
+      # "warp"
       "workflowy"
       "zoom"
     ];
