@@ -46,6 +46,9 @@ TOOLS = [
      "description": "Approve a clean draft by PDF basename: executes its PLAN (file the PDF, book the entries), bean-checks, commits or reverts. Refuses REVIEW_NEEDED drafts.",
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}},
                      "required": ["name"], "additionalProperties": False}},
+    {"name": "ledger_backup",
+     "description": "Archive the beancount source to iCloud following the standing convention (_backups/beancount-backup-YYYYMMDD.tar.gz). Verifies the archive extracts and matches before reporting success. Runs weekly on its own; use this only for an on-demand backup, e.g. before a bulk edit.",
+     "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
 ]
 
 
@@ -68,6 +71,9 @@ def spawn(cmd, logname):
 
 
 def call_tool(name, args):
+    if name == "ledger_backup":
+        return run([f"{BIN}/backup-ledger.sh"], timeout=300)
+
     if name == "ledger_status":
         return run([f"{BIN}/status.sh"])
     if name == "ledger_check":
