@@ -27,7 +27,7 @@ if grep -q REVIEW_NEEDED "$LEDGER/$draft"; then
   exit 3
 fi
 
-MODEL="${LEDGER_APPROVE_MODEL:-claude-sonnet-5}"
+MODEL="${LEDGER_APPROVE_MODEL:-z-ai-glm-5-3}"
 PROVIDER="${LEDGER_APPROVE_PROVIDER:-openai-api}"
 
 prompt="You are running UNATTENDED executing an APPROVED filing plan. Ledger

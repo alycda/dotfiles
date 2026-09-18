@@ -14,7 +14,7 @@ set -uo pipefail
 BIN=/Users/alyssa/ledger-ingest
 BOX=/Users/alyssa/hermes-boxed
 DOCKER=/usr/local/bin/docker
-MODEL="${VERIFY_MODEL:-zai-org-glm-5.2}"
+MODEL="${VERIFY_MODEL:-z-ai-glm-5-3-flash}"
 fails=0
 pass(){ printf '  \033[32mPASS\033[0m  %s\n' "$*"; }
 fail(){ printf '  \033[31mFAIL\033[0m  %s\n' "$*"; fails=$((fails+1)); }
