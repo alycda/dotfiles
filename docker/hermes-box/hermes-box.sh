@@ -65,7 +65,8 @@ env (all optional):
                                    in rw mode)
   HERMES_BOX_WORKSPACE_MODE=rw     rw | ro
   HERMES_BOX_OLLAMA_UPSTREAM=host.docker.internal:11434
-  HERMES_BOX_ALLOWLIST=./net/allowlist
+  HERMES_BOX_ALLOWLIST=./net/allowlist  must be outside an rw workspace;
+                                   no symlink, one hard link
 USAGE
 }
 
@@ -111,6 +112,11 @@ ensure_net_image() {
 # that contains this one, it could widen its own allowlist and wait for the next
 # `up --allowlist` to pick the edit up. The no-route claim would survive that;
 # the allowlist door's would not. Checked on every command that starts the agent.
+#
+# HERMES_BOX_ALLOWLIST can move the allowlist out of this directory, so it gets
+# the same check on its own: an allowlist inside the workspace is the same
+# attack by a different path. A symlink or a second hard link could point into
+# the workspace from outside it, so both are refused rather than chased.
 guard_workspace() {
   [ "$HERMES_BOX_WORKSPACE_MODE" = rw ] || return 0
   ws=$(CDPATH='' cd -- "$HERMES_BOX_WORKSPACE" 2>/dev/null && pwd -P) \
@@ -121,6 +127,23 @@ guard_workspace() {
       die "workspace $ws contains this box ($box), so the agent could rewrite
   its own allowlist. Run from the directory the agent should work in, or set
   HERMES_BOX_WORKSPACE=<dir>, or HERMES_BOX_WORKSPACE_MODE=ro." ;;
+  esac
+
+  # Relative paths resolve against this directory, as compose resolves them.
+  al=${HERMES_BOX_ALLOWLIST:-./net/allowlist}
+  [ ! -L "$al" ] || die "allowlist $al is a symlink - point HERMES_BOX_ALLOWLIST
+  at the file itself, so where it lives can be checked"
+  [ -f "$al" ] || die "allowlist $al is not a file"
+  # shellcheck disable=SC2012  # field 2 (link count) precedes the name
+  [ "$(ls -ld -- "$al" | awk '{print $2}')" = 1 ] \
+    || die "allowlist $al has more than one hard link, so it may also be
+  reachable from inside the workspace - give it a single link"
+  al_dir=$(CDPATH='' cd -- "$(dirname -- "$al")" && pwd -P)
+  case "$al_dir/" in
+    "${ws%/}"/*)
+      die "allowlist $al_dir/$(basename -- "$al") is inside the workspace $ws,
+  so the agent could rewrite it. Keep HERMES_BOX_ALLOWLIST outside the
+  workspace, or set HERMES_BOX_WORKSPACE_MODE=ro." ;;
   esac
 }
 
