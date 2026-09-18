@@ -11,7 +11,7 @@ base="$1"; class="$2"
 # GLM by default: 1.40/4.40 per Mtok vs sonnet-5's 3/15. A verification run on
 # 2026-07-28 cost $2.99 because this defaulted to sonnet AND the draft runner
 # still allowed 90 tool iterations. Override per-run with LEDGER_DRAFT_MODEL.
-MODEL="${LEDGER_DRAFT_MODEL:-zai-org-glm-5.2}"
+MODEL="${LEDGER_DRAFT_MODEL:-z-ai-glm-5-3-flash}"
 PROVIDER="${LEDGER_DRAFT_PROVIDER:-openai-api}"
 
 prompt="You are running UNATTENDED in a pipeline. First read these three files:

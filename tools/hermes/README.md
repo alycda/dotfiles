@@ -18,6 +18,14 @@ warrants raw power (computer control etc.).
 - `boxed/skills/ledger/` — the boxed ledger skill: all ledger operations via
   the host MCP broker's fixed verbs; read-only fava for browsing; deliverables
   to `/artifacts` (iCloud → Obsidian) only.
+- `remote/` — the same stack on a rented box (`hermes-1`), minus everything
+  that needs the Mac (no draft runner, no ledger broker, no iCloud).
+  `provision.sh` sets the box up, `cutover.sh` moves the live state between
+  the MBP and the box (one signal-cli daemon at a time), and `hermes-notify`
+  is the box's forced command for the MBP's notify key
+  (`restrict,command="/usr/local/bin/hermes-notify"` in root's
+  `authorized_keys`): the MBP's host jobs keep sending Signal notifications
+  through the box while the MBP's own signal-cli is stopped.
 - `mbp12-host/` — the host-side privilege boundary and pipeline:
   - `ledger-broker/` — stdlib-python MCP server (127.0.0.1:8643, bearer
     token) exposing exactly ledger_status/check/ingest/draft/read_import/
@@ -33,8 +41,9 @@ warrants raw power (computer control etc.).
     `sweep-processed.py` (archive statements already in the ledger, under
     fava's `statements/<Account/Path>/<date>.pdf` documents convention),
     `add-budget.py`, and the `verify-*` scripts.
-  - `signal-cli/` — dockerized signal-cli daemon (Temurin 25), state
-    bind-mounted for offline sync; loopback :8080.
+  - `signal-cli/` — dockerized signal-cli daemon (Temurin 25), at
+    `~/containers/signal-cli` on the host; state bind-mounted for offline
+    sync; loopback :8080.
   - `launchd/` — the six host LaunchAgents: broker, inbox watcher, due-date
     reminders, docker watchdog, weekly backup, Venice balance watch. Hermes
     itself has no LaunchAgent: it runs only in `boxed/`.
