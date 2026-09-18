@@ -94,10 +94,16 @@ and the box fails. Otherwise it reports `????` and exits 2, rather than letting
 you screenshot a green wall that a flaky wifi connection produced.
 
 The probes hit `1.1.1.1:443` by raw IP before hitting a hostname, so a pass
-cannot be explained away as "DNS was broken". Note what `verify` prints when it
-sees resolution working: **names still resolve inside the box** (docker proxies
-DNS through the daemon). `connect()` is what fails. Resolution is not the
-boundary, and anyone evaluating this should be told that up front.
+cannot be explained away as "DNS was broken".
+
+DNS gets its own probe, because it is a channel of its own: if docker's embedded
+resolver forwards the box's queries upstream, data can leave in the names looked
+up, with no route and no proxy involved. On both engines this has been checked
+on, it does not: Linux Docker 29.8.1 and Docker Desktop 4.15 (engine 20.10.21)
+on macOS both leave names unresolved on an `internal` network while a normal
+bridge resolves them (2026-09-17). `verify` checks rather than assumes, with the
+same control as the other probes, and reports resolution inside the box as
+`????`, not as a pass.
 
 When the agent container is running, `verify` also checks the agent's *own*
 container — no default route, and a Python socket to `1.1.1.1:443` that does not

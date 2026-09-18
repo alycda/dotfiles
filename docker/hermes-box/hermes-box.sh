@@ -348,10 +348,26 @@ cmd_verify() {
     warn "github.com unreachable from both box and control - inconclusive"
   fi
 
-  if on_net "$BOX_NET" 'getent hosts github.com >/dev/null'; then
-    printf '  \033[36mnote\033[0m  names still RESOLVE inside the box (docker proxies DNS).\n'
-    printf '        connect() is what fails. Resolution is not the boundary.\n'
-  fi
+  # DNS is its own channel: if the daemon forwards the box's queries upstream,
+  # data leaves in the names looked up, with no route and no proxy involved. So
+  # resolution inside the box is a finding, not a footnote. Same shape as the
+  # probes above - a control, and a token so a probe that never ran cannot
+  # read as "did not resolve".
+  dns_probe='getent hosts github.com >/dev/null && echo RESOLVED || echo UNRESOLVED'
+  ctl=$(on_net "$EGRESS_NET" "$dns_probe") || ctl=
+  in_box=$(on_net "$BOX_NET" "$dns_probe") || in_box=
+  case "$in_box/$ctl" in
+    RESOLVED/*)
+      warn "names RESOLVE inside the box: this docker forwards its DNS upstream,"
+      printf '        an outbound channel (data rides in the names queried) even\n'
+      printf '        though connect() fails. Not a clean no-egress run.\n' ;;
+    UNRESOLVED/RESOLVED)
+      ok "names do not resolve inside the box, and do on the control network" ;;
+    UNRESOLVED/*)
+      warn "names resolve neither in the box nor on the control network - inconclusive" ;;
+    *)
+      warn "DNS probe inside the box did not run - inconclusive" ;;
+  esac
 
   echo
   echo "the model door"

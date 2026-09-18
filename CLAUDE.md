@@ -432,10 +432,13 @@ already permitted), so they live here rather than only in that README.
   the box failed. This is the same lesson as "passing activation is not proof a
   tool works", applied to a security claim: state what would have to be true for
   the test to mean anything, then test *that*.
-- **Probe by raw IP before hostname, and say out loud that DNS is not the
-  boundary.** Names still resolve inside an internal network (docker proxies the
-  query through the daemon); `connect()` is what fails. Anyone reviewing the
-  setup will notice a successful lookup, so surface it before they do.
+- **Probe by raw IP before hostname, and probe DNS as a channel of its own.**
+  If the daemon forwards an internal network's queries upstream, data leaves
+  in the names looked up even though `connect()` fails, so a successful lookup
+  inside the box is a finding, not a footnote. This file first said names
+  *still resolve* inside an internal network; tested, they do not on Linux
+  Docker 29.8.1 or Docker Desktop 4.15 (2026-09-17). Write down what you
+  observed, and on what, rather than what the mechanism should do.
 - **`cap_drop: [ALL]` and a daemon that drops privileges are in conflict.**
   tinyproxy started as root with `User`/`Group` set dies with "Unable to change
   to group" once capabilities are gone — it needs CAP_SETUID/CAP_SETGID to reach
@@ -783,7 +786,12 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-17 - Added docker/hermes-box (agent harness on an
+*Last updated: 2026-09-17 - Corrected the hermes-box DNS lesson: names do not
+resolve inside an `internal` network on Linux Docker 29.8.1 or Docker Desktop
+4.15, contrary to what was first written here, and a lookup that does succeed is
+an outbound channel to report, not a footnote*
+
+*2026-09-17 - Added docker/hermes-box (agent harness on an
 `internal: true` docker network, local/ollama models, deny-by-default hostname
 allowlist) and recorded the sandboxing lessons: make the claim structural rather
 than configurational, give a verify command a control or it is decoration, and
