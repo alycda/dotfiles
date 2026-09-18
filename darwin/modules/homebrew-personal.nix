@@ -42,6 +42,10 @@ _:
         name = "charmbracelet/tap";
         trusted = true;
       }
+      {
+        name = "withgraphite/tap";
+        trusted = true;
+      }
     ];
 
     # Formulae (CLI packages). Deliberately NOT listed because nix/home-manager
@@ -60,6 +64,7 @@ _:
       "poppler" # pdftotext & friends (also keeps the gpgme/gnupg dep chain)
       "sem-cli" # Semantic Diff (ataraxy-labs/sem)
       "typst"
+      "withgraphite/tap/graphite" # Graphite CLI (stacked PRs)
       "wishlist" # charmbracelet SSH directory
     ];
 
