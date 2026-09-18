@@ -76,7 +76,7 @@ to_box() {
 
   echo "== 2/5 stream state"
   stream_dir mbp '$HOME/hermes-boxed' state box "$REMOTE_DIR"
-  stream_dir mbp '$HOME/signal-cli' state box "$REMOTE_DIR" signal-state
+  stream_dir mbp '$HOME/containers/signal-cli' state box "$REMOTE_DIR" signal-state
   mbp "cat ~/hermes-boxed/workspace.env" | box "umask 077; cat > $REMOTE_DIR/workspace.env"
   box "mkdir -p $REMOTE_DIR/artifacts && chown 501:20 $REMOTE_DIR/artifacts"
 
@@ -88,7 +88,7 @@ to_box() {
   local a b
   a="$(count_files mbp '$HOME/hermes-boxed/state')"; b="$(count_files box "$REMOTE_DIR/state")"
   echo "  state files:        mbp=$a box=$b"; [ "$a" = "$b" ]
-  a="$(count_files mbp '$HOME/signal-cli/state')"; b="$(count_files box "$REMOTE_DIR/signal-state")"
+  a="$(count_files mbp '$HOME/containers/signal-cli/state')"; b="$(count_files box "$REMOTE_DIR/signal-state")"
   echo "  signal-state files: mbp=$a box=$b"; [ "$a" = "$b" ]
 
   echo "== 5/5 start the box"
@@ -106,9 +106,9 @@ back() {
   if [ "${1:-}" = --with-state ]; then
     echo "== 2/3 carry state home (the MBP's copy is kept beside it)"
     local ts; ts="$(date +%Y%m%dT%H%M%S)"
-    mbp "cp -Rp ~/hermes-boxed/state ~/hermes-boxed/state.pre-return-$ts && cp -Rp ~/signal-cli/state ~/signal-cli/state.pre-return-$ts"
+    mbp "cp -Rp ~/hermes-boxed/state ~/hermes-boxed/state.pre-return-$ts && cp -Rp ~/containers/signal-cli/state ~/containers/signal-cli/state.pre-return-$ts"
     stream_dir box "$REMOTE_DIR" state mbp '$HOME/hermes-boxed'
-    stream_dir box "$REMOTE_DIR" signal-state mbp '$HOME/signal-cli' state
+    stream_dir box "$REMOTE_DIR" signal-state mbp '$HOME/containers/signal-cli' state
   else
     echo "== 2/3 no state copied; the MBP resumes from where it stopped"
   fi

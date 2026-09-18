@@ -33,8 +33,9 @@ warrants raw power (computer control etc.).
     `sweep-processed.py` (archive statements already in the ledger, under
     fava's `statements/<Account/Path>/<date>.pdf` documents convention),
     `add-budget.py`, and the `verify-*` scripts.
-  - `signal-cli/` — dockerized signal-cli daemon (Temurin 25), state
-    bind-mounted for offline sync; loopback :8080.
+  - `signal-cli/` — dockerized signal-cli daemon (Temurin 25), at
+    `~/containers/signal-cli` on the host; state bind-mounted for offline
+    sync; loopback :8080.
   - `launchd/` — the six host LaunchAgents: broker, inbox watcher, due-date
     reminders, docker watchdog, weekly backup, Venice balance watch. Hermes
     itself has no LaunchAgent: it runs only in `boxed/`.
