@@ -218,13 +218,38 @@ cmd_pull() {
   [ $# -eq 1 ] || die "usage: hermes-box.sh pull <model>"
   [ "$HERMES_BOX_MODE" = contained-model ] || die "host-model mode: pull on the host instead (ollama pull $1)"
   echo "opening the fetch door (ollama-fetch on the egress network only)..."
+  # From here on the door closes however this ends - a mistyped model name, a
+  # registry error, ^C. Under set -e a failed pull would otherwise exit before
+  # the stop/rm and leave ollama-fetch up on the egress network with the models
+  # volume mounted. INT/TERM exit so the EXIT trap is what runs.
+  trap close_fetch_door EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
   $DC --profile fetch up -d ollama-fetch
+  # `up -d` returns when the container starts, not when `ollama serve` listens,
+  # and an immediate pull races it ("could not connect to ollama server").
+  n=0
+  until $DC --profile fetch exec -T ollama-fetch ollama list >/dev/null 2>&1; do
+    n=$((n+1))
+    [ "$n" -lt 30 ] || die "ollama-fetch did not answer within 30s"
+    sleep 1
+  done
   # The image's entrypoint is the ollama binary; `serve` is its CMD. exec into
-  # the running server to pull, then close the door again.
+  # the running server to pull.
   $DC --profile fetch exec ollama-fetch ollama pull "$1"
-  $DC --profile fetch stop ollama-fetch
-  $DC --profile fetch rm -f ollama-fetch
-  echo "door closed. model is in the hermes-box-ollama-models volume."
+  echo "model is in the hermes-box-ollama-models volume."
+}
+
+# Stop and remove ollama-fetch, then check it is really gone rather than
+# announcing that it is: the door being open is the thing that matters.
+close_fetch_door() {
+  $DC --profile fetch stop ollama-fetch >/dev/null 2>&1 || true
+  $DC --profile fetch rm -f ollama-fetch >/dev/null 2>&1 || true
+  if [ -n "$(docker ps -aq --filter name='^hermes-box-ollama-fetch$')" ]; then
+    echo "hermes-box: FETCH DOOR STILL OPEN - remove it: docker rm -f hermes-box-ollama-fetch" >&2
+    exit 1
+  fi
+  echo "door closed."
 }
 
 cmd_status() {
