@@ -135,6 +135,7 @@ dotfiles/
 ├── lib/
 │   ├── charm-nur.nix       # scoped overlay for charmbracelet/nur (crush)
 │   ├── core-packages.nix   # Packages shared by devShells + home-manager
+│   ├── inspect.nix         # Ataraxy inspect: release binary repointed at nix openssl
 │   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
@@ -718,6 +719,23 @@ without reading the full diff. It's display-only: no config, no API keys,
 and it never fails the build, so it doesn't gate merging alongside the
 lint/check jobs above.
 
+Sem is also installed locally, alongside its siblings weave (entity-level
+merge driver) and inspect (review triage) from the same Ataraxy Labs stack.
+The three arrive by three routes, each the least-bad available: weave from
+nixpkgs (desktop profiles), sem from homebrew-core as `sem-cli` (nixpkgs'
+`sem` attribute is an unrelated Semaphore CI tool — same name, wrong
+program), and inspect from `lib/inspect.nix`, which fetches upstream's
+release binary and repoints it at nixpkgs' openssl. inspect is pointedly
+*not* from the `ataraxy-labs/tap` brew tap: that formula's checksum went
+stale when upstream moved the release tag, so it cannot install — a live
+instance of "A third-party tap runs its Ruby inside your activation" above.
+Usage guidance lives in the
+`entity-level-git` skill (`tools/agents/skills/entity-level-git/`), not
+here — tool-specific depth belongs in on-demand skills, with only a
+compact pointer in the always-loaded `tools/agents/preferred-tooling.md`.
+Since CI already posts the sem entity diff on every PR, don't post
+duplicate entity-diff comments.
+
 ## Learning Resources
 
 When adding new Nix patterns or configurations, include links to:
@@ -738,7 +756,11 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-16 - Verified inspect against a real binary and found its declared install route could never have worked: the ataraxy-labs/tap formula pins a checksum upstream invalidated by moving the v0.1.1 tag, so the brew fails and would abort activation. Replaced it with `lib/inspect.nix` (release binary, tart-style). Two lessons, both already in the tap write-up and both nearly repeated: a tap's risk is its maintenance, so check the formula's age and hash before declaring it, not after; and a prebuilt binary that runs on *this* machine proves little — this one linked Homebrew's openssl by absolute path, so `otool -L` is part of verifying any fetched macOS binary*
+
+*2026-09-16 - Corrected the entity-level-git work after merging main: "none of sem/weave/inspect are in nixpkgs" had been written into the skill and preferred-tooling from a sandbox with no `nix` to check it, and was wrong — nixpkgs carries weave, and its `sem` is a different program entirely. Moved weave to nixpkgs per the third-party-tap lesson, re-verified every sem and weave command against real binaries (two weave commands were wrong), and narrowed the skill's `allowed-tools` from wildcards to read-only subcommands, since a wildcard pre-approves the very `setup`/`login` commands the skill says never to run unprompted. Rule worth keeping: an availability claim about a package set is a checkable fact — check it, or mark it unverified*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
@@ -762,6 +784,8 @@ under Homebrew 6.0; includes the two traps found routing around it (a green
 *2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 
 *2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
+
+*2026-08-05 - Added the Ataraxy Labs entity-level git stack (sem/weave/inspect). Decision: full usage went into the on-demand `entity-level-git` skill rather than always-loaded instructions — the agents README's "don't over-centralize tool-specific behavior" non-goal — with only a compact table in `preferred-tooling.md` and a CI cross-reference here*
 
 *2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 
