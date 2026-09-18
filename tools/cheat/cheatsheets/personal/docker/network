@@ -10,3 +10,14 @@ docker run -it --rm \
   <image>
 
 # Runnable: just -g docker-net [name]
+
+# To actually cut a container off from the internet, the network must be
+# INTERNAL - docker then adds no gateway and installs no NAT for it, so nothing
+# on it has a default route. A bridge network (above) does not do this.
+docker network create --internal locked-net
+docker run --rm --network locked-net alpine \
+  sh -c 'awk "\$2==\"00000000\"" /proc/net/route'   # empty = no way out
+
+# Anything the container still needs (a model endpoint, an allowlisted host)
+# gets a door: a second container on BOTH networks, forwarding one destination.
+# Worked example, with a verify command: docker/hermes-box/ (cheat hermes/box)

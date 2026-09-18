@@ -146,6 +146,8 @@ dotfiles/
 │                           #   (bootstrap.sh links it to ~/.config/mise; no module)
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
+│   └── hermes-box/         # Hermes agent on a no-egress internal network,
+│                           #   local/ollama models, opt-in hostname allowlist
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
 │                           #   workflow patterns - by category, with YAML frontmatter
 │                           #   (module, tags, problem_type). Relevant when implementing
@@ -402,6 +404,52 @@ set gets built with our config. The upside of the switch is that these are
 GoReleaser release binaries rather than source builds, and cache.nixos.org
 never had a binary for the unfree nixpkgs build anyway, so every machine had
 been compiling crush from scratch.
+
+### Sandboxing an agent harness: the boundary is the network, not the config
+
+`docker/hermes-box/` runs Hermes against a local model with no route to the
+internet. The durable lessons generalize to any harness (including the ones
+already permitted), so they live here rather than only in that README.
+
+- **Make the claim structural, not configurational.** `internal: true` on the
+  docker network means the daemon adds no gateway and installs no NAT, so a
+  container on it has no default route — nothing the agent, a skill, an MCP
+  server or a shell command it writes for itself can do changes that. Compare
+  `HTTP_PROXY` env vars or a harness' own "disable web tools" key: both are
+  honored only by software that chooses to. Keep those as depth, never as the
+  claim.
+- **Anything the box still needs gets a door, and a door is a container with a
+  foot on both networks.** One `socat` with a single hard-coded destination for
+  the model port (it cannot be talked into a second one); one `tinyproxy` with
+  `FilterDefaultDeny Yes` for the eventual allowlist, where an empty file denies
+  everything. Naming the model door with a network *alias* (`ollama`) is what
+  lets one config line serve both "model on the host, via the shim" and "model
+  in a sibling container".
+- **A verification command needs a control, or it is decoration.** "Cannot reach
+  1.1.1.1" proves nothing on a host that is merely offline. Every egress probe in
+  `hermes-box.sh verify` runs twice — inside the box and on an ordinary bridge —
+  and the run reports `inconclusive` (exit 2) unless the control succeeded and
+  the box failed. This is the same lesson as "passing activation is not proof a
+  tool works", applied to a security claim: state what would have to be true for
+  the test to mean anything, then test *that*.
+- **Probe by raw IP before hostname, and probe DNS as a channel of its own.**
+  If the daemon forwards an internal network's queries upstream, data leaves
+  in the names looked up even though `connect()` fails, so a successful lookup
+  inside the box is a finding, not a footnote. This file first said names
+  *still resolve* inside an internal network; tested, they do not on Linux
+  Docker 29.8.1 or Docker Desktop 4.15 (2026-09-17). Write down what you
+  observed, and on what, rather than what the mechanism should do.
+- **`cap_drop: [ALL]` and a daemon that drops privileges are in conflict.**
+  tinyproxy started as root with `User`/`Group` set dies with "Unable to change
+  to group" once capabilities are gone — it needs CAP_SETUID/CAP_SETGID to reach
+  the unprivileged state. Start the container *as* that user instead
+  (`user: tinyproxy`) and delete the directives. Don't drop caps on a container
+  whose init supervises services (the Hermes image's s6 tree needs them); a
+  broken container is not a safer one.
+- **Docker Hub anonymous pulls are rate-limited (HTTP 429).** Verifying a
+  sandbox in a throwaway environment can fail on the *pull*, not the design —
+  say which parts were exercised and which weren't, rather than implying a clean
+  run.
 
 ### Configuration Conflicts to Avoid
 
@@ -738,7 +786,18 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-17 - Corrected the hermes-box DNS lesson: names do not
+resolve inside an `internal` network on Linux Docker 29.8.1 or Docker Desktop
+4.15, contrary to what was first written here, and a lookup that does succeed is
+an outbound channel to report, not a footnote*
+
+*2026-09-17 - Added docker/hermes-box (agent harness on an
+`internal: true` docker network, local/ollama models, deny-by-default hostname
+allowlist) and recorded the sandboxing lessons: make the claim structural rather
+than configurational, give a verify command a control or it is decoration, and
+don't drop capabilities out from under a daemon that drops privileges itself*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
