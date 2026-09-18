@@ -193,7 +193,15 @@ cmd_up() {
   echo "run './hermes-box.sh verify' - the boundary is not a thing to take on trust"
 }
 
-cmd_down() { WANT_ALLOWLIST=1; dc --profile fetch down "$@"; }
+# Every profile, not just the current mode's: compose only removes services in
+# active profiles, so `up` in contained-model and a later `down` in the default
+# host-model left the ollama container running on the box network, which then
+# failed to remove ("Resource is still in use"). down should not depend on
+# remembering which mode you started in.
+cmd_down() {
+  $DC --profile host-model --profile contained-model --profile allowlist \
+    --profile fetch down "$@"
+}
 
 cmd_chat() { guard_workspace; dc run --rm hermes chat "$@"; }
 cmd_setup() { guard_workspace; dc run --rm hermes setup "$@"; }
