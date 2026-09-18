@@ -233,6 +233,34 @@ ok()   { pass=$((pass+1)); printf '  \033[32mok\033[0m    %s\n' "$1"; }
 bad()  { fail=$((fail+1)); printf '  \033[31mFAIL\033[0m  %s\n' "$1"; }
 warn() { incon=$((incon+1)); printf '  \033[33m????\033[0m  %s\n' "$1"; }
 
+# A probe that did not run must never read as a pass. Both agent-side probes
+# therefore have to print something positive - the route table's header, or a
+# CONNECTED/BLOCKED token - and anything else (exec failed, no python3 in the
+# image, empty output) is inconclusive, not "no route".
+
+# Classify a /proc/net/route dump: none | default | unreadable. Parsed here, on
+# the host, so the probe needs only `cat` in the container, not awk.
+route_state() {
+  case "$1" in
+    Iface*) ;;             # the header line: the table was actually read
+    *) echo unreadable; return ;;
+  esac
+  if printf '%s\n' "$1" | awk '$2=="00000000"{f=1} END{exit !f}'; then
+    echo default
+  else
+    echo none
+  fi
+}
+
+report_route() {
+  _who=$1; _table=$2
+  case "$(route_state "$_table")" in
+    none)    ok "$_who has no default route" ;;
+    default) bad "$_who HAS a default route" ;;
+    *)       warn "could not read the route table of $_who - the probe did not run" ;;
+  esac
+}
+
 cmd_verify() {
   docker network inspect "$BOX_NET" >/dev/null 2>&1 || die "box network missing - run: ./hermes-box.sh up"
   ensure_net_image
@@ -244,11 +272,8 @@ cmd_verify() {
     bad "$BOX_NET is NOT internal - everything below is theatre"
   fi
 
-  if [ -z "$(on_net "$BOX_NET" "awk '\$2==\"00000000\"{print \$1}' /proc/net/route")" ]; then
-    ok "a container on $BOX_NET has no default route at all"
-  else
-    bad "a container on $BOX_NET HAS a default route"
-  fi
+  table=$(on_net "$BOX_NET" 'cat /proc/net/route') || table=
+  report_route "a container on $BOX_NET" "$table"
 
   echo
   echo "egress from inside the box (control: same probe on $EGRESS_NET)"
@@ -312,22 +337,23 @@ cmd_verify() {
   if docker ps --format '{{.Names}}' | grep -qx "$HERMES_CTR"; then
     echo
     echo "inside the agent container itself"
-    if [ -z "$(docker exec "$HERMES_CTR" awk '$2=="00000000"{print $1}' /proc/net/route 2>/dev/null)" ]; then
-      ok "$HERMES_CTR has no default route"
-    else
-      bad "$HERMES_CTR HAS a default route"
-    fi
-    if docker exec "$HERMES_CTR" python3 -c '
-import socket,sys
-s=socket.socket(); s.settimeout(8)
+    table=$(docker exec "$HERMES_CTR" cat /proc/net/route 2>/dev/null) || table=
+    report_route "$HERMES_CTR" "$table"
+    # Only an OSError counts as blocked: that is what a refused, unreachable or
+    # timed-out connect() raises. Anything else escapes, prints no token, and
+    # lands in the inconclusive branch with the rest of "the probe never ran".
+    sock=$(docker exec "$HERMES_CTR" python3 -c '
+import socket
+s = socket.socket(); s.settimeout(8)
 try:
-    s.connect(("1.1.1.1",443)); print("connected"); sys.exit(0)
-except Exception:
-    sys.exit(1)' >/dev/null 2>&1; then
-      bad "$HERMES_CTR opened a socket to 1.1.1.1:443"
-    else
-      ok "$HERMES_CTR cannot open a socket to 1.1.1.1:443"
-    fi
+    s.connect(("1.1.1.1", 443)); print("CONNECTED")
+except OSError as e:
+    print("BLOCKED", e)' 2>/dev/null) || true
+    case "$sock" in
+      CONNECTED*) bad "$HERMES_CTR opened a socket to 1.1.1.1:443" ;;
+      BLOCKED*)   ok "$HERMES_CTR cannot open a socket to 1.1.1.1:443 (${sock#BLOCKED })" ;;
+      *)          warn "socket probe in $HERMES_CTR did not run (exec failed, or no python3 in the image)" ;;
+    esac
   else
     printf '\n  \033[36mnote\033[0m  the hermes container is not running; checked the network, not the agent.\n'
   fi
