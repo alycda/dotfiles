@@ -317,6 +317,40 @@ report_route() {
   esac
 }
 
+# One HTTPS probe on one network: reached | blocked | curl-<exit> | norun.
+# "blocked" is only a connect-level failure - 6 (no resolution), 7 (connect
+# refused/unreachable), 28 (timeout). Any other curl error (TLS, HTTP) means a
+# TCP connection was made, which is not blocked; and no CURL_EXIT token at all
+# means the probe itself never ran, which is not blocked either.
+egress_probe() {
+  _out=$(on_net "$1" "curl -s -m 8 -o /dev/null $2; echo CURL_EXIT=\$?") || _out=
+  case "$_out" in
+    *CURL_EXIT=0)                           echo reached ;;
+    *CURL_EXIT=6|*CURL_EXIT=7|*CURL_EXIT=28) echo blocked ;;
+    *CURL_EXIT=*)                           echo "curl-${_out##*CURL_EXIT=}" ;;
+    *)                                      echo norun ;;
+  esac
+}
+
+# The same probe inside the box and on the control network. Only box-blocked
+# with control-reached is a pass; the control is what makes "blocked" mean
+# anything.
+report_egress() {
+  _ctl=$(egress_probe "$EGRESS_NET" "$2")
+  _box=$(egress_probe "$BOX_NET" "$2")
+  case "$_box/$_ctl" in
+    reached/*)
+      bad "reached $1 from inside the box" ;;
+    blocked/reached)
+      ok "$1 unreachable from the box, reachable from the control network" ;;
+    blocked/*)
+      warn "$1 unreachable from the box - but the control did not reach it either ($_ctl),"
+      printf '        so this host proves nothing today (offline? corporate filter?)\n' ;;
+    *)
+      warn "$1 probe inside the box gave no clean answer ($_box) - inconclusive" ;;
+  esac
+}
+
 cmd_verify() {
   docker network inspect "$BOX_NET" >/dev/null 2>&1 || die "box network missing - run: ./hermes-box.sh up"
   ensure_net_image
@@ -335,26 +369,8 @@ cmd_verify() {
   echo "egress from inside the box (control: same probe on $EGRESS_NET)"
   # By raw IP first: this bypasses DNS entirely, so a pass cannot be explained
   # away by "name resolution was broken".
-  control=0
-  on_net "$EGRESS_NET" 'curl -s -m 8 -o /dev/null https://1.1.1.1/' && control=1
-  if on_net "$BOX_NET" 'curl -s -m 8 -o /dev/null https://1.1.1.1/'; then
-    bad "reached 1.1.1.1:443 from inside the box"
-  elif [ "$control" = 1 ]; then
-    ok "1.1.1.1:443 unreachable from the box, reachable from the control network"
-  else
-    warn "1.1.1.1:443 unreachable from the box - but also from the control network,"
-    printf '        so this host proves nothing today (offline? corporate filter?)\n'
-  fi
-
-  control=0
-  on_net "$EGRESS_NET" 'curl -s -m 8 -o /dev/null https://github.com/' && control=1
-  if on_net "$BOX_NET" 'curl -s -m 8 -o /dev/null https://github.com/'; then
-    bad "reached github.com from inside the box"
-  elif [ "$control" = 1 ]; then
-    ok "github.com unreachable from the box, reachable from the control network"
-  else
-    warn "github.com unreachable from both box and control - inconclusive"
-  fi
+  report_egress 1.1.1.1:443 https://1.1.1.1/
+  report_egress github.com https://github.com/
 
   # DNS is its own channel: if the daemon forwards the box's queries upstream,
   # data leaves in the names looked up, with no route and no proxy involved. So
@@ -396,12 +412,14 @@ cmd_verify() {
       bad "proxy did NOT refuse github.com - check FilterDefaultDeny in net/tinyproxy.conf"
     fi
     # And over CONNECT, where the refusal kills the tunnel before TLS starts, so
-    # curl reports a transport failure rather than an HTTP status.
-    if on_net "$BOX_NET" 'curl -s -m 8 -o /dev/null -x http://egress-proxy:8888 https://github.com/'; then
-      bad "proxy tunnelled CONNECT to an off-list host"
-    else
-      ok "proxy refuses an off-list host over CONNECT (no tunnel)"
-    fi
+    # curl exits non-zero - as it also would if the probe never ran. Only the
+    # proxy's own 403 on the CONNECT (%{http_connect}) counts as a refusal.
+    conn=$(on_net "$BOX_NET" 'curl -s -m 8 -o /dev/null -w "CONNECT=%{http_connect} " -x http://egress-proxy:8888 https://github.com/; echo "CURL_EXIT=$?"') || conn=
+    case "$conn" in
+      *CURL_EXIT=0) bad "proxy tunnelled CONNECT to an off-list host" ;;
+      CONNECT=403*) ok "proxy refuses an off-list host over CONNECT (403, no tunnel)" ;;
+      *) warn "CONNECT probe through the proxy gave no clean answer (${conn:-probe did not run}) - inconclusive" ;;
+    esac
     printf '  \033[36mnote\033[0m  allowed hosts are full bidirectional channels. Audit: ./hermes-box.sh proxy-log\n'
   fi
 
