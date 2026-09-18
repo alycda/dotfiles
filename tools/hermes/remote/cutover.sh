@@ -67,6 +67,33 @@ stream_volume() {
 # count_files <host> <dir>: the cheap end-to-end check on a streamed copy.
 count_files() { "$1" "find \"$2\" -type f | wc -l | tr -d ' '"; }
 
+# set_ledger_mcp <host> <config.yaml> <true|false>
+# The gateway's `ledger` MCP server is the broker on the MBP's loopback
+# (host.docker.internal:8643). On the box nothing listens there, so the box's
+# copy runs with it disabled and the MBP's copy keeps it; `back --with-state`
+# turns it on again on the way home. Only `enabled:` inside mcp_servers.ledger
+# is touched, and the result is read back: a pattern that silently matched
+# nothing must not look like success. `cat >` rewrites in place, keeping the
+# file's owner (501:20) and mode.
+set_ledger_mcp() {
+  local host=$1 cfg=$2 want=$3
+  local flip='
+    /^mcp_servers:/ { m = 1; print; next }
+    m && /^[^ ]/    { m = 0 }
+    m && /^  [^ ]/  { l = ($0 ~ /^  ledger:/) }
+    m && l && /^    enabled:/ { sub(/enabled:.*/, "enabled: " want) }
+    { print }'
+  local read='
+    /^mcp_servers:/ { m = 1; next }
+    m && /^[^ ]/    { m = 0 }
+    m && /^  [^ ]/  { l = ($0 ~ /^  ledger:/) }
+    m && l && /^    enabled:/ { print $2 }'
+  "$host" "awk -v want=$want '$flip' \"$cfg\" > \"$cfg.flip\" && cat \"$cfg.flip\" > \"$cfg\" && rm \"$cfg.flip\""
+  local got; got="$("$host" "awk '$read' \"$cfg\"")"
+  echo "  $host: mcp_servers.ledger.enabled = ${got:-<not found>}"
+  [ "$got" = "$want" ]
+}
+
 to_box() {
   echo "== 1/5 pause the ledger pipeline, stop the MBP stack"
   mbp "touch ~/ledger-ingest/PAUSED"
@@ -90,6 +117,8 @@ to_box() {
   echo "  state files:        mbp=$a box=$b"; [ "$a" = "$b" ]
   a="$(count_files mbp '$HOME/containers/signal-cli/state')"; b="$(count_files box "$REMOTE_DIR/signal-state")"
   echo "  signal-state files: mbp=$a box=$b"; [ "$a" = "$b" ]
+  # After the counts, so they compare two untouched copies.
+  set_ledger_mcp box "$REMOTE_DIR/state/config.yaml" false
 
   echo "== 5/5 start the box"
   box "cd $REMOTE_DIR && docker compose up -d"
@@ -109,6 +138,8 @@ back() {
     mbp "cp -Rp ~/hermes-boxed/state ~/hermes-boxed/state.pre-return-$ts && cp -Rp ~/containers/signal-cli/state ~/containers/signal-cli/state.pre-return-$ts"
     stream_dir box "$REMOTE_DIR" state mbp '$HOME/hermes-boxed'
     stream_dir box "$REMOTE_DIR" signal-state mbp '$HOME/containers/signal-cli' state
+    # The box ran without the ledger; the MBP has the broker, so turn it back on.
+    set_ledger_mcp mbp '$HOME/hermes-boxed/state/config.yaml' true
   else
     echo "== 2/3 no state copied; the MBP resumes from where it stopped"
   fi
