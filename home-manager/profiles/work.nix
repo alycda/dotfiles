@@ -32,6 +32,10 @@
       # casper's Responses wire natively, and crush<->venice is 
       # OpenAI-compatible end to end. See cheat claude/casper.
       litellm
+      # Was in modules/dev/rust.nix; kept here so this profile's package set is
+      # unchanged, but out of the shared module because its 1.6 GiB closure is
+      # the whole reason the container profiles could not import Rust.
+      lldb
       # flutter - managed by puro (manually installed)
       openjdk
       # swig - installed via homebrew (locked tap)
