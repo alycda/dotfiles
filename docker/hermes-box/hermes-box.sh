@@ -16,7 +16,10 @@
 
 set -eu
 
-here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+# Where the caller was, captured before the cd below: that directory - not this
+# one - is what becomes the agent's /workspace by default.
+invoked_from=$PWD
+here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 cd "$here"
 
 BOX_NET=hermes-box
@@ -26,7 +29,7 @@ HERMES_CTR=hermes-box
 
 : "${HERMES_BOX_MODE:=host-model}"          # host-model | contained-model
 : "${HERMES_BOX_DATA:=$HOME/.hermes-box}"
-: "${HERMES_BOX_WORKSPACE:=$PWD}"
+: "${HERMES_BOX_WORKSPACE:=$invoked_from}"
 : "${HERMES_BOX_WORKSPACE_MODE:=rw}"
 export HERMES_BOX_DATA HERMES_BOX_WORKSPACE HERMES_BOX_WORKSPACE_MODE
 
@@ -57,7 +60,9 @@ usage: hermes-box.sh <command> [args]
 env (all optional):
   HERMES_BOX_MODE=host-model       host-model | contained-model
   HERMES_BOX_DATA=~/.hermes-box    Hermes' whole state dir (/opt/data)
-  HERMES_BOX_WORKSPACE=$PWD        mounted at /workspace
+  HERMES_BOX_WORKSPACE=<cwd>       mounted at /workspace (the directory you
+                                   ran this from; must not contain this box
+                                   in rw mode)
   HERMES_BOX_WORKSPACE_MODE=rw     rw | ro
   HERMES_BOX_OLLAMA_UPSTREAM=host.docker.internal:11434
   HERMES_BOX_ALLOWLIST=./net/allowlist
@@ -101,6 +106,24 @@ ensure_net_image() {
   docker build -q -t "$NET_IMAGE" "$here/net" >/dev/null
 }
 
+# The agent must never be able to write the box's own definition: compose.yaml,
+# net/allowlist, net/tinyproxy.conf. With /workspace mounted rw over a directory
+# that contains this one, it could widen its own allowlist and wait for the next
+# `up --allowlist` to pick the edit up. The no-route claim would survive that;
+# the allowlist door's would not. Checked on every command that starts the agent.
+guard_workspace() {
+  [ "$HERMES_BOX_WORKSPACE_MODE" = rw ] || return 0
+  ws=$(CDPATH='' cd -- "$HERMES_BOX_WORKSPACE" 2>/dev/null && pwd -P) \
+    || die "workspace $HERMES_BOX_WORKSPACE does not exist"
+  box=$(pwd -P)
+  case "$box/" in
+    "${ws%/}"/*)
+      die "workspace $ws contains this box ($box), so the agent could rewrite
+  its own allowlist. Run from the directory the agent should work in, or set
+  HERMES_BOX_WORKSPACE=<dir>, or HERMES_BOX_WORKSPACE_MODE=ro." ;;
+  esac
+}
+
 # Run a shell snippet in a throwaway container on a given network.
 on_net() {
   _net=$1; shift
@@ -130,14 +153,16 @@ mode     : $HERMES_BOX_MODE
 next:
   1. edit $HERMES_BOX_DATA/config.yaml and set model.default to a model you have
      (host-model mode: \`ollama list\` on the host; contained: hermes-box.sh pull)
-  2. ./hermes-box.sh up
-  3. ./hermes-box.sh verify     # do this before you trust anything above
-  4. ./hermes-box.sh chat
+  2. from the directory the agent should work in:
+       $here/hermes-box.sh up
+  3. $here/hermes-box.sh verify     # do this before you trust anything above
+  4. $here/hermes-box.sh chat
 EOF
 }
 
 cmd_up() {
   [ -d "$HERMES_BOX_DATA" ] || die "no data dir - run: ./hermes-box.sh init"
+  guard_workspace
   dc up -d
   echo
   dc ps
@@ -147,9 +172,9 @@ cmd_up() {
 
 cmd_down() { WANT_ALLOWLIST=1; dc --profile fetch down "$@"; }
 
-cmd_chat() { dc run --rm hermes chat "$@"; }
-cmd_setup() { dc run --rm hermes setup "$@"; }
-cmd_run() { [ $# -gt 0 ] || die "run needs a hermes subcommand"; dc run --rm hermes "$@"; }
+cmd_chat() { guard_workspace; dc run --rm hermes chat "$@"; }
+cmd_setup() { guard_workspace; dc run --rm hermes setup "$@"; }
+cmd_run() { [ $# -gt 0 ] || die "run needs a hermes subcommand"; guard_workspace; dc run --rm hermes "$@"; }
 
 cmd_models() {
   out=$(on_net "$BOX_NET" 'curl -fsS -m 5 http://ollama:11434/v1/models') || {

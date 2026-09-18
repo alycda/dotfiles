@@ -48,14 +48,21 @@ interface, on a network that cannot reach anything the doors do not hand it.
 ## Quickstart
 
 ```sh
-cd docker/hermes-box
+box=~/dotfiles/docker/hermes-box
 
-./hermes-box.sh init          # ~/.hermes-box + a seeded config.yaml
+$box/hermes-box.sh init       # ~/.hermes-box + a seeded config.yaml
 # edit ~/.hermes-box/config.yaml: model.default must be a model you have
-./hermes-box.sh up
-./hermes-box.sh verify        # before trusting any of the above
-./hermes-box.sh chat
+cd ~/code/some-project        # this directory becomes the agent's /workspace
+$box/hermes-box.sh up
+$box/hermes-box.sh verify     # before trusting any of the above
+$box/hermes-box.sh chat
 ```
+
+`/workspace` is the directory you run the script from (`just hermes-box` passes
+the directory you ran `just` from). In `rw` mode the script refuses a workspace
+that contains the box itself, since the agent could then rewrite
+`net/allowlist`; that is why the quickstart does not `cd` into
+`docker/hermes-box`.
 
 Two modes, picked with `HERMES_BOX_MODE`:
 

@@ -200,10 +200,14 @@ rekey-secrets:
     key="$(just _age-identity)"
     ragenix --rules secrets/secrets.nix -i "$key" --rekey
 
+# just runs recipes from the repo root, so without the env below the agent's
+# /workspace would be this whole repo, the box's own allowlist included (the
+# script refuses that in rw mode). Pass where you ran `just` from instead.
+#
 # Hermes in a box: local/ollama models, no route to the internet.
 # docker/hermes-box/hermes-box.sh is the source of truth (as dev.sh is for the
 # dev image); this is a passthrough so `just hermes-box verify` works from the
 # repo root. See docker/hermes-box/README.md.
 [group('docker')]
 hermes-box *args:
-    ./docker/hermes-box/hermes-box.sh {{args}}
+    ws={{ quote(invocation_directory()) }}; HERMES_BOX_WORKSPACE="${HERMES_BOX_WORKSPACE:-$ws}" ./docker/hermes-box/hermes-box.sh {{args}}
