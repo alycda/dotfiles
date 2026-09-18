@@ -1,0 +1,3 @@
+# secrets & runtime state stay out of dotfiles
+state/
+workspace.env

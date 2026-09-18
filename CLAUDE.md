@@ -140,8 +140,12 @@ dotfiles/
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
+│   ├── githooks/           # pre-push secret scan (git config core.hooksPath tools/githooks)
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
 │   ├── helix/              # Helix config
+│   ├── hermes/             # Boxed Hermes stack + host-side ledger pipeline for the
+│   │                       #   2012 MBP. A *copy* of files that live in ~/ on that
+│   │                       #   machine; no module deploys it (see below)
 │   └── mise/               # Global mise config for the no-Nix, non-admin account
 │                           #   (bootstrap.sh links it to ~/.config/mise; no module)
 ├── secrets/                # agenix/ragenix age-encrypted secrets
@@ -487,6 +491,31 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
   compiles from source. This does not replace `lib/core-packages.nix`; the
   containers still get their tools from Nix.
+- **mise does not rescue an old macOS.** On the 2012 MBP (macOS 10.15, the
+  ceiling for that hardware) mise itself runs, and `mise install` of
+  `tools/mise/config.toml` reports four clean installs — but only jj and helix
+  (built for 10.12) execute. gh and claude are built for macOS 13 and die in
+  dyld on a missing symbol. `latest` is therefore wrong for that machine; it
+  would need its own config with pinned last-working versions (gh 2.68.x runs
+  there). Same trap as nixpkgs' tart: an install that succeeds proves nothing
+  until you run `<tool> --version`. Probed 2026-09-16.
+- **A host nothing deploys to drifts, and the repo copy goes stale silently.**
+  `tools/hermes/mbp12-host/` mirrors scripts that actually live in
+  `~/ledger-ingest` and `~/ledger-broker` on the MBP, edited in place there.
+  Seven weeks after PR #53 the host was ahead by six rewritten scripts and
+  five new files, with `*.bak-<timestamp>` copies as the only history. Until
+  something deploys repo → host, the host is the source of truth: before
+  touching that directory, diff it against the machine (`ssh -4` — the
+  `.local` name resolves to a link-local IPv6 first and fails with "No route
+  to host"), and copy host → repo one logical change per commit.
+  This repo is public and those scripts name every institution the household
+  banks with, so host files never enter it verbatim: pipe each through
+  `~/ledger-ingest/.public-name-map.py` on the MBP (a fixed substitution
+  table — it holds the real names, so it stays on the host) and run its
+  `--check` over `git log -p` of the range before pushing. The repo copy is
+  therefore `map(host)`, documents the pipeline's shape, and is not runnable
+  as-is. The pre-push hook cannot catch this class: an institution name
+  matches no secret pattern.
 - **Share a tool's config with that account as a plain file, not a generator.**
   Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
   loads config anyway (`fromTOML` for helix, git's `include`), and link or
@@ -738,7 +767,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-16 - Added `tools/hermes/` + `tools/githooks/` to the structure; recorded that the 2012 MBP's host scripts drift ahead of their repo copy because nothing deploys to it, and that mise's `latest` pins install but do not run on macOS 10.15*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
