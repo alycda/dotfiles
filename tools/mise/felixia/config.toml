@@ -77,11 +77,12 @@ just = "1.58.0" # aqua:casey/just
 # 0.18.0 raised the floor to macOS 11, and its darwin_amd64 binary imports
 # _SecTrustCopyCertificateChain, the same symbol that kills gh here, so 0.18+
 # is out. 0.17.3 (go1.23.3) imports no such symbol, like gh 2.68.1 (go1.23.5),
-# which runs. NOT YET RUN ON THE MACHINE: added from the binaries alone, so it
-# is the one pin in this file that breaks the rule above until someone does
-#   mise install restic@0.17.3 && mise exec restic@0.17.3 -- restic version
-# If it dies in dyld anyway, fall back to 0.17.0 (go1.22.5, the last Go that
-# officially supports 10.15) and note it here.
+# which runs. Chosen from the binaries alone, then run on the machine
+# (2026-09-18, installed by mise 2026.9.11): `restic version` prints
+# "restic 0.17.3 compiled with go1.23.3 on darwin/amd64", so the symbol check
+# predicted right. (restic has no --version flag; `restic version` is the
+# command.) If a later 0.17.x dies in dyld, 0.17.0 (go1.22.5, the last Go that
+# officially supports 10.15) is the fallback.
 restic = "0.17.3" # aqua:restic/restic
 
 # gh is UNSUPPORTED on this machine through mise — left here, commented out, so

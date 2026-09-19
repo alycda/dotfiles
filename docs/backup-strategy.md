@@ -67,8 +67,8 @@ local copy goes. Never delete before a snapshot has been verified with
    and friends are silently absent (exit 3 in the log). Again after each
    restic bump, since the grant is on the store path.
 5. felixia: `mise run decrypt personal/restic-env.age ~/.config/restic/env`,
-   then `mise run backup`. Its restic pin is 0.17.3 and not yet proven to
-   run there; see `tools/mise/felixia/config.toml`.
+   then `mise run backup`. Its restic pin is 0.17.3, the newest that runs on
+   10.15 (run there 2026-09-18); see `tools/mise/felixia/config.toml`.
 
 ## Later
 
