@@ -20,8 +20,6 @@ brew "jq"
 brew "nghttp2"
 # PDF rendering library (based on the xpdf-3.0 code base)
 brew "poppler"
-# Search tool like grep and The Silver Searcher
-brew "ripgrep"
 # Fast static site generator in a single binary with everything built-in
 brew "zola"
 # Password manager that keeps all passwords secure behind one password
