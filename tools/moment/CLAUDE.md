@@ -3,39 +3,21 @@
 You are inside a Moment document: a colocated jj + git repository under
 `~/.moment/documents/<id>/` that the Moment desktop app edits. The document's
 own `CLAUDE.md` is Moment's and covers the file format (`moment.yml`,
-`pages/`). This file covers committing. It applies to every document, because
-Claude Code loads it from the parent directory.
+`pages/`). This file covers committing, for every document.
 
-## Commit as yourself
+Alyssa needs to tell your changes from hers, and jj records the author when a
+change is created. So wrap every edit in:
 
-Alyssa needs to tell your changes from hers. A jj config scope
-(`~/.config/jj/conf.d/moment-claude-authorship.toml`) makes jj use the
-identity `Claude <noreply@anthropic.com>` here, but only for changes *created*
-from your shell - jj records the author when a change is created, not when it
-is described or committed. So:
+```sh
+jj agent-start claude "<what you are about to do>"   # before editing
+# ...edit files...
+jj agent-done                                        # when finished
+```
 
-1. **Before editing**, create your own change and drop Moment's empty draft:
-
-   ```sh
-   jj new -m "<what you are about to do>"
-   jj abandon -r '@- & empty() & description(exact:"")'
-   ```
-
-   The abandon is a no-op when the draft holds unsaved edits; those stay in
-   Alyssa's change underneath yours.
-
-2. **Edit the files.** jj snapshots them into your change.
-
-3. **When done**, hand Moment a fresh draft authored by Alyssa:
-
-   ```sh
-   env -u CLAUDECODE jj new
-   ```
-
-   Skip this and her next commit in Moment is attributed to you.
-
-Check with `jj log -r '::@' -n 3`: your change shows `Claude`, the empty draft
-on top shows Alyssa.
+`agent-start` creates your own change authored as `Claude` and drops Moment's
+empty draft. `agent-done` hands Moment a fresh draft authored by Alyssa - skip
+it and her next Moment commit is attributed to you. Check with
+`jj log -r '::@' -n 3`.
 
 ## Do not
 
@@ -44,4 +26,4 @@ on top shows Alyssa.
 - Publish (Moment's publish pushes to `git.moment.dev`). Backups go to Soft
   Serve with `just -g moment-backup`, and only when Alyssa asks.
 - Rewrite, describe, or squash changes you did not author.
-- Commit with plain `git`: it bypasses the jj author scope.
+- Commit with plain `git`: it bypasses the jj author identity.

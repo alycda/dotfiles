@@ -12,8 +12,10 @@
 #
 # jj records the author when a change is *created*, not when it is described
 # or committed. Attribution therefore depends on the agent creating its own
-# change and handing back a fresh draft afterwards - the protocol in
-# tools/moment/CLAUDE.md (linked to ~/.moment/CLAUDE.md).
+# change and handing back a fresh draft afterwards: `jj agent-start` /
+# `jj agent-done` (tools/moment/jj-agent-aliases.toml), which set the identity
+# explicitly for every agent. This scope is the fallback for when Claude runs
+# a plain `jj new` instead.
 #
 # Version floor: jj 0.45.1 honours --when.environments; jj 0.37.0 (the
 # version of Moment's embedded jj-lib) silently ignores unknown --when keys,

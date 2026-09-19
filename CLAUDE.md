@@ -508,11 +508,15 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
      so a scope conditioned on an env var applies unconditionally there. The
      authorship scope relies on the nixpkgs jj (0.45.1) on PATH.
   3. **jj sets the author when a change is created**, so attributing agent
-     commits takes a protocol, not just a config scope: see
-     `tools/moment/CLAUDE.md`, linked to `~/.moment/CLAUDE.md`. Claude Code
-     loads CLAUDE.md from every ancestor of its cwd, which is how one file covers
-     every document. Moment generates each document's own CLAUDE.md/AGENTS.md
-     and keeps rewriting it, so never edit that one.
+     commits takes a protocol, not just a config scope. It's two jj aliases that
+     only exist inside Moment docs: `jj agent-start <claude|codex|crush>
+     "<intent>"` creates the agent's change with its identity set explicitly
+     (crush: `<model>@crush`, `@crush.local` for ollama), and `jj agent-done`
+     hands back a draft authored by you (`tools/moment/jj-moment-agent.sh`).
+     Claude learns them from `~/.moment/CLAUDE.md`: Claude Code loads CLAUDE.md
+     from every ancestor of its cwd, which is how one file covers every
+     document. Moment generates each document's own CLAUDE.md/AGENTS.md and
+     keeps rewriting it, so never edit that one.
   4. **Moment stops advancing `main` once anything outside the app touches the
      repo**, even with `main` exactly on the draft's parent and after a restart
      (cause unknown). Nothing here uses `main`: `just -g moment-backup` pushes
