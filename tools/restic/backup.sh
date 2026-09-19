@@ -27,7 +27,7 @@ excludes="${RESTIC_EXCLUDES:-$HOME/dotfiles/tools/restic/excludes.txt}"
 if [ ! -r "$env_file" ]; then
   echo "restic-backup: no env file at $env_file" >&2
   echo "  home-manager: just edit-secret personal/restic-env.age, then switch" >&2
-  echo "  mise (mbp12): mise run decrypt personal/restic-env.age $HOME/.config/restic/env" >&2
+  echo "  mise (felixia): mise run decrypt personal/restic-env.age $HOME/.config/restic/env" >&2
   exit 78 # EX_CONFIG
 fi
 set -a

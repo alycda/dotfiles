@@ -52,3 +52,10 @@ Library/Mobile\ Documents
 .docker/desktop
 .orbstack
 .tart
+
+# App payloads that reinstall or re-download. What each app keeps beside them
+# (config, state, keys) is still backed up: only the rebuildable part is here.
+.ollama/models
+.hermes/hermes-agent
+.vscode-server
+.vscode-remote-containers

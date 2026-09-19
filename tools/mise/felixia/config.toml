@@ -1,0 +1,391 @@
+# Global mise config for felixia: macOS 10.15.8, x86_64. Neither Nix nor
+# nixpkgs supports that, so felixia gets its CLI tools here rather than from
+# home-manager, and everything newer runs in the dev container (docker/dev.sh,
+# the alyssa@dev-x86 profile).
+#
+# Link THIS directory, not tools/mise, to ~/.config/mise on felixia. On a
+# fresh account the bootstrap does that, plus the checkout and mise itself:
+#
+#   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/tools/mise/bootstrap.sh | MISE_CONFIG=felixia sh
+#
+# By hand, on an account that already has the checkout and mise:
+#
+#   ln -s ~/dotfiles/tools/mise/felixia ~/.config/mise
+#
+# mise reads only the directory it is pointed at, so ../config.toml (the
+# no-Nix account on a current Mac) never loads here. That matters: its
+# `latest` pins install cleanly on 10.15 and then die in dyld.
+#
+# EVERY VERSION IS PINNED, and each pin was run on the machine, not just
+# installed (probed 2026-09-16). Upstream binaries declare a minimum macOS
+# (`otool -l <bin> | grep minos`) but that number predicts nothing here:
+#   - jj, helix       declare 10.12        -> run
+#   - age, pass-cli   declare 13.0 / 11.0  -> run anyway (they never touch the
+#                                             symbols 10.15 lacks)
+#   - gh 2.101        declares 13.0        -> dyld: _SecTrustCopyCertificateChain
+#   - claude 2.1.x    declares 13.0        -> dyld: missing libc++ symbol
+#   - sops 3.13       declares 12.0        -> dyld, same symbol as gh
+# So before bumping a pin: `mise install tool@x && mise exec tool@x -- tool
+# --version`. A green install proves nothing.
+#
+# What does predict it (read off the darwin_amd64 release binaries, 2026-09-17):
+# every binary that dies here imports _SecTrustCopyCertificateChain, and none
+# that runs does. Go's crypto/x509 started importing it somewhere after
+# go1.23.5 (gh 2.68.1, runs) and by go1.25.1 (restic 0.18.1, gh 2.101 on
+# go1.27.1: die). The Go runtime itself is fine: age 1.3.2 is built with
+# go1.27.0, imports no such symbol, and runs. So before a bump:
+#   strings <bin> | grep -c SecTrustCopyCertificateChain   # must be 0
+#   strings <bin> | grep -m1 '^go1\.'                       # which toolchain
+# That predicts; only running it on the machine proves.
+#
+# Left out on purpose:
+#   claude  no native build runs on 10.15; it runs in the dev container.
+
+[tools]
+jj = "0.45.1"
+helix = "25.07.1"
+age = "1.3.2" # decrypts secrets/*.age: ~/.age/personal-key.txt here is the `alyssa` recipient
+
+# Rust tools that used to come from `cargo install` into ~/.cargo/bin. They
+# come from upstream's release binaries rather than the cargo: backend, which
+# runs `cargo install` and so compiles each one on this CPU (there is no
+# cargo-binstall here) against whatever rustup toolchain is current. All four
+# publish x86_64-apple-darwin builds that declare minos 10.12, and each pin
+# below was run here (2026-09-18): installed by mise 2026.9.11, except
+# rustledger 0.15.0, fetched by hand from the same GitHub releases. Rust's
+# x86_64 default target is 10.12, which is why these run where the Go
+# binaries above die. After switching: `cargo uninstall iwe iwes just rage
+# rustledger`, since ~/.cargo/bin sits ahead of mise on a non-interactive PATH.
+just = "1.58.0" # aqua:casey/just
+"github:str4d/rage" = "0.12.1" # rage, rage-keygen: the same files age reads, and what ragenix uses elsewhere
+# rustledger stays at 0.15.0, the version cargo had installed, and not the
+# latest 0.24.0: run against the ledger, 0.24 reports 446 parse errors (P0012)
+# that 0.15 does not, on document/custom/balance/note lines, so it reads the
+# ledger differently. The 0.15.0 release binary's `rledger check` output is
+# byte-identical to the cargo-built one's. Bump only after comparing
+# `rledger check` output between the two versions on the real ledger.
+"github:rustledger/rustledger" = "0.15.0" # rledger, rledger-lsp
+# iwe, iwec, iwes: iwes is helix's markdown language server here (a local
+# ~/.config/helix, not tools/helix). Latest, up from cargo's 0.0.27; nothing
+# automated uses it, and iwe-v0.0.27 has an x86_64 build to go back to.
+# Releases are tagged iwe-vX.Y.Z, not vX.Y.Z. Inline, not a [tools."..."]
+# table: a table header here would swallow every key below it.
+"github:iwe-org/iwe" = { version = "0.24.1", version_prefix = "iwe-v" }
+# ripgrep-all (rga) shells out to rg, so both are listed. Release binaries
+# (x86_64-apple-darwin, minos 10.12), run here 2026-09-19. They were first
+# added as `latest` by `mise use`, then pinned to what that installed.
+# Homebrew's ripgrep 15.1.0 was removed so there is one rg on every PATH.
+ripgrep = "15.2.0" # aqua:BurntSushi/ripgrep
+ripgrep-all = "0.10.10" # aqua:phiresky/ripgrep-all, rga + rga-preproc
+# kondo (cleans build artifacts out of project dirs) is not in mise's registry;
+# github: takes its kondo-x86_64-apple-darwin release (minos 10.12, run here
+# 2026-09-19). It has no --version flag; check it with `kondo --help`.
+"github:tbillington/kondo" = "0.9"
+# jq: C, not Rust, and the release binary declares minos 14.0, yet it runs
+# here (2026-09-19), like age. Moved from Homebrew's 1.8.1 to the same
+# version.
+jq = "1.8.1" # aqua:jqlang/jq
+
+# restic: the offsite backup client (one restic repo per site, rsync.net over
+# SFTP or R2 over S3; the machines that have Nix get it from home-manager).
+# 0.18.0 raised the floor to macOS 11, and its darwin_amd64 binary imports
+# _SecTrustCopyCertificateChain, the same symbol that kills gh here, so 0.18+
+# is out. 0.17.3 (go1.23.3) imports no such symbol, like gh 2.68.1 (go1.23.5),
+# which runs. Chosen from the binaries alone, then run on the machine
+# (2026-09-18, installed by mise 2026.9.11): `restic version` prints
+# "restic 0.17.3 compiled with go1.23.3 on darwin/amd64", so the symbol check
+# predicted right. (restic has no --version flag; `restic version` is the
+# command.) If a later 0.17.x dies in dyld, 0.17.0 (go1.22.5, the last Go that
+# officially supports 10.15) is the fallback.
+restic = "0.17.3" # aqua:restic/restic
+
+# node: nvm's one version, now from mise. Nothing on this machine requires
+# Node (no pipeline script, LaunchAgent or wrapper calls node/npm/npx; the
+# only known consumer is `npx agent-browser` from native Hermes's
+# compound-engineering skills). It stays pinned so `node`/`npx` keep
+# working. 22.17.1 is the nodejs.org darwin-x64 build nvm had, and it runs
+# here. Test before moving to a newer line, whose macOS floor may be above
+# 10.15. yarn, if ever needed: `corepack enable`, not brew.
+node = "22.17.1"
+
+# tmux is not installed by mise. It is a from-source build in /opt, dated
+# 2026-03-17: tmux 3.3a, plus the libevent 2.1 and OpenSSL 1.1 it was built
+# against in /opt/lib. There is no pkgutil receipt and Homebrew does not know
+# it, with a root-owned /usr/local/bin/tmux -> /opt/bin/tmux. It runs the
+# long jobs on this machine (the S3 copy ran in it), so it stays as it is.
+# mise records it by linking the existing build:
+#   mise link tmux@3.3a /opt
+# after which `mise install` counts tmux@3.3a as installed and downloads
+# nothing (checked: "all tools are installed"). Link BEFORE the first
+# `mise install`, or mise installs its registry tmux (aqua:tmux/tmux-builds,
+# asdf as fallback) and there are two. The link also puts the rest of
+# /opt/bin on PATH, which is only libevent's event_rpcgen.py.
+tmux = "3.3a"
+
+# gh is UNSUPPORTED on this machine through mise — left here, commented out, so
+# nobody re-adds it thinking it was forgotten. Upstream's macOS builds target
+# 13.0: `mise install gh` succeeds, then every invocation dies with
+#   dyld: Symbol not found: _SecTrustCopyCertificateChain
+# (a Security.framework call that does not exist before macOS 12; Go's TLS
+# stack needs it, so no flag avoids it). Homebrew's /usr/local/bin/gh 2.68.1
+# is the last build that runs here and is what this machine uses. Uncomment
+# only with a version you have RUN on 10.15, not just installed.
+# gh = "2.101.0"
+
+# Proton publishes pass-cli as bare binaries on proton.me, not GitHub, so no
+# registry backend covers it. The checksum is the one in
+# https://proton.me/download/pass-cli/versions.json for this version. Never run
+# `pass-cli update` on a mise install: it replaces the binary under mise and
+# the checksum stops describing what runs.
+[tools."http:pass-cli"]
+version = "2.3.3"
+url = "https://proton.me/download/pass-cli/{{version}}/pass-cli-macos-x86_64"
+checksum = "sha256:275f6159f63d152ecdd9d4e2969ef515291619005e0d30ab762daee26081621c"
+bin = "pass-cli"
+
+# The machine's names, the part of a nix-darwin `networking.*Name` config
+# this machine can have. macOS keeps three and they drift apart when set one
+# at a time from System Preferences:
+#   ComputerName    what Finder, AirDrop and Sharing show
+#   LocalHostName   the Bonjour name, felixia.local, what ssh from the other
+#                   machines resolves
+#   HostName        what `uname -n` and the shell prompt report; restic's
+#                   backup.sh tags snapshots with it, so snapshots taken
+#                   under the previous name keep that host tag, and
+#                   `forget --host felixia` never thins them. Forget them by
+#                   their own host tag when they are no longer wanted.
+# Needs an admin account (sudo). Run by hand like every task here; it
+# changes only the names that differ, so running it again does nothing.
+[tasks.hostname]
+description = "Set ComputerName, LocalHostName and HostName to felixia"
+run = '''
+name=felixia
+for key in ComputerName LocalHostName HostName; do
+  if [ "$(scutil --get "$key" 2>/dev/null)" = "$name" ]; then
+    echo "hostname: $key is already $name"
+  else
+    sudo scutil --set "$key" "$name" && echo "hostname: set $key to $name"
+  fi
+done
+'''
+
+# felixia's LaunchAgents: the pipeline jobs (ledger-*, venice-watch,
+# docker-watchdog). Without home-manager there is no launchd.agents to declare
+# them, so the plists live in ./launchd/ as templates and these two tasks do
+# what a switch would: `launchd` installs and updates, `launchd-prune` removes.
+#
+# Templates, because a plist cannot expand ~ or $HOME: every path in one is
+# absolute, so installed plists name the account. Rendering them at install
+# time means an account rename is a re-run of `mise run launchd`, not an edit
+# of every plist. Placeholders:
+#   @HOME@         always, from $HOME
+#   @LEDGER_DOCS@  and any other @NAME@: from ~/.config/launchd-templates.env,
+#                  NAME=value lines, host-only. This one is the iCloud folder
+#                  the ingest job watches; its real name stays out of this
+#                  public repo, like the rest of the ledger's names.
+# A template with a placeholder left unfilled is not installed: a WatchPaths
+# entry that does not exist fails silently, which is worse than not loading.
+#
+# Ownership is by label prefix: every agent with a label starting `com.alyssa.`
+# belongs to this directory, and `launchd-prune` removes any such agent that
+# has no template here, including one made by hand. Agents outside the prefix
+# (Dropbox, Google, the *.plist.disabled Hermes ones) are never touched.
+[tasks.launchd]
+description = "Install or update felixia's LaunchAgents from ./launchd templates; reload only what changed"
+run = '''
+uid=$(id -u)
+dir=~/Library/LaunchAgents
+src=~/dotfiles/tools/mise/felixia/launchd
+vars=~/.config/launchd-templates.env
+script=$(mktemp)
+trap 'rm -f "$script"' EXIT
+# A value lands inside a plist <string>, so XML-escape it first (a bare &
+# makes the plist unparseable), then escape it for the sed replacement.
+esc() {
+  printf '%s' "$1" |
+    sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/[\\|&]/\\&/g'
+}
+printf 's|@HOME@|%s|g\n' "$(esc "$HOME")" > "$script"
+if [ -f "$vars" ]; then
+  while IFS='=' read -r k v || [ -n "$k" ]; do
+    case $k in ''|\#*) continue ;; esac
+    printf 's|@%s@|%s|g\n' "$k" "$(esc "$v")" >> "$script"
+  done < "$vars"
+fi
+mkdir -p "$dir"
+rc=0
+for t in "$src"/*.plist; do
+  name=$(basename "$t")
+  out="$dir/$name"
+  sed -f "$script" "$t" > "$out.new"
+  if grep -q '@[A-Z_]*@' "$out.new"; then
+    echo "launchd: $name not installed, unfilled: $(grep -o '@[A-Z_]*@' "$out.new" | sort -u | tr '\n' ' ')(set them in $vars)" >&2
+    rm -f "$out.new"; rc=1; continue
+  fi
+  if ! plutil -lint -s "$out.new"; then
+    echo "launchd: $name not installed, rendered plist does not parse" >&2
+    rm -f "$out.new"; rc=1; continue
+  fi
+  if cmp -s "$out.new" "$out"; then
+    rm -f "$out.new"; echo "launchd: $name unchanged"; continue
+  fi
+  launchctl bootout "gui/$uid" "$out" 2>/dev/null || true
+  mv "$out.new" "$out"
+  launchctl bootstrap "gui/$uid" "$out" && echo "launchd: loaded $name"
+done
+exit "$rc"
+'''
+
+# Moves aside rather than deletes: a pruned agent is unloaded and renamed to
+# <name>.plist.pruned, which launchd ignores (the same trick as the Hermes
+# agents' .plist.disabled), so undoing it is one mv and one bootstrap.
+[tasks.launchd-prune]
+description = "Unload and set aside com.alyssa.* LaunchAgents that have no template in ./launchd"
+usage = 'flag "-n --dry-run" help="list what would be removed, change nothing"'
+run = '''
+uid=$(id -u)
+dir=~/Library/LaunchAgents
+src=~/dotfiles/tools/mise/felixia/launchd
+found=0
+for out in "$dir"/com.alyssa.*.plist; do
+  [ -e "$out" ] || continue
+  name=$(basename "$out")
+  [ -f "$src/$name" ] && continue
+  found=1
+  if [ "${usage_dry_run:-false}" = true ]; then
+    echo "launchd-prune: would remove $name"; continue
+  fi
+  launchctl bootout "gui/$uid" "$out" 2>/dev/null || true
+  mv "$out" "$out.pruned"
+  echo "launchd-prune: removed $name (kept as $name.pruned)"
+done
+[ "$found" = 1 ] || echo "launchd-prune: nothing to remove"
+'''
+
+# felixia's Homebrew, recorded in ./Brewfile. mise has no Homebrew backend
+# (`mise sync --brew` only imports node/python/ruby runtimes), so brew keeps
+# owning these, and the Brewfile is an inventory, not an installer:
+#
+#   brew-check  what the Brewfile lists but is missing, and what is installed
+#               but not listed. Reports only.
+#   brew-dump   rewrite the Brewfile from what is installed now; review the
+#               change with `jj diff` before committing it.
+#   brew-pin    put Homebrew itself back on 6.0.2 and link ./brew.env.
+#
+# Homebrew is pinned at 6.0.2 because 7.0 refuses to run on 10.15 at all.
+# brew updates itself before `install`/`info`/etc. unless told not to, and on
+# 2026-09-18 one interactive `brew install` moved it to 7.0.4 because only
+# these tasks set HOMEBREW_NO_AUTO_UPDATE. ./brew.env, linked to
+# ~/.homebrew/brew.env, is read by bin/brew itself, so it covers every shell,
+# ssh command and launchd job. A mise [env] entry would cover only shells
+# with mise activated. It does not stop an explicit `brew update`: never run
+# that here, and if it happens, `mise run brew-pin` undoes it.
+#
+# Never `brew bundle install` here: Homebrew no longer bottles for 10.15, so
+# every install builds from source, and one formula that raises while loading
+# aborts the whole run (see CLAUDE.md on the tart tap). A plain `brew install`
+# is no better: before building what you asked for, it rebuilds every outdated
+# dependency from source (`brew install kondo`, 2026-09-19, started with a
+# 10,109-step llvm build). For a new tool, look for a release binary that
+# mise's github: or aqua: backends can fetch first. Never `brew bundle
+# cleanup --force` either. brew computes what is still needed from today's
+# formula definitions, not from the older builds installed here, so it offers
+# to remove libraries those builds may still link against. At capture
+# (2026-09-18) that was six formulae; all but one have since been removed
+# deliberately (see below), and the list that remains is exactly one entry:
+#
+#   icu4c@78  KEEP. brew renamed the formula, but the installed keg is
+#             Cellar/icu4c/69.1 and qt loads it via /usr/local/opt/icu4c, so
+#             uninstalling it breaks poppler and rga's PDF search. This is why
+#             that list never fails the task.
+#
+# On 2026-09-19 Homebrew here went from 4.8 GB to 879 MB: the build toolchains
+# (rust, llvm, go, cmake, meson, ninja, nasm, swig, autoconf, automake,
+# libtool, m4, z3, python@3.10/3.13/3.14), the tools nothing called
+# (asciinema, datasette, zola, nghttp2, the unlinked docker formula) and the
+# libraries they orphaned. jq and ripgrep moved to the pins above; awscli went
+# with felixia's AWS credentials. What is left is what has no working mise
+# build: gh 2.68.1, ffmpeg and poppler (rga's adapters), htop, and their
+# dependencies. Do not reinstall the rest here - docker/CLAUDE.md carries the
+# full table and the reasoning.
+#
+# The Brewfile is a verbatim `brew bundle dump`, which rewrites the whole
+# file, so explanations live here and not in it.
+[tasks.brew-check]
+description = "Report drift between felixia's Homebrew and ./Brewfile; installs and removes nothing"
+run = '''
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ENV_HINTS=1
+# A task runs with whatever PATH the caller had, and `ssh host mise run ...`
+# has no /usr/local/bin. Resolve brew rather than assuming it.
+brew=$(command -v brew || echo /usr/local/bin/brew)
+[ -x "$brew" ] || { echo "brew-check: no brew at $brew" >&2; exit 1; }
+file="$HOME/dotfiles/tools/mise/felixia/Brewfile"
+rc=0
+pin=6.0.2 # keep in step with brew-pin
+have=$(git -C "$("$brew" --repository)" describe --tags 2>/dev/null)
+[ "$have" = "$pin" ] || { echo "brew-check: Homebrew is at ${have:-unknown}, not $pin; run: mise run brew-pin" >&2; rc=1; }
+echo "brew-check: in the Brewfile but not installed"
+# --no-upgrade: count missing only. Without it every outdated formula reports
+# as unsatisfied, and on a frozen brew that is most of them, forever.
+"$brew" bundle check --no-upgrade --verbose --file="$file" || rc=1
+echo "brew-check: installed but not in the Brewfile (report only; see config.toml before removing any)"
+# cleanup without --force only prints. Keep its "Would uninstall" lists and
+# drop the rest: per-formula "not installed" warnings (stderr) and brew's own
+# cache cleanup ("Would remove", "Would `brew cleanup`").
+extra=$("$brew" bundle cleanup --file="$file" 2>/dev/null |
+  awk '/^Would uninstall/ {on=1; print "  " $0; next} /^(Would|Run) / {on=0} on {print "    " $0}')
+echo "${extra:-  (none)}"
+exit "$rc"
+'''
+
+[tasks.brew-dump]
+description = "Rewrite ./Brewfile from what Homebrew has installed now (review with jj diff)"
+# --no-cargo/--no-npm: newer brew also records cargo and npm globals when it
+# can see them. Those are mise's or cargo's business, not Homebrew's, and
+# listing them here would show as drift the moment they move.
+run = 'HOMEBREW_NO_AUTO_UPDATE=1 "$(command -v brew || echo /usr/local/bin/brew)" bundle dump --force --no-cargo --no-npm --no-vscode --no-mas --file="$HOME/dotfiles/tools/mise/felixia/Brewfile"'
+
+[tasks.brew-pin]
+description = "Check Homebrew out at 6.0.2 again and link ./brew.env so it stays there"
+run = '''
+pin=6.0.2 # keep in step with brew-check
+brew=$(command -v brew || echo /usr/local/bin/brew)
+[ -x "$brew" ] || { echo "brew-pin: no brew at $brew" >&2; exit 1; }
+repo=$("$brew" --repository)
+[ -z "$(git -C "$repo" status --porcelain)" ] || { echo "brew-pin: $repo has local changes; not touching it" >&2; exit 1; }
+# What `brew update` itself does when it moves to a release: reset the
+# stable branch to the tag.
+git -C "$repo" checkout -q -B stable "refs/tags/$pin"
+mkdir -p "$HOME/.homebrew"
+ln -sfn "$HOME/dotfiles/tools/mise/felixia/brew.env" "$HOME/.homebrew/brew.env"
+echo "brew-pin: $("$brew" --version | head -n 1); ~/.homebrew/brew.env -> $(readlink "$HOME/.homebrew/brew.env")"
+'''
+
+# One backup of $HOME with the same script and excludes home-manager uses
+# (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
+# Needs ~/.config/restic/env with RESTIC_REPOSITORY and RESTIC_PASSWORD:
+#   mise run decrypt personal/restic-env.age ~/.config/restic/env
+# Run by hand, like every task here; this is the machine being emptied out,
+# so a snapshot before each round of deleting is the whole point.
+[tasks.backup]
+description = "Back up $HOME with restic, or run a restic command against the repo"
+run = "~/dotfiles/tools/restic/backup.sh"
+
+# agenix is a Nix activation module, so it cannot run here. This is the part
+# of it this machine needs: decrypt one secret to one path, owner-only.
+# Run by hand; never from a hook (see ../config.toml on why tasks don't
+# run themselves).
+[tasks.decrypt]
+description = "Decrypt one repo secret to a path, owner-only"
+# Arguments come from the usage spec as $usage_<name>; mise does not set
+# $1/$2 for an inline script (it appends extra args to the last command).
+usage = '''
+arg "<secret>" help="path under ~/dotfiles/secrets, e.g. personal/venice-api-key.age"
+arg "<dest>" help="file to write"
+'''
+run = '''
+key=~/.age/personal-key.txt
+[ "$(stat -f %Lp "$key")" = 600 ] || { echo "decrypt: $key must be mode 600 (chmod 600 $key)"; exit 77; }
+umask 077
+age -d -i "$key" -o "$usage_dest" ~/dotfiles/secrets/"$usage_secret" && echo "decrypt: wrote $usage_dest"
+'''

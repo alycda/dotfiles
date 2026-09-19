@@ -1,0 +1,22 @@
+# Mozilla CA certificate store
+brew "ca-certificates"
+# Package compiler and linker metadata toolkit
+brew "pkgconf"
+# Play, record, convert, and stream select audio and video codecs
+brew "ffmpeg"
+# GitHub command-line tool
+brew "gh"
+# Improved top (interactive process viewer)
+brew "htop"
+# PDF rendering library (based on the xpdf-3.0 code base)
+brew "poppler"
+# Password manager that keeps all passwords secure behind one password
+cask "1password"
+# Client for the Dropbox cloud storage service
+cask "dropbox"
+# Get up and running with large language models locally
+cask "ollama-app"
+# Multimedia player
+cask "vlc"
+# Rust-based terminal
+cask "warp"

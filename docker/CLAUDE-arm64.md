@@ -11,7 +11,7 @@ https://github.com/alycda/dotfiles (its `Dockerfile` covers the build).
 There are no hardware or software ceilings here: the host is modern, the CPU
 is fast, and current Linux tooling runs natively. If you come across
 `docker/CLAUDE.md` in the dotfiles repo (e.g. under `/opt/dotfiles`), ignore
-it - it describes a different machine entirely (a frozen 2012 MacBook Pro:
+it - it describes a different machine entirely (felixia, a frozen x86_64 Mac:
 OOM pressure, no AVX2, slow bind mounts, old-software ceilings) and none of
 its constraints apply to this container.
 

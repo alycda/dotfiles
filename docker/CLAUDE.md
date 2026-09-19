@@ -1,10 +1,12 @@
-# Machine: mid-2012 MacBook Pro via Docker container
+# Machine: felixia via Docker container
 
 Claude Code runs inside a Linux container (image: `dev-x86`, built with
-`docker build -t dev-x86 .` from the dotfiles repo) on a 2012 MacBook Pro. The
-host CANNOT run current Claude Code: Nix itself requires macOS 14+ (host is on
-10.15), and the host's npm install of `@anthropic-ai/claude-code` is pinned at
-1.0.56 with max compatibility ~1.0.93. The container IS the modern toolchain;
+`docker build -t dev-x86 .` from the dotfiles repo) on felixia, an x86_64 Mac
+frozen at macOS 10.15. The host CANNOT run current Claude Code: Nix itself
+requires macOS 14+ (host is on 10.15), no native Claude Code build runs on
+10.15, and the last npm `@anthropic-ai/claude-code` that does is ~1.0.93. The
+host's CLI tools come from mise (`tools/mise/felixia/`). The container IS the
+modern toolchain;
 the host is frozen. Dotfiles: https://github.com/alycda/dotfiles (its
 `Dockerfile` + `docker/CLAUDE.md` cover the container build). PR #34 *fixed* the
 two startup pitfalls this image used to hit, so you should not see those two:
@@ -22,9 +24,10 @@ one is *not* fixed by the entrypoint mechanism above. If activation dies on a
 
 ## Hardware (verified 2026-06-11)
 
-- **Host**: MacBookPro10,1 (mid-2012 15" Retina), i7-3720QM @ 2.6 GHz — 4 cores /
-  8 threads, Ivy Bridge. 16 GB RAM (soldered, not upgradable). 1.7 TB APFS SSD.
-- **OS**: macOS Catalina 10.15.8 — the FINAL macOS for this hardware.
+- **Host**: felixia. x86_64, 4 cores / 8 threads, AVX but no AVX2. 16 GB RAM,
+  not upgradable. 1.7 TB APFS SSD.
+- **OS**: macOS Catalina 10.15.8, and it stays there: no later macOS runs on
+  this hardware.
 - **Docker**: engine 20.10.x (Docker Desktop ≤4.15) — the last release line that
   supports Catalina. Never suggest updating Docker Desktop.
 - **Container VM**: 4 CPUs, 8 GB RAM, 1 GB swap, linuxkit 5.15.49 kernel, x86_64.
@@ -44,6 +47,13 @@ is real here.
   rerun.
 - A 7.3 GB Ollama model once (probably) crashed the whole machine. Local models are
   vetted with `llmfit`; anything that fits poorly (>~50% memory) is a bad idea.
+- The host wedges under sustained heavy I/O. On 2026-09-19 a recursive grep over
+  all of `/usr/local/Cellar` (4.8 GB) ran for minutes and the machine kernel
+  panicked: `watchdog timeout: no checkins from watchdogd in 90 seconds`
+  (AppleSMC). It needed a power cycle, and the panic log lands in
+  `/Library/Logs/DiagnosticReports/Kernel_*.panic` on the next boot. Scan
+  narrow paths rather than whole trees, and expect this shape of failure —
+  ssh goes unreachable while the laptop's TCP connection still looks open.
 
 ## Filesystem — /work is slow, / is fast
 
@@ -66,7 +76,7 @@ unavailable here). Consequences:
 
 ## CPU / age-related gotchas
 
-- Ivy Bridge has AVX but **no AVX2**. Modern prebuilt binaries (onnxruntime, some
+- The CPU has AVX but **no AVX2**. Modern prebuilt binaries (onnxruntime, some
   TF/PyTorch wheels, some native node modules) die with `SIGILL` / "Illegal
   instruction". Not a bug — pick an older build, a no-AVX2 variant, or compile
   from source.
@@ -77,7 +87,7 @@ unavailable here). Consequences:
 
 | Thing | Ceiling | Notes |
 |---|---|---|
-| macOS | 10.15.8 | last for MacBookPro10,1 |
+| macOS | 10.15.8 | last this hardware runs |
 | Docker Desktop | 4.15 / engine 20.10 | dropped Catalina in 4.16 |
 | File sharing | grpcfuse | VirtioFS needs macOS 12.5+ |
 | Nix on host | none | Nix requires macOS 14+ — host has NO nix |
@@ -94,11 +104,49 @@ Unsupported on host entirely: GitHub Desktop, Discord, Slack, Workflowy app,
 LogSeq, ghostty, OrbStack, Claude desktop app (claude.ai runs as Chrome web app).
 
 **Pattern**: when a host tool is too old or its brew bottle dropped Catalina, the
-fix is (a) `cargo install --locked` on the host (works: jj, just, rustledger), or
+fix is (a) a pinned release binary through mise (`tools/mise/felixia/`; its
+header says how to predict and then prove that a build runs on 10.15), or
 (b) run it in this container — not chasing newer macOS-incompatible builds.
+Not `cargo install` on the host: it compiles on this CPU, and rustup is being
+removed from the host.
 
 Inside the container, Linux software is NOT capped — current Node, Rust, Claude
 Code, etc. all run fine. That's the point of the container.
+
+## Host Homebrew is nearly empty on purpose — do not reinstall into it
+
+The host's brew was emptied on 2026-09-19, from 4.8 GB to 879 MB. It is pinned
+at **6.0.2** (7.0 refuses to run on 10.15 at all) by `~/.homebrew/brew.env`, a
+link to `tools/mise/felixia/brew.env`. `mise run brew-pin` restores both halves;
+`mise run brew-check` fails if brew has moved off the tag.
+
+**Never `brew install` on the host.** There are no bottles for Catalina, so brew
+builds from source, and it rebuilds every outdated *dependency* first: `brew
+install kondo` began with a 10,109-step llvm build. kondo now comes from its
+GitHub release through mise, which is the rule — a pinned release binary via
+mise, or the container.
+
+Removed and **not to be reinstalled** (nothing on the host used them; the ledger
+pipeline runs on `/usr/bin/python3`, the system 3.8):
+
+| Removed | Why it is gone |
+|---|---|
+| rust, llvm, z3, go, cmake, meson, ninja, nasm, swig, automake, libtool, autoconf, m4 | build toolchains for source installs nobody does any more (3.3 GB). Need a compiler? Use the container. |
+| python@3.14, python@3.13, python@3.10 | only ever dependencies of the above; `python3` on the host is now the system 3.8 |
+| docker (formula) | `/usr/local/bin/docker` is Docker Desktop's CLI; the formula was unlinked and unused |
+| jq, ripgrep, awscli | jq and rg come from mise now; felixia holds no AWS credentials |
+| asciinema, datasette, zola, nghttp2 | dev tools nothing calls |
+| six, asciidoctor, ruby, libyaml, libevent, lzip, libgit2(@1.8), c-ares, expat, jemalloc, libev, libssh2, llhttp, oniguruma | orphaned libraries, each checked for load-path references before removal |
+
+**Stays in brew, and why** — `gh` 2.68.1 (mise's gh dies in dyld here),
+`ffmpeg` + `poppler` (rga's video and PDF adapters), `htop` (no upstream macOS
+binary), plus their dependency closure (qt, nss, cairo, glib, python@3.9).
+
+**`icu4c` must not be removed.** `brew-check` lists it forever as `icu4c@78`,
+because brew renamed the formula, but the installed keg is `Cellar/icu4c/69.1`
+and qt loads it through `/usr/local/opt/icu4c`. It is the one expected entry in
+brew-check's leftover list. A removal scan that matches formula *names* misses
+this; match install *paths*, and check which `opt/` aliases point into the keg.
 
 ## Host editing setup
 
@@ -110,8 +158,11 @@ Code, etc. all run fine. That's the point of the container.
 - `! commands` typed in this session run INSIDE the container. Anything that must
   run on the host (docker prune, system_profiler, launching services), the user
   runs in a host terminal and pastes output.
-- Host default shell is **bash 3.2**: no associative arrays, no `mapfile`,
-  no `${var,,}`. BSD userland: `sed -i ''` not `sed -i`, no GNU-only flags.
+- Host login shell: **zsh 5.7** once mise is set up there (`chsh -s /bin/zsh`
+  in the rename runbook; bash before that). `/bin/bash` stays **3.2** either
+  way, and that is what every `#!/bin/bash` script and `bash -s` over ssh gets:
+  no associative arrays, no `mapfile`, no `${var,,}`. BSD userland:
+  `sed -i ''` not `sed -i`, no GNU-only flags.
 - Don't suggest memory-hungry host-side work; the host is already swapping.
 
 @includes/agents-company-values.md
