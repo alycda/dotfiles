@@ -80,12 +80,6 @@ url = "https://proton.me/download/pass-cli/{{version}}/pass-cli-macos-x86_64"
 checksum = "sha256:275f6159f63d152ecdd9d4e2969ef515291619005e0d30ab762daee26081621c"
 bin = "pass-cli"
 
-# One backup of $HOME with the same script and excludes home-manager uses
-# (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
-# Needs ~/.config/restic/env with RESTIC_REPOSITORY and RESTIC_PASSWORD:
-#   mise run decrypt personal/restic-env.age ~/.config/restic/env
-# Run by hand, like every task here; this is the machine being emptied out,
-# so a snapshot before each round of deleting is the whole point.
 # The machine's names, the part of a nix-darwin `networking.*Name` config
 # this machine can have. macOS keeps three and they drift apart when set one
 # at a time from System Preferences:
@@ -251,6 +245,12 @@ exit "$rc"
 description = "Rewrite ./Brewfile from what Homebrew has installed now (review with jj diff)"
 run = 'HOMEBREW_NO_AUTO_UPDATE=1 brew bundle dump --force --file="$HOME/dotfiles/tools/mise/felixia/Brewfile"'
 
+# One backup of $HOME with the same script and excludes home-manager uses
+# (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
+# Needs ~/.config/restic/env with RESTIC_REPOSITORY and RESTIC_PASSWORD:
+#   mise run decrypt personal/restic-env.age ~/.config/restic/env
+# Run by hand, like every task here; this is the machine being emptied out,
+# so a snapshot before each round of deleting is the whole point.
 [tasks.backup]
 description = "Back up $HOME with restic, or run a restic command against the repo"
 run = "~/dotfiles/tools/restic/backup.sh"
