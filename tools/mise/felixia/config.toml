@@ -296,7 +296,10 @@ exit "$rc"
 
 [tasks.brew-dump]
 description = "Rewrite ./Brewfile from what Homebrew has installed now (review with jj diff)"
-run = 'HOMEBREW_NO_AUTO_UPDATE=1 "$(command -v brew || echo /usr/local/bin/brew)" bundle dump --force --file="$HOME/dotfiles/tools/mise/felixia/Brewfile"'
+# --no-cargo/--no-npm: newer brew also records cargo and npm globals when it
+# can see them. Those are mise's or cargo's business, not Homebrew's, and
+# listing them here would show as drift the moment they move.
+run = 'HOMEBREW_NO_AUTO_UPDATE=1 "$(command -v brew || echo /usr/local/bin/brew)" bundle dump --force --no-cargo --no-npm --no-vscode --no-mas --file="$HOME/dotfiles/tools/mise/felixia/Brewfile"'
 
 # One backup of $HOME with the same script and excludes home-manager uses
 # (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
