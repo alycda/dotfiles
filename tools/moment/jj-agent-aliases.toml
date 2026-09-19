@@ -1,0 +1,12 @@
+# `jj agent-start` / `jj agent-done` - the agent commit protocol for Moment
+# documents, as commands instead of prose, so every agent (Claude, Codex,
+# crush) runs the same two steps. The logic is tools/moment/jj-moment-agent.sh.
+# Linked to ~/.config/jj/conf.d/ by home-manager/modules/tools/moment.nix.
+#
+# Scoped to the Moment document tree only, and deliberately *not* to an env
+# var: the aliases must exist whichever agent is running.
+--when.repositories = ["~/.moment/documents"]
+
+[aliases]
+agent-start = ["util", "exec", "--", "jj-moment-agent", "start"]
+agent-done = ["util", "exec", "--", "jj-moment-agent", "done"]

@@ -142,8 +142,9 @@ dotfiles/
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
 │   ├── helix/              # Helix config
-│   └── mise/               # Global mise config for the no-Nix, non-admin account
-│                           #   (bootstrap.sh links it to ~/.config/mise; no module)
+│   ├── mise/               # Global mise config for the no-Nix, non-admin account
+│   │                       #   (bootstrap.sh links it to ~/.config/mise; no module)
+│   └── moment/             # jj authorship scope + agent commit protocol for Moment docs
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
@@ -495,6 +496,36 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
   hand", and now reads them.
 
+- **Moment (moment.dev) is installed by hand, and its jj is older than ours.**
+  It's the local, jj-backed editor for agent-written markdown
+  (`modules/tools/moment.nix`, imported by `home.nix`). Not in nixpkgs, and
+  Homebrew's `moment` cask is an unrelated countdown app - don't "fix" that. What
+  the probes found (2026-09-18, Moment 0.3.706):
+  1. Each document is a colocated jj + git repo at `~/.moment/documents/<id>/`.
+     The app embeds **jj-lib 0.37.0** and reads its own `~/.moment/jj-config.toml`
+     (seeded from your git/jj identity), not `~/.config/jj`.
+  2. **jj 0.37 silently ignores unknown `--when` keys**, `environments` included,
+     so a scope conditioned on an env var applies unconditionally there. The
+     authorship scope relies on the nixpkgs jj (0.45.1) on PATH.
+  3. **jj sets the author when a change is created**, so attributing agent
+     commits takes a protocol, not just a config scope. It's two jj aliases that
+     only exist inside Moment docs: `jj agent-start <claude|codex|crush>
+     "<intent>"` creates the agent's change with its identity set explicitly
+     (crush: `<model>@crush`, `@crush.local` for ollama), and `jj agent-done`
+     hands back a draft authored by you (`tools/moment/jj-moment-agent.sh`).
+     Claude learns them from `~/.moment/CLAUDE.md`: Claude Code loads CLAUDE.md
+     from every ancestor of its cwd, which is how one file covers every
+     document. Moment generates each document's own CLAUDE.md/AGENTS.md and
+     keeps rewriting it, so never edit that one.
+  4. **Moment stops advancing `main` once anything outside the app touches the
+     repo**, even with `main` exactly on the draft's parent and after a restart
+     (cause unknown). Nothing here uses `main`: `just -g moment-backup` pushes
+     `HEAD`. Moment's own publish to `git.moment.dev` would push a stale `main`,
+     so run `jj bookmark move main --to @-` first if you ever publish.
+  5. jj 0.45 and 0.37 round-trip the same repo (write, read, write back) cleanly.
+     That was one probe, not proof for every future format change: after a
+     `nix flake update` that bumps jj a lot, re-check on a copy of a document.
+
 ## Migration Workflow
 
 When migrating changes from experimental branches:
@@ -738,7 +769,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-18 - Recorded Moment's quirks (manual install, embedded jj 0.37 ignoring unknown --when keys, author-at-creation needing a commit protocol, `main` not advancing) after moving agent markdown from HackMD to Moment*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 

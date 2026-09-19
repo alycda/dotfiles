@@ -1,0 +1,30 @@
+# Author jj changes as Claude when Claude Code creates them inside a Moment
+# document, so agent work is distinguishable from Alyssa's at a glance.
+# Linked to ~/.config/jj/conf.d/ by home-manager/modules/tools/moment.nix.
+#
+# Both conditions must hold (jj intersects multiple --when keys):
+#  - the repo lives under ~/.moment/documents, where Moment keeps one
+#    colocated jj+git repo per document
+#  - CLAUDECODE=1, which Claude Code exports to every shell it spawns
+# So Alyssa's own jj commands in the same repos stay hers, and so does
+# Moment's "Commit draft": the app reads its own ~/.moment/jj-config.toml,
+# not this directory.
+#
+# jj records the author when a change is *created*, not when it is described
+# or committed. Attribution therefore depends on the agent creating its own
+# change and handing back a fresh draft afterwards: `jj agent-start` /
+# `jj agent-done` (tools/moment/jj-agent-aliases.toml), which set the identity
+# explicitly for every agent. This scope is the fallback for when Claude runs
+# a plain `jj new` instead.
+#
+# Version floor: jj 0.45.1 honours --when.environments; jj 0.37.0 (the
+# version of Moment's embedded jj-lib) silently ignores unknown --when keys,
+# so under 0.37 this scope would apply to *every* commit in a Moment repo.
+# Both verified 2026-09-18; the release in between that added the key was not
+# pinned down. The jj on PATH comes from nixpkgs via lib/core-packages.nix.
+--when.repositories = ["~/.moment/documents"]
+--when.environments = ["CLAUDECODE=1"]
+
+[user]
+name = "Claude"
+email = "noreply@anthropic.com"
