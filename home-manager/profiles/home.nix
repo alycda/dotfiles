@@ -4,6 +4,7 @@
 {
   imports = [
     ../modules/ide/vscode.nix
+    ../modules/tools/moment.nix
   ];
 
   # Live-edit agent skills from the local checkout (module imported via
