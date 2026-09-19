@@ -81,6 +81,32 @@ bin = "pass-cli"
 #   mise run decrypt personal/restic-env.age ~/.config/restic/env
 # Run by hand, like every task here; this is the machine being emptied out,
 # so a snapshot before each round of deleting is the whole point.
+# The machine's names, the part of a nix-darwin `networking.*Name` config
+# this machine can have. macOS keeps three and they drift apart when set one
+# at a time from System Preferences:
+#   ComputerName    what Finder, AirDrop and Sharing show
+#   LocalHostName   the Bonjour name, felixia.local, what ssh from the other
+#                   machines resolves
+#   HostName        what `uname -n` and the shell prompt report; restic's
+#                   backup.sh tags snapshots with it, so snapshots taken
+#                   under the previous name keep that host tag, and
+#                   `forget --host felixia` never thins them. Forget them by
+#                   their own host tag when they are no longer wanted.
+# Needs an admin account (sudo). Run by hand like every task here; it
+# changes only the names that differ, so running it again does nothing.
+[tasks.hostname]
+description = "Set ComputerName, LocalHostName and HostName to felixia"
+run = '''
+name=felixia
+for key in ComputerName LocalHostName HostName; do
+  if [ "$(scutil --get "$key" 2>/dev/null)" = "$name" ]; then
+    echo "hostname: $key is already $name"
+  else
+    sudo scutil --set "$key" "$name" && echo "hostname: set $key to $name"
+  fi
+done
+'''
+
 [tasks.backup]
 description = "Back up $HOME with restic, or run a restic command against the repo"
 run = "~/dotfiles/tools/restic/backup.sh"
