@@ -44,6 +44,7 @@ in
           "${config.home.homeDirectory}/.agents/persona-core.md"
           "${config.home.homeDirectory}/.agents/instructions.private.md"
           "${config.home.homeDirectory}/.agents/rules/outbound-comment-gate.md"
+          "${config.home.homeDirectory}/.agents/rules/zsh-shell.md"
         ];
       };
       hooks.PreToolUse = [

@@ -125,6 +125,7 @@ in
     # ~/.claude/rules (claude-code.nix), crush loads it via context_paths
     # (crush.nix).
     ".agents/rules/outbound-comment-gate.md".source = ../../../tools/agents/rules/outbound-comment-gate.md;
+    ".agents/rules/zsh-shell.md".source = ../../../tools/agents/rules/zsh-shell.md;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.

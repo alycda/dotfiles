@@ -19,6 +19,7 @@
       # global_context_paths (see tools/crush.nix).
       ".claude/rules/outbound-comment-gate.md".source =
         ../../../tools/agents/rules/outbound-comment-gate.md;
+      ".claude/rules/zsh-shell.md".source = ../../../tools/agents/rules/zsh-shell.md;
 
       # Audit log for which instruction files load, when, and why. Wired to the
       # InstructionsLoaded event by tools/claude/settings.json, which references
