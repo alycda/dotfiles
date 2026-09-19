@@ -49,7 +49,11 @@ APPROVE_ABORT and change nothing. Keep chat output to one short line."
 
 "$HERMES" -z "$prompt" -m "$MODEL" --provider "$PROVIDER" --yolo --cli
 if "$BIN/check-main.sh" >/dev/null 2>&1; then
-  cd "$LEDGER" && $GIT add -A && $GIT commit -q -m "[approve] $name" && $GIT push -q origin main
+  cd "$LEDGER" && $GIT add -A && $GIT commit -q -m "[approve] $name"
+  # Offsite copy, encrypted (offsite-ledger.sh), logged to its own file so
+  # this script's output stays the one line the caller reads.
+  "$BIN/offsite-ledger.sh" >> "$BIN/offsite-ledger.log" 2>&1 \
+    || echo "WARN: offsite copy failed; the commit is local, the next run retries"
   echo "APPROVED: $name booked, bean-check clean, committed."
   "$BIN/notify.sh" "ledger: approved $name — booked, bean-check clean, committed" || true
 else

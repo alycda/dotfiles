@@ -33,10 +33,16 @@ warrants raw power (computer control etc.).
     basename, never beancount text, and runs behind bean-check + restore.
   - `ledger-ingest/` — inbox watcher pipeline (v3: the iCloud inbox is a
     queue, PDFs are moved out once byte-verified): extract → classify →
-    contained bookkeeper draft → bean-check gate → git commit → Signal
-    notify; `approve.sh` = host-side fixed-prompt one-shot with revert rails.
+    contained bookkeeper draft → bean-check gate → git commit → encrypted
+    offsite copy → Signal notify; `approve.sh` = host-side fixed-prompt
+    one-shot with revert rails, which also commits and then makes the offsite
+    copy.
     `touch ~/ledger-ingest/PAUSED` stops all model calls during bulk
-    catch-up. Also here: `backup-ledger.sh` (weekly verified iCloud
+    catch-up. Also here: `offsite-ledger.sh` (after each commit: an
+    age-encrypted `git bundle` of the ledger, pushed to the private Soft
+    Serve repo `ledger-age` on hermes-1. Only ciphertext leaves the host,
+    as the ledger's pre-push hook requires. It replaced pushing to a bare
+    repo on the same disk), `backup-ledger.sh` (weekly verified iCloud
     archive), `venice-watch.sh` (hourly balance/burn alert),
     `sweep-processed.py` (archive statements already in the ledger, under
     fava's `statements/<Account/Path>/<date>.pdf` documents convention),
