@@ -40,12 +40,37 @@
 #
 # Left out on purpose:
 #   claude  no native build runs on 10.15; it runs in the dev container.
-#   rage    not in the mise registry. age reads the same files.
 
 [tools]
 jj = "0.45.1"
 helix = "25.07.1"
 age = "1.3.2" # decrypts secrets/*.age: ~/.age/personal-key.txt here is the `alyssa` recipient
+
+# Rust tools that used to come from `cargo install` into ~/.cargo/bin. They
+# come from upstream's release binaries rather than the cargo: backend, which
+# runs `cargo install` and so compiles each one on this CPU (there is no
+# cargo-binstall here) against whatever rustup toolchain is current. All four
+# publish x86_64-apple-darwin builds that declare minos 10.12, and each pin
+# below was run here (2026-09-18): installed by mise 2026.9.11, except
+# rustledger 0.15.0, fetched by hand from the same GitHub releases. Rust's
+# x86_64 default target is 10.12, which is why these run where the Go
+# binaries above die. After switching: `cargo uninstall iwe iwes just rage
+# rustledger`, since ~/.cargo/bin sits ahead of mise on a non-interactive PATH.
+just = "1.58.0" # aqua:casey/just
+"github:str4d/rage" = "0.12.1" # rage, rage-keygen: the same files age reads, and what ragenix uses elsewhere
+# rustledger stays at 0.15.0, the version cargo had installed, and not the
+# latest 0.24.0: run against the ledger, 0.24 reports 446 parse errors (P0012)
+# that 0.15 does not, on document/custom/balance/note lines, so it reads the
+# ledger differently. The 0.15.0 release binary's `rledger check` output is
+# byte-identical to the cargo-built one's. Bump only after comparing
+# `rledger check` output between the two versions on the real ledger.
+"github:rustledger/rustledger" = "0.15.0" # rledger, rledger-lsp
+# iwe, iwec, iwes: iwes is helix's markdown language server here (a local
+# ~/.config/helix, not tools/helix). Latest, up from cargo's 0.0.27; nothing
+# automated uses it, and iwe-v0.0.27 has an x86_64 build to go back to.
+# Releases are tagged iwe-vX.Y.Z, not vX.Y.Z. Inline, not a [tools."..."]
+# table: a table header here would swallow every key below it.
+"github:iwe-org/iwe" = { version = "0.24.1", version_prefix = "iwe-v" }
 
 # restic: the offsite backup client (one restic repo per site, rsync.net over
 # SFTP or R2 over S3; the machines that have Nix get it from home-manager).
