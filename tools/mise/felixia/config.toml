@@ -85,6 +85,15 @@ just = "1.58.0" # aqua:casey/just
 # officially supports 10.15) is the fallback.
 restic = "0.17.3" # aqua:restic/restic
 
+# node: nvm's one version, now from mise. Nothing on this machine requires
+# Node (no pipeline script, LaunchAgent or wrapper calls node/npm/npx; the
+# only known consumer is `npx agent-browser` from native Hermes's
+# compound-engineering skills). It stays pinned so `node`/`npx` keep
+# working. 22.17.1 is the nodejs.org darwin-x64 build nvm had, and it runs
+# here. Test before moving to a newer line, whose macOS floor may be above
+# 10.15. yarn, if ever needed: `corepack enable`, not brew.
+node = "22.17.1"
+
 # tmux is not installed by mise. It is a from-source build in /opt, dated
 # 2026-03-17: tmux 3.3a, plus the libevent 2.1 and OpenSSL 1.1 it was built
 # against in /opt/lib. There is no pkgutil receipt and Homebrew does not know
