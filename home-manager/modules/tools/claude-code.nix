@@ -10,7 +10,7 @@
 #
 # The agent-instruction layers are a separate mechanism (@import lines in a
 # managed block at the top of CLAUDE.md) - see ./agents.nix.
-{ lib, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 {
   home = {
     file = {
@@ -59,6 +59,37 @@
           _ "${pkgs.jq}/bin/jq" "$settings" \
           "${../../../tools/claude/settings.json}" \
           "${../../../tools/agents/plugins/catalog.json}"
+      '';
+
+      # Managed slice of ~/.claude.json: user-scope MCP servers, so every
+      # project's sessions get Linear without a per-machine `claude mcp add`
+      # ritual. Same merge-idempotently pattern as claudeManagedSettings -
+      # ~/.claude.json is runtime-mutable state and stays unmanaged as a whole;
+      # only the entries named in tools/claude/mcp-servers.jq are owned (see
+      # that file for the account choice). The key is read with --rawfile from
+      # the agenix-decrypted file, so it never passes through argv or the store;
+      # it ends up in ~/.claude.json, where Claude Code keeps MCP credentials
+      # anyway. umask 077 because that file now holds a credential: the merged
+      # copy is written 0600 rather than inheriting a world-readable 0644.
+      #
+      # Decryption is done by ragenix's launchd agent, which activation only
+      # *installs* (setupLaunchAgents) - on a first-ever switch the decrypted
+      # file may not exist yet, and no DAG ordering can wait for it. So: guard
+      # on readability and skip with a warning rather than fail; the next
+      # switch after the agent has mounted completes the merge.
+      claudeMcpServers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        claudeJson="$HOME/.claude.json"
+        linearKey="${config.age.secrets.linear-api-key-personal.path}"
+        if [ -r "$linearKey" ]; then
+          if [ ! -f "$claudeJson" ]; then
+            run sh -c 'umask 077 && echo "{}" > "$1"' _ "$claudeJson"
+          fi
+          run sh -c 'umask 077 && "$1" --rawfile lin "$3" -f "$4" "$2" > "$2.tmp" && mv "$2.tmp" "$2"' \
+            _ "${pkgs.jq}/bin/jq" "$claudeJson" "$linearKey" \
+            "${../../../tools/claude/mcp-servers.jq}"
+        else
+          echo "claudeMcpServers: $linearKey not decrypted yet, skipping MCP merge (rerun switch)" >&2
+        fi
       '';
 
       # No activation entry appends "@rules/outbound-comment-gate.md" to
