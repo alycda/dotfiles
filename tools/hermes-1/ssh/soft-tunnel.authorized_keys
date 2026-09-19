@@ -1,0 +1,1 @@
+restrict,port-forwarding,permitopen="127.0.0.1:23231",command="/usr/sbin/nologin" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJsAqdlVfkfcrNnaevfpeNljaUS8Pu+2eyID029jG1Hv felixia ledger push to soft-serve (2026-09-18)
