@@ -403,6 +403,29 @@ GoReleaser release binaries rather than source builds, and cache.nixos.org
 never had a binary for the unfree nixpkgs build anyway, so every machine had
 been compiling crush from scratch.
 
+### Managed slices of runtime-mutable Claude config
+
+Claude Code rewrites `~/.claude/settings.json` and `~/.claude.json` at
+runtime, so neither can be a store symlink. Instead
+`home-manager/modules/tools/claude-code.nix` jq-merges managed fragments in
+idempotently at activation, leaving everything it doesn't name alone:
+
+- `tools/claude/settings.json` + `tools/agents/plugins/catalog.json` →
+  `~/.claude/settings.json` (defaults, hooks, plugin catalog)
+- `tools/claude/mcp-servers.jq` → `.mcpServers` in `~/.claude.json`:
+  user-scope MCP servers (today, `linear`). A jq *filter*, not a JSON
+  fragment, so API keys are `--rawfile`-read from agenix-decrypted files at
+  activation time and never enter a tracked file, the Nix store, or argv.
+  Machine-local servers (e.g. apple-mail) are untouched.
+
+Always-loaded behavioral rules are not a slice: they are plain files in
+`tools/agents/rules/`, linked into `~/.claude/rules/` (which Claude Code loads
+without any import) and into `~/.agents/rules/` for crush.
+
+The dividing line for MCP: API-key auth (Linear) can be fully declarative;
+OAuth surfaces (`claude /login`, claude.ai connectors) stay a per-machine
+manual step.
+
 ### Configuration Conflicts to Avoid
 
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
@@ -738,7 +761,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-18 - Documented the managed-slice pattern for Claude Code's runtime-mutable config (settings fragments and the secret-injecting mcp-servers.jq merge into ~/.claude.json), rebuilt from PR #103 when its user-scope Linear MCP server landed*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
