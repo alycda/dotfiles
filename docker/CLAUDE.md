@@ -113,8 +113,11 @@ Code, etc. all run fine. That's the point of the container.
 - `! commands` typed in this session run INSIDE the container. Anything that must
   run on the host (docker prune, system_profiler, launching services), the user
   runs in a host terminal and pastes output.
-- Host default shell is **bash 3.2**: no associative arrays, no `mapfile`,
-  no `${var,,}`. BSD userland: `sed -i ''` not `sed -i`, no GNU-only flags.
+- Host login shell: **zsh 5.7** once mise is set up there (`chsh -s /bin/zsh`
+  in the rename runbook; bash before that). `/bin/bash` stays **3.2** either
+  way, and that is what every `#!/bin/bash` script and `bash -s` over ssh gets:
+  no associative arrays, no `mapfile`, no `${var,,}`. BSD userland:
+  `sed -i ''` not `sed -i`, no GNU-only flags.
 - Don't suggest memory-hungry host-side work; the host is already swapping.
 
 @includes/agents-company-values.md
