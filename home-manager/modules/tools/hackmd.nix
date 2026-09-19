@@ -90,7 +90,7 @@
 #
 # Result: 161 packages / 50MB. That still rides in common.nix (and so into the
 # devcontainer image), which is why the 263MB version was not acceptable - see
-# CLAUDE.md on the 2012 MBP overflowing Docker's disk mid-build.
+# CLAUDE.md on felixia overflowing Docker's disk mid-build.
 { config, lib, pkgs, ... }:
 let
   cfg = config.hackmd;

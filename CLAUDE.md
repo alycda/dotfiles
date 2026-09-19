@@ -209,7 +209,7 @@ that user own the Homebrew prefix. (Lesson from PR #35.)
 - Imported by ALL profiles
 - **No GUI apps here.** `common.nix` is inherited by the headless `dev`
   devcontainer too, so a heavy GUI closure (e.g. VS Code) gets built into the
-  x86 image for nothing - and on the disk-constrained 2012 MBP that overflows
+  x86 image for nothing - and on disk-constrained felixia that overflows
   Docker's disk mid-build. GUI editors belong in the desktop profiles
   (`home.nix`, `work.nix`), which import `modules/ide/vscode.nix` directly.
   In a container you use VS Code Remote: the GUI runs on the host and connects
@@ -265,7 +265,7 @@ universally-needed CLI tool here rather than duplicating it in both places.
 
 **Keep it lean.** Because `common.nix` imports this list into *every* profile —
 including the headless `dev`/x86 devcontainer — and the devShells pull it too, a
-heavy closure here bloats the disk-constrained 2012 MBP image for no container
+heavy closure here bloats the x86 image on disk-constrained felixia for no container
 benefit (same reasoning as the "no GUI in common.nix" rule). Only universal,
 lightweight CLIs belong here; a heavy personal tool goes in the desktop profiles'
 `packages` (e.g. `taskbook`, whose Node closure lives in `home.nix`/`work.nix`).
@@ -745,7 +745,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-17 - Added the restic backup tier (`tools/restic/` shared script + excludes, `modules/tools/restic.nix`, `docs/backup-strategy.md`), the launchd/TCC lesson, and the encrypted-placeholder-secret pattern; recorded in `tools/mise/mbp12/config.toml` that importing `_SecTrustCopyCertificateChain` is what predicts a Go binary dying on macOS 10.15*
+*Last updated: 2026-09-18 - Renamed the x86_64 macOS 10.15 host to felixia throughout (its pinned mise config is now `tools/mise/felixia/`, `bootstrap.sh` takes `MISE_CONFIG=felixia`, and a `hostname` task sets its names), so the docs name the machine instead of its hardware generation*
+
+*2026-09-17 - Added the restic backup tier (`tools/restic/` shared script + excludes, `modules/tools/restic.nix`, `docs/backup-strategy.md`), the launchd/TCC lesson, and the encrypted-placeholder-secret pattern; recorded in `tools/mise/mbp12/config.toml` that importing `_SecTrustCopyCertificateChain` is what predicts a Go binary dying on macOS 10.15*
 
 *2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 

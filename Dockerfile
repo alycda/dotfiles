@@ -1,5 +1,5 @@
-# Linux devcontainer image (x86_64 AND aarch64 - e.g. Docker Desktop on the
-# 2012 MBP, or on an Apple Silicon Mac where you can't/won't install Nix,
+# Linux devcontainer image (x86_64 AND aarch64 - e.g. Docker Desktop on
+# felixia, or on an Apple Silicon Mac where you can't/won't install Nix,
 # such as a non-admin macOS user).
 #
 # The home-manager closure is built INTO the image (slow, once, at build
@@ -36,7 +36,7 @@
 #
 # Do NOT mount a named volume over /nix. The store is baked into the image and
 # used directly. Mounting a volume there makes Docker copy the whole ~10GB
-# closure into it on first run (doubling disk use on the 2012 MBP), and a stale
+# closure into it on first run (doubling disk use on felixia), and a stale
 # volume left over from an earlier build shadows /nix with mismatched store
 # paths - which breaks the /bin/sh symlink and fails at container start with:
 #   exec /opt/dotfiles/docker/entrypoint.sh: no such file or directory
@@ -132,7 +132,7 @@ COPY . /opt/dotfiles
 # The profile is picked by asking the build container itself (uname -m), NOT
 # BuildKit's TARGETARCH: the legacy builder never sets TARGETARCH (it's still
 # what a fresh non-admin macOS user gets - buildx CLI plugins live per-user in
-# ~/.docker/cli-plugins - and it's all Docker 20.10 on the 2012 MBP has), and
+# ~/.docker/cli-plugins - and it's all Docker 20.10 on felixia has), and
 # an empty TARGETARCH here would silently build the x86 closure on an arm64
 # host. uname -m runs in the target platform's container under both builders,
 # so it's always the truth. Override with --build-arg HM_PROFILE=<name> if

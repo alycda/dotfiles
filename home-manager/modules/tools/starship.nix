@@ -36,7 +36,7 @@ _:
     settings = {
       # starship kills a module's shell-out at 500ms and prints a warning into
       # the prompt when it does. `/work` is a bind mount of the host disk, and
-      # on the x86 image that mount is grpcfuse over a 2012 MBP's SSD, where
+      # on the x86 image that mount is grpcfuse over felixia's SSD, where
       # `git status` on a large tree blows past 500ms as a matter of course.
       # 1s gives the slow mount room without letting a genuinely hung command
       # stall the prompt for long.
