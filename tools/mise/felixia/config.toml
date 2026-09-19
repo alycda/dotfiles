@@ -1,10 +1,11 @@
-# Global mise config for the 2012 MBP (alyssas-mbp-12): macOS 10.15.8, x86_64.
-# 10.15 is the last macOS this hardware runs, and nixpkgs no longer supports
-# it, so this machine gets its CLI tools here rather than from home-manager.
+# Global mise config for felixia: macOS 10.15.8, x86_64. Neither Nix nor
+# nixpkgs supports that, so felixia gets its CLI tools here rather than from
+# home-manager, and everything newer runs in the dev container (docker/dev.sh,
+# the alyssa@dev-x86 profile).
 #
-# Link THIS directory, not tools/mise, to ~/.config/mise on that machine:
+# Link THIS directory, not tools/mise, to ~/.config/mise on felixia:
 #
-#   ln -s ~/dotfiles/tools/mise/mbp12 ~/.config/mise
+#   ln -s ~/dotfiles/tools/mise/felixia ~/.config/mise
 #
 # mise reads only the directory it is pointed at, so ../config.toml (the
 # no-Nix account on a current Mac) never loads here. That matters: its
@@ -33,8 +34,7 @@
 # That predicts; only running it on the machine proves.
 #
 # Left out on purpose:
-#   claude  no native build runs on 10.15; ~/.profile aliases it to
-#           `npx @anthropic-ai/claude-code@1.0.93`.
+#   claude  no native build runs on 10.15; it runs in the dev container.
 #   rage    not in the mise registry. age reads the same files.
 
 [tools]

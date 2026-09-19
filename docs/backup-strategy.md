@@ -66,9 +66,9 @@ local copy goes. Never delete before a snapshot has been verified with
 4. macOS: grant Full Disk Access to the restic binary, or `~/Library/Mail`
    and friends are silently absent (exit 3 in the log). Again after each
    restic bump, since the grant is on the store path.
-5. 2012 MBP: `mise run decrypt personal/restic-env.age ~/.config/restic/env`,
+5. felixia: `mise run decrypt personal/restic-env.age ~/.config/restic/env`,
    then `mise run backup`. Its restic pin is 0.17.3 and not yet proven to
-   run there; see `tools/mise/mbp12/config.toml`.
+   run there; see `tools/mise/felixia/config.toml`.
 
 ## Later
 
