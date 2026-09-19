@@ -26,7 +26,7 @@ claude = "latest" # aqua:anthropics/claude-code
 helix = "latest"  # aqua:helix-editor/helix
 jj = "latest"     # aqua:jj-vcs/jj (prebuilt; the cargo:jj-cli fallback compiles)
 gh = "latest"     # log in once: mise run gh-login
-restic = "latest" # aqua:restic/restic (offsite backup client; mbp12/ pins it, see there)
+restic = "latest" # aqua:restic/restic (offsite backup client; felixia/ pins it, see there)
 
 # Proton Pass CLI. Proton publishes bare binaries on proton.me, not GitHub, so
 # no registry backend covers it and `latest` is not available: bump version and

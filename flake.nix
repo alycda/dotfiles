@@ -52,8 +52,8 @@
     let
       # Systems supported for devShells
       # x86_64-darwin dropped: nixpkgs 26.11 removed support for it, and every
-      # config here targets aarch64-darwin or Linux (the 2012 MBP runs the
-      # x86_64-linux devcontainer, not a native darwin shell).
+      # config here targets aarch64-darwin or Linux (felixia, the x86_64 Mac,
+      # runs the x86_64-linux devcontainer, not a native darwin shell).
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
 
@@ -133,7 +133,7 @@
         "alyssa@home" = mkHome "aarch64-darwin" "home";
         # devcontainer
         "alyssa@dev" = mkHome "aarch64-linux" "dev";
-        # devcontainer on x86_64 hosts (e.g. Docker on the 2012 MBP)
+        # devcontainer on x86_64 hosts (e.g. Docker on felixia)
         "alyssa@dev-x86" = mkHome "x86_64-linux" "dev";
         # devcontainer / linux
         "alyssa@work-dev" = mkHome "aarch64-linux" "work";

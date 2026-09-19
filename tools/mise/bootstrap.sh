@@ -9,6 +9,12 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/BRANCH/tools/mise/bootstrap.sh | REF=BRANCH sh
 #
+# A machine with its own pinned config under tools/mise/<name>/ gets that
+# directory linked instead of tools/mise, so the shared `latest` pins never
+# load there. Name it with MISE_CONFIG:
+#
+#   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/tools/mise/bootstrap.sh | MISE_CONFIG=felixia sh
+#
 # POSIX sh because it runs before anything from this repo is installed. Safe
 # to run again: every step checks before it changes anything.
 #
@@ -25,6 +31,8 @@ set -eu
 DOTFILES="${DOTFILES:-$HOME/dotfiles}"
 REPO_URL="${REPO_URL:-https://github.com/alycda/dotfiles.git}"
 REF="${REF:-}"
+MISE_CONFIG="${MISE_CONFIG:-}"
+MISE_DIR="$DOTFILES/tools/mise${MISE_CONFIG:+/$MISE_CONFIG}"
 MISE="${MISE_INSTALL_PATH:-$HOME/.local/bin/mise}"
 ZSHRC="${ZDOTDIR:-$HOME}/.zshrc"
 
@@ -63,11 +71,12 @@ else
   fi
 fi
 
-# Everything below links into the checkout. If it has no tools/mise (the
-# default branch before this merged, or an old checkout), the links would
-# dangle and `mise install` would quietly install nothing.
-if [ ! -f "$DOTFILES/tools/mise/config.toml" ]; then
-  say "$DOTFILES has no tools/mise/config.toml; check out a branch that has it (git -C $DOTFILES checkout <branch>), or clone one with REF=<branch>"
+# Everything below links into the checkout. If it has no config at $MISE_DIR
+# (the default branch before this merged, an old checkout, or a misspelled
+# MISE_CONFIG), the links would dangle and `mise install` would quietly
+# install nothing.
+if [ ! -f "$MISE_DIR/config.toml" ]; then
+  say "$DOTFILES has no ${MISE_DIR#"$DOTFILES"/}/config.toml; check out a branch that has it (git -C $DOTFILES checkout <branch>), or clone one with REF=<branch>"
   exit 1
 fi
 
@@ -81,7 +90,7 @@ else
 fi
 
 # 3. Config shared with the Nix accounts, used in place from the checkout.
-link "$HOME/.config/mise" "$DOTFILES/tools/mise"
+link "$HOME/.config/mise" "$MISE_DIR"
 link "$HOME/.config/helix" "$DOTFILES/tools/helix"
 
 gitconfig="$DOTFILES/tools/git/config"
@@ -92,13 +101,26 @@ else
   say "added an include of $gitconfig to $HOME/.gitconfig"
 fi
 
-# 4. The tools listed in tools/mise/config.toml.
+# 4. The tools listed in that config.toml.
 "$MISE" install </dev/null
 
-cat <<EOF
+# The follow-up steps are that config's own tasks, so they differ per config.
+case "$MISE_CONFIG" in
+  felixia) cat <<EOF
+
+bootstrap: done. Open a new shell, then run the steps that ask questions:
+  mise run hostname         # needs an admin account (sudo)
+  # copy the age key from a machine that has it, then:
+  chmod 600 ~/.age/personal-key.txt
+  mise run decrypt personal/restic-env.age ~/.config/restic/env
+EOF
+    ;;
+  *) cat <<EOF
 
 bootstrap: done. Open a new shell, then run the steps that ask questions:
   mise run gh-login         # SSH key, gh login, and the checkout's remote to SSH
   mise run macos-defaults
   mise run dock
 EOF
+    ;;
+esac
