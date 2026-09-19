@@ -1,10 +1,12 @@
-# Machine: mid-2012 MacBook Pro via Docker container
+# Machine: felixia via Docker container
 
 Claude Code runs inside a Linux container (image: `dev-x86`, built with
-`docker build -t dev-x86 .` from the dotfiles repo) on a 2012 MacBook Pro. The
-host CANNOT run current Claude Code: Nix itself requires macOS 14+ (host is on
-10.15), and the host's npm install of `@anthropic-ai/claude-code` is pinned at
-1.0.56 with max compatibility ~1.0.93. The container IS the modern toolchain;
+`docker build -t dev-x86 .` from the dotfiles repo) on felixia, an x86_64 Mac
+frozen at macOS 10.15. The host CANNOT run current Claude Code: Nix itself
+requires macOS 14+ (host is on 10.15), no native Claude Code build runs on
+10.15, and the last npm `@anthropic-ai/claude-code` that does is ~1.0.93. The
+host's CLI tools come from mise (`tools/mise/felixia/`). The container IS the
+modern toolchain;
 the host is frozen. Dotfiles: https://github.com/alycda/dotfiles (its
 `Dockerfile` + `docker/CLAUDE.md` cover the container build). PR #34 *fixed* the
 two startup pitfalls this image used to hit, so you should not see those two:
@@ -22,9 +24,10 @@ one is *not* fixed by the entrypoint mechanism above. If activation dies on a
 
 ## Hardware (verified 2026-06-11)
 
-- **Host**: MacBookPro10,1 (mid-2012 15" Retina), i7-3720QM @ 2.6 GHz — 4 cores /
-  8 threads, Ivy Bridge. 16 GB RAM (soldered, not upgradable). 1.7 TB APFS SSD.
-- **OS**: macOS Catalina 10.15.8 — the FINAL macOS for this hardware.
+- **Host**: felixia. x86_64, 4 cores / 8 threads, AVX but no AVX2. 16 GB RAM,
+  not upgradable. 1.7 TB APFS SSD.
+- **OS**: macOS Catalina 10.15.8, and it stays there: no later macOS runs on
+  this hardware.
 - **Docker**: engine 20.10.x (Docker Desktop ≤4.15) — the last release line that
   supports Catalina. Never suggest updating Docker Desktop.
 - **Container VM**: 4 CPUs, 8 GB RAM, 1 GB swap, linuxkit 5.15.49 kernel, x86_64.
@@ -66,7 +69,7 @@ unavailable here). Consequences:
 
 ## CPU / age-related gotchas
 
-- Ivy Bridge has AVX but **no AVX2**. Modern prebuilt binaries (onnxruntime, some
+- The CPU has AVX but **no AVX2**. Modern prebuilt binaries (onnxruntime, some
   TF/PyTorch wheels, some native node modules) die with `SIGILL` / "Illegal
   instruction". Not a bug — pick an older build, a no-AVX2 variant, or compile
   from source.
@@ -77,7 +80,7 @@ unavailable here). Consequences:
 
 | Thing | Ceiling | Notes |
 |---|---|---|
-| macOS | 10.15.8 | last for MacBookPro10,1 |
+| macOS | 10.15.8 | last this hardware runs |
 | Docker Desktop | 4.15 / engine 20.10 | dropped Catalina in 4.16 |
 | File sharing | grpcfuse | VirtioFS needs macOS 12.5+ |
 | Nix on host | none | Nix requires macOS 14+ — host has NO nix |
