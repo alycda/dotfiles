@@ -3,7 +3,12 @@
 # home-manager, and everything newer runs in the dev container (docker/dev.sh,
 # the alyssa@dev-x86 profile).
 #
-# Link THIS directory, not tools/mise, to ~/.config/mise on felixia:
+# Link THIS directory, not tools/mise, to ~/.config/mise on felixia. On a
+# fresh account the bootstrap does that, plus the checkout and mise itself:
+#
+#   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/tools/mise/bootstrap.sh | MISE_CONFIG=felixia sh
+#
+# By hand, on an account that already has the checkout and mise:
 #
 #   ln -s ~/dotfiles/tools/mise/felixia ~/.config/mise
 #
