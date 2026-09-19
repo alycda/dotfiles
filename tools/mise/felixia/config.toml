@@ -291,11 +291,23 @@ done
 # cleanup --force` either. brew computes what is still needed from today's
 # formula definitions, not from the older builds installed here, so it offers
 # to remove libraries those builds may still link against. At capture
-# (2026-09-18) that was icu4c@78, libevent, libgit2@1.8, lzip, python@3.10 and
-# python@3.13, with the Brewfile otherwise matching. (Removing awscli on
-# 2026-09-19 orphaned six as well; it was uninstalled.) Those leftovers are why
-# brew-check's second list is not empty on a clean machine, and why that list
-# never fails the task.
+# (2026-09-18) that was six formulae; all but one have since been removed
+# deliberately (see below), and the list that remains is exactly one entry:
+#
+#   icu4c@78  KEEP. brew renamed the formula, but the installed keg is
+#             Cellar/icu4c/69.1 and qt loads it via /usr/local/opt/icu4c, so
+#             uninstalling it breaks poppler and rga's PDF search. This is why
+#             that list never fails the task.
+#
+# On 2026-09-19 Homebrew here went from 4.8 GB to 879 MB: the build toolchains
+# (rust, llvm, go, cmake, meson, ninja, nasm, swig, autoconf, automake,
+# libtool, m4, z3, python@3.10/3.13/3.14), the tools nothing called
+# (asciinema, datasette, zola, nghttp2, the unlinked docker formula) and the
+# libraries they orphaned. jq and ripgrep moved to the pins above; awscli went
+# with felixia's AWS credentials. What is left is what has no working mise
+# build: gh 2.68.1, ffmpeg and poppler (rga's adapters), htop, and their
+# dependencies. Do not reinstall the rest here - docker/CLAUDE.md carries the
+# full table and the reasoning.
 #
 # The Brewfile is a verbatim `brew bundle dump`, which rewrites the whole
 # file, so explanations live here and not in it.

@@ -1,25 +1,15 @@
 # Mozilla CA certificate store
 brew "ca-certificates"
-# Record and share terminal sessions
-brew "asciinema"
 # Package compiler and linker metadata toolkit
 brew "pkgconf"
-# Open source multi-tool for exploring and publishing data
-brew "datasette"
-# Pack, ship and run any application as a lightweight container
-brew "docker"
 # Play, record, convert, and stream select audio and video codecs
 brew "ffmpeg"
 # GitHub command-line tool
 brew "gh"
 # Improved top (interactive process viewer)
 brew "htop"
-# HTTP/2 C Library
-brew "nghttp2"
 # PDF rendering library (based on the xpdf-3.0 code base)
 brew "poppler"
-# Fast static site generator in a single binary with everything built-in
-brew "zola"
 # Password manager that keeps all passwords secure behind one password
 cask "1password"
 # Client for the Dropbox cloud storage service

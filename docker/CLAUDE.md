@@ -47,6 +47,13 @@ is real here.
   rerun.
 - A 7.3 GB Ollama model once (probably) crashed the whole machine. Local models are
   vetted with `llmfit`; anything that fits poorly (>~50% memory) is a bad idea.
+- The host wedges under sustained heavy I/O. On 2026-09-19 a recursive grep over
+  all of `/usr/local/Cellar` (4.8 GB) ran for minutes and the machine kernel
+  panicked: `watchdog timeout: no checkins from watchdogd in 90 seconds`
+  (AppleSMC). It needed a power cycle, and the panic log lands in
+  `/Library/Logs/DiagnosticReports/Kernel_*.panic` on the next boot. Scan
+  narrow paths rather than whole trees, and expect this shape of failure —
+  ssh goes unreachable while the laptop's TCP connection still looks open.
 
 ## Filesystem — /work is slow, / is fast
 
@@ -105,6 +112,41 @@ removed from the host.
 
 Inside the container, Linux software is NOT capped — current Node, Rust, Claude
 Code, etc. all run fine. That's the point of the container.
+
+## Host Homebrew is nearly empty on purpose — do not reinstall into it
+
+The host's brew was emptied on 2026-09-19, from 4.8 GB to 879 MB. It is pinned
+at **6.0.2** (7.0 refuses to run on 10.15 at all) by `~/.homebrew/brew.env`, a
+link to `tools/mise/felixia/brew.env`. `mise run brew-pin` restores both halves;
+`mise run brew-check` fails if brew has moved off the tag.
+
+**Never `brew install` on the host.** There are no bottles for Catalina, so brew
+builds from source, and it rebuilds every outdated *dependency* first: `brew
+install kondo` began with a 10,109-step llvm build. kondo now comes from its
+GitHub release through mise, which is the rule — a pinned release binary via
+mise, or the container.
+
+Removed and **not to be reinstalled** (nothing on the host used them; the ledger
+pipeline runs on `/usr/bin/python3`, the system 3.8):
+
+| Removed | Why it is gone |
+|---|---|
+| rust, llvm, z3, go, cmake, meson, ninja, nasm, swig, automake, libtool, autoconf, m4 | build toolchains for source installs nobody does any more (3.3 GB). Need a compiler? Use the container. |
+| python@3.14, python@3.13, python@3.10 | only ever dependencies of the above; `python3` on the host is now the system 3.8 |
+| docker (formula) | `/usr/local/bin/docker` is Docker Desktop's CLI; the formula was unlinked and unused |
+| jq, ripgrep, awscli | jq and rg come from mise now; felixia holds no AWS credentials |
+| asciinema, datasette, zola, nghttp2 | dev tools nothing calls |
+| six, asciidoctor, ruby, libyaml, libevent, lzip, libgit2(@1.8), c-ares, expat, jemalloc, libev, libssh2, llhttp, oniguruma | orphaned libraries, each checked for load-path references before removal |
+
+**Stays in brew, and why** — `gh` 2.68.1 (mise's gh dies in dyld here),
+`ffmpeg` + `poppler` (rga's video and PDF adapters), `htop` (no upstream macOS
+binary), plus their dependency closure (qt, nss, cairo, glib, python@3.9).
+
+**`icu4c` must not be removed.** `brew-check` lists it forever as `icu4c@78`,
+because brew renamed the formula, but the installed keg is `Cellar/icu4c/69.1`
+and qt loads it through `/usr/local/opt/icu4c`. It is the one expected entry in
+brew-check's leftover list. A removal scan that matches formula *names* misses
+this; match install *paths*, and check which `opt/` aliases point into the keg.
 
 ## Host editing setup
 

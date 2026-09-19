@@ -764,7 +764,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-18 - Corrected "CI runs on every push": nix.yml runs on PRs, on pushes to main and the flake-update branch, and on dispatch, so a feature branch without a PR gets CI only when dispatched*
+*Last updated: 2026-09-19 - Emptied felixia's Homebrew to what has no working mise build (4.8 GB to 879 MB), pinned brew itself at 6.0.2 through a tracked `brew.env`, and recorded in `docker/CLAUDE.md` what must not be reinstalled - including why `icu4c` has to stay although brew-check lists it, and why a removal scan must match install paths rather than formula names*
+
+*2026-09-18 - Corrected "CI runs on every push": nix.yml runs on PRs, on pushes to main and the flake-update branch, and on dispatch, so a feature branch without a PR gets CI only when dispatched*
 
 *2026-09-18 - Recorded felixia's Homebrew as a verbatim Brewfile with `brew-check`/`brew-dump` tasks, and why a frozen brew must never run `bundle install` or `bundle cleanup --force`*
 
