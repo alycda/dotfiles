@@ -46,6 +46,7 @@ jj = "0.45.1"
 helix = "25.07.1"
 age = "1.3.2" # decrypts secrets/*.age: ~/.age/personal-key.txt here is the `alyssa` recipient
 ripgrep = "latest"
+ripgrep-all = "latest"
 
 # Rust tools that used to come from `cargo install` into ~/.cargo/bin. They
 # come from upstream's release binaries rather than the cargo: backend, which
