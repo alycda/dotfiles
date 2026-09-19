@@ -276,7 +276,8 @@ done
 # formula definitions, not from the older builds installed here, so it offers
 # to remove libraries those builds may still link against. At capture
 # (2026-09-18) that was icu4c@78, libevent, libgit2@1.8, lzip, python@3.10 and
-# python@3.13, with the Brewfile otherwise matching. Those six are why
+# python@3.13, with the Brewfile otherwise matching. Removing awscli
+# (2026-09-19) added six, its python@3.9 helper. Those leftovers are why
 # brew-check's second list is not empty on a clean machine, and why that list
 # never fails the task.
 #

@@ -2,8 +2,6 @@
 brew "ca-certificates"
 # Record and share terminal sessions
 brew "asciinema"
-# Official Amazon AWS command-line interface
-brew "awscli"
 # Package compiler and linker metadata toolkit
 brew "pkgconf"
 # Open source multi-tool for exploring and publishing data
