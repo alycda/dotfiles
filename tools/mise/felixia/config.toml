@@ -85,6 +85,20 @@ just = "1.58.0" # aqua:casey/just
 # officially supports 10.15) is the fallback.
 restic = "0.17.3" # aqua:restic/restic
 
+# tmux is not installed by mise. It is a from-source build in /opt, dated
+# 2026-03-17: tmux 3.3a, plus the libevent 2.1 and OpenSSL 1.1 it was built
+# against in /opt/lib. There is no pkgutil receipt and Homebrew does not know
+# it, with a root-owned /usr/local/bin/tmux -> /opt/bin/tmux. It runs the
+# long jobs on this machine (the S3 copy ran in it), so it stays as it is.
+# mise records it by linking the existing build:
+#   mise link tmux@3.3a /opt
+# after which `mise install` counts tmux@3.3a as installed and downloads
+# nothing (checked: "all tools are installed"). Link BEFORE the first
+# `mise install`, or mise installs its registry tmux (aqua:tmux/tmux-builds,
+# asdf as fallback) and there are two. The link also puts the rest of
+# /opt/bin on PATH, which is only libevent's event_rpcgen.py.
+tmux = "3.3a"
+
 # gh is UNSUPPORTED on this machine through mise — left here, commented out, so
 # nobody re-adds it thinking it was forgotten. Upstream's macOS builds target
 # 13.0: `mise install gh` succeeds, then every invocation dies with
