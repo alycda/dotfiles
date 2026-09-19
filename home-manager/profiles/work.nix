@@ -19,6 +19,12 @@
   # decrypt what.
   hackmd.account = "work";
 
+  # Offsite backup of $HOME (../modules/tools/restic.nix), to the same
+  # personal repository as home.nix: per-host snapshots, shared dedup. Darwin
+  # only, for the same reason as liveCheckout above - alyssa@work-dev is this
+  # profile too, and a container has nothing to snapshot.
+  resticBackup.enable = pkgs.stdenv.hostPlatform.isDarwin;
+
   home = {
     username = "alyssaevans";
     homeDirectory = "/Users/alyssaevans";

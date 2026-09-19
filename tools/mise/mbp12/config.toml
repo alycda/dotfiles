@@ -22,6 +22,16 @@
 # So before bumping a pin: `mise install tool@x && mise exec tool@x -- tool
 # --version`. A green install proves nothing.
 #
+# What does predict it (read off the darwin_amd64 release binaries, 2026-09-17):
+# every binary that dies here imports _SecTrustCopyCertificateChain, and none
+# that runs does. Go's crypto/x509 started importing it somewhere after
+# go1.23.5 (gh 2.68.1, runs) and by go1.25.1 (restic 0.18.1, gh 2.101 on
+# go1.27.1: die). The Go runtime itself is fine: age 1.3.2 is built with
+# go1.27.0, imports no such symbol, and runs. So before a bump:
+#   strings <bin> | grep -c SecTrustCopyCertificateChain   # must be 0
+#   strings <bin> | grep -m1 '^go1\.'                       # which toolchain
+# That predicts; only running it on the machine proves.
+#
 # Left out on purpose:
 #   claude  no native build runs on 10.15; ~/.profile aliases it to
 #           `npx @anthropic-ai/claude-code@1.0.93`.
@@ -31,6 +41,18 @@
 jj = "0.45.1"
 helix = "25.07.1"
 age = "1.3.2" # decrypts secrets/*.age: ~/.age/personal-key.txt here is the `alyssa` recipient
+
+# restic: the offsite backup client (one restic repo per site, rsync.net over
+# SFTP or R2 over S3; the machines that have Nix get it from home-manager).
+# 0.18.0 raised the floor to macOS 11, and its darwin_amd64 binary imports
+# _SecTrustCopyCertificateChain, the same symbol that kills gh here, so 0.18+
+# is out. 0.17.3 (go1.23.3) imports no such symbol, like gh 2.68.1 (go1.23.5),
+# which runs. NOT YET RUN ON THE MACHINE: added from the binaries alone, so it
+# is the one pin in this file that breaks the rule above until someone does
+#   mise install restic@0.17.3 && mise exec restic@0.17.3 -- restic version
+# If it dies in dyld anyway, fall back to 0.17.0 (go1.22.5, the last Go that
+# officially supports 10.15) and note it here.
+restic = "0.17.3" # aqua:restic/restic
 
 # gh is UNSUPPORTED on this machine through mise — left here, commented out, so
 # nobody re-adds it thinking it was forgotten. Upstream's macOS builds target
@@ -52,6 +74,16 @@ version = "2.3.3"
 url = "https://proton.me/download/pass-cli/{{version}}/pass-cli-macos-x86_64"
 checksum = "sha256:275f6159f63d152ecdd9d4e2969ef515291619005e0d30ab762daee26081621c"
 bin = "pass-cli"
+
+# One backup of $HOME with the same script and excludes home-manager uses
+# (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
+# Needs ~/.config/restic/env with RESTIC_REPOSITORY and RESTIC_PASSWORD:
+#   mise run decrypt personal/restic-env.age ~/.config/restic/env
+# Run by hand, like every task here; this is the machine being emptied out,
+# so a snapshot before each round of deleting is the whole point.
+[tasks.backup]
+description = "Back up $HOME with restic, or run a restic command against the repo"
+run = "~/dotfiles/tools/restic/backup.sh"
 
 # agenix is a Nix activation module, so it cannot run here. This is the part
 # of it this machine needs: decrypt one secret to one path, owner-only.

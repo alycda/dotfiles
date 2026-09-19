@@ -26,6 +26,7 @@ claude = "latest" # aqua:anthropics/claude-code
 helix = "latest"  # aqua:helix-editor/helix
 jj = "latest"     # aqua:jj-vcs/jj (prebuilt; the cargo:jj-cli fallback compiles)
 gh = "latest"     # log in once: mise run gh-login
+restic = "latest" # aqua:restic/restic (offsite backup client; mbp12/ pins it, see there)
 
 # Proton Pass CLI. Proton publishes bare binaries on proton.me, not GitHub, so
 # no registry backend covers it and `latest` is not available: bump version and
@@ -96,6 +97,16 @@ case "$remote" in
     ;;
 esac
 '''
+
+# One backup of $HOME with the same script and excludes home-manager uses
+# (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
+# Needs ~/.config/restic/env with RESTIC_REPOSITORY and RESTIC_PASSWORD - this
+# account has no age, so copy it from a machine that can decrypt
+# secrets/personal/restic-env.age. Scheduling is by hand here; the launchd
+# agent belongs to the home-manager module.
+[tasks.backup]
+description = "Back up $HOME with restic, or run a restic command against the repo"
+run = "~/dotfiles/tools/restic/backup.sh"
 
 [tasks.macos-defaults]
 description = "Apply macOS user settings (no admin needed)"

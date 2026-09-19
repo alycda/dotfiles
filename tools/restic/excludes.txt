@@ -1,0 +1,54 @@
+# restic exclude patterns, one per line, read by tools/restic/backup.sh
+# (--exclude-file). Shared as a plain file: home-manager reads it from the
+# store copy, the mise accounts read it from ~/dotfiles. Patterns without a
+# leading / match anywhere; see `restic help backup` for the glob rules.
+#
+# Rebuildable state, not data. If it can be regenerated from a lockfile, a
+# package manager, or the network, it is not worth paying to store or the
+# time to scan. CACHEDIR.TAG directories are already skipped by
+# --exclude-caches in the script.
+
+# macOS
+Library/Caches
+Library/Logs
+Library/Developer/Xcode/DerivedData
+Library/Developer/CoreSimulator
+Library/Containers/com.docker.docker
+Library/Group\ Containers/group.com.docker
+Library/Application\ Support/Google/Chrome/*/Service\ Worker
+Library/Application\ Support/BraveSoftware/Brave-Browser/*/Service\ Worker
+Library/Biome
+Library/Metadata/CoreSpotlight
+.Trash
+.DS_Store
+*.photoslibrary/resources/derivatives
+
+# Package managers and language toolchains (reinstall, don't restore)
+node_modules
+.npm/_cacache
+.cargo/registry
+.cargo/git
+.rustup
+target/debug
+target/release
+.gradle/caches
+.pub-cache
+.puro
+.m2/repository
+.cache
+.local/share/mise/installs
+.local/share/mise/downloads
+.nix-defexpr
+.nix-profile
+
+# VCS internals are in the remote; the working tree is what gets restored
+**/.jj/repo/store/extra
+
+# Sync clients keep their own copies; back up the originals once, elsewhere
+Library/CloudStorage
+Library/Mobile\ Documents
+
+# Docker and VMs
+.docker/desktop
+.orbstack
+.tart
