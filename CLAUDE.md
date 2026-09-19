@@ -588,7 +588,11 @@ throwaway VM, before calling an install done. (PR #37.)
 
 ## CI Checks
 
-CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs must pass before merging.
+CI (`.github/workflows/nix.yml`) runs on pull requests, on pushes to `main`,
+`master` and `automation/flake-update`, and on manual dispatch. A push to any
+other branch runs nothing until the branch has a PR, so to check a branch
+before opening one, dispatch it: `gh workflow run nix.yml --ref <branch>`.
+Two jobs must pass before merging.
 
 ### Lint job: `statix` + `deadnix`
 
@@ -760,7 +764,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-18 - Recorded felixia's Homebrew as a verbatim Brewfile with `brew-check`/`brew-dump` tasks, and why a frozen brew must never run `bundle install` or `bundle cleanup --force`*
+*Last updated: 2026-09-18 - Corrected "CI runs on every push": nix.yml runs on PRs, on pushes to main and the flake-update branch, and on dispatch, so a feature branch without a PR gets CI only when dispatched*
+
+*2026-09-18 - Recorded felixia's Homebrew as a verbatim Brewfile with `brew-check`/`brew-dump` tasks, and why a frozen brew must never run `bundle install` or `bundle cleanup --force`*
 
 *2026-09-18 - Moved felixia's six LaunchAgents into `tools/mise/felixia/launchd/` as templates, installed by `mise run launchd` and removed by `mise run launchd-prune`, and recorded the pattern under Tools Nix Can't Fully Manage*
 
