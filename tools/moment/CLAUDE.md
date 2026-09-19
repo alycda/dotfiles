@@ -3,7 +3,8 @@
 You are inside a Moment document: a colocated jj + git repository under
 `~/.moment/documents/<id>/` that the Moment desktop app edits. The document's
 own `CLAUDE.md` is Moment's and covers the file format (`moment.yml`,
-`pages/`). This file covers committing, for every document.
+`pages/`). This file covers committing, for every document; Codex and crush
+get the same protocol from the `moment-docs` skill.
 
 Alyssa needs to tell your changes from hers, and jj records the author when a
 change is created. So wrap every edit in:

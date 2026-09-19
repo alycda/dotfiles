@@ -40,6 +40,7 @@
 #   html-deck             - self-contained single-file HTML slide decks
 #   jj-extract-gitignores - roll .gitignore additions back into ancestors
 #   jujutsu               - operate in jj repos without git muscle memory
+#   moment-docs           - commit in Moment docs as the agent (jj agent-start/done)
 #
 # One of them is vendored rather than authored:
 #   hackmd-cli - upstream's own skill, extracted from the hackmd-cli.skill zip
@@ -85,6 +86,7 @@ let
     "html-deck"
     "jj-extract-gitignores"
     "jujutsu"
+    "moment-docs"
   ];
 
   externalSkills = {

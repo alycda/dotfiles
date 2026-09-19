@@ -28,7 +28,10 @@
     # here covers every ~/.moment/documents/<id>/ - no per-document edits, and
     # no fight with the CLAUDE.md/AGENTS.md that Moment writes into each
     # document and keeps overwriting. (Verified: loads as project memory at
-    # session start, per the InstructionsLoaded audit log.)
+    # session start, per the InstructionsLoaded audit log.) Codex and crush
+    # read instruction files only from the git root down (per their docs;
+    # not tested here), so they get the same two commands from the
+    # moment-docs skill (tools/agents/skills, deployed by agent-skills.nix).
     file.".moment/CLAUDE.md".source = ../../../tools/moment/CLAUDE.md;
   };
 
