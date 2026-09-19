@@ -274,17 +274,21 @@ done
 description = "Report drift between felixia's Homebrew and ./Brewfile; installs and removes nothing"
 run = '''
 export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ENV_HINTS=1
+# A task runs with whatever PATH the caller had, and `ssh host mise run ...`
+# has no /usr/local/bin. Resolve brew rather than assuming it.
+brew=$(command -v brew || echo /usr/local/bin/brew)
+[ -x "$brew" ] || { echo "brew-check: no brew at $brew" >&2; exit 1; }
 file="$HOME/dotfiles/tools/mise/felixia/Brewfile"
 rc=0
 echo "brew-check: in the Brewfile but not installed"
 # --no-upgrade: count missing only. Without it every outdated formula reports
 # as unsatisfied, and on a frozen brew that is most of them, forever.
-brew bundle check --no-upgrade --verbose --file="$file" || rc=1
+"$brew" bundle check --no-upgrade --verbose --file="$file" || rc=1
 echo "brew-check: installed but not in the Brewfile (report only; see config.toml before removing any)"
 # cleanup without --force only prints. Keep its "Would uninstall" lists and
 # drop the rest: per-formula "not installed" warnings (stderr) and brew's own
 # cache cleanup ("Would remove", "Would `brew cleanup`").
-extra=$(brew bundle cleanup --file="$file" 2>/dev/null |
+extra=$("$brew" bundle cleanup --file="$file" 2>/dev/null |
   awk '/^Would uninstall/ {on=1; print "  " $0; next} /^(Would|Run) / {on=0} on {print "    " $0}')
 echo "${extra:-  (none)}"
 exit "$rc"
@@ -292,7 +296,7 @@ exit "$rc"
 
 [tasks.brew-dump]
 description = "Rewrite ./Brewfile from what Homebrew has installed now (review with jj diff)"
-run = 'HOMEBREW_NO_AUTO_UPDATE=1 brew bundle dump --force --file="$HOME/dotfiles/tools/mise/felixia/Brewfile"'
+run = 'HOMEBREW_NO_AUTO_UPDATE=1 "$(command -v brew || echo /usr/local/bin/brew)" bundle dump --force --file="$HOME/dotfiles/tools/mise/felixia/Brewfile"'
 
 # One backup of $HOME with the same script and excludes home-manager uses
 # (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
