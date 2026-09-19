@@ -148,7 +148,8 @@ dotfiles/
 │                           #   (bootstrap.sh links it to ~/.config/mise; no module)
 │                           #   felixia/ is a separate, fully pinned config for felixia
 │                           #   (x86_64, macOS 10.15): link that dir there instead, so
-│                           #   the `latest` pins above never load on it
+│                           #   the `latest` pins above never load on it; its
+│                           #   launchd/ holds its LaunchAgents as templates
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/backup-strategy.md # the two-tier backup plan (restic offsite, rclone offload)
@@ -494,6 +495,19 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   irreversible with it (`restic init` would key a repository to the word).
   `age -a -r <recipient>` from `secrets/secrets.nix` needs no private key,
   so anyone can mint the placeholder; only `just edit-secret` replaces it.
+- **LaunchAgents without home-manager: templates plus two mise tasks.** On a
+  machine with no Nix there is no `launchd.agents`, so felixia keeps its plists
+  in `tools/mise/felixia/launchd/` and `mise run launchd` does the switch's job:
+  fill in placeholders, `plutil -lint`, and bootout/bootstrap only the agents
+  whose rendered plist changed. Templates because a plist cannot expand `~`,
+  so an installed plist names the account; rendering at install time turns an
+  account rename into a re-run. Values that must stay out of the public repo
+  (the ledger's iCloud folder name) come from a host-only
+  `~/.config/launchd-templates.env`, and an unfilled placeholder blocks the
+  install, since a missing `WatchPaths` fails silently. Removal is a second
+  task, `launchd-prune`, and ownership is a label prefix (`com.alyssa.`)
+  rather than a manifest: anything under the prefix with no template gets
+  unloaded and set aside as `.plist.pruned`, and nothing else is touched.
 - **Share a tool's config with that account as a plain file, not a generator.**
   Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
   loads config anyway (`fromTOML` for helix, git's `include`), and link or
@@ -745,7 +759,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-18 - Renamed the x86_64 macOS 10.15 host to felixia throughout (its pinned mise config is now `tools/mise/felixia/`, `bootstrap.sh` takes `MISE_CONFIG=felixia`, and a `hostname` task sets its names), so the docs name the machine instead of its hardware generation*
+*Last updated: 2026-09-18 - Moved felixia's six LaunchAgents into `tools/mise/felixia/launchd/` as templates, installed by `mise run launchd` and removed by `mise run launchd-prune`, and recorded the pattern under Tools Nix Can't Fully Manage*
+
+*2026-09-18 - Renamed the x86_64 macOS 10.15 host to felixia throughout (its pinned mise config is now `tools/mise/felixia/`, `bootstrap.sh` takes `MISE_CONFIG=felixia`, and a `hostname` task sets its names), so the docs name the machine instead of its hardware generation*
 
 *2026-09-17 - Added the restic backup tier (`tools/restic/` shared script + excludes, `modules/tools/restic.nix`, `docs/backup-strategy.md`), the launchd/TCC lesson, and the encrypted-placeholder-secret pattern; recorded in `tools/mise/mbp12/config.toml` that importing `_SecTrustCopyCertificateChain` is what predicts a Go binary dying on macOS 10.15*
 

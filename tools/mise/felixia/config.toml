@@ -112,6 +112,99 @@ for key in ComputerName LocalHostName HostName; do
 done
 '''
 
+# felixia's LaunchAgents: the pipeline jobs (ledger-*, venice-watch,
+# docker-watchdog). Without home-manager there is no launchd.agents to declare
+# them, so the plists live in ./launchd/ as templates and these two tasks do
+# what a switch would: `launchd` installs and updates, `launchd-prune` removes.
+#
+# Templates, because a plist cannot expand ~ or $HOME: every path in one is
+# absolute, so installed plists name the account. Rendering them at install
+# time means an account rename is a re-run of `mise run launchd`, not an edit
+# of every plist. Placeholders:
+#   @HOME@         always, from $HOME
+#   @LEDGER_DOCS@  and any other @NAME@: from ~/.config/launchd-templates.env,
+#                  NAME=value lines, host-only. This one is the iCloud folder
+#                  the ingest job watches; its real name stays out of this
+#                  public repo, like the rest of the ledger's names.
+# A template with a placeholder left unfilled is not installed: a WatchPaths
+# entry that does not exist fails silently, which is worse than not loading.
+#
+# Ownership is by label prefix: every agent with a label starting `com.alyssa.`
+# belongs to this directory, and `launchd-prune` removes any such agent that
+# has no template here, including one made by hand. Agents outside the prefix
+# (Dropbox, Google, the *.plist.disabled Hermes ones) are never touched.
+[tasks.launchd]
+description = "Install or update felixia's LaunchAgents from ./launchd templates; reload only what changed"
+run = '''
+uid=$(id -u)
+dir=~/Library/LaunchAgents
+src=~/dotfiles/tools/mise/felixia/launchd
+vars=~/.config/launchd-templates.env
+script=$(mktemp)
+trap 'rm -f "$script"' EXIT
+# A value lands inside a plist <string>, so XML-escape it first (a bare &
+# makes the plist unparseable), then escape it for the sed replacement.
+esc() {
+  printf '%s' "$1" |
+    sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/[\\|&]/\\&/g'
+}
+printf 's|@HOME@|%s|g\n' "$(esc "$HOME")" > "$script"
+if [ -f "$vars" ]; then
+  while IFS='=' read -r k v || [ -n "$k" ]; do
+    case $k in ''|\#*) continue ;; esac
+    printf 's|@%s@|%s|g\n' "$k" "$(esc "$v")" >> "$script"
+  done < "$vars"
+fi
+mkdir -p "$dir"
+rc=0
+for t in "$src"/*.plist; do
+  name=$(basename "$t")
+  out="$dir/$name"
+  sed -f "$script" "$t" > "$out.new"
+  if grep -q '@[A-Z_]*@' "$out.new"; then
+    echo "launchd: $name not installed, unfilled: $(grep -o '@[A-Z_]*@' "$out.new" | sort -u | tr '\n' ' ')(set them in $vars)" >&2
+    rm -f "$out.new"; rc=1; continue
+  fi
+  if ! plutil -lint -s "$out.new"; then
+    echo "launchd: $name not installed, rendered plist does not parse" >&2
+    rm -f "$out.new"; rc=1; continue
+  fi
+  if cmp -s "$out.new" "$out"; then
+    rm -f "$out.new"; echo "launchd: $name unchanged"; continue
+  fi
+  launchctl bootout "gui/$uid" "$out" 2>/dev/null || true
+  mv "$out.new" "$out"
+  launchctl bootstrap "gui/$uid" "$out" && echo "launchd: loaded $name"
+done
+exit "$rc"
+'''
+
+# Moves aside rather than deletes: a pruned agent is unloaded and renamed to
+# <name>.plist.pruned, which launchd ignores (the same trick as the Hermes
+# agents' .plist.disabled), so undoing it is one mv and one bootstrap.
+[tasks.launchd-prune]
+description = "Unload and set aside com.alyssa.* LaunchAgents that have no template in ./launchd"
+usage = 'flag "-n --dry-run" help="list what would be removed, change nothing"'
+run = '''
+uid=$(id -u)
+dir=~/Library/LaunchAgents
+src=~/dotfiles/tools/mise/felixia/launchd
+found=0
+for out in "$dir"/com.alyssa.*.plist; do
+  [ -e "$out" ] || continue
+  name=$(basename "$out")
+  [ -f "$src/$name" ] && continue
+  found=1
+  if [ "${usage_dry_run:-false}" = true ]; then
+    echo "launchd-prune: would remove $name"; continue
+  fi
+  launchctl bootout "gui/$uid" "$out" 2>/dev/null || true
+  mv "$out" "$out.pruned"
+  echo "launchd-prune: removed $name (kept as $name.pruned)"
+done
+[ "$found" = 1 ] || echo "launchd-prune: nothing to remove"
+'''
+
 [tasks.backup]
 description = "Back up $HOME with restic, or run a restic command against the repo"
 run = "~/dotfiles/tools/restic/backup.sh"

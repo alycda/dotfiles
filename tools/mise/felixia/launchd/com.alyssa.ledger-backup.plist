@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.alyssa.ledger-backup</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>@HOME@/ledger-ingest/backup-ledger.sh</string>
+    </array>
+
+    <!-- Weekly, Sunday 09:00. RunAtLoad is deliberately off: loading the job
+         should not silently produce an archive. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- No StartInterval here: launchd treats it as a second, independent
+         schedule rather than a fallback, which would fire the job twice.
+         StartCalendarInterval already runs a missed job once the machine is
+         awake again. -->
+
+    <key>StandardOutPath</key>
+    <string>@HOME@/ledger-ingest/backup-ledger.out</string>
+    <key>StandardErrorPath</key>
+    <string>@HOME@/ledger-ingest/backup-ledger.err</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
