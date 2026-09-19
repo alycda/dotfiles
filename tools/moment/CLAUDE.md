@@ -41,6 +41,7 @@ on top shows Alyssa.
 
 - Move `main` or any other bookmark. Moment does not follow bookmark moves
   made outside the app.
-- Publish (Moment's publish pushes to `git.moment.dev`).
+- Publish (Moment's publish pushes to `git.moment.dev`). Backups go to Soft
+  Serve with `just -g moment-backup`, and only when Alyssa asks.
 - Rewrite, describe, or squash changes you did not author.
 - Commit with plain `git`: it bypasses the jj author scope.
