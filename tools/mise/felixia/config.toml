@@ -205,6 +205,52 @@ done
 [ "$found" = 1 ] || echo "launchd-prune: nothing to remove"
 '''
 
+# felixia's Homebrew, recorded in ./Brewfile. mise has no Homebrew backend
+# (`mise sync --brew` only imports node/python/ruby runtimes), so brew keeps
+# owning these, and the Brewfile is an inventory, not an installer:
+#
+#   brew-check  what the Brewfile lists but is missing, and what is installed
+#               but not listed. Reports only.
+#   brew-dump   rewrite the Brewfile from what is installed now; review the
+#               change with `jj diff` before committing it.
+#
+# Never `brew bundle install` here: Homebrew no longer bottles for 10.15, so
+# every install builds from source, and one formula that raises while loading
+# aborts the whole run (see CLAUDE.md on the tart tap). Never `brew bundle
+# cleanup --force` either. brew computes what is still needed from today's
+# formula definitions, not from the older builds installed here, so it offers
+# to remove libraries those builds may still link against. At capture
+# (2026-09-18) that was icu4c@78, libevent, libgit2@1.8, lzip, python@3.10 and
+# python@3.13, with the Brewfile otherwise matching. Those six are why
+# brew-check's second list is not empty on a clean machine, and why that list
+# never fails the task.
+#
+# The Brewfile is a verbatim `brew bundle dump`, which rewrites the whole
+# file, so explanations live here and not in it.
+[tasks.brew-check]
+description = "Report drift between felixia's Homebrew and ./Brewfile; installs and removes nothing"
+run = '''
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_ENV_HINTS=1
+file="$HOME/dotfiles/tools/mise/felixia/Brewfile"
+rc=0
+echo "brew-check: in the Brewfile but not installed"
+# --no-upgrade: count missing only. Without it every outdated formula reports
+# as unsatisfied, and on a frozen brew that is most of them, forever.
+brew bundle check --no-upgrade --verbose --file="$file" || rc=1
+echo "brew-check: installed but not in the Brewfile (report only; see config.toml before removing any)"
+# cleanup without --force only prints. Keep its "Would uninstall" lists and
+# drop the rest: per-formula "not installed" warnings (stderr) and brew's own
+# cache cleanup ("Would remove", "Would `brew cleanup`").
+extra=$(brew bundle cleanup --file="$file" 2>/dev/null |
+  awk '/^Would uninstall/ {on=1; print "  " $0; next} /^(Would|Run) / {on=0} on {print "    " $0}')
+echo "${extra:-  (none)}"
+exit "$rc"
+'''
+
+[tasks.brew-dump]
+description = "Rewrite ./Brewfile from what Homebrew has installed now (review with jj diff)"
+run = 'HOMEBREW_NO_AUTO_UPDATE=1 brew bundle dump --force --file="$HOME/dotfiles/tools/mise/felixia/Brewfile"'
+
 [tasks.backup]
 description = "Back up $HOME with restic, or run a restic command against the repo"
 run = "~/dotfiles/tools/restic/backup.sh"

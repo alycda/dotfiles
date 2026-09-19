@@ -149,7 +149,8 @@ dotfiles/
 │                           #   felixia/ is a separate, fully pinned config for felixia
 │                           #   (x86_64, macOS 10.15): link that dir there instead, so
 │                           #   the `latest` pins above never load on it; its
-│                           #   launchd/ holds its LaunchAgents as templates
+│                           #   launchd/ holds its LaunchAgents as templates, and
+│                           #   its Brewfile records (never installs) its Homebrew
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/backup-strategy.md # the two-tier backup plan (restic offsite, rclone offload)
@@ -759,7 +760,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-18 - Moved felixia's six LaunchAgents into `tools/mise/felixia/launchd/` as templates, installed by `mise run launchd` and removed by `mise run launchd-prune`, and recorded the pattern under Tools Nix Can't Fully Manage*
+*Last updated: 2026-09-18 - Recorded felixia's Homebrew as a verbatim Brewfile with `brew-check`/`brew-dump` tasks, and why a frozen brew must never run `bundle install` or `bundle cleanup --force`*
+
+*2026-09-18 - Moved felixia's six LaunchAgents into `tools/mise/felixia/launchd/` as templates, installed by `mise run launchd` and removed by `mise run launchd-prune`, and recorded the pattern under Tools Nix Can't Fully Manage*
 
 *2026-09-18 - Renamed the x86_64 macOS 10.15 host to felixia throughout (its pinned mise config is now `tools/mise/felixia/`, `bootstrap.sh` takes `MISE_CONFIG=felixia`, and a `hostname` task sets its names), so the docs name the machine instead of its hardware generation*
 
