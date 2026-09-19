@@ -258,6 +258,16 @@ done
 #               but not listed. Reports only.
 #   brew-dump   rewrite the Brewfile from what is installed now; review the
 #               change with `jj diff` before committing it.
+#   brew-pin    put Homebrew itself back on 6.0.2 and link ./brew.env.
+#
+# Homebrew is pinned at 6.0.2 because 7.0 refuses to run on 10.15 at all.
+# brew updates itself before `install`/`info`/etc. unless told not to, and on
+# 2026-09-18 one interactive `brew install` moved it to 7.0.4 because only
+# these tasks set HOMEBREW_NO_AUTO_UPDATE. ./brew.env, linked to
+# ~/.homebrew/brew.env, is read by bin/brew itself, so it covers every shell,
+# ssh command and launchd job. A mise [env] entry would cover only shells
+# with mise activated. It does not stop an explicit `brew update`: never run
+# that here, and if it happens, `mise run brew-pin` undoes it.
 #
 # Never `brew bundle install` here: Homebrew no longer bottles for 10.15, so
 # every install builds from source, and one formula that raises while loading
@@ -282,6 +292,9 @@ brew=$(command -v brew || echo /usr/local/bin/brew)
 [ -x "$brew" ] || { echo "brew-check: no brew at $brew" >&2; exit 1; }
 file="$HOME/dotfiles/tools/mise/felixia/Brewfile"
 rc=0
+pin=6.0.2 # keep in step with brew-pin
+have=$(git -C "$("$brew" --repository)" describe --tags 2>/dev/null)
+[ "$have" = "$pin" ] || { echo "brew-check: Homebrew is at ${have:-unknown}, not $pin; run: mise run brew-pin" >&2; rc=1; }
 echo "brew-check: in the Brewfile but not installed"
 # --no-upgrade: count missing only. Without it every outdated formula reports
 # as unsatisfied, and on a frozen brew that is most of them, forever.
@@ -302,6 +315,22 @@ description = "Rewrite ./Brewfile from what Homebrew has installed now (review w
 # can see them. Those are mise's or cargo's business, not Homebrew's, and
 # listing them here would show as drift the moment they move.
 run = 'HOMEBREW_NO_AUTO_UPDATE=1 "$(command -v brew || echo /usr/local/bin/brew)" bundle dump --force --no-cargo --no-npm --no-vscode --no-mas --file="$HOME/dotfiles/tools/mise/felixia/Brewfile"'
+
+[tasks.brew-pin]
+description = "Check Homebrew out at 6.0.2 again and link ./brew.env so it stays there"
+run = '''
+pin=6.0.2 # keep in step with brew-check
+brew=$(command -v brew || echo /usr/local/bin/brew)
+[ -x "$brew" ] || { echo "brew-pin: no brew at $brew" >&2; exit 1; }
+repo=$("$brew" --repository)
+[ -z "$(git -C "$repo" status --porcelain)" ] || { echo "brew-pin: $repo has local changes; not touching it" >&2; exit 1; }
+# What `brew update` itself does when it moves to a release: reset the
+# stable branch to the tag.
+git -C "$repo" checkout -q -B stable "refs/tags/$pin"
+mkdir -p "$HOME/.homebrew"
+ln -sfn "$HOME/dotfiles/tools/mise/felixia/brew.env" "$HOME/.homebrew/brew.env"
+echo "brew-pin: $("$brew" --version | head -n 1); ~/.homebrew/brew.env -> $(readlink "$HOME/.homebrew/brew.env")"
+'''
 
 # One backup of $HOME with the same script and excludes home-manager uses
 # (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
