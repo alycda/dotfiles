@@ -11,9 +11,9 @@
 # files (plain context_paths entries are project-relative names). Setting it
 # replaces the two built-in defaults (~/.config/crush/CRUSH.md and
 # ~/.config/AGENTS.md), so those are listed explicitly to keep them live.
-# This loads the cross-tool outbound-comment gate from ~/.agents/rules,
-# giving crush the same posture Claude Code gets via CLAUDE.md's
-# @rules/outbound-comment-gate.md import.
+# This loads the cross-tool rules from ~/.agents/rules (outbound-comment
+# gate, docs-stay-local), giving crush the same posture Claude Code gets from
+# its ~/.claude/rules mounts.
 #
 # The gate is enforced mechanically too: a PreToolUse hook (tools/crush/
 # outbound-gate.sh) blocks outbound-posting tool calls (exit 2) unless a
@@ -44,6 +44,7 @@ in
           "${config.home.homeDirectory}/.agents/persona-core.md"
           "${config.home.homeDirectory}/.agents/instructions.private.md"
           "${config.home.homeDirectory}/.agents/rules/outbound-comment-gate.md"
+          "${config.home.homeDirectory}/.agents/rules/docs-stay-local.md"
         ];
       };
       hooks.PreToolUse = [
