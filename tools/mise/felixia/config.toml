@@ -81,6 +81,10 @@ ripgrep-all = "0.10.10" # aqua:phiresky/ripgrep-all, rga + rga-preproc
 # github: takes its kondo-x86_64-apple-darwin release (minos 10.12, run here
 # 2026-09-19). It has no --version flag; check it with `kondo --help`.
 "github:tbillington/kondo" = "0.9"
+# jq: C, not Rust, and the release binary declares minos 14.0, yet it runs
+# here (2026-09-19), like age. Moved from Homebrew's 1.8.1 to the same
+# version.
+jq = "1.8.1" # aqua:jqlang/jq
 
 # restic: the offsite backup client (one restic repo per site, rsync.net over
 # SFTP or R2 over S3; the machines that have Nix get it from home-manager).

@@ -14,8 +14,6 @@ brew "ffmpeg"
 brew "gh"
 # Improved top (interactive process viewer)
 brew "htop"
-# Lightweight and flexible command-line JSON processor
-brew "jq"
 # HTTP/2 C Library
 brew "nghttp2"
 # PDF rendering library (based on the xpdf-3.0 code base)
