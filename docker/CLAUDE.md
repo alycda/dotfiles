@@ -97,8 +97,11 @@ Unsupported on host entirely: GitHub Desktop, Discord, Slack, Workflowy app,
 LogSeq, ghostty, OrbStack, Claude desktop app (claude.ai runs as Chrome web app).
 
 **Pattern**: when a host tool is too old or its brew bottle dropped Catalina, the
-fix is (a) `cargo install --locked` on the host (works: jj, just, rustledger), or
+fix is (a) a pinned release binary through mise (`tools/mise/felixia/`; its
+header says how to predict and then prove that a build runs on 10.15), or
 (b) run it in this container — not chasing newer macOS-incompatible builds.
+Not `cargo install` on the host: it compiles on this CPU, and rustup is being
+removed from the host.
 
 Inside the container, Linux software is NOT capped — current Node, Rust, Claude
 Code, etc. all run fine. That's the point of the container.
