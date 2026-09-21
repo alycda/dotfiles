@@ -31,9 +31,23 @@ docker run -d --name exectest --entrypoint /bin/sh dev -c 'while sleep 1; do :; 
     "image": "debian:bookworm-slim",
     "features": {
         "ghcr.io/devcontainers/features/nix:1": {
-            "packages": [],
+            "packages": "",
             "extraNixConfig": "experimental-features = nix-command flakes"
         }
     },
     "postCreateCommand": "nix develop github:alycda/dotfiles -c bash"
 }
+# "packages" is "" and not []: feature options are typed string/boolean, the
+# spec has no array type. The CLI coerces [] to PACKAGES="" so both "work".
+
+# the feature builds an image at Reopen time, and that build can fail two ways
+# no config pins away. Both are why THIS repo uses the prebuilt image instead:
+#   dies at the END, after "Alright! We're done!", with
+#   "error: read of 65536 bytes: Operation not permitted"
+#     -> its post-install nix-collect-garbage, EPERM on Docker Desktop for Mac
+#     -> docs/solutions/build-errors/devcontainer-nix-feature-gc-eperm.md
+#   dies EARLY with "Invalid VERSION value: latest" and an empty valid list
+#     -> its unconditional git ls-remote of github.com/NixOS/nix, behind a
+#        TLS-inspecting proxy
+#     -> docs/solutions/build-errors/devcontainer-nix-feature-version-lookup.md
+# both docs carry the Debian+Nix Dockerfile that replaces the feature

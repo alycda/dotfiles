@@ -141,7 +141,9 @@ dotfiles/
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
-│   └── helix/              # Helix config
+│   ├── helix/              # Helix config
+│   └── mise/               # Global mise config for the no-Nix, non-admin account
+│                           #   (bootstrap.sh links it to ~/.config/mise; no module)
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
@@ -192,6 +194,22 @@ updates brew and then self-breaks on its next rebuild against a stale pin. When
 this bites, repin to a rev whose brew call matches current brew — and remember the
 fixing rev may run `brew` as the configured user (`sudo --user=`), which requires
 that user own the Homebrew prefix. (Lesson from PR #35.)
+
+**A third-party tap runs its Ruby inside your activation.** `brew bundle` loads
+every formula in `brews`, so a tap that raises takes the whole
+`darwin-rebuild switch` with it — on a machine where no `.nix` file changed,
+at a time chosen by `onActivation.autoUpdate`. The `cirruslabs/cli` tart
+formula started raising when Homebrew 6.0 *disabled* declaring `depends_on
+:macos` twice; `brew update` could not fix it (origin/main had the same file)
+and neither could waiting (five upstream PRs, three closed unmerged, and the
+formula is GoReleaser-generated `DO NOT EDIT`). Prefer nixpkgs for anything
+nixpkgs actually has — a pinned input moves when you run `nix flake update`,
+not when a background `brew update` decides. Two traps on the way out: a green
+`nix build` of a *prebuilt-binary* derivation verifies a hash, not an ABI (run
+`<store-path>/bin/<prog> --version` — nixpkgs' tart built fine and then died in
+dyld on macOS 15), and `cleanup = "zap"` cannot remove a formula it cannot
+load, so uninstall by hand before the switch. Full write-up:
+`docs/solutions/build-errors/third-party-tap-formula-aborts-darwin-rebuild.md`
 
 ### Module Organization
 
@@ -459,6 +477,23 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   because nixpkgs lagged the VSCode extension by a full minor version. The failure
   mode is nasty: a skewed CLI surfaced only as an opaque **"Interrupted"** with no
   version message. If the extension misbehaves, suspect the pin first. (PR #26.)
+- **An account with no Nix gets its tools from mise.** A non-admin macOS account
+  can't run `darwin-rebuild` and doesn't use home-manager, so `tools/mise/config.toml`
+  lists its handful of tools. `tools/mise/bootstrap.sh` (curl-able, safe to run
+  again) clones the repo over https, installs mise and links the *directory*
+  to `~/.config/mise`, so `mise use -g` edits the tracked file in place with
+  comments kept and a new tool shows up as a diff. Steps that prompt stay in
+  mise tasks, not the script: piped from curl, stdin is the script itself. Keep the list short and prefer aqua
+  (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
+  compiles from source. This does not replace `lib/core-packages.nix`; the
+  containers still get their tools from Nix.
+- **Share a tool's config with that account as a plain file, not a generator.**
+  Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
+  loads config anyway (`fromTOML` for helix, git's `include`), and link or
+  include the same file on the mise account. Anything tied to a store path, a
+  secret, or an installed package stays in the Nix module. `helix.nix` is the
+  worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
+  hand", and now reads them.
 - **Prebuilt binaries installed into a persisted `$HOME` are image-scoped state.**
   nixpkgs' `rustup` patchelfs every toolchain binary it downloads to the glibc of
   the image that installed it, and `~/.rustup` lives in the container's `devhome`
@@ -719,6 +754,19 @@ This document should evolve as patterns emerge. When you:
 ---
 
 *Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+
+*2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
+
+*2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
+
+*2026-09-06 - Recorded that a third-party Homebrew tap executes its
+formula Ruby inside activation and can abort a whole `darwin-rebuild switch`
+with no local change, after the cirruslabs/cli tart formula started raising
+under Homebrew 6.0; includes the two traps found routing around it (a green
+`nix build` of a prebuilt binary proves nothing about whether it runs, and
+`cleanup = "zap"` cannot uninstall a formula it cannot load)*
 
 *2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 

@@ -49,6 +49,11 @@
       # taskbook's Node closure is why it isn't in lib/core-packages.nix; the
       # same reasoning keeps it out of the aarch64-linux devcontainer.
       taskbook # interim CLI task manager
+      # VM management, for verifying a switch on a clean macOS image. Moved
+      # off the cirruslabs/cli tap, whose tart.rb no longer loads under
+      # Homebrew 6.0 and aborted the whole activation; version-pinned for
+      # macOS 15. Both explained in lib/tart.nix.
+      (import ../../lib/tart.nix pkgs)
     ];
 
     # The installer drops the binary in ~/.lazydiff/bin and appends a PATH

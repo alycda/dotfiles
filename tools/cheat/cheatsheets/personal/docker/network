@@ -1,0 +1,12 @@
+# Run a container on its own named network instead of the default bridge.
+# Containers on a named network can reach each other by container name, and
+# you choose which containers join. It is NOT a sandbox: the container can
+# still reach the internet. (docker/dev.sh uses --network host, the opposite.)
+docker network create claude-net
+
+docker run -it --rm \
+  --network claude-net \
+  -v "$PWD":/workspace:rw \
+  <image>
+
+# Runnable: just -g docker-net [name]

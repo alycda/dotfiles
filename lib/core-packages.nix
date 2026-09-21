@@ -33,6 +33,8 @@ pkgs: with pkgs; [
   just
   jq
   gh
+  glab
+  hcloud
   nodejs
   # postgresql
   # Python 3 for agent-plugin tooling: compound-engineering's bundled

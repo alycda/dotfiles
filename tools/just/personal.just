@@ -15,3 +15,8 @@ encrypt *args:
 
 ip:
     curl -s https://ipinfo.io/json
+
+# create a user-defined docker network if it doesn't exist yet (safe to re-run)
+[group('personal')]
+docker-net name='claude-net':
+    @docker network inspect {{name}} >/dev/null 2>&1 || docker network create {{name}}
