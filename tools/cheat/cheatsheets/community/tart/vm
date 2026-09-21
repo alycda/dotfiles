@@ -1,0 +1,14 @@
+# create a macOS VM from a cirruslabs base image (~31 GiB pull, slow)
+tart clone ghcr.io/cirruslabs/macos-golden-gate-base:latest gg-validate
+
+# published bases: macos-golden-gate-base, macos-tahoe-base,
+# macos-sequoia-base, macos-sonoma-base, ubuntu
+
+# the base disk is 40-50 GB; a Nix store plus Xcode CLT wants more room
+tart set gg-validate --cpu 6 --memory 12288 --disk-size 90
+
+tart run gg-validate                 # opens a GUI window
+tart run --no-graphics gg-validate   # headless; reach it over ssh
+tart suspend gg-validate             # save state instead of shutting down
+
+# Runnable: just -g tart-new gg-validate golden-gate

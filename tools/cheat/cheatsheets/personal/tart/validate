@@ -1,0 +1,26 @@
+# Validate a dotfiles branch on a clean macOS image.
+#
+# Nothing is mounted from the host on purpose: the whole point is that the
+# guest clones from GitHub the way a fresh machine would, so a step that only
+# works because of state already on this laptop fails here instead of on the
+# next new machine.
+
+tart clone ghcr.io/cirruslabs/macos-golden-gate-base:latest gg-validate
+tart set gg-validate --cpu 6 --memory 12288 --disk-size 90
+tart run --no-graphics gg-validate &
+ssh admin@$(tart ip gg-validate)     # admin / admin
+
+# inside the guest, either path:
+#   Nix path      -> README, "macOS setup (Darwin)"
+#   no-Nix path   -> curl -fsSL .../tools/mise/bootstrap.sh | sh
+#                    then: mise run gh-login
+
+tart stop gg-validate && tart delete gg-validate
+
+# Host-version caveat. This machine is macOS 15 and tart is pinned to 2.34.0
+# (lib/tart.nix: 2.35+ hard-links libSwiftCompatibilitySpan, which only exists
+# on macOS 26). A guest newer than the host is not guaranteed to boot. Tahoe
+# (macOS 26) did on 2026-07-01 (#35); Golden Gate is untested here. If it
+# refuses to boot, swap golden-gate -> tahoe and every other step is identical.
+
+# Runnable: just -g tart-new gg-validate

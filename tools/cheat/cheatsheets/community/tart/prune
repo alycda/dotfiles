@@ -1,0 +1,13 @@
+tart list                # local VMs and cached OCI images, with last-accessed
+
+tart stop gg-validate
+tart delete gg-validate
+
+# --older-than takes a bare integer of DAYS. "30d" is rejected.
+tart prune --entries caches --older-than 30
+tart prune --entries vms --older-than 90
+
+# or cap the cache instead of dating it: evict LRU down to 50 GB total
+tart prune --entries caches --space-budget 50
+
+# Runnable: just -g tart-rm gg-validate | just -g tart-prune
