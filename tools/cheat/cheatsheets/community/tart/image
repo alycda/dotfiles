@@ -1,0 +1,13 @@
+# Check an image's disk format BEFORE a 25-30 GiB pull. "asif" (Apple Sparse
+# Image Format) needs a macOS 26 host; on macOS 15 `tart run` dies with
+# "Disk format 'asif' is not supported on this system" after the whole pull.
+#
+# Verified 2026-09-21: golden-gate is asif; tahoe, sequoia and sonoma are raw.
+
+img=macos-tahoe-base
+tok=$(curl -s "https://ghcr.io/token?scope=repository:cirruslabs/$img:pull&service=ghcr.io" | jq -r .token)
+cfg=$(curl -s -H "Authorization: Bearer $tok" -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+  "https://ghcr.io/v2/cirruslabs/$img/manifests/latest" | jq -r .config.digest)
+curl -sL -H "Authorization: Bearer $tok" "https://ghcr.io/v2/cirruslabs/$img/blobs/$cfg" | jq -r .config.Labels
+
+# Runnable: just -g tart-image-format tahoe

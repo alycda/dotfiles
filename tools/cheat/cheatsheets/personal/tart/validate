@@ -5,22 +5,27 @@
 # works because of state already on this laptop fails here instead of on the
 # next new machine.
 
-tart clone ghcr.io/cirruslabs/macos-golden-gate-base:latest gg-validate
-tart set gg-validate --cpu 6 --memory 12288 --disk-size 90
-tart run --no-graphics gg-validate &
-ssh admin@$(tart ip gg-validate)     # admin / admin
+tart clone ghcr.io/cirruslabs/macos-tahoe-base:latest tahoe-validate
+tart set tahoe-validate --cpu 6 --memory 12288 --disk-size 90
+tart run --no-graphics tahoe-validate &
+ssh admin@$(tart ip tahoe-validate)     # admin / admin
 
 # inside the guest, either path:
 #   Nix path      -> README, "macOS setup (Darwin)"
 #   no-Nix path   -> curl -fsSL .../tools/mise/bootstrap.sh | sh
 #                    then: mise run gh-login
 
-tart stop gg-validate && tart delete gg-validate
+tart stop tahoe-validate && tart delete tahoe-validate
 
-# Host-version caveat. This machine is macOS 15 and tart is pinned to 2.34.0
-# (lib/tart.nix: 2.35+ hard-links libSwiftCompatibilitySpan, which only exists
-# on macOS 26). A guest newer than the host is not guaranteed to boot. Tahoe
-# (macOS 26) did on 2026-07-01 (#35); Golden Gate is untested here. If it
-# refuses to boot, swap golden-gate -> tahoe and every other step is identical.
+# Why tahoe and not golden-gate, on a macOS 15 host: it is the image's DISK
+# FORMAT that matters, not the guest's OS version. Golden Gate is published as
+# asif, which needs a macOS 26 host, so `tart run` fails with
+#
+#   Error: Disk format 'asif' is not supported on this system.
+#
+# and it fails *after* the 30 GiB pull and after `tart set` succeeds, so there
+# is no early signal. Tahoe is macOS 26 too and boots here fine (#35) because it
+# is published raw. Check the label before pulling:
+# `just -g tart-image-format <name>`, or the community/tart/image sheet.
 
-# Runnable: just -g tart-new gg-validate
+# Runnable: just -g tart-new tahoe-validate tahoe

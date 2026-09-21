@@ -1,7 +1,7 @@
-ssh admin@$(tart ip gg-validate)   # cirruslabs base images: admin / admin
+ssh admin@$(tart ip tahoe-validate)   # cirruslabs base images: admin / admin
 
 # mount a host directory into the guest, where it appears under
 # /Volumes/My Shared Files; add :ro to keep the guest from writing to it
-tart run --dir="$PWD:ro" gg-validate
+tart run --dir="$PWD:ro" tahoe-validate
 
-# Runnable: just -g tart-ssh gg-validate
+# Runnable: just -g tart-ssh tahoe-validate
