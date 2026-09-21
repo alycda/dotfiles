@@ -1,0 +1,186 @@
+name: Update mise.lock
+
+# The mise-account counterpart to update-flake-lock.yml, on the same weekly
+# cron: that account has no Nix and no admin rights, so its tools come from
+# tools/mise/config.toml instead of home-manager, and nothing upgrades them
+# until someone asks. This is what asks.
+#
+# What actually moves here is tools/mise/mise.lock, not config.toml. The
+# config pins every tool to "latest"; `mise lock --bump` re-resolves those
+# fuzzy specifiers and records the concrete version, download URL and sha256
+# in the lockfile, leaving config.toml untouched. That is the same split
+# flake.nix and flake.lock have, and it is why this can be reviewed as a diff
+# at all.
+#
+# Two things make it possible to do this on a Linux runner for an
+# aarch64-darwin machine:
+#   - `mise lock` resolves and checksums without installing, so the runner
+#     never needs to execute a macOS binary.
+#   - `--platform macos-arm64` writes entries for a platform the runner is
+#     not on. Every config in flake.nix targets aarch64-darwin (x86_64-darwin
+#     was dropped outright), so that one platform is the whole story.
+# Consequently mise-action runs with install:false. Letting it run
+# `mise install` would resolve the runner's own platform and add linux-x64
+# entries to a lockfile whose only consumer is a Mac.
+#
+# Unlike the flake workflow there is no follow-up `gh workflow run`: nix.yml's
+# jobs (statix, deadnix, nix flake check) say nothing about a mise lockfile,
+# so dispatching them onto this branch would only decorate the PR with
+# vacuously green checks. The validation that matters runs below, before the
+# PR exists, and the PR body links the run. The trade-off is that a *manual*
+# fixup commit pushed to automation/mise-update is not re-validated by
+# anything — re-dispatch this workflow instead of hand-editing the lockfile.
+#
+# Both `schedule:` mechanics from update-flake-lock.yml apply here too: the
+# cron only fires for the copy of this file on the default branch, and GitHub
+# disables scheduled workflows after 60 days of repo inactivity.
+
+on:
+  schedule:
+    # Mondays, 07:23 UTC — deliberately the same slot as update-flake-lock.yml
+    # so the week's tool churn arrives together, as two independent PRs. They
+    # are separate workflows on purpose: a GitHub API hiccup while resolving
+    # five release tags should not cost that week's flake update, and the two
+    # lockfiles have nothing to say about each other.
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: update-mise-lock
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  # The one account that installs from this lockfile runs on aarch64-darwin.
+  PLATFORM: macos-arm64
+
+jobs:
+  update:
+    name: Bump mise.lock and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Always bump against main, whatever ref the workflow_dispatch
+          # branch picker happened to be on.
+          ref: main
+
+      - uses: jdx/mise-action@v2
+        with:
+          # Install the mise binary only. See the header: `mise install` here
+          # would pollute the lockfile with the runner's platform.
+          install: false
+          cache: false
+
+      - name: Bump locked versions
+        env:
+          # `mise lock -g` reads the *global* config, which it resolves from
+          # ~/.config/mise/config.toml — MISE_GLOBAL_CONFIG_FILE does not
+          # redirect it (it reports "No tools configured to lock"). So
+          # reproduce the layout bootstrap.sh creates on the Mac: point HOME
+          # at a scratch dir and symlink .config/mise into the checkout. mise
+          # then writes the lockfile straight back into tools/mise/, which is
+          # the same trick that makes `mise use -g` show up as a diff there.
+          HOME: ${{ runner.temp }}/mise-home
+          XDG_CONFIG_HOME: ${{ runner.temp }}/mise-home/.config
+        run: |
+          set -euo pipefail
+          mkdir -p "$XDG_CONFIG_HOME"
+          ln -sfn "$GITHUB_WORKSPACE/tools/mise" "$XDG_CONFIG_HOME/mise"
+          mise lock --global --bump --platform "$PLATFORM" \
+            2>&1 | tee "$RUNNER_TEMP/lock.log"
+
+      - name: Detect lockfile changes
+        id: diff
+        run: |
+          if git diff --quiet tools/mise/mise.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Every tool in \`tools/mise/config.toml\` is already at its newest release." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate updated lockfile
+        if: steps.diff.outputs.changed == 'true'
+        run: ./.github/scripts/check-mise-lock.sh "$PLATFORM"
+
+      - name: Write PR body
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # One "<tool> <version>" line per locked tool, for the before/after
+          # comparison below. Each [[tools.<name>]] header is followed by that
+          # entry's version line.
+          versions() {
+            awk '
+              /^\[\[tools\./ { tool = $0; sub(/^\[\[tools\./, "", tool); sub(/\]\]$/, "", tool); next }
+              tool != "" && /^version[[:space:]]*=/ { split($0, f, "\""); print tool, f[2]; tool = "" }
+            ' "$1" | sort
+          }
+          git show HEAD:tools/mise/mise.lock > "$RUNNER_TEMP/old.lock" 2>/dev/null || : > "$RUNNER_TEMP/old.lock"
+          versions "$RUNNER_TEMP/old.lock" > "$RUNNER_TEMP/old.txt"
+          versions tools/mise/mise.lock    > "$RUNNER_TEMP/new.txt"
+          {
+            echo "Automated \`mise lock --bump\` for the no-Nix mise account, validated by [this workflow run]($RUN_URL) before the PR was opened."
+            echo
+            echo "| tool | from | to |"
+            echo "| --- | --- | --- |"
+            join -a1 -a2 -e "(new)" -o 0,1.2,2.2 "$RUNNER_TEMP/old.txt" "$RUNNER_TEMP/new.txt" \
+              | awk '$2 != $3 { printf "| %s | %s | %s |\n", $1, $2, $3 }'
+            echo
+            echo "Apply it on that account once this merges:"
+            echo
+            echo '```sh'
+            echo "mise run upgrade"
+            echo '```'
+          } > "$RUNNER_TEMP/pr-body.md"
+
+      - name: Create pull request
+        id: pr
+        if: steps.diff.outputs.changed == 'true'
+        # Non-fatal for the same reason as update-flake-lock.yml: the validated
+        # lockfile is already pushed by the time this can fail, and aborting
+        # here would leave the branch sitting unexplained. The verify step
+        # below fails the run with instructions instead.
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: main
+          branch: automation/mise-update
+          delete-branch: true
+          add-paths: tools/mise/mise.lock
+          title: "Update mise.lock"
+          body-path: ${{ runner.temp }}/pr-body.md
+          commit-message: |
+            Update mise.lock
+
+            Automated tool bump from the update-mise-lock workflow.
+
+      - name: Verify the update PR is open
+        # Ask GitHub rather than trusting the step above: both a refused
+        # creation call and a re-dispatch that finds the branch already
+        # current ('none') end with a pushed branch and no PR.
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMPARE_URL: ${{ github.server_url }}/${{ github.repository }}/compare/main...automation/mise-update?expand=1
+          SETTINGS_URL: ${{ github.server_url }}/${{ github.repository }}/settings/actions
+        run: |
+          if [ -n "$(gh pr list -R "$GITHUB_REPOSITORY" --head automation/mise-update \
+                       --state open --json number --jq '.[].number')" ]; then
+            exit 0
+          fi
+          echo "::error::Lockfile validated and pushed, but no pull request is open for it — see the job summary."
+          {
+            echo "## mise.lock validated — pull request not opened"
+            echo
+            echo "The bumped \`tools/mise/mise.lock\` passed validation and is pushed to \`automation/mise-update\`. Only the PR itself is missing, so **nothing is lost**: [open the pull request by hand]($COMPARE_URL)."
+            echo
+            echo "If the step log says *\"GitHub Actions is not permitted to create or approve pull requests\"*, tick **Allow GitHub Actions to create and approve pull requests** under [Settings → Actions → General]($SETTINGS_URL), in the Workflow permissions section. A greyed-out checkbox means the same switch is off at the account level, which overrides the per-repo one."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
