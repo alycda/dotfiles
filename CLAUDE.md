@@ -144,6 +144,9 @@ dotfiles/
 │   ├── helix/              # Helix config
 │   └── mise/               # Global mise config for the no-Nix, non-admin account
 │                           #   (bootstrap.sh links it to ~/.config/mise; no module)
+│                           #   mbp12/ is a separate, fully pinned config for the 2012
+│                           #   MBP (macOS 10.15): link that dir there instead, so the
+│                           #   `latest` pins above never load on it
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,

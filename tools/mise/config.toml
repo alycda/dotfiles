@@ -29,6 +29,23 @@ jj = "latest"     # aqua:jj-vcs/jj (prebuilt; the cargo:jj-cli fallback compiles
 gh = "latest"     # log in once: mise run gh-login
 just = "latest"
 
+# Proton Pass CLI. Proton publishes bare binaries on proton.me, not GitHub, so
+# no registry backend covers it and `latest` is not available: bump version and
+# both checksums together from https://proton.me/download/pass-cli/versions.json
+# Never run `pass-cli update` on a mise install: it replaces the binary under
+# mise and the checksum stops describing what runs. Log in once: pass-cli login
+[tools."http:pass-cli"]
+version = "2.3.3"
+bin = "pass-cli"
+
+[tools."http:pass-cli".platforms.macos-arm64]
+url = "https://proton.me/download/pass-cli/{{version}}/pass-cli-macos-aarch64"
+checksum = "sha256:3281587ac9c50ae2f1604ba75e9d1d39b6debb221b65a6cc56f64d626ede3dbc"
+
+[tools."http:pass-cli".platforms.macos-x64]
+url = "https://proton.me/download/pass-cli/{{version}}/pass-cli-macos-x86_64"
+checksum = "sha256:275f6159f63d152ecdd9d4e2969ef515291619005e0d30ab762daee26081621c"
+
 # Tasks are one-time setup steps you run by hand (`mise run <task>`), written
 # so that running one again does nothing. Never make them run automatically,
 # e.g. from a hook: a login prompt with no terminal attached just hangs.
