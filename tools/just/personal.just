@@ -20,3 +20,20 @@ ip:
 [group('personal')]
 docker-net name='claude-net':
     @docker network inspect {{name}} >/dev/null 2>&1 || docker network create {{name}}
+
+# Covers the age identity, ssh, keychain, unmanaged tool state, and git bundles
+# for local-only history. Reads from the canonical ~/dotfiles checkout, the same
+# assumption tools/mise makes.
+#
+# back up everything the flake cannot rebuild, before a macOS major upgrade
+[group('personal')]
+macos-backup dest:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    script="$HOME/dotfiles/tools/backup/pre-upgrade-backup.sh"
+    if [ ! -x "$script" ]; then
+      echo "not found: $script" >&2
+      echo "the canonical checkout is ~/dotfiles; run it from your checkout directly" >&2
+      exit 1
+    fi
+    "$script" {{dest}}
