@@ -34,6 +34,8 @@ share one mental model: parse code with tree-sitter into **entities**
 coverage is broad but uneven — sem ~32, weave ~28, inspect ~19; the mainstream
 languages (Rust, TS/JS, Python, Go, Java, C/C++) are covered everywhere, and
 files a tool can't parse degrade gracefully (weave falls back to line merge).
+That degradation is silent, though, and for one language it is verified to be
+worse than "graceful" — see **Language coverage: Dart/Flutter** below.
 The payoff for an agent is precision per token: "function X changed, and these
 callers depend on it" instead of reading whole files to reconstruct that
 yourself.
@@ -71,6 +73,43 @@ yourself.
   brew-managed, and a self-update fights the package manager.
 - Check with `command -v sem weave inspect` before building a plan around them.
 
+## Language coverage: Dart/Flutter (verified 2026-09-21)
+
+Measured on `alycda/DittoXCactus`, a Flutter app (~80 Dart entities). Dart is
+the worked example of the uneven-coverage caveat above, and it fails quietly
+in all three tools — one of them dangerously:
+
+- **sem parses Dart, but its call graph is file-local.** Entity detection,
+  `diff`, `blame`, `log` and `context` are all correct and worth using.
+  `impact`, `callers` and `refs` are not: `sem impact` on a class referenced
+  by 7 files under `lib/` and 3 under `test/` answered
+  `✓ No other entities are affected by changes to this entity.` Same for two
+  service methods called directly from `lib/main.dart`. Within a single file
+  the graph is right. **In a Dart repo that checkmark is a false
+  negative, not permission to refactor — `rg` for the callers instead.**
+- **inspect does not parse Dart at all.** `inspect diff` on a 7-file branch
+  returned 61 `chunk` entities (`lines 161-180`) plus 1 `section` — zero
+  functions, zero classes — under a headline of "0 critical, 0 high, 48
+  medium, 14 low". Those scores are line counts wearing a costume.
+  `inspect predict` said "No entities at risk", which means only that it had
+  no graph to predict from. Skip inspect on Flutter work.
+- **weave does not parse Dart either.** `weave preview` across a real merge
+  base reported `CONFLICTS: 1 (line-level fallback)` with `unchanged: 0` for
+  every `.dart` file — one whole-file conflict each, i.e. exactly what plain
+  git would do. The ~95% conflict-reduction claim does not apply here, so
+  don't propose `weave setup` as a fix for Flutter merge pain.
+
+Net: in a Dart repo, use `sem diff` / `blame` / `log` / `context` freely,
+treat `sem impact` / `callers` / `refs` as file-local only, and don't reach
+for inspect or weave at all. Dart is likely not unique — before trusting a
+graph-dependent answer in an untested language, check that the tool returned
+real entity kinds (`method`, `class`) rather than `chunk`s.
+
+**Naming wart** (`sem 0.25.0`, not Dart-specific): the `Class::method` form
+resolves for `impact` but is rejected by `callers`
+(`error: no entity named 'DittoService::initialize'`). A bare name prints a
+disambiguation list; `--entity-id '<path>::class::<Name>'` works everywhere.
+
 ## sem — entity diffs, blame, impact
 
 Reach for `sem` when you'd otherwise read a diff or grep for callers:
@@ -100,7 +139,10 @@ Notes:
 
 - **Before large refactors**, run `sem impact` on the entities you're about to
   change — it's the cheap version of "read every caller". For a rename,
-  `sem callers` is usually the whole answer.
+  `sem callers` is usually the whole answer. **Caveat: the call graph is
+  only as good as the language support** — in Dart it is file-local and
+  "no other entities are affected" is routinely wrong. See
+  **Language coverage: Dart/Flutter** above.
 - `sem setup` rewires `git diff` output globally and `sem unsetup` reverts it.
   That mutates the user's git config: **propose it, never run it unprompted.**
 - **Everything above runs locally, and that is the default** — cloud is "off
@@ -227,3 +269,6 @@ with `GITHUB_TOKEN`, falling back to `gh`'s login.
 - "What did this change put at risk that it didn't touch?" → `inspect predict`
 - History questions ("when did this function change / who owns it") →
   `sem log` / `sem blame`
+- **Dart/Flutter repo** → `sem diff` / `blame` / `log` / `context` only; the
+  graph-dependent answers are unreliable and inspect/weave don't parse Dart
+  at all. See **Language coverage: Dart/Flutter**.
