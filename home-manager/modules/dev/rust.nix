@@ -51,7 +51,32 @@
   # offline must degrade to "no toolchain yet", never to a broken profile.
   #
   # Toolchains land in ~/.rustup, which is the devhome volume in containers -
-  # so this downloads once and persists across --rm, not once per start.
+  # so this downloads once and persists across --rm, not once per start. That
+  # persistence has a sharp edge, and the `rustup run` probe below is the whole
+  # remedy for it: nixpkgs' rustup patchelfs every toolchain binary it
+  # downloads to the glibc of the image that installed it, so a ~/.rustup that
+  # outlives an image rebuild holds binaries whose ELF interpreter is a store
+  # path the new image never had. Exec'ing one fails with ENOENT, which rustup
+  # reports as
+  #
+  #   error: command failed: 'cargo': No such file or directory (os error 2)
+  #
+  # naming the binary that is present rather than the loader that is missing.
+  # `rustup default stable` sees an installed toolchain and does nothing, so
+  # activation can never repair this on its own - it has to notice the
+  # toolchain does not *execute* and reinstall it, which re-patchelfs against
+  # the glibc this image actually has.
+  #
+  # The repair is `uninstall` then install, and not `toolchain install stable
+  # --force`, which is the obvious one-liner and does not work: rustup decides
+  # what to fetch from the channel manifest, so a toolchain that is at the
+  # current stable is "unchanged" and `--force` leaves the broken binaries
+  # exactly where they were (observed 2026-09-21; it only appeared to work
+  # against a toolchain that happened to be a release behind as well). Removing
+  # the directory is what makes the next install a real download. Components go
+  # with it, which is why `component add` below runs unconditionally rather than
+  # inside the branch. Full write-up:
+  # docs/solutions/runtime-errors/stale-rustup-toolchain-after-image-rebuild.md
   #
   # rust-analyzer is added as a rustup component rather than installed from
   # nixpkgs, per the standing rule against having both on PATH. It matters more
@@ -67,6 +92,12 @@
   home.activation.rustupDefaultToolchain =
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       run ${pkgs.rustup}/bin/rustup default stable || true
+
+      if ! run --silence ${pkgs.rustup}/bin/rustup run stable cargo --version; then
+        run ${pkgs.rustup}/bin/rustup toolchain uninstall stable || true
+        run ${pkgs.rustup}/bin/rustup default stable || true
+      fi
+
       run ${pkgs.rustup}/bin/rustup component add rust-analyzer || true
 
       ra="$(${pkgs.rustup}/bin/rustup which rust-analyzer 2>/dev/null || true)"
