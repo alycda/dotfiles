@@ -113,6 +113,18 @@ looks like a volume or permissions bug in the devcontainer config.
   `VSCODE_SERVER_CUSTOM_GLIBC_PATH` must stay unset; the Dockerfile header says
   so, and `patchelf: open: Text file busy` is what setting it looks like.
 
+  **The rewrite is not hypothetical, and it outlives the experiment.** Auditing
+  the shared volume on 2026-09-21 found a patchelf'd `node` still sitting in it,
+  six weeks after the route was abandoned: of six server builds, five carried
+  the stock `/lib/ld-linux-aarch64.so.1`, and `e4c7e7b1…` carried
+  `/opt/vscode-glibc/linker` with `/opt/vscode-glibc/{libc,libcxx}` in its
+  rpath. Its `node` is dated Aug 5 02:58 — the night of the experiments — while
+  every other copy still has the Jul 28 mtime from the tarball it was unpacked
+  from. Nothing in this repo put it there on purpose, nothing removes it, and it
+  is not confined to the image that wrote it: a devcontainer of any base image
+  that asks for that server build gets that binary. It is dormant only because
+  VS Code has moved on to a newer commit. See the audit recipe under Prevention.
+
   This entry is the most valuable one in the file, because the route was
   verified end to end — `node -e` printed `v24.18.0` after patchelfing — and
   still failed on first real open, for a reason no amount of local verification
@@ -260,6 +272,33 @@ lets the `ENV` values stay stable across rebuilds.
   built from a ref that predates the fix. `docker/dev.sh build`/`up` fetch this
   repo from GitHub and default to `main`; only `just docker-build` builds the
   checkout you are sitting in.
+
+- **Audit the shared `vscode` volume for leftover rewritten servers.** The
+  volume outlives any one container, image or branch, so a binary some past
+  experiment patched stays patched until something deletes it. Print the ELF
+  interpreter of every server `node` in it:
+
+  ```sh
+  docker run --rm -v vscode:/vscode --entrypoint /bin/sh dev -c '
+    for n in /vscode/vscode-server/bin/*/*/node; do
+      printf "%-42s " "$(basename $(dirname $n))"
+      head -c 4096 "$n" | tr -d "\0" \
+        | grep -ao "/[a-zA-Z0-9/._-]*ld-linux-[a-z0-9_]*\.so\.[0-9]" | head -1
+      echo
+    done'
+  ```
+
+  Every line should print the stock `/lib/ld-linux-*.so.*`. Two ways it flags a
+  rewrite: an interpreter under `/opt/vscode-glibc/`, or an **empty** result —
+  patchelf relocates the interpreter string out of the first 4 KB, so a blank
+  line means "patched", not "clean". Scan the whole file to confirm
+  (`tr -d '\0' < "$n" | grep -ao '/[a-zA-Z0-9/._-]*vscode-glibc[a-zA-Z0-9/._-]*'`).
+  A `node` whose mtime differs from its siblings' is the same tell.
+
+  Run this from the `dev` image, not `alpine`: busybox `grep` does not support
+  `-o` on binary input and silently prints nothing, which reads exactly like a
+  clean result. Deleting an offending `bin/<commit>/` directory is safe — VS
+  Code re-downloads a server it cannot find.
 
 - **Guard derived paths with `test` in the same `RUN`.** `nix build -o foo` on a
   non-default output lands at `foo-lib`, not `foo` — pointing `ENV` straight at
