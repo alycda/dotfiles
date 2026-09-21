@@ -2,7 +2,7 @@
 # Provision the temporary Hermes box (Hetzner CX23, Debian 12). Run as root,
 # over ssh, from a checkout:
 #
-#   ssh hermes-1 'bash -s' < tools/hermes/remote/provision.sh
+#   ssh venari-root 'bash -s' < tools/hermes/remote/provision.sh
 #
 # Safe to run again: every step checks before it changes anything.
 #

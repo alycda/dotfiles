@@ -21,8 +21,8 @@ set -euo pipefail
 MBP="${HERMES_MBP:-alyssas-mbp-12.local}"
 # An ssh_config alias, not an address: this repo is public, and the alias is
 # also where the user and the non-default identity file live.
-#   Host hermes-1 / HostName <ip> / User root / IdentityFile ~/.ssh/hetzner / IdentitiesOnly yes
-BOX="${HERMES_BOX:-hermes-1}"
+#   Host venari-root / HostName <ip> / User root / IdentityFile ~/.ssh/venari-root / IdentitiesOnly yes
+BOX="${HERMES_BOX:-venari-root}"
 REMOTE_DIR=/srv/hermes/remote
 
 # -4: the MBP's .local name resolves to a link-local IPv6 address first.
