@@ -1,0 +1,31 @@
+# Pre-upgrade checklist for a macOS major bump. Order matters.
+
+# 1. Dry-run the config on the target OS in a VM first. This proves the flake
+#    evaluates and activates on the new major -- it proves NOTHING about
+#    whether an in-place upgrade preserves the existing /nix volume.
+just -g tart-new tahoe-validate
+# then inside the guest: README "macOS setup (Darwin)"
+
+# 2. Back up what nix-darwin and home-manager cannot rebuild.
+~/dotfiles/tools/backup/pre-upgrade-backup.sh /Volumes/<external-disk>
+
+# 3. The age identity comes OUT of the archive before encrypting it. An
+#    archive encrypted to a key that is only inside that archive is a brick.
+#    ~/.age/personal-key.txt (home-manager/modules/git.nix) opens every
+#    secret in this repo.
+
+# Rollback vs rebuild -- these are not the same thing:
+#   rebuild  = this script + a clone + darwin-rebuild switch
+#   rollback = a full Time Machine backup taken BEFORE the upgrade, because
+#              Migration Assistant refuses a newer-OS backup onto an older OS,
+#              and Apple Silicon has no in-place downgrade: it is erase and
+#              reinstall from a bootable installer or DFU.
+
+# Expect to fix after a major bump:
+#   - /nix on its own APFS volume (synthetic.conf + fstab + the
+#     org.nixos.darwin-store daemon) can come up unmounted. Non-destructive.
+#   - homebrew.onActivation.autoUpdate = true means brew updates unattended,
+#     and a new OS major changes what its formulae consider supported. See
+#     docs/solutions/build-errors/third-party-tap-formula-aborts-darwin-rebuild.md
+
+# Runnable: just -g macos-backup /Volumes/<external-disk>

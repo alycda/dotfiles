@@ -1,0 +1,14 @@
+# Drive a running VM from the host with no ssh, no password and no window.
+# Every non-vanilla cirruslabs image ships the Tart Guest Agent, and the
+# account it lands you on has passwordless sudo.
+
+tart exec tahoe-validate whoami            # -> admin
+tart exec tahoe-validate sudo -n true      # exit 0
+tart exec -it tahoe-validate zsh           # interactive: -i stdin, -t pty
+
+# Run as a different account without ssh:
+tart exec -it tahoe-validate sudo -u alyssa -i zsh
+
+# ssh still works and is nicer for a long session, but it is the slow path:
+# it needs the guest's IP, the admin password, and Remote Login enabled.
+#   just -g tart-ssh tahoe-validate

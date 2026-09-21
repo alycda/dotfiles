@@ -1,0 +1,17 @@
+# create a macOS VM from a cirruslabs base image (~25 GiB pull, slow)
+tart clone ghcr.io/cirruslabs/macos-tahoe-base:latest tahoe-validate
+
+# published bases: macos-golden-gate-base, macos-tahoe-base,
+# macos-sequoia-base, macos-sonoma-base, ubuntu
+#
+# golden-gate is asif-formatted and needs a macOS 26 host -- check first with
+# the tart/image sheet, the pull is 30 GiB before it fails
+
+# the base disk is 40-50 GB; a Nix store plus Xcode CLT wants more room
+tart set tahoe-validate --cpu 6 --memory 12288 --disk-size 90
+
+tart run tahoe-validate                 # opens a GUI window
+tart run --no-graphics tahoe-validate   # headless; reach it over ssh
+tart suspend tahoe-validate             # save state instead of shutting down
+
+# Runnable: just -g tart-new tahoe-validate tahoe
