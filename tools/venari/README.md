@@ -17,6 +17,7 @@ the box is the running copy.
 |---|---|
 | `soft-serve/docker-compose.yml` | `/srv/soft-serve/docker-compose.yml`, with `.env` (from `.env.example`) and `data/` beside it |
 | `apt/52unattended-reboot` | `/etc/apt/apt.conf.d/52unattended-reboot` |
+| `cloud/99-hostname.cfg` | `/etc/cloud/cloud.cfg.d/99-hostname.cfg` |
 | `ssh/20-soft-tunnel.conf` | `/etc/ssh/sshd_config.d/20-soft-tunnel.conf` |
 | `ssh/soft-tunnel.authorized_keys` | `/var/lib/soft-tunnel/.ssh/authorized_keys` (root-owned, 644) |
 
@@ -137,6 +138,17 @@ run is around 06:30 UTC). `52unattended-reboot` lets it reboot when an update
 needs one, at 11:00 UTC (04:00 Pacific). Every container on the box uses
 `restart: unless-stopped` and docker starts at boot, so services come back by
 themselves.
+
+That reboot is also what makes `cloud/99-hostname.cfg` necessary. cloud-init
+runs `set_hostname` and `update_hostname` on every boot, and the provider's own
+`90-hetznercloud.cfg` sets `preserve_hostname: false` — so a plain
+`hostnamectl set-hostname` would have been quietly undone at the next reboot,
+days after anyone connected the two. Drop-ins merge in lexical order, so the
+`99-` file wins.
+
+Backups of files under `/etc` go in `/root/config-backups/`, not beside the
+original: a `*.bak-<ts>` left in `/etc/apt/apt.conf.d/` makes apt print
+`Ignoring file … invalid filename extension` on every single run.
 
 ## Not covered yet
 
