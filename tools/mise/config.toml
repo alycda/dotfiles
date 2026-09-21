@@ -18,6 +18,18 @@
 # Link the directory, not just this file: `mise use -g <tool>` edits the file in
 # place through the link, so new tools show up here as a diff to commit.
 #
+# Versions live in mise.lock, not here. Every tool below asks for "latest",
+# which on its own means "newest at the moment you happened to install" and
+# then never moves again. mise.lock (next to this file, so it comes along the
+# same symlink) records what "latest" resolved to, with a checksum and a
+# download URL per platform, and `mise install` installs *that*. Same split as
+# flake.nix and flake.lock.
+#
+# So the versions are bumped the same way the flake's are:
+# .github/workflows/update-mise-lock.yml re-resolves them every Monday on the
+# same cron as update-flake-lock.yml and opens a PR against mise.lock. Merge
+# it, then apply it here with `mise run upgrade`.
+#
 # Keep this list short. A tool belongs here only if this account really uses
 # it. Anything the containers also need goes in lib/core-packages.nix.
 
@@ -28,9 +40,28 @@ jj = "latest"     # aqua:jj-vcs/jj (prebuilt; the cargo:jj-cli fallback compiles
 gh = "latest"     # log in once: mise run gh-login
 just = "latest"
 
-# Tasks are one-time setup steps you run by hand (`mise run <task>`), written
-# so that running one again does nothing. Never make them run automatically,
-# e.g. from a hook: a login prompt with no terminal attached just hangs.
+# The one task that is not a setup step: run it whenever the update-mise-lock
+# PR merges (or when claude nags about a new version). It is the only thing
+# that moves this account's tools — nothing upgrades in the background.
+[tasks.upgrade]
+description = "Pull the latest mise.lock and install the versions it pins"
+# Order matters. The pull comes first because mise.lock lives *inside* the
+# checkout, reached through the ~/.config/mise symlink: install first and a
+# lockfile mise touched would make the tree dirty and the pull fail.
+# --ff-only is deliberate — a local `mise use -g` edit that hasn't been
+# committed should stop this loudly rather than get merged over.
+# self-update comes last because it replaces the binary currently running
+# this task; the new mise takes effect on the next invocation.
+run = '''
+git -C "${DOTFILES:-$HOME/dotfiles}" pull --ff-only
+mise install
+mise self-update -y
+'''
+
+# The rest are one-time setup steps you run by hand (`mise run <task>`),
+# written so that running one again does nothing. Never make them run
+# automatically, e.g. from a hook: a login prompt with no terminal attached
+# just hangs.
 [tasks.ssh-key]
 description = "Create an SSH key for GitHub, unless one exists"
 # gh-login uses SSH, so this runs first. The key gets the default name

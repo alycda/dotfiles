@@ -142,8 +142,8 @@ dotfiles/
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
 │   ├── helix/              # Helix config
-│   └── mise/               # Global mise config for the no-Nix, non-admin account
-│                           #   (bootstrap.sh links it to ~/.config/mise; no module)
+│   └── mise/               # Global mise config + mise.lock for the no-Nix, non-admin
+│                           #   account (bootstrap.sh links it to ~/.config/mise; no module)
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
@@ -487,6 +487,38 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
   compiles from source. This does not replace `lib/core-packages.nix`; the
   containers still get their tools from Nix.
+- **"latest" is not a version — give the mise account a lockfile too.** Every
+  tool in `tools/mise/config.toml` asks for `latest`, which resolves once at
+  install time and then never moves; that account had no equivalent of
+  `nix flake update`, so it quietly aged until Claude Code started nagging
+  about its own version. `mise lock` fixes it with the same split the flake
+  already has: the config keeps the loose `latest` specifier, and
+  `tools/mise/mise.lock` records what it resolved to, with a per-platform URL
+  and sha256. `mise install` then installs the *locked* version. Three things
+  make this work as CI:
+  - **The lockfile lands in the repo for free.** mise writes it next to the
+    global config, and `~/.config/mise` is already the symlink bootstrap.sh
+    made into the checkout — the same trick that makes `mise use -g` show up
+    as a diff.
+  - **A Linux runner can lock for a Mac.** `mise lock` resolves and checksums
+    without installing, and `--platform macos-arm64` writes entries for a
+    platform the runner isn't on, so this needs no macOS runner. The corollary
+    is that `mise-action` must run with `install: false`: letting it run
+    `mise install` resolves the *runner's* platform and injects linux-x64
+    entries into a lockfile whose only consumer is a Mac.
+  - **`mise lock -g` only reads `~/.config/mise/config.toml`.**
+    `MISE_GLOBAL_CONFIG_FILE` does not redirect it — it reports "No tools
+    configured to lock" — so CI and `just mise-lock` both rebuild the Mac's
+    layout with a temp `HOME` plus that symlink.
+  Watch the asymmetry with the flake workflow: nix.yml says nothing about a
+  mise lockfile, so there is no `gh workflow run` follow-up and the PR carries
+  no checks — validation happens in the producing run, and a hand-pushed fixup
+  to `automation/mise-update` is re-validated by nothing. Also note
+  `mise lock --dry-run` is useless as a change detector: it prints "would
+  update" for every entry whether or not anything changed, so use
+  `git diff --quiet` like the flake job does. Applying a merged bump on the
+  account stays manual and deliberate (`mise run upgrade`); nothing upgrades
+  that machine in the background.
 - **Share a tool's config with that account as a plain file, not a generator.**
   Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
   loads config anyway (`fromTOML` for helix, git's `include`), and link or
@@ -708,6 +740,33 @@ on the branch anyway and writes a compare link into the job summary before
 failing. Full write-up:
 `docs/solutions/ci-errors/github-actions-not-permitted-to-create-pull-requests.md`
 
+
+### mise tool updates: `update-mise-lock.yml`
+
+The mise account's counterpart to the flake workflow, on the **same weekly
+cron** (`23 7 * * 1`) so the week's tool churn arrives together. It runs
+`mise lock --global --bump --platform macos-arm64` on an ordinary
+ubuntu-latest runner, validates with `.github/scripts/check-mise-lock.sh`,
+and opens a PR on `automation/mise-update` touching only
+`tools/mise/mise.lock`. See the mise bullet under "Tools Nix Can't Fully
+Manage" for why a Linux runner can lock for an aarch64-darwin machine, and
+why `mise-action` must run with `install: false`.
+
+Deliberately a **separate workflow** rather than a second job in
+update-flake-lock.yml: a GitHub API hiccup while resolving five release tags
+should not cost that week's flake update, and the two lockfiles have nothing
+to say about each other. The cost is two PRs to merge instead of one, and a
+duplicated copy of the PR-creation wiring (the non-fatal `create-pull-request`
+step and the compare-link job summary, both for the same "Allow GitHub Actions
+to create and approve pull requests" reason documented above).
+
+The validation is narrower than the flake job's on purpose. It cannot install
+a macOS binary on Linux, so it checks what the lockfile must guarantee: every
+tool in `[tools]` has a locked version *and* a checksum for the target
+platform. A missing checksum is the signature of a lockfile written on some
+other platform, and `mise install` responds to it by silently resolving that
+tool live — dropping the pin without failing. Run the same check locally with
+`just mise-check`, and regenerate with `just mise-lock`.
 ### Entity diff (informational, non-blocking)
 
 `.github/workflows/entity-diff.yml` runs [Sem](https://github.com/Ataraxy-Labs/sem)'s
@@ -738,7 +797,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-21 - Gave the mise account a lockfile and put it on the same weekly cron as the flake update, after "latest" turned out to mean "whatever it was on install day" and never move; records why a Linux runner can lock for aarch64-darwin, why mise-action needs install:false, and why `mise lock --dry-run` can't detect drift*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
