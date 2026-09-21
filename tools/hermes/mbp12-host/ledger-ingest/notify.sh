@@ -3,25 +3,28 @@
 # Signal home channel (SIGNAL_HOME_CHANNEL in the sending Hermes' .env) - no
 # number here.
 #
-# Box first, then local. While Hermes runs on the remote box (hermes-1), this
-# machine's signal-cli is stopped - one daemon per Signal account - so the
-# message goes over ssh to a forced command there (hermes-notify: stdin in,
-# `hermes send` out, no shell). When the box's gateway container is not running
-# (before a cutover, after `cutover.sh back`) that exits non-zero and the local
-# route is used, so this is correct in every state without being switched.
-# Neither leg sends twice: the local leg only runs when the box leg failed.
+# Local first, then the box. Hermes runs on THIS machine, so the local
+# `hermes send` is the live route. The box leg (hermes-notify: a forced
+# command over ssh, stdin in, `hermes send` out, no shell) stays as a second
+# try: it only delivers when a cutover has moved Hermes to the box, and
+# otherwise exits non-zero in ~3s. Keeping both legs and only choosing the
+# ORDER is what makes this file correct in every state - a cutover in either
+# direction costs at most one dead leg, never a lost message.
+#
+# Both legs are never taken on a success: the box leg only runs when the
+# local leg failed.
 #
 # notify.log records which leg carried each message (length only, never text).
 LOG=/Users/alyssa/ledger-ingest/notify.log
 msg="$*"
 ts() { date "+%Y-%m-%d %H:%M:%S"; }
 
-if printf '%s' "$msg" | ssh hermes-notify 2>/dev/null; then
-    echo "$(ts) box   ok  ${#msg}B" >> "$LOG"
+if /Users/alyssa/.local/bin/hermes send -t signal "$msg"; then
+    echo "$(ts) local ok  ${#msg}B" >> "$LOG"
     exit 0
 fi
-echo "$(ts) box   no  -> local" >> "$LOG"
-/Users/alyssa/.local/bin/hermes send -t signal "$msg"
+echo "$(ts) local no  -> box" >> "$LOG"
+printf '%s' "$msg" | ssh hermes-notify 2>/dev/null
 rc=$?
-echo "$(ts) local rc=$rc ${#msg}B" >> "$LOG"
+echo "$(ts) box   rc=$rc ${#msg}B" >> "$LOG"
 exit $rc
