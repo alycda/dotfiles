@@ -199,3 +199,33 @@ rekey-secrets:
     set -euo pipefail
     key="$(just _age-identity)"
     ragenix --rules secrets/secrets.nix -i "$key" --rekey
+
+# Regenerate tools/mise/mise.lock, the version pin for the no-Nix mise account
+[group('mise')]
+mise-lock platform="macos-arm64":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # .github/workflows/update-mise-lock.yml does exactly this every Monday and
+    # opens a PR. Run it by hand to bump between Mondays. The default platform
+    # is the only one that account runs on (shesfast is aarch64-darwin).
+    #
+    # mise resolves the *global* config from ~/.config/mise/config.toml, and
+    # MISE_GLOBAL_CONFIG_FILE does not redirect it — it just reports "No tools
+    # configured to lock". So reproduce the layout bootstrap.sh creates on the
+    # Mac: HOME at a temp dir, .config/mise symlinked into this checkout. That
+    # symlink is what puts the lockfile back in tools/mise/.
+    #
+    # The mise account has mise but no Nix; the Nix accounts are the reverse.
+    if command -v mise >/dev/null 2>&1; then mise=(mise); else mise=(nix run nixpkgs#mise --); fi
+    home="$(mktemp -d)"
+    trap 'rm -rf "$home"' EXIT
+    mkdir -p "$home/.config"
+    ln -sfn "{{justfile_directory()}}/tools/mise" "$home/.config/mise"
+    HOME="$home" XDG_CONFIG_HOME="$home/.config" \
+      "${mise[@]}" lock --global --bump --platform {{quote(platform)}}
+    "{{justfile_directory()}}/.github/scripts/check-mise-lock.sh" {{quote(platform)}}
+
+# Check tools/mise/mise.lock covers every tool in tools/mise/config.toml
+[group('mise')]
+mise-check platform="macos-arm64":
+    ./.github/scripts/check-mise-lock.sh {{quote(platform)}}
