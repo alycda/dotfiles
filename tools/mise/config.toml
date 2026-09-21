@@ -12,6 +12,7 @@
 # ~/.gitconfig, and runs `mise install`. Then run the tasks that ask questions:
 #
 #   mise run gh-login         # SSH key, gh login, checkout remote to SSH
+#   mise run identity         # git + jj user.name/user.email, from gh
 #   mise run macos-defaults
 #   mise run dock
 #
@@ -79,6 +80,70 @@ case "$remote" in
     fi
     ;;
 esac
+'''
+
+[tasks.identity]
+description = "Set git and jj identity from the logged-in GitHub account"
+depends = ["gh-login"]
+# This account has no agenix, so the identity that home-manager gets from
+# secrets/personal/git-config.age has to come from somewhere else. gh is
+# already authenticated by the time this runs, and it knows who you are.
+#
+# Note what CANNOT be used here: tools/git/config is shared with the Nix
+# accounts and deliberately carries no [user] block, so the usual
+# `jj config set --user user.name "$(git config --get user.name)"` from the
+# jj/config cheatsheet reads an empty string on this account and sets the
+# identity to "". gh is the only real source.
+#
+# .email is not guaranteed. It is only populated when the profile email is
+# public or the token carries the user:email scope, and `gh auth login`
+# grants neither by default - so fall back to the GitHub noreply address,
+# which GitHub still attributes to the account.
+#
+# git identity goes to ~/.gitconfig (global), never to tools/git/config,
+# which is tracked and must stay identity-free.
+#
+# jj note: `jj config set --user` writes ~/.config/jj/config.toml, and jj
+# merges ~/.config/jj/conf.d/*.toml OVER that file. Nothing here puts a
+# [user] block in conf.d for exactly that reason - it would silently win
+# over every later `jj config set`. Verified on jj 0.45.1.
+run = '''
+if ! gh auth status >/dev/null 2>&1; then
+  echo "identity: gh is not logged in; run 'mise run gh-login' first" >&2
+  exit 1
+fi
+
+name=$(gh api user --jq '.name // .login')
+email=$(gh api user --jq '.email // empty')
+if [ -z "$email" ]; then
+  email=$(gh api user --jq '"\(.id)+\(.login)@users.noreply.github.com"')
+  echo "identity: profile email not visible to this token, using $email"
+fi
+
+if git config --global --get user.name >/dev/null 2>&1; then
+  echo "git:  user.name already set to $(git config --global --get user.name)"
+else
+  git config --global user.name "$name"
+  echo "git:  set user.name to $name"
+fi
+if git config --global --get user.email >/dev/null 2>&1; then
+  echo "git:  user.email already set to $(git config --global --get user.email)"
+else
+  git config --global user.email "$email"
+  echo "git:  set user.email to $email"
+fi
+
+# `jj config get` exits 0 whether or not the key is set, so the guard has to
+# look at the output rather than the exit code.
+if ! command -v jj >/dev/null 2>&1; then
+  echo "jj:   not installed, skipping"
+elif [ -n "$(jj config get user.name 2>/dev/null)" ] && [ -n "$(jj config get user.email 2>/dev/null)" ]; then
+  echo "jj:   already configured as $(jj config get user.name) <$(jj config get user.email)>"
+else
+  jj config set --user user.name "$name"
+  jj config set --user user.email "$email"
+  echo "jj:   set user.name/user.email to $name <$email>"
+fi
 '''
 
 [tasks.macos-defaults]

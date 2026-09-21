@@ -1,2 +1,21 @@
-jj config set --user user.name "$(git config --get user.name)"
+# On a Nix account, identity comes from git, which agenix populated from
+# secrets/personal/git-config.age:
+jj config set --user user.name  "$(git config --get user.name)"
 jj config set --user user.email "$(git config --get user.email)"
+
+# That does NOT work on the mise account. tools/git/config is shared with the
+# Nix profiles and deliberately carries no [user] block, so both reads return
+# an empty string and the identity is silently set to "". There, gh is the
+# only source:
+#
+#   mise run identity
+#
+# which also fills in ~/.gitconfig, since git has the same gap and only
+# notices it at commit time rather than at `jj git init`.
+
+# Where these land, and the trap. `jj config set --user` writes
+# ~/.config/jj/config.toml, but jj merges ~/.config/jj/conf.d/*.toml OVER
+# that file. A [user] block in conf.d therefore beats every later
+# `jj config set --user` with no warning. Verified on jj 0.45.1.
+jj config path --user    # prints both the file and the conf.d directory
+jj config list user      # what actually won
