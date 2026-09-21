@@ -1,0 +1,69 @@
+name: hermes-remote
+
+# The boxed stack minus everything that needs the Mac: no draft runner, no
+# /ledger, no broker, no iCloud. Lives at /srv/hermes/remote on the box;
+# /srv/hermes mirrors tools/hermes/ so the signal build path below resolves.
+#
+# Images are pinned to the digests that wrote ./state on the MBP (see
+# provision.sh). Bump them on purpose, after a copy of state/.
+
+services:
+  # signal-cli in the same project: on the MBP it is its own compose project
+  # joined over an external network only because it was there first.
+  #
+  # NEVER up this while the MBP's signal-cli is running against the same
+  # account. Stop that one, rsync its state here, then start this one.
+  signal:
+    build: ../mbp12-host/signal-cli
+    container_name: signal-cli   # the gateway's SIGNAL_HTTP_URL is http://signal-cli:8080
+    command: ["daemon", "--http", "0.0.0.0:8080"]
+    volumes:
+      - ./signal-state:/root/.local/share/signal-cli
+    restart: unless-stopped
+
+  gateway:
+    image: nousresearch/hermes-agent@sha256:6bdcde696e5e5fa3dc7d93b88f025d018238d937a1048ca5ff1ab68fa807a5db
+    container_name: hermes-boxed
+    command: ["gateway", "run"]
+    environment:
+      # 501:20 is the Mac's alyssa:staff. state/ arrives by rsync with those
+      # numeric owners, and keeping them means it can go back the same way.
+      - HERMES_UID=501
+      - HERMES_GID=20
+      - HERMES_INFERENCE_PROVIDER=custom
+      - HERMES_DASHBOARD=1
+      - HERMES_DASHBOARD_INSECURE=1   # loopback publish only; reach it over ssh -L
+    ports:
+      - "127.0.0.1:8642:8642"
+      - "127.0.0.1:9119:9119"
+    volumes:
+      - ./state:/opt/data
+      # A plain directory, not the Obsidian vault: nothing here syncs to the
+      # phone. Pull deliverables with rsync until Hermes goes home or the
+      # vault gets another route.
+      - ./artifacts:/artifacts
+    depends_on:
+      - signal
+    restart: unless-stopped
+
+  workspace:
+    image: ghcr.io/outsourc-e/hermes-workspace@sha256:2d2ba9aa5b1230766267322817e8e51113541780a5797802a582a47cc34a3df3
+    container_name: hermes-workspace
+    env_file: [./workspace.env]
+    environment:
+      HERMES_HOME: /home/workspace/.hermes
+      HERMES_WORKSPACE_DIR: /workspace
+      HERMES_API_URL: http://gateway:8642
+      HERMES_DASHBOARD_URL: http://gateway:9119
+    volumes:
+      - workspace-files:/workspace
+      - workspace-home:/home/workspace/.hermes
+    ports:
+      - "127.0.0.1:3000:3000"   # the MBP publishes this on the LAN; there is no LAN here
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+volumes:
+  workspace-files: {}
+  workspace-home: {}

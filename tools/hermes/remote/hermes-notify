@@ -1,0 +1,31 @@
+#!/bin/sh
+# hermes-notify - forced command for the MBP's notify key on the remote box.
+#
+# While Hermes runs on the box, the MBP's own signal-cli is stopped (one daemon
+# per Signal account), so the MBP's host jobs (ledger ingest, due-date reminders,
+# backups, the docker watchdog, the Venice balance watch) send through here.
+#
+# Installed as /usr/local/bin/hermes-notify and pinned in root's
+# authorized_keys:
+#
+#   restrict,command="/usr/local/bin/hermes-notify" ssh-ed25519 AAAA... mbp notify
+#
+# `restrict` turns off forwarding, the agent, X11 and the pty; the forced
+# command replaces whatever command the client asked for, and this script never
+# reads SSH_ORIGINAL_COMMAND. The MBP can decide WHAT is sent, never what runs.
+# The message arrives on stdin and goes to `hermes send` on stdin, so no text
+# ever passes through a shell command line on either end.
+#
+# Target is the Signal home channel from the gateway's own .env, as notify.sh
+# on the MBP always used. Exit status is the send's, so the MBP can fall back
+# to its local route when the gateway container is not running here.
+set -eu
+
+msg=$(head -c 4000)
+[ -n "$msg" ] || { echo "hermes-notify: empty message" >&2; exit 64; }
+
+# Audit length and source only: the text itself can carry ledger detail.
+logger -t hermes-notify "from ${SSH_CLIENT%% *}: ${#msg} bytes"
+
+printf '%s\n' "$msg" |
+  exec docker exec -i -u hermes hermes-boxed hermes send -t signal -q -f -

@@ -147,8 +147,10 @@ print(t[:4000])
     "$BIN/notify.sh" "ledger: $base ($class) needs review — import/$base.draft.beancount" || true
   elif "$BIN/check-draft.sh" "$base.draft.beancount" >> "$LOG" 2>&1; then
     ( cd "$LEDGER" && $GIT add "import/$base.draft.beancount" && \
-      $GIT commit -q -m "[ingest] draft: $base ($class)" && \
-      $GIT push -q origin main ) >> "$LOG" 2>&1 || log "$base git commit/push failed"
+      $GIT commit -q -m "[ingest] draft: $base ($class)" ) >> "$LOG" 2>&1 || log "$base git commit failed"
+    # Offsite copy, encrypted (offsite-ledger.sh). The commit above is what
+    # counts; a failed copy is retried by the next run.
+    "$BIN/offsite-ledger.sh" >> "$LOG" 2>&1 || log "$base offsite copy failed (commit is local)"
     log "$base draft -> CLEAN, committed"
     "$BIN/notify.sh" "ledger: $base ($class) drafted, bean-check CLEAN. Approve on fava Import page or tell Hermes: approve $base" || true
   else
