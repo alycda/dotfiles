@@ -495,6 +495,21 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   secret, or an installed package stays in the Nix module. `helix.nix` is the
   worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
   hand", and now reads them.
+- **Prebuilt binaries installed into a persisted `$HOME` are image-scoped state.**
+  nixpkgs' `rustup` patchelfs every toolchain binary it downloads to the glibc of
+  the image that installed it, and `~/.rustup` lives in the container's `devhome`
+  volume — which outlives image rebuilds. The toolchain then points its ELF
+  interpreter at a store path the new image never had, and every shim dies with
+  `error: command failed: 'cargo': No such file or directory (os error 2)` —
+  ENOENT for the *loader*, naming the binary that is right there. Two rules fall
+  out, and both generalize past rustup: **guard activation on whether the tool
+  executes, not whether it exists** (an existence check can only ever fix the
+  empty case, so activation can never repair state that went bad in place); and
+  repair by removing it — `rustup toolchain uninstall` then install, because
+  `install --force` re-downloads nothing when the channel manifest says
+  "unchanged". Full write-up:
+  `docs/solutions/runtime-errors/stale-rustup-toolchain-after-image-rebuild.md`
+  (PR #80.)
 
 ## Migration Workflow
 
@@ -755,7 +770,7 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
-
+*Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
 *Last updated: 2026-09-16 - Verified inspect against a real binary and found its declared install route could never have worked: the ataraxy-labs/tap formula pins a checksum upstream invalidated by moving the v0.1.1 tag, so the brew fails and would abort activation. Replaced it with `lib/inspect.nix` (release binary, tart-style). Two lessons, both already in the tap write-up and both nearly repeated: a tap's risk is its maintenance, so check the formula's age and hash before declaring it, not after; and a prebuilt binary that runs on *this* machine proves little — this one linked Homebrew's openssl by absolute path, so `otool -L` is part of verifying any fetched macOS binary*
 
 *2026-09-16 - Corrected the entity-level-git work after merging main: "none of sem/weave/inspect are in nixpkgs" had been written into the skill and preferred-tooling from a sandbox with no `nix` to check it, and was wrong — nixpkgs carries weave, and its `sem` is a different program entirely. Moved weave to nixpkgs per the third-party-tap lesson, re-verified every sem and weave command against real binaries (two weave commands were wrong), and narrowed the skill's `allowed-tools` from wildcards to read-only subcommands, since a wildcard pre-approves the very `setup`/`login` commands the skill says never to run unprompted. Rule worth keeping: an availability claim about a package set is a checkable fact — check it, or mark it unverified*

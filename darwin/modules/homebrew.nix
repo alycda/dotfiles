@@ -73,7 +73,7 @@ _:
       "android-studio"  # Ditto
       "arc"
       "brave-browser"
-      "claude"
+      # "claude"
       "clocker"
       "chatgpt"         # Ditto
       "chromedriver"    # Ditto
@@ -92,7 +92,7 @@ _:
       "obsidian"
       "ollama-app"
       "orbstack"
-      "parallels"       # Ditto     
+      # "parallels"       # Ditto     
       "rustdesk" 
       "tailscale-app"   # Ditto
       "visual-studio-code"
