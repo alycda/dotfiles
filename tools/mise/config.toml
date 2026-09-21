@@ -26,6 +26,7 @@ claude = "latest" # aqua:anthropics/claude-code
 helix = "latest"  # aqua:helix-editor/helix
 jj = "latest"     # aqua:jj-vcs/jj (prebuilt; the cargo:jj-cli fallback compiles)
 gh = "latest"     # log in once: mise run gh-login
+just = "latest"
 
 # Tasks are one-time setup steps you run by hand (`mise run <task>`), written
 # so that running one again does nothing. Never make them run automatically,
