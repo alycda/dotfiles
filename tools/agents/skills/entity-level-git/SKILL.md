@@ -72,6 +72,11 @@ yourself.
 - sem has a `sem update` self-updater. Don't run it: the binary is
   brew-managed, and a self-update fights the package manager.
 - Check with `command -v sem weave inspect` before building a plan around them.
+- **Check versions against upstream before trusting a capability verdict**
+  (`gh release list -R Ataraxy-Labs/<tool>`). As of 2026-09-21 sem 0.25.0 is
+  current and inspect 0.1.1 is the latest upstream has, but the
+  home-manager-pinned weave 0.3.6 (2026-06-05) is four months behind v0.5.4.
+  A missing feature may just be a stale pin.
 
 ## Language coverage: Dart/Flutter (verified 2026-09-21)
 
@@ -79,31 +84,48 @@ Measured on `alycda/DittoXCactus`, a Flutter app (~80 Dart entities). Dart is
 the worked example of the uneven-coverage caveat above, and it fails quietly
 in all three tools — one of them dangerously:
 
-- **sem parses Dart, but its call graph is file-local.** Entity detection,
-  `diff`, `blame`, `log` and `context` are all correct and worth using.
-  `impact`, `callers` and `refs` are not: `sem impact` on a class referenced
-  by 7 files under `lib/` and 3 under `test/` answered
-  `✓ No other entities are affected by changes to this entity.` Same for two
-  service methods called directly from `lib/main.dart`. Within a single file
-  the graph is right. **In a Dart repo that checkmark is a false
-  negative, not permission to refactor — `rg` for the callers instead.**
+- **sem extracts Dart entities but builds no edges between them.** `diff`,
+  `blame`, `log`, `entities` and `context` are all correct and worth using.
+  The dependency graph is empty: in a two-file Dart repo where `app.dart`
+  constructs a class from `greeter.dart`, `sem graph` reports
+  `3 entities, 0 edges`, `sem impact` on the class answers
+  `✓ No other entities are affected`, and `callers`/`refs` both say "none".
+  The identical shapes in TypeScript produce the edge and the correct
+  `← depended on by: function run (ts/app.ts)`. So this is Dart reference
+  extraction, not a sem-wide limit. **In a Dart repo that checkmark is a
+  false negative, not permission to refactor — `rg` for the callers.**
+  Worse, in a mixed-language repo the name matching leaks: `sem callers
+  hello --file dart/greeter.dart` returned `function run ts/app.ts:3`, a
+  caller in a different file *and a different language*. Treat any
+  graph-derived Dart answer as unusable in both directions.
 - **inspect does not parse Dart at all.** `inspect diff` on a 7-file branch
   returned 61 `chunk` entities (`lines 161-180`) plus 1 `section` — zero
   functions, zero classes — under a headline of "0 critical, 0 high, 48
   medium, 14 low". Those scores are line counts wearing a costume.
   `inspect predict` said "No entities at risk", which means only that it had
-  no graph to predict from. Skip inspect on Flutter work.
-- **weave does not parse Dart either.** `weave preview` across a real merge
-  base reported `CONFLICTS: 1 (line-level fallback)` with `unchanged: 0` for
-  every `.dart` file — one whole-file conflict each, i.e. exactly what plain
-  git would do. The ~95% conflict-reduction claim does not apply here, so
-  don't propose `weave setup` as a fix for Flutter merge pain.
+  no graph to predict from. Skip inspect on Flutter work. Upstream has no
+  Dart or Flutter issue or PR of any kind, and no release since v0.1.1
+  (2026-04-02), so don't expect this to change on its own.
+- **weave handles Dart fine** — support merged upstream in PR #85
+  (2026-05-11), shipped from v0.3.3. Verified on 0.3.6: two branches
+  editing two different methods of one class preview as
+  `a.dart — auto-resolved`. Use it normally on Flutter work.
 
-Net: in a Dart repo, use `sem diff` / `blame` / `log` / `context` freely,
-treat `sem impact` / `callers` / `refs` as file-local only, and don't reach
-for inspect or weave at all. Dart is likely not unique — before trusting a
-graph-dependent answer in an untested language, check that the tool returned
-real entity kinds (`method`, `class`) rather than `chunk`s.
+Net: in a Dart repo, use `sem diff` / `blame` / `log` / `entities` /
+`context` and `weave` freely, never trust `sem impact` / `callers` / `refs`,
+and skip inspect. Dart may not be the only language in this state — before
+trusting a graph-dependent answer in an untested language, check that the
+tool returned real entity kinds (`method`, `class`) rather than `chunk`s,
+and that `sem graph` reports a non-zero edge count.
+
+**Don't repeat my measurement mistake.** The first version of this section
+claimed weave couldn't parse Dart, on the evidence of a `weave preview`
+where every file reported `CONFLICTS: 1 (line-level fallback)` with
+`unchanged: 0`. That was an artifact: the two branches' merge base held 3
+files, so every path was an add/add with no common ancestor and weave had
+nothing to three-way merge. **`git merge-base A B` and check the file
+exists there before concluding anything from a `weave preview`** — and
+prefer a synthetic two-branch repo for a real language-support verdict.
 
 **Naming wart** (`sem 0.25.0`, not Dart-specific): the `Class::method` form
 resolves for `impact` but is rejected by `callers`
@@ -269,6 +291,6 @@ with `GITHUB_TOKEN`, falling back to `gh`'s login.
 - "What did this change put at risk that it didn't touch?" → `inspect predict`
 - History questions ("when did this function change / who owns it") →
   `sem log` / `sem blame`
-- **Dart/Flutter repo** → `sem diff` / `blame` / `log` / `context` only; the
-  graph-dependent answers are unreliable and inspect/weave don't parse Dart
-  at all. See **Language coverage: Dart/Flutter**.
+- **Dart/Flutter repo** → `sem diff` / `blame` / `log` / `context` and
+  `weave` are fine; `sem impact` / `callers` / `refs` return empty graphs,
+  and inspect doesn't parse Dart. See **Language coverage: Dart/Flutter**.
