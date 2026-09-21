@@ -1,6 +1,6 @@
-# Soft Serve on hermes-1: private git over SSH, loopback only. Reached with an
+# Soft Serve on venari: private git over SSH, loopback only. Reached with an
 # ssh ProxyJump through the box's own sshd, so it adds no public port (the
-# Hetzner firewall admits 22 alone anyway). HTTP (23232), stats (23233) and the
+# cloud firewall admits 22 alone anyway). HTTP (23232), stats (23233) and the
 # git daemon (9418) stay inside the container.
 #
 # On the box: /srv/soft-serve/docker-compose.yml, next to an untracked .env

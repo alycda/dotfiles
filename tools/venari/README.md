@@ -1,9 +1,17 @@
-# hermes-1 — the always-on box
+# venari — the always-on box
 
-A small Hetzner Cloud VM (CX23, Helsinki, Debian 12), rented as a trial home
-for Hermes and kept on 2026-09-18, mainly as a private git server. Nothing
-deploys this directory: each file says where it lives on the box, and the box
-is the running copy.
+A small rented VM (2 vCPU, 4 GB, 38 GB disk, Debian 12, Helsinki). It was
+stood up on 2026-09-16 as a trial home for Hermes, and kept on 2026-09-18.
+Hermes moved back to felixia on 2026-09-21 — the agent needs the ledger broker
+on felixia's loopback and the iCloud inbox, and neither can follow it here —
+so what this box is now is a private git server and a small dev box.
+
+The name is its own, like felixia's: it says nothing about the provider, the
+plan, or what happens to be running this week. All three have already changed
+once.
+
+Nothing deploys this directory: each file says where it lives on the box, and
+the box is the running copy.
 
 | Here | On the box |
 |---|---|
@@ -12,23 +20,32 @@ is the running copy.
 | `ssh/20-soft-tunnel.conf` | `/etc/ssh/sshd_config.d/20-soft-tunnel.conf` |
 | `ssh/soft-tunnel.authorized_keys` | `/var/lib/soft-tunnel/.ssh/authorized_keys` (root-owned, 644) |
 
+The dev-box side is `tools/mise/venari/` — the same arrangement felixia has,
+for the same reason: no Nix here either.
+
 ## Access
 
-SSH is the only way in: the Hetzner cloud firewall admits port 22 alone
+SSH is the only way in: the provider's cloud firewall admits port 22 alone
 (checked 2026-09-18: a listener on another port answered on the box and timed
 out from outside). Login is key-only. The box's address is kept in ssh config
 aliases, never in this repo.
 
+Day-to-day login is the unprivileged user `alyssa` (`Host venari`), which owns
+the dev tools and its own mise config. Root is a separate alias
+(`Host venari-root`) and is what the system files in this directory are
+installed with; `alyssa` is deliberately not in the `docker` group, since
+membership there is root-equivalent.
+
 Soft Serve listens on the box's loopback. Reach it through the box's sshd:
 
 ```sshconfig
-Host hermes-git
+Host venari-git
   HostName 127.0.0.1
   Port 23231
-  ProxyJump hermes-1
+  ProxyJump venari
   IdentityFile ~/.ssh/id_ed25519
   IdentitiesOnly yes
-  HostKeyAlias hermes-git
+  HostKeyAlias venari-git
   StrictHostKeyChecking yes
 ```
 
@@ -38,9 +55,9 @@ The only `.pub` in that directory is Soft Serve's *client* key, and pinning it
 fails as a host key mismatch.
 
 ```sh
-ssh hermes-git repo create myrepo -p       # private repo
-jj git remote add hermes hermes-git:myrepo  # then: jj git push --remote hermes -b <bookmark>
-ssh hermes-git                             # TUI
+ssh venari-git repo create myrepo -p       # private repo
+jj git remote add venari venari-git:myrepo  # then: jj git push --remote venari -b <bookmark>
+ssh venari-git                             # TUI
 ```
 
 Anonymous and keyless access are both off (upstream defaults to anonymous
@@ -77,10 +94,10 @@ sshd -t                                   # then compare `sshd -T -C user=root,.
 systemctl reload ssh                      # before and after: root's must not change
 
 # Soft Serve
-ssh hermes-git user create felixia
-ssh hermes-git user add-pubkey felixia "'ssh-ed25519 AAAA...'"   # the quotes survive ssh's re-split
-ssh hermes-git repo create ledger-age -p
-ssh hermes-git repo collab add ledger-age felixia read-write
+ssh venari-git user create felixia
+ssh venari-git user add-pubkey felixia "'ssh-ed25519 AAAA...'"   # the quotes survive ssh's re-split
+ssh venari-git repo create ledger-age -p
+ssh venari-git repo collab add ledger-age felixia read-write
 ```
 
 The risk with a `Match` block in an included file is that it stays open and
@@ -91,7 +108,7 @@ full `sshd -T` output was identical before and after.
 felixia's ssh config, with the box's address in place of `<box>`:
 
 ```sshconfig
-Host hermes-tunnel
+Host venari-tunnel
   HostName <box>
   User soft-tunnel
   IdentityFile ~/.ssh/soft-serve-ledger
@@ -101,8 +118,8 @@ Host hermes-tunnel
 Host soft-serve
   HostName 127.0.0.1
   Port 23231
-  ProxyJump hermes-tunnel
-  HostKeyAlias hermes-git
+  ProxyJump venari-tunnel
+  HostKeyAlias venari-git
   IdentityFile ~/.ssh/soft-serve-ledger
   IdentitiesOnly yes
   BatchMode yes
