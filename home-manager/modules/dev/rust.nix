@@ -1,18 +1,107 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
-  # Rust development tools
+  # Rust toolchain only. Deliberately scoped to what every Rust profile needs,
+  # so container profiles can import this module without inheriting a desktop's
+  # worth of closure.
+  #
+  # lldb used to live here and now sits in work.nix, the one profile that wants
+  # a system debugger. It is a 1.6 GiB closure - against 94 MiB for rustup and
+  # 63 MiB for bacon - and it is not a Rust dependency: cargo and bacon never
+  # invoke it, and VS Code's CodeLLDB extension ships its own. Carrying it in
+  # the shared module priced the container profiles out of importing this at
+  # all, which is how `dev` ended up with no Rust.
   home.packages = with pkgs; [
     rustup
     # rust-analyzer # Don't install standalone - rustup provides rust-analyzer and installing both causes conflicts
-    lldb
     bacon
+
+    # rustup ships rustc and cargo and deliberately stops there: linking is the
+    # system's job. Without a C toolchain the first dependency with a build
+    # script dies on `linker \`cc\` not found`, which reads like a Rust problem
+    # and is not one. stdenv.cc is the wrapped compiler - it provides cc, ld and
+    # binutils, correctly wired to this nixpkgs.
+    #
+    # pkg-config rides along because the -sys crates (openssl-sys, libgit2-sys,
+    # ...) shell out to it to locate system libraries, and its absence produces
+    # a build-script failure just as indirect as the missing linker. It does not
+    # supply the libraries themselves: a crate needing openssl still needs
+    # openssl in the profile, or its vendored feature.
+    stdenv.cc
+    pkg-config
   ];
 
-  # User-level zsh configuration for Rust
-  # Ensures rustup is updated on shell initialization
-  programs.zsh.initContent = ''
-    rustup update
-    # rustup toolchain install nightly
-  '';
+  # Install a default toolchain once per generation, rather than the
+  # `rustup update` this module used to put in programs.zsh.initContent.
+  #
+  # Two problems with doing it from shell init. It fired a network call on
+  # *every* shell, which is invisible on a laptop with one terminal open and
+  # miserable in a devcontainer where every VS Code terminal pays it before
+  # handing you a prompt. And it was the wrong command: `rustup update`
+  # refreshes toolchains that are already installed and installs nothing when
+  # there are none, so a fresh profile got rustup's shims with no toolchain
+  # behind them - `cargo` on PATH, erroring with "no default toolchain".
+  # `rustup default stable` is what actually makes the profile usable, and it
+  # is a no-op once the toolchain is there.
+  #
+  # `|| true` is load-bearing. This is the only network call in activation, and
+  # activation runs at container start; a failed `run` aborts the whole
+  # activation *after* linkGeneration has written the dotfiles, which is the
+  # documented way to end up with a perfect prompt and no packages. Starting
+  # offline must degrade to "no toolchain yet", never to a broken profile.
+  #
+  # Toolchains land in ~/.rustup, which is the devhome volume in containers -
+  # so this downloads once and persists across --rm, not once per start. That
+  # persistence has a sharp edge, and the `rustup run` probe below is the whole
+  # remedy for it: nixpkgs' rustup patchelfs every toolchain binary it
+  # downloads to the glibc of the image that installed it, so a ~/.rustup that
+  # outlives an image rebuild holds binaries whose ELF interpreter is a store
+  # path the new image never had. Exec'ing one fails with ENOENT, which rustup
+  # reports as
+  #
+  #   error: command failed: 'cargo': No such file or directory (os error 2)
+  #
+  # naming the binary that is present rather than the loader that is missing.
+  # `rustup default stable` sees an installed toolchain and does nothing, so
+  # activation can never repair this on its own - it has to notice the
+  # toolchain does not *execute* and reinstall it, which re-patchelfs against
+  # the glibc this image actually has.
+  #
+  # The repair is `uninstall` then install, and not `toolchain install stable
+  # --force`, which is the obvious one-liner and does not work: rustup decides
+  # what to fetch from the channel manifest, so a toolchain that is at the
+  # current stable is "unchanged" and `--force` leaves the broken binaries
+  # exactly where they were (observed 2026-09-21; it only appeared to work
+  # against a toolchain that happened to be a release behind as well). Removing
+  # the directory is what makes the next install a real download. Components go
+  # with it, which is why `component add` below runs unconditionally rather than
+  # inside the branch. Full write-up:
+  # docs/solutions/runtime-errors/stale-rustup-toolchain-after-image-rebuild.md
+  #
+  # rust-analyzer is added as a rustup component rather than installed from
+  # nixpkgs, per the standing rule against having both on PATH. nixpkgs' rustup
+  # ships a `rust-analyzer` proxy in its own bin, so adding the component is
+  # what makes ~/.nix-profile/bin/rust-analyzer resolve to anything - and that
+  # proxy is the arch-independent path an editor can name. helix finds it with
+  # no configuration at all (`hx --health rust`).
+  #
+  # A ~/.local/bin/rust-analyzer symlink used to sit here too, justified by
+  # VS Code's rust-analyzer extension shipping a prebuilt server that "cannot
+  # run on a Nix rootfs". That was true of the patchelf-era image and is not
+  # true of this one: #135 put nix-ld at /lib/ld-linux-*, and the bundled
+  # server runs unmodified (verified 2026-09-21 in the devcontainer, extension
+  # 0.3.2997 reporting `0.3.2997-standalone`). The symlink also never had a
+  # consumer - ~/.local/bin is on no PATH here and nothing sets
+  # rust-analyzer.server.path - so it is deleted rather than wired up.
+  home.activation.rustupDefaultToolchain =
+    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      run ${pkgs.rustup}/bin/rustup default stable || true
+
+      if ! run --silence ${pkgs.rustup}/bin/rustup run stable cargo --version; then
+        run ${pkgs.rustup}/bin/rustup toolchain uninstall stable || true
+        run ${pkgs.rustup}/bin/rustup default stable || true
+      fi
+
+      run ${pkgs.rustup}/bin/rustup component add rust-analyzer || true
+    '';
 }

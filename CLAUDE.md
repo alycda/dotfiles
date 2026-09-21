@@ -494,6 +494,21 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   secret, or an installed package stays in the Nix module. `helix.nix` is the
   worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
   hand", and now reads them.
+- **Prebuilt binaries installed into a persisted `$HOME` are image-scoped state.**
+  nixpkgs' `rustup` patchelfs every toolchain binary it downloads to the glibc of
+  the image that installed it, and `~/.rustup` lives in the container's `devhome`
+  volume — which outlives image rebuilds. The toolchain then points its ELF
+  interpreter at a store path the new image never had, and every shim dies with
+  `error: command failed: 'cargo': No such file or directory (os error 2)` —
+  ENOENT for the *loader*, naming the binary that is right there. Two rules fall
+  out, and both generalize past rustup: **guard activation on whether the tool
+  executes, not whether it exists** (an existence check can only ever fix the
+  empty case, so activation can never repair state that went bad in place); and
+  repair by removing it — `rustup toolchain uninstall` then install, because
+  `install --force` re-downloads nothing when the channel manifest says
+  "unchanged". Full write-up:
+  `docs/solutions/runtime-errors/stale-rustup-toolchain-after-image-rebuild.md`
+  (PR #80.)
 
 ## Migration Workflow
 
@@ -738,7 +753,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
