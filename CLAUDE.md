@@ -111,9 +111,11 @@ dotfiles/
 ├── darwin/                 # nix-darwin (macOS system config)
 │   ├── configuration.nix   # Shared darwin config
 │   ├── modules/
-│   │   └── homebrew.nix    # Homebrew taps/casks/brews
+│   │   ├── homebrew.nix    # Homebrew taps/casks/brews (work machine)
+│   │   └── homebrew-personal.nix  # same, for shesfast
 │   └── profiles/           # Machine-specific configs
-│       └── ditto.nix       # Work machine (the only darwinConfiguration)
+│       ├── ditto.nix       # Work machine
+│       └── shesfast.nix    # Personal machine
 ├── home-manager/           # User-level configuration
 │   ├── modules/
 │   │   ├── common.nix      # Shared across all profiles (no GUI)
@@ -153,6 +155,7 @@ dotfiles/
 ├── CONCEPTS.md             # shared domain vocabulary (entities, named processes,
 │                           #   status concepts) with project-specific meaning
 ├── Dockerfile              # multi-arch (x86_64 + arm64) dev image
+├── install.sh              # curl-able setup: reports, or --nix / --mise (#29)
 ├── justfile                # Task Runner recipes
 └── flake.nix               # Flake configuration
 ```
@@ -487,6 +490,14 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
   compiles from source. This does not replace `lib/core-packages.nix`; the
   containers still get their tools from Nix.
+- **`install.sh` chooses between the Nix and mise paths, but never silently.**
+  With no flag it reports the account's situation and recommends `--nix` or
+  `--mise`, because detection can't know intent. Detect Nix with
+  `nix store info`, not `command -v nix`: a non-admin account on a nix-darwin
+  Mac has `nix` on PATH and still gets "daemon-socket/socket: Permission
+  denied" until an admin adds it to `nix-users`. The script also refuses a
+  configuration whose hardcoded user (`system.primaryUser`, `home.username`)
+  isn't the current one, instead of activating it into someone else's paths.
 - **Share a tool's config with that account as a plain file, not a generator.**
   Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
   loads config anyway (`fromTOML` for helix, git's `include`), and link or
@@ -738,7 +749,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-16 - Added install.sh (#29) and recorded why it detects Nix with `nix store info` and never picks a mode silently; synced the darwin profiles in Repository Structure (shesfast exists)*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
