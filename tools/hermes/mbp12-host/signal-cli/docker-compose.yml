@@ -1,0 +1,17 @@
+name: signal-cli
+
+services:
+  signal:
+    build: .
+    container_name: signal-cli
+    # Daemon serves all accounts registered in the state dir; no --account
+    # needed after linking. Hermes talks to it via SIGNAL_HTTP_URL.
+    command: ["daemon", "--http", "0.0.0.0:8080"]
+    ports:
+      - "127.0.0.1:8080:8080"   # loopback only — Hermes gateway runs on this host
+    volumes:
+      - ./state:/root/.local/share/signal-cli
+    restart: unless-stopped
+    # NOTE: never run a second daemon (e.g. on the M4) against a copy of
+    # ./state while this one is up — concurrent Signal sessions corrupt the
+    # profile. Sync (rsync/tailscale) only with the daemon stopped.
