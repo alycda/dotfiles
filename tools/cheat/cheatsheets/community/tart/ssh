@@ -1,3 +1,6 @@
+# ssh is one way in, not the only way: `tart exec` needs no IP, no password
+# and no Remote Login (see the tart/exec sheet). Prefer ssh for a long
+# interactive session, tart exec for one-shot and scripted commands.
 ssh admin@$(tart ip tahoe-validate)   # cirruslabs base images: admin / admin
 
 # mount a host directory into the guest, where it appears under

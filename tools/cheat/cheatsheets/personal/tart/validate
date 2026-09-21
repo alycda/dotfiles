@@ -8,12 +8,49 @@
 tart clone ghcr.io/cirruslabs/macos-tahoe-base:latest tahoe-validate
 tart set tahoe-validate --cpu 6 --memory 12288 --disk-size 90
 tart run --no-graphics tahoe-validate &
-ssh admin@$(tart ip tahoe-validate)     # admin / admin
+
+# The image logs you in as admin/admin and that cannot be changed at clone
+# time - `tart clone` copies a disk, it never runs Setup Assistant. Only
+# `tart create --from-ipsw latest` gives a different primary user, and that
+# means clicking through Setup Assistant with no guest agent and no ssh.
+# Add the account instead; admin stays as the escape hatch.
+#
+# darwinConfigurations declare a user but do NOT create one: nix-darwin gates
+# its whole user activation on `users.knownUsers != []`, and this repo sets
+# knownUsers nowhere. The name is load-bearing - shesfast.nix and
+# profiles/home.nix both hardcode /Users/alyssa.
+tart exec tahoe-validate sudo sysadminctl -addUser alyssa \
+  -fullName "Alyssa Evans" -password validate \
+  -home /Users/alyssa -shell /bin/zsh -admin
+tart exec tahoe-validate sudo createhomedir -c -u alyssa
+#   Runnable: just -g tart-user tahoe-validate
+
+# No ssh needed for any of this - the guest agent ships in the image and the
+# account has passwordless sudo. See the community/tart/exec sheet.
+tart exec -it tahoe-validate sudo -u alyssa -i zsh
+#   or, for a long session:  ssh alyssa@$(tart ip tahoe-validate)
 
 # inside the guest, either path:
 #   Nix path      -> README, "macOS setup (Darwin)"
 #   no-Nix path   -> curl -fsSL .../tools/mise/bootstrap.sh | sh
-#                    then: mise run gh-login
+#                    then: mise run gh-login && mise run identity
+
+# Three levels of validation, and only the last one needs the alyssa account:
+#   evaluate  ./.github/scripts/eval-configurations.sh    # what CI does
+#   build     nix build .#darwinConfigurations.shesfast.system
+#   activate  darwin-rebuild switch --flake .#shesfast    <- needs the user
+# Only `activate` catches what this repo keeps getting bitten by, which is the
+# whole reason the VM exists (CLAUDE.md, Testing).
+
+# Three things that do NOT block a run here, each checked rather than assumed:
+#   - Homebrew absent is a SKIP, not an abort. nix-darwin prints a red
+#     "Homebrew is not installed, skipping..." and carries on
+#     (modules/homebrew.nix), so the whole Nix half validates without
+#     downloading a single cask. Skip the README's `brew trust` step too.
+#   - A missing age identity is non-fatal: agenix-activation.nix warns per
+#     secret and returns 0. No need to carry personal-key.txt into the VM.
+#   - agentSkills.liveCheckout defaults to null, so skills deploy from the
+#     store and nothing assumes a checkout at ~/dotfiles. Clone anywhere.
 
 tart stop tahoe-validate && tart delete tahoe-validate
 
@@ -24,8 +61,10 @@ tart stop tahoe-validate && tart delete tahoe-validate
 #   Error: Disk format 'asif' is not supported on this system.
 #
 # and it fails *after* the 30 GiB pull and after `tart set` succeeds, so there
-# is no early signal. Tahoe is macOS 26 too and boots here fine (#35) because it
-# is published raw. Check the label before pulling:
+# is no early signal. Tahoe is macOS 26 too and boots here fine because it is
+# published raw - verified first-hand 2026-09-21, a macOS 26.6.2 (25G83) guest
+# running on a macOS 15.7.4 host, so guest-newer-than-host was never the
+# problem. Check the label before pulling:
 # `just -g tart-image-format <name>`, or the community/tart/image sheet.
 
 # Runnable: just -g tart-new tahoe-validate tahoe

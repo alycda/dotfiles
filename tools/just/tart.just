@@ -42,3 +42,17 @@ tart-image-format image='tahoe':
     cfg=$(curl -s -H "Authorization: Bearer $tok" -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
       "https://ghcr.io/v2/cirruslabs/$img/manifests/latest" | jq -r .config.digest)
     curl -sL -H "Authorization: Bearer $tok" "https://ghcr.io/v2/cirruslabs/$img/blobs/$cfg" | jq -r .config.Labels
+
+# nix-darwin declares users.users.<name> but never creates the account: its
+# user activation is gated on `users.knownUsers != []`, which this repo leaves
+# empty. The name is load-bearing - shesfast.nix and profiles/home.nix both
+# hardcode /Users/alyssa - so `admin` cannot activate either darwin config.
+#
+# Runs over the guest agent, so no ssh, no IP and no password are involved.
+#
+# add the account a darwinConfiguration needs to a running validation VM
+[group('tart')]
+tart-user vm name='alyssa' fullname='Alyssa Evans' password='validate':
+    tart exec {{vm}} sudo sysadminctl -addUser {{name}} -fullName {{quote(fullname)}} -password {{password}} -home /Users/{{name}} -shell /bin/zsh -admin
+    tart exec {{vm}} sudo createhomedir -c -u {{name}}
+    @echo "now: tart exec -it {{vm}} sudo -u {{name}} -i zsh"
