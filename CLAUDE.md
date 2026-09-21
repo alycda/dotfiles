@@ -459,6 +459,21 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   because nixpkgs lagged the VSCode extension by a full minor version. The failure
   mode is nasty: a skewed CLI surfaced only as an opaque **"Interrupted"** with no
   version message. If the extension misbehaves, suspect the pin first. (PR #26.)
+- **Prebuilt binaries installed into a persisted `$HOME` are image-scoped state.**
+  nixpkgs' `rustup` patchelfs every toolchain binary it downloads to the glibc of
+  the image that installed it, and `~/.rustup` lives in the container's `devhome`
+  volume — which outlives image rebuilds. The toolchain then points its ELF
+  interpreter at a store path the new image never had, and every shim dies with
+  `error: command failed: 'cargo': No such file or directory (os error 2)` —
+  ENOENT for the *loader*, naming the binary that is right there. Two rules fall
+  out, and both generalize past rustup: **guard activation on whether the tool
+  executes, not whether it exists** (an existence check can only ever fix the
+  empty case, so activation can never repair state that went bad in place); and
+  repair by removing it — `rustup toolchain uninstall` then install, because
+  `install --force` re-downloads nothing when the channel manifest says
+  "unchanged". Full write-up:
+  `docs/solutions/runtime-errors/stale-rustup-toolchain-after-image-rebuild.md`
+  (PR #80.)
 
 ## Migration Workflow
 
@@ -703,7 +718,9 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
-*Last updated: 2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
+*Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
+
+*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 
