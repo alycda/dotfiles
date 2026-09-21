@@ -1,4 +1,4 @@
-// hermes-1: let unattended-upgrades reboot when an update needs it (kernel,
+// venari: let unattended-upgrades reboot when an update needs it (kernel,
 // libc), so security fixes actually take effect. Its own file rather than an
 // edit of Debian's 50unattended-upgrades, so package upgrades never conflict.
 //
