@@ -78,7 +78,9 @@ re-derive the one-liners rather than letting the two drift.
 - deploys `tools/agents/rubrics/` to `~/.agents/rubrics/` as plain files too,
   so a skill can read a rubric while *writing* rather than only a critic
   judging afterward (`skills/power-of-ten` reads `power-of-ten.md` from
-  there; the critic and the skill share the one copy),
+  there). Honors `agentSkills.liveCheckout` the same way the skills do, so
+  on a desktop profile a rubric edit is live for the skill immediately; the
+  generated critic agents still pick it up on the next switch,
 - symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
   natively.
 

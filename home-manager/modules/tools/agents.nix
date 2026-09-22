@@ -129,14 +129,25 @@ in
     # into the critic agents below. A rubric that exists only inside a critic
     # is review-only: nothing can load it while writing. Deploying the
     # directory gives a skill a stable path to read one on demand
-    # (tools/agents/skills/power-of-ten reads power-of-ten.md from here), so
-    # the critic and the skill share one canonical copy instead of drifting.
-    # recursive: one symlink per file, so the directory stays open to
-    # additions from elsewhere.
-    ".agents/rubrics" = {
-      source = ../../../tools/agents/rubrics;
-      recursive = true;
-    };
+    # (tools/agents/skills/power-of-ten reads power-of-ten.md from here).
+    #
+    # Same two modes as the repo skills in agent-skills.nix, keyed on the
+    # same option, so the skill and the rubric it reads move together: with
+    # agentSkills.liveCheckout set (desktop profiles), a live symlink into
+    # the checkout, and an edit to a rubric lands without a rebuild; with it
+    # null (dev container), the store snapshot. Without this parity the
+    # desktop got a live skill telling the agent to read a stale store rubric.
+    # The option is declared in agent-skills.nix; both modules are imported
+    # by common.nix, so it is always present here.
+    #
+    # Still store-generated until a switch: the critic agents below, whose
+    # text is the rubric concatenated at build time. A rubric edit reaches
+    # the skill immediately and the critic on the next rebuild.
+    ".agents/rubrics".source =
+      if config.agentSkills.liveCheckout != null then
+        oosLink "${config.agentSkills.liveCheckout}/tools/agents/rubrics"
+      else
+        ../../../tools/agents/rubrics;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.
