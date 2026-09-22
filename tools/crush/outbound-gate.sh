@@ -85,7 +85,12 @@ is_outbound_bash() {
 is_outbound_tool() {
 	local name
 	name="$(tr '[:upper:]' '[:lower:]' <<<"$1")"
-	grep -qE 'linear.*(comment|status_update|customer_need)' <<<"$name" && return 0
+	# reads (list_comments, get_status_updates, ...) are exempt by verb rather
+	# than writes listed by verb, so an unforeseen write verb stays gated
+	if grep -qE 'linear.*(comment|status_update|customer_need)' <<<"$name" &&
+		! grep -qE 'linear_(list|get|search)_' <<<"$name"; then
+		return 0
+	fi
 	grep -qE 'slack.*(send|post|reply|message)' <<<"$name" && return 0
 	grep -qE '(email|mail).*send' <<<"$name" && return 0
 	grep -qE 'mcp_.*(add_comment|create_comment|post_message|send_message|create_issue|create_pull_request|submit_review)' <<<"$name" && return 0
