@@ -96,6 +96,7 @@ the nearest Rust shape. Rows marked "checked" were run; the rest come from the
 | Re-render on input change | atom-derived React component | `#[shard]`: the browser tracks the signals, the server re-renders, the DOM swaps |
 | Slow data | React Suspense | `live!` / `emit!` stream regions into the same response; `suspense`/`error_boundary` components |
 | Push after load | Convex live queries | no DB subscription; `Sse` response (`sse` feature), or Datastar over SSE |
+| Test database | `convex-test` (in-memory Convex) | a Ghost fork per test run or agent task (`ghost fork seeded run-42`) on venari's Ghost server. Ghost is the *test* database, not the Convex replacement: its databases share one role, use unverified TLS, and are disposable by design (`tools/venari/README.md`, "Ghost") |
 | Validate input | `Schema.decodeUnknown` | `FromRequest` extractors (`content.md`) and serde |
 | UI kit | `@packages/ui` (shadcn / Radix) + Tailwind via Node | `topcoat ui` copies component source from a registry (the shadcn model) + standalone Tailwind CLI, no Node |
 | Client build | Next.js bundle, bun, turbo | none: no wasm, no JS build step |
