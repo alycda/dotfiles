@@ -10,9 +10,9 @@ check:
 check-all:
     nix flake check --all-systems
 
-# Run all linters (statix + deadnix)
+# Run all linters (statix + deadnix + skill frontmatter)
 [group('lint')]
-lint: lint-statix lint-deadnix
+lint: lint-statix lint-deadnix lint-skills
 
 # Check for Nix anti-patterns with statix
 [group('lint')]
@@ -23,6 +23,11 @@ lint-statix:
 [group('lint')]
 lint-deadnix:
     nix run nixpkgs#deadnix -- --fail .
+
+# Check agent-skill frontmatter against Crush's loader rules (1024-byte description)
+[group('lint')]
+lint-skills:
+    nix shell nixpkgs#yq-go --command ./.github/scripts/check-skill-frontmatter.sh
 
 # Run all CI checks locally (lint + flake check)
 [group('lint')]

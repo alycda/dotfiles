@@ -669,6 +669,16 @@ CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs
 { environment.systemPackages = [ pkgs.git ]; }
 ```
 
+**skill frontmatter** (`.github/scripts/check-skill-frontmatter.sh`, via
+`nix shell nixpkgs#yq-go`) checks each `tools/agents/skills/*/SKILL.md` against
+the rules Crush's skill loader enforces: the YAML must parse, `name` must match
+the directory, and `description` must be at most **1024 bytes**. Crush uses Go's
+`len()`, so the limit is bytes, not characters: an em-dash costs 3. Crush skips
+a skill that fails with no visible error. cf-now (1043 bytes) and
+entity-level-git (1146) were skipped until they were trimmed. The first guess
+was that nested colons broke the YAML. They did not: `:` is literal inside a
+`>` block scalar.
+
 ### Check job: `nix flake check --all-systems` + config evaluation
 
 The flake must evaluate cleanly across all systems. This catches type errors, missing attributes, and evaluation failures.
