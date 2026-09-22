@@ -57,8 +57,9 @@
       # Entity-level merge driver (Ataraxy Labs; see the entity-level-git
       # skill). nixpkgs rather than the ataraxy-labs brew tap, same reasoning
       # as tart. It does build for aarch64-linux, but its ~230 MiB closure
-      # keeps it out of the devcontainer alongside taskbook.
-      weave
+      # keeps it out of the devcontainer alongside taskbook. Pinned forward
+      # past nixpkgs' 0.3.6; see lib/weave.nix.
+      (import ../../lib/weave.nix pkgs)
       # Entity-level review triage, weave's sibling. aarch64-darwin only (see
       # lib/inspect.nix for why, and for why this is not the brew tap).
       (import ../../lib/inspect.nix pkgs)

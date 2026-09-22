@@ -31,7 +31,9 @@
       # reason as tart above: a tap formula that raises aborts activation,
       # and nixpkgs has this one. Desktop-only: ~230 MiB closure, too heavy
       # for lib/core-packages.nix. Ships weave, weave-driver and weave-mcp.
-      weave
+      # Pinned forward: nixpkgs tracks 0.3.6, upstream is on 0.5.4. See
+      # lib/weave.nix.
+      (import ../../lib/weave.nix pkgs)
       # Entity-level review triage, weave's sibling. Upstream release binary
       # repointed at nixpkgs' openssl - not the brew tap, whose formula can no
       # longer pass its checksum. The reasoning is in lib/inspect.nix.
