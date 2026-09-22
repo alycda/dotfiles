@@ -69,6 +69,17 @@ Each entry names the rule, the Rust form, and the check that proves it.
    Never scan foreign memory for a sentinel: a C string from the caller
    arrives with a length parameter, or you bound it with `CStr::from_bytes_until_nul`
    over a slice of known length, never `CStr::from_ptr` on untrusted input.
+
+   The length has to come from the protocol. `from_bytes_until_nul` needs a
+   `&[u8]`, a `&[u8]` needs a length, and building one with
+   `slice::from_raw_parts(ptr, MAX)` over a shorter allocation reads past
+   the end — that trades an unbounded scan for undefined behavior and is
+   never the fix. So at a bare `const char *` boundary this rule is
+   unsatisfiable without changing the signature. That is a finding under
+   Process step 5, not a reason to reach for the unsound bound: say the
+   protocol carries no length, say what adding one would cost, and state
+   the caller's promise in the `# Safety` section so it is a named limit
+   rather than an omission.
    Check: every `while` and `loop` in the shim has a bound named in the
    same function.
 
@@ -153,7 +164,7 @@ Each entry names the rule, the Rust form, and the check that proves it.
    module, never in the crate it calls.
 
 10. **All warnings on, pedantic, and static analysis daily.** In source:
-    `#![warn(clippy::pedantic)]` on the shim crate,
+    `#![warn(clippy::pedantic)]` on the shim — see the scope note below —
     `#![deny(unsafe_op_in_unsafe_fn)]`, and `#![warn(missing_docs)]` so
     every public item has a doc comment. `missing_docs` does not demand a
     `# Safety` section. The lint that does, `clippy::missing_safety_doc`,
@@ -167,6 +178,15 @@ Each entry names the rule, the Rust form, and the check that proves it.
     `unsafe` code. Local: `bacon` with clippy as the default job, per
     preferred-tooling.
     Check: the CI job exists and fails on a warning.
+
+    Scope: "the shim crate" assumes the shim is its own crate. When it is a
+    module inside a larger crate, put the attributes on the module
+    (`#![warn(...)]` at the top of the module file) rather than the crate
+    root, and say why in a comment. Crate-wide `pedantic` on a crate whose
+    other modules are not boundary code buries the findings that matter —
+    measured on one workspace on 2026-09-22, 155 findings across six
+    crates, 12 of them in the shims. A lint nobody reads is rule 10
+    unsatisfied with the attribute present.
 
     Lint behavior in rules 7 and 10, the FFI-safety of
     `Option<extern "C" fn>`, and the abort in rule 1 were checked against
