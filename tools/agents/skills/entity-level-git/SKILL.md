@@ -4,19 +4,15 @@ description: >
   Entity-level git tooling from Ataraxy Labs — sem (entity diffs, blame,
   impact analysis, per-function history), weave (semantic merge driver), and
   inspect (structural-risk review triage). Consult this skill FIRST, before
-  reaching for git diff/blame/log or grepping for callers, whenever a task
-  looks like: what depends on this function/class, what breaks if I change or
-  rename it; review, summarize, or triage the code changes in a big diff,
-  branch, or PR ("what actually changed", "which parts need human review",
-  formatter churn drowning the real diff); who last touched this function /
-  when did it last change (especially after a formatting commit wrecked
-  line-based git blame); merge conflicts in code files — above all false
-  conflicts where parallel agents or branches edited different functions in
-  the same file — or any request for structure-aware merging. Also use
-  whenever sem, weave, or inspect is named, and to interpret the sem
-  entity-diff comment CI posts on PRs. The entity-level answer is cheaper and
-  more precise than reading whole files — consult the skill even for tasks you
-  could muddle through with plain git and grep.
+  git diff/blame/log or grepping for callers, when a task looks like: what
+  depends on or breaks if I change this function/class; review, summarize, or
+  triage a big diff, branch, or PR ("what actually changed", formatter churn
+  drowning the real diff); who last touched this function (especially after a
+  formatting commit wrecked line-based blame); merge conflicts in code files,
+  above all false conflicts where branches or parallel agents edited different
+  functions in the same file. Also use whenever sem, weave, or inspect is
+  named, and to interpret the sem entity-diff comment CI posts on PRs. The
+  entity-level answer is cheaper and more precise than reading whole files.
 # Read-only subcommands only. Deliberately NOT `Bash(sem *)` / `Bash(weave *)`:
 # a wildcard would pre-approve sem setup/login/cloud/update and weave setup,
 # which the body says never to run unprompted - the permission prompt is the

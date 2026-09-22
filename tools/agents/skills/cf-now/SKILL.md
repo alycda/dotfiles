@@ -9,12 +9,10 @@ description: >
   deck, demo script, report, or document. Safe for Ditto-internal content: only
   holders of a live pre-signed URL can view, and URLs expire. Supports stable
   slugs for re-upload, URL refresh without re-upload (--presign), unpublish, and
-  listing. Ephemeral by default (storage auto-deletes after ~7 days *if* the
-  bucket's lifecycle rule is in place — publish.sh now reports
-  storage_expires=UNVERIFIED when it cannot read the rule, which is the normal
-  case under an Object-scoped token); pass --permanent to keep. URLs are intentionally obtuse — opaque random keys plus
-  the pre-signed signature; unguessable, crawler-safe, not meant to be typed or
-  remembered.
+  listing. Ephemeral by default (storage auto-deletes after ~7 days if the
+  bucket's lifecycle rule is in place; publish.sh cannot always verify it);
+  pass --permanent to keep. URLs are opaque random keys plus the pre-signed
+  signature: unguessable and crawler-safe, not meant to be typed.
 ---
 
 # cf-now
@@ -124,7 +122,10 @@ stdout line. `publish_result.*` lines on stderr carry metadata. HTML gets
 `Content-Type: text/html` + inline disposition so browsers render it.
 
 Ephemeral by default: storage auto-deletes after ~7 days (bucket lifecycle on
-`tmp/`). Pass `--permanent` to keep content until unpublished.
+`tmp/`). Pass `--permanent` to keep content until unpublished. When publish.sh
+cannot read the lifecycle rule — the normal case under an Object-scoped token —
+it reports `publish_result.storage_expires=UNVERIFIED`; then do not tell the
+user the upload auto-deletes, and use `--unpublish` to be sure.
 
 **Single self-contained HTML files are the sweet spot** (html-deck output
 qualifies). Pre-signed URLs are per-object: a multi-file site's relative asset
