@@ -22,7 +22,7 @@ the box is the running copy.
 | `ssh/soft-tunnel.authorized_keys` | `/var/lib/soft-tunnel/.ssh/authorized_keys` (root-owned, 644) |
 | `ghost/docker-compose.yml` | `/srv/ghost/docker-compose.yml`, with `.env` (from `.env.example`), `certs/`, `data/` and `server/` beside it |
 | `ghost/server/Dockerfile` | `/srv/ghost/server/Dockerfile`, next to the `ghost-server` binary it packages |
-| `convex/docker-compose.yml` | `/srv/convex/docker-compose.yml`, with `data/` beside it (no `.env`) |
+| `convex/docker-compose.yml` | `/srv/convex/docker-compose.yml`, with `.env` (from `.env.example`) and `data/` beside it; its database is in Ghost's cluster |
 
 The dev-box side is `tools/mise/venari/` — the same arrangement felixia has,
 for the same reason: no Nix here either.
@@ -182,6 +182,7 @@ cd /srv/ghost && umask 077
 printf 'POSTGRES_PASSWORD=%s\nGHOST_API_KEY=gt_%s\n' "$(openssl rand -hex 24)" "$(openssl rand -hex 20)" > .env
 openssl req -new -x509 -days 3650 -nodes -subj /CN=venari-ghost -keyout certs/server.key -out certs/server.crt
 chown 70:70 certs/server.*; chmod 600 certs/server.key; chmod 644 certs/server.crt   # uid 70 = the image's postgres
+docker network inspect venari-postgres >/dev/null 2>&1 || docker network create venari-postgres   # shared with Convex
 docker compose up -d                    # after `just ghost-deploy` has delivered server/ghost-server
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8787/v0/health
 ```
@@ -192,7 +193,8 @@ Then encrypt the box's `GHOST_API_KEY` into `secrets/personal/ghost-api-key.age`
 Not supported, and answered with 501: billing, spaces beyond the one, members,
 invites, shares, API-key management (the key is configuration). `ghost logs`
 returns an empty page. Backups: the cluster rides the provider's box backups,
-like Soft Serve's `data/`; Ghost databases are disposable by design.
+like Soft Serve's `data/`. Ghost databases are disposable by design, but the
+cluster also holds Convex's database, which is not (see "Convex").
 
 ## Convex: a self-hosted app backend
 
@@ -205,27 +207,57 @@ open-source backend and dashboard from
 
 It is not a replacement for Ghost, and Ghost is not one for it. Ghost hands out
 disposable Postgres databases, so it is the *test* database. Convex is where an
-app's data lives. That difference drives the storage choice:
+app's data lives. They do share one thing: the cluster.
 
-- **SQLite in `data/`**, which is upstream's default and its recommended starting
-  point. Not Postgres in the Ghost cluster. Convex's data would then share a
-  lifecycle with databases that are disposable by design, and a separate
-  Postgres would cost RAM this box does not have spare. Moving later is
-  `npx convex export`, then set `POSTGRES_URL`, then `npx convex import`
-  (upstream `self-hosted/advanced/postgres_or_mysql.md`).
-- **`data/` is the whole state**: the database, stored files and modules, and
-  `credentials/`. The backend generates the instance name and secret there on
-  first start, so there is no `.env`.
+- **Postgres in Ghost's cluster**, so the box runs one Postgres, not two.
+  Upstream's default is SQLite. Convex gets its own database
+  (`convex_self_hosted`), owned by its own role (`convex`), with `CONNECT`
+  revoked from `PUBLIC`. `tsdbadmin`, the shared role Ghost gives to agents,
+  cannot open it ("User does not have CONNECT privilege"), and
+  `ghost password` does not touch it. `ghost-server` only acts on databases
+  listed in its own `ghost.databases` table. Sizes, forks, pauses, deletes and
+  connection kills all join on that table. So `ghost list` never shows
+  Convex's database, and nothing Ghost does can drop it. The storage limit is
+  reported, not enforced (`internal/server/config.go` in the fork).
+- **One network owned by neither project.** `ghost-postgres` and
+  `convex-backend` both join `venari-postgres`, an external network created
+  once by hand. `docker compose down` in `/srv/ghost` then removes only
+  `ghost_default`, and Convex keeps its route to the cluster.
+- **Plaintext on that network.** The backend verifies Postgres TLS, and
+  Ghost's certificate is self-signed, so a handshake fails with
+  `CaUsedAsEndEntity`. The fix needs both `DO_NOT_REQUIRE_SSL=1` and
+  `?sslmode=disable`; either one alone still fails. The hop is container to
+  container and never leaves the host. The alternative, not tested, is to
+  re-issue Ghost's certificate from a CA the backend trusts.
+- **State is split across two places.** The documents are in
+  `convex_self_hosted` in the cluster. Files, function modules, search indexes
+  (`data/storage/`) and `data/credentials/` (the instance name, and the secret
+  that admin keys are signed with) are on disk. A backup needs both from the
+  same moment, which is what `npx convex export` produces. Two separate copies
+  of the cluster and `data/` do not.
 
-Measured on 2026-09-22, in a container off the box, against the pinned
-revision. A project with a schema, a mutation, a query, and a `"use node"`
-action deployed with `npx convex deploy` (convex 1.46.0). A `ConvexClient`
-subscription saw 252 pushed updates, from 1 row to 501, while 500 concurrent
-mutations ran. Peak memory was 150 MiB for the backend and 270 MiB for the
-dashboard (at startup), so the limits are 512m and 384m. With Soft Serve and
-Ghost, the box's container limits then total about 2 GB of its 4 GB. The
-images take about 1.5 GB of disk (798 MB + 668 MB). These are not load
-figures for this box: that machine was not venari, and venari has 2 vCPUs.
+Measured on 2026-09-22 in a sandbox, not on venari. The setup there followed
+this README: Ghost with its self-signed certificate, and Convex on the same
+cluster, both at the pinned images.
+
+- **A workload.** A project with a schema, a mutation, a query and a
+  `"use node"` action deployed with `npx convex deploy` (convex 1.46.0). A
+  `ConvexClient` subscription saw 271 pushed updates, from 1 row to 501, while
+  500 concurrent mutations ran.
+- **Ghost unaffected.** `ghost create`, `fork`, `delete` and `list` behaved
+  as before.
+- **Outages.** With `/srv/ghost` brought `down` and back up, Convex never
+  restarted and kept its data. On a cold start with Convex first, it
+  crash-looped (7 restarts) until the cluster was healthy, then recovered by
+  itself. `restart: unless-stopped` is what gets it through a reboot, because
+  `depends_on` cannot reach across compose projects.
+- **Peak memory.** Convex backend 132 MiB and dashboard 88 MiB, against limits
+  of 512m and 384m. `ghost-postgres` peaked at 213 MiB of its 768m while
+  serving both. Across all containers, the box's limits total about 2 GB of
+  its 4 GB.
+- **Disk.** The images take about 1.5 GB (798 MB + 668 MB).
+
+None of these are load figures for this box, which has 2 vCPUs.
 
 All three ports listen on the box's loopback. From the laptop:
 
@@ -262,13 +294,25 @@ Both outbound calls the images make by default are off. `DISABLE_BEACON`
 turns off the anonymous usage ping. `NEXT_PUBLIC_LOAD_MONACO_INTERNALLY`
 serves the dashboard's editor from the image instead of from a CDN.
 
-Setup, as root on the box, after copying `convex/` here to `/srv/convex/`:
+Setup, as root on the box, after copying `convex/` here to `/srv/convex/`.
+Ghost must already be running; its `docker-compose.yml` in this repo joins
+`venari-postgres`, so it needs a `docker compose up -d` once the network
+exists.
 
 ```sh
+docker network inspect venari-postgres >/dev/null 2>&1 || docker network create venari-postgres
+(cd /srv/ghost && docker compose up -d --wait)      # re-create postgres on the new network
+
 cd /srv/convex && umask 077 && mkdir -p data
+printf 'CONVEX_POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env
+. ./.env
+(cd /srv/ghost && docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -v pw="$CONVEX_POSTGRES_PASSWORD") <<'SQL'
+CREATE ROLE convex LOGIN PASSWORD :'pw';
+CREATE DATABASE convex_self_hosted OWNER convex;
+REVOKE CONNECT, TEMPORARY ON DATABASE convex_self_hosted FROM PUBLIC;
+SQL
 docker compose up -d --wait
-curl -s http://127.0.0.1:3210/version; echo
-docker compose logs backend | grep -m1 'Connected to SQLite'
+docker compose logs backend | grep -m1 'Connected to Postgres'
 ```
 
 Upgrading, from upstream `self-hosted/advanced/upgrading.md`:
@@ -300,6 +344,7 @@ original: a `*.bak-<ts>` left in `/etc/apt/apt.conf.d/` makes apt print
   planned home for that is restic to R2. `ledger-age` is itself a backup
   (ciphertext, with the plaintext still on felixia), so losing it is
   recoverable. The Moment repos are not.
-  Convex's `data/` needs the same treatment. It is the one directory on this
-  box that holds application data nothing else has a copy of. Until restic
-  lands, `npx convex export` from the laptop is the only backup.
+  Ghost's cluster is no longer all disposable: `convex_self_hosted` in it,
+  plus Convex's `data/`, is application data nothing else has a copy of.
+  Until restic lands, `npx convex export` from the laptop is the only
+  backup, and it is the only one that captures both halves at one moment.

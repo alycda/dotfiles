@@ -3,18 +3,26 @@
 # on the box's loopback only and are reached over ssh -L, like Soft Serve and
 # Ghost: the cloud firewall admits 22 alone.
 #
-# On the box: /srv/convex/docker-compose.yml, next to data/ (never tracked).
-# data/ is the whole state: the SQLite database, stored files and modules, and
-# credentials/ - the instance name and secret the backend generates on first
-# start. Admin keys are signed with that secret: `generate_admin_key.sh` gives a
-# different key on every call, and every one stays valid as long as data/ does
-# (checked 2026-09-22: a key issued before a restart still worked after it).
-# There is no .env: nothing here is a secret that data/ does not already hold.
+# On the box: /srv/convex/docker-compose.yml, next to an untracked .env (see
+# .env.example) and data/ (never tracked).
 #
-# Storage is SQLite, upstream's default and its recommended starting point.
-# Not Postgres in the Ghost cluster: those databases are disposable by design,
-# and Convex's are not. Moving later is `npx convex export`, set POSTGRES_URL,
-# `npx convex import` (upstream: self-hosted/advanced/postgres_or_mysql.md).
+# The database is Postgres in Ghost's cluster (ghost-postgres), not upstream's
+# default SQLite: one Postgres on the box, not two. Convex gets a database of
+# its own (convex_self_hosted), owned by a role of its own (convex), with
+# CONNECT revoked from PUBLIC so tsdbadmin - the shared role Ghost hands to
+# agents - cannot even open it. ghost-server only ever touches databases listed
+# in its ghost.databases table, so it neither sees nor sizes nor drops this one
+# (checked against the fork's internal/server/store.go). The two projects meet
+# on the venari-postgres network, which neither owns.
+#
+# State is split in two, and a backup needs both, taken together:
+# - convex_self_hosted in the cluster: every document and index.
+# - data/: stored files, pushed function modules, search indexes (storage/),
+#   and credentials/ - the instance name and the secret admin keys are signed
+#   with. The backend generates both on first start.
+# Admin keys: `generate_admin_key.sh` gives a different key on every call, and
+# every one stays valid as long as credentials/ does (checked 2026-09-22: a key
+# issued before a restart still worked after it).
 #
 # Upstream ships `:latest`. Both images are pinned to one revision here, because
 # upstream says a backend and dashboard of different versions are not
@@ -32,6 +40,9 @@ services:
     stop_signal: SIGINT
     volumes:
       - ./data:/convex/data
+    networks:
+      - default
+      - venari-postgres
     ports:
       - "127.0.0.1:3210:3210" # client API, websocket sync
       - "127.0.0.1:3211:3211" # HTTP actions
@@ -42,6 +53,19 @@ services:
       # client actually uses, not the container's.
       CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
       CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
+      # No database name: the backend appends one derived from INSTANCE_NAME
+      # (default convex-self-hosted -> convex_self_hosted).
+      #
+      # Plaintext, on purpose, and both settings are needed (checked
+      # 2026-09-22). The backend verifies TLS certificates, and Ghost's is
+      # self-signed, so a TLS handshake fails with CaUsedAsEndEntity.
+      # DO_NOT_REQUIRE_SSL alone still attempts TLS whenever the server
+      # offers it, and fails the same way. `sslmode=disable` alone is refused
+      # without DO_NOT_REQUIRE_SSL. The hop is container to container on the
+      # venari-postgres bridge and never leaves the host. Anyone able to read
+      # that bridge is root, and root can read .env.
+      POSTGRES_URL: "postgresql://convex:${CONVEX_POSTGRES_PASSWORD:?set it in .env}@ghost-postgres:5432?sslmode=disable"
+      DO_NOT_REQUIRE_SSL: "1"
       # The anonymous usage beacon (a random ID plus the backend version).
       DISABLE_BEACON: "true"
       DISABLE_METRICS_ENDPOINT: "true"
@@ -72,3 +96,7 @@ services:
       backend:
         condition: service_healthy
     mem_limit: 384m
+
+networks:
+  venari-postgres:
+    external: true
