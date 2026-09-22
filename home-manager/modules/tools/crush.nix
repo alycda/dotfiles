@@ -20,9 +20,21 @@
 # one-shot exact-payload approval exists. Deliberateness, not enforcement:
 # approve mode is agent-invocable by design; any edit to body or
 # destination re-triggers the gate.
+#
+# Prompt fatigue is handled in two places, because crush's native allowlist
+# (permissions.allowed_tools) matches "tool" or "tool:action" only:
+#   - MCP tools: listed in allowed_tools below, by crush's mcp_<server>_<tool>
+#     name. The server name is whatever the crushrc calls it ("linear").
+#   - bash commands: every call is "bash:execute", so the list can't narrow
+#     to one command. A second PreToolUse hook (tools/crush/allow-commands.sh)
+#     returns {"decision":"allow"} for word-prefix matches in
+#     tools/crush/allowed-commands. Deny beats allow across hooks, so the
+#     outbound gate still wins.
+# If the crushrc ever sets permissions.allowed_tools it replaces this list
+# (crushrc wins on key conflicts) - keep that key here.
 { config, ... }:
 let
-  hookPath = "${config.xdg.configHome}/crush/hooks/outbound-gate.sh";
+  hooksDir = "${config.xdg.configHome}/crush/hooks";
 in
 {
   xdg.configFile = {
@@ -30,6 +42,13 @@ in
       source = ../../../tools/crush/outbound-gate.sh;
       executable = true;
     };
+
+    "crush/hooks/allow-commands.sh" = {
+      source = ../../../tools/crush/allow-commands.sh;
+      executable = true;
+    };
+    # Read by allow-commands.sh from its own directory.
+    "crush/hooks/allowed-commands".source = ../../../tools/crush/allowed-commands;
 
     "crush/crush.json".text = builtins.toJSON {
       "$schema" = "https://charm.land/crush.json";
@@ -46,11 +65,20 @@ in
           "${config.home.homeDirectory}/.agents/rules/outbound-comment-gate.md"
         ];
       };
+      permissions.allowed_tools = [
+        "mcp_linear_get_issue"
+      ];
       hooks.PreToolUse = [
         {
           name = "outbound-gate";
-          command = hookPath;
+          command = "${hooksDir}/outbound-gate.sh";
           timeout = 15;
+        }
+        {
+          name = "allow-commands";
+          matcher = "^bash$";
+          command = "${hooksDir}/allow-commands.sh";
+          timeout = 5;
         }
       ];
     };
