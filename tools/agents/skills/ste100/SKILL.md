@@ -119,10 +119,11 @@ This skill runs after the skills that own structure, never instead of them.
    Use `--baseline` when adopting on an existing file: set N to the current
    hard-violation count so the run passes today and fails on regression. If
    `scripts/ste-lint.py` is absent, say "linter absent at this pin" and lint
-   from the rule table instead. (This happened at the first pin: the rev
-   nix-skills indexed on 2026-08-30 predated the linter. The pin has carried
-   it since 2026-09-18. The fallback stays because a nix-skills pin can
-   trail any upstream commit by days to weeks.)
+   from the rule table instead. (This happened at the first pin. This
+   skill was written against upstream master, which had the linter. The
+   rev the lock installed, indexed 2026-08-30, did not. The lock caught up
+   on 2026-09-18. The fallback stays because the lock can trail any
+   upstream commit by days to weeks.)
 4. Read `CONCEPTS.md` and collect the approved names.
 5. Rewrite. Keep every fact, hedge, number, and scope qualifier. Keep every
    approved name verbatim. Keep code, paths, flags, and command output

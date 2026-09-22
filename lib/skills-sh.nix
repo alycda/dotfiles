@@ -66,12 +66,17 @@ nix-skills: final: _: {
       # own `ste100` skill (tools/agents/skills/ste100) carries no rule text and
       # delegates to this one; it maps the rules onto this repo's surfaces.
       #
-      # Pin lag, seen once already: the rev nix-skills indexed on 2026-08-30
-      # predated the linter, so the first pin installed a SKILL.md that named
-      # a scripts/ste-lint.py that was not there. The index re-resolved on
-      # 2026-09-15 and the lock caught up on 2026-09-18. `ste100` keeps its
+      # Pin lag, seen once already, and misdiagnosed once too. The first pin
+      # (index of 2026-08-30, upstream e4d64d1) had no scripts/ste-lint.py.
+      # That SKILL.md was self-consistent: it did not mention a linter. The
+      # file that named the absent script was this repo's own ste100 skill,
+      # written against upstream master instead of the pinned rev. The index
+      # re-resolved on 2026-09-15 and the lock caught up on 2026-09-18. The
+      # rule that survives: write a layering skill against the rev the lock
+      # installs, and check every path it names in the shard or in
+      # ~/.agents/skills/<name>/ before committing it. `ste100` keeps its
       # fallback (lint from the rule table when the script is absent) because
-      # the same gap can reopen on any upstream commit that adds a file.
+      # the lock can trail any upstream commit by days to weeks.
       # Path "." means the repo root is the skill, and that fixes the name:
       # nix-skills' getSkillName returns null for "." and falls back to the
       # repo, so upstream's pname is danyuchn.asd-ste100-skill.asd-ste100-skill
