@@ -135,13 +135,16 @@ dotfiles/
 ├── lib/
 │   ├── charm-nur.nix       # scoped overlay for charmbracelet/nur (crush)
 │   ├── core-packages.nix   # Packages shared by devShells + home-manager
+│   ├── inspect.nix         # Ataraxy inspect: release binary repointed at nix openssl
 │   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
 │   ├── cheat/              # Cheatsheets + cheatpath config
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
-│   └── helix/              # Helix config
+│   ├── helix/              # Helix config
+│   └── mise/               # Global mise config for the no-Nix, non-admin account
+│                           #   (bootstrap.sh links it to ~/.config/mise; no module)
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
@@ -192,6 +195,22 @@ updates brew and then self-breaks on its next rebuild against a stale pin. When
 this bites, repin to a rev whose brew call matches current brew — and remember the
 fixing rev may run `brew` as the configured user (`sudo --user=`), which requires
 that user own the Homebrew prefix. (Lesson from PR #35.)
+
+**A third-party tap runs its Ruby inside your activation.** `brew bundle` loads
+every formula in `brews`, so a tap that raises takes the whole
+`darwin-rebuild switch` with it — on a machine where no `.nix` file changed,
+at a time chosen by `onActivation.autoUpdate`. The `cirruslabs/cli` tart
+formula started raising when Homebrew 6.0 *disabled* declaring `depends_on
+:macos` twice; `brew update` could not fix it (origin/main had the same file)
+and neither could waiting (five upstream PRs, three closed unmerged, and the
+formula is GoReleaser-generated `DO NOT EDIT`). Prefer nixpkgs for anything
+nixpkgs actually has — a pinned input moves when you run `nix flake update`,
+not when a background `brew update` decides. Two traps on the way out: a green
+`nix build` of a *prebuilt-binary* derivation verifies a hash, not an ABI (run
+`<store-path>/bin/<prog> --version` — nixpkgs' tart built fine and then died in
+dyld on macOS 15), and `cleanup = "zap"` cannot remove a formula it cannot
+load, so uninstall by hand before the switch. Full write-up:
+`docs/solutions/build-errors/third-party-tap-formula-aborts-darwin-rebuild.md`
 
 ### Module Organization
 
@@ -474,6 +493,38 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   because nixpkgs lagged the VSCode extension by a full minor version. The failure
   mode is nasty: a skewed CLI surfaced only as an opaque **"Interrupted"** with no
   version message. If the extension misbehaves, suspect the pin first. (PR #26.)
+- **An account with no Nix gets its tools from mise.** A non-admin macOS account
+  can't run `darwin-rebuild` and doesn't use home-manager, so `tools/mise/config.toml`
+  lists its handful of tools. `tools/mise/bootstrap.sh` (curl-able, safe to run
+  again) clones the repo over https, installs mise and links the *directory*
+  to `~/.config/mise`, so `mise use -g` edits the tracked file in place with
+  comments kept and a new tool shows up as a diff. Steps that prompt stay in
+  mise tasks, not the script: piped from curl, stdin is the script itself. Keep the list short and prefer aqua
+  (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
+  compiles from source. This does not replace `lib/core-packages.nix`; the
+  containers still get their tools from Nix.
+- **Share a tool's config with that account as a plain file, not a generator.**
+  Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
+  loads config anyway (`fromTOML` for helix, git's `include`), and link or
+  include the same file on the mise account. Anything tied to a store path, a
+  secret, or an installed package stays in the Nix module. `helix.nix` is the
+  worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
+  hand", and now reads them.
+- **Prebuilt binaries installed into a persisted `$HOME` are image-scoped state.**
+  nixpkgs' `rustup` patchelfs every toolchain binary it downloads to the glibc of
+  the image that installed it, and `~/.rustup` lives in the container's `devhome`
+  volume — which outlives image rebuilds. The toolchain then points its ELF
+  interpreter at a store path the new image never had, and every shim dies with
+  `error: command failed: 'cargo': No such file or directory (os error 2)` —
+  ENOENT for the *loader*, naming the binary that is right there. Two rules fall
+  out, and both generalize past rustup: **guard activation on whether the tool
+  executes, not whether it exists** (an existence check can only ever fix the
+  empty case, so activation can never repair state that went bad in place); and
+  repair by removing it — `rustup toolchain uninstall` then install, because
+  `install --force` re-downloads nothing when the channel manifest says
+  "unchanged". Full write-up:
+  `docs/solutions/runtime-errors/stale-rustup-toolchain-after-image-rebuild.md`
+  (PR #80.)
 
 ## Migration Workflow
 
@@ -698,6 +749,23 @@ without reading the full diff. It's display-only: no config, no API keys,
 and it never fails the build, so it doesn't gate merging alongside the
 lint/check jobs above.
 
+Sem is also installed locally, alongside its siblings weave (entity-level
+merge driver) and inspect (review triage) from the same Ataraxy Labs stack.
+The three arrive by three routes, each the least-bad available: weave from
+nixpkgs (desktop profiles), sem from homebrew-core as `sem-cli` (nixpkgs'
+`sem` attribute is an unrelated Semaphore CI tool — same name, wrong
+program), and inspect from `lib/inspect.nix`, which fetches upstream's
+release binary and repoints it at nixpkgs' openssl. inspect is pointedly
+*not* from the `ataraxy-labs/tap` brew tap: that formula's checksum went
+stale when upstream moved the release tag, so it cannot install — a live
+instance of "A third-party tap runs its Ruby inside your activation" above.
+Usage guidance lives in the
+`entity-level-git` skill (`tools/agents/skills/entity-level-git/`), not
+here — tool-specific depth belongs in on-demand skills, with only a
+compact pointer in the always-loaded `tools/agents/preferred-tooling.md`.
+Since CI already posts the sem entity diff on every PR, don't post
+duplicate entity-diff comments.
+
 ## Learning Resources
 
 When adding new Nix patterns or configurations, include links to:
@@ -717,8 +785,25 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
+*Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
+*Last updated: 2026-09-16 - Verified inspect against a real binary and found its declared install route could never have worked: the ataraxy-labs/tap formula pins a checksum upstream invalidated by moving the v0.1.1 tag, so the brew fails and would abort activation. Replaced it with `lib/inspect.nix` (release binary, tart-style). Two lessons, both already in the tap write-up and both nearly repeated: a tap's risk is its maintenance, so check the formula's age and hash before declaring it, not after; and a prebuilt binary that runs on *this* machine proves little — this one linked Homebrew's openssl by absolute path, so `otool -L` is part of verifying any fetched macOS binary*
 
-*Last updated: 2026-09-14 - Recorded the layer-not-fork pattern for tailoring an indexed skill (`ste100` over the pinned `asd-ste100`, with `CONCEPTS.md` as its dictionary) and the reminder that a nix-skills pin can predate a file the skill's own text references*
+*2026-09-16 - Corrected the entity-level-git work after merging main: "none of sem/weave/inspect are in nixpkgs" had been written into the skill and preferred-tooling from a sandbox with no `nix` to check it, and was wrong — nixpkgs carries weave, and its `sem` is a different program entirely. Moved weave to nixpkgs per the third-party-tap lesson, re-verified every sem and weave command against real binaries (two weave commands were wrong), and narrowed the skill's `allowed-tools` from wildcards to read-only subcommands, since a wildcard pre-approves the very `setup`/`login` commands the skill says never to run unprompted. Rule worth keeping: an availability claim about a package set is a checkable fact — check it, or mark it unverified*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+
+*2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
+
+*2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
+
+*2026-09-14 - Recorded the layer-not-fork pattern for tailoring an indexed skill (`ste100` over the pinned `asd-ste100`, with `CONCEPTS.md` as its dictionary) and the reminder that a nix-skills pin can predate a file the skill's own text references*
+
+*2026-09-06 - Recorded that a third-party Homebrew tap executes its
+formula Ruby inside activation and can abort a whole `darwin-rebuild switch`
+with no local change, after the cirruslabs/cli tart formula started raising
+under Homebrew 6.0; includes the two traps found routing around it (a green
+`nix build` of a prebuilt binary proves nothing about whether it runs, and
+`cleanup = "zap"` cannot uninstall a formula it cannot load)*
 
 *2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
 
@@ -731,6 +816,8 @@ This document should evolve as patterns emerge. When you:
 *2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 
 *2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
+
+*2026-08-05 - Added the Ataraxy Labs entity-level git stack (sem/weave/inspect). Decision: full usage went into the on-demand `entity-level-git` skill rather than always-loaded instructions — the agents README's "don't over-centralize tool-specific behavior" non-goal — with only a compact table in `preferred-tooling.md` and a CI cross-reference here*
 
 *2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 
