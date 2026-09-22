@@ -15,7 +15,7 @@ description: >
 
 # Power of Ten
 
-Gerard Holzmann's ten rules (NASA/JPL, 2006) were written for C on
+Gerard Holzmann wrote the ten rules (NASA/JPL, 2006) for C on
 spacecraft. Alyssa's daily work is a Rust core behind `extern "C"` shims,
 called from Dart, JS/wasm, Swift, and C. The rules map cleanly, but the
 mapping is not in the rubric, and `code-critic` re-derives it on every
@@ -24,7 +24,7 @@ review. This skill writes it down once, for use before the code exists.
 ## The rules live in the rubric
 
 Read `~/.agents/rubrics/power-of-ten.md` before you apply this skill. It is
-the ten rules verbatim. `code-critic` is built from the same file, so what
+the ten rules verbatim. `agents.nix` builds `code-critic` from the same file, so what
 this skill guides and what the critic judges cannot drift.
 
 If that file does not exist, say so and stop. Do not reconstruct the rules
@@ -57,7 +57,7 @@ Each entry names the rule, the Rust form, and the check that proves it.
 2. **Every loop has a fixed upper bound.** Iterate over a slice or a
    `take(n)`. A `loop {}` carries a counted retry bound, not a condition.
    Never scan foreign memory for a sentinel: a C string from the caller
-   arrives with a length parameter, or is bounded with `CStr::from_bytes_until_nul`
+   arrives with a length parameter, or you bound it with `CStr::from_bytes_until_nul`
    over a slice of known length, never `CStr::from_ptr` on untrusted input.
    Check: every `while` and `loop` in the shim has a bound named in the
    same function.
@@ -73,10 +73,10 @@ Each entry names the rule, the Rust form, and the check that proves it.
    Check: `_new` and `_free` pairs match one-to-one in the header.
 
 4. **Functions fit on one page, about 60 lines.** Applies as written. An
-   `extern "C"` shim does validation, conversion, one call into safe Rust,
+   `extern "C"` shim does checks, conversion, one call into safe Rust,
    and conversion back. Logic belongs in the safe function it calls.
-   Check: `clippy::too_many_lines` at its default of 100 catches the worst;
-   set it to 60 for the shim crate.
+   Check: `clippy::too_many_lines` at its default of 100 catches the worst.
+   Set it to 60 for the shim crate.
 
 5. **Two assertions per function, with recovery.** The rule requires an
    explicit recovery action, so at the boundary an assertion is a runtime
@@ -109,7 +109,7 @@ Each entry names the rule, the Rust form, and the check that proves it.
 8. **Preprocessor use limited.** Rust's equivalents are `macro_rules!`,
    proc macros, `cfg`, and `build.rs`. A macro expands to complete items
    and exists to remove boilerplate that would otherwise be copied per
-   type; it never hides control flow or a dereference. Keep `cfg` to
+   type. It never hides control flow or a dereference. Keep `cfg` to
    platform selection at module boundaries, not scattered through function
    bodies. Generated bindings (bindgen, cbindgen, ffigen) live in one
    module that is never hand-edited.
@@ -119,12 +119,12 @@ Each entry names the rule, the Rust form, and the check that proves it.
    pointers exist only inside the `extern "C"` function that received them.
    Convert to a reference or a slice immediately after the rule 5 checks,
    and pass only safe types inward. One level of dereference: a `**T`
-   out-parameter is allowed for the handle-out pattern only, and nowhere
+   out-parameter exists for the handle-out pattern only, and nowhere
    else. Function pointers are unavoidable for callbacks, so the rule's
    spirit applies: every callback has a typed `extern "C" fn` signature,
    is nullable only as `Option<extern "C" fn>`, is never produced by
    `transmute`, and carries a `*mut c_void` user-data pointer whose owner
-   and lifetime are named in the `# Safety` section.
+   and lifetime the `# Safety` section names.
    Check: `slice::from_raw_parts` and `&*ptr` appear only in the shim
    module, never in the crate it calls.
 
@@ -156,12 +156,12 @@ there. When writing the Dart, JS, Swift, or C caller:
 - Rule 3: the caller frees what the shim says it owns, with the `_free`
   the shim provides, and nothing else. A finalizer is a backstop for a
   leak, never the primary release path.
-- Rule 7: every status code the shim returns is checked at the call site.
+- Rule 7: the call site checks every status code the shim returns.
 - Rule 9: the user-data pointer handed to a callback stays alive for
   exactly the lifetime the `# Safety` section names.
 
 State the mapping for that language in one line when you write the
-caller; this skill does not carry it.
+caller. This skill does not carry it.
 
 ## Handoffs
 
@@ -169,7 +169,7 @@ caller; this skill does not carry it.
   and Test Desiderata. Use this skill before, the critic after. Do not ask
   the critic to write.
 - **ste100** owns the prose in `# Safety` sections and error strings, in
-  strict mode. This skill says what the section must state; ste100 says
+  strict mode. This skill says what the section must state. ste100 says
   how to state it so it has one reading.
 - **TigerStyle** (`~/.agents/rubrics/tiger-style.md`) covers design goals
   and assertion style beyond these ten rules. Read it when the question is
@@ -188,7 +188,7 @@ caller; this skill does not carry it.
    Rust (rule 4), conversion back, error code out (rule 7). Catch panics
    (rule 1).
 5. Run the checks listed under each rule that the change touches. Report
-   which rules the change could not satisfy and why; a bound that does not
+   which rules the change could not satisfy and why. A bound that does not
    exist in the protocol is a finding for Alyssa, not a rule to skip
    silently.
 

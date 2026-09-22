@@ -9,7 +9,7 @@ description: >
   Trigger on "ste", "ste100", "one reading", "can an agent misread this",
   "lint the instructions", "tighten this", or when she edits a SKILL.md
   description or a rule file. Do not trigger on persona, constitution,
-  brag-doc, failure-doc, or pushback text; voice is the point there. Carries no
+  brag-doc, failure-doc, or pushback text, where voice is the point. Carries no
   rule text: it delegates the rule set, examples, and linter to the pinned
   asd-ste100-skill and adds only what is specific to Alyssa's surfaces.
 ---
@@ -28,10 +28,10 @@ Read `~/.agents/skills/asd-ste100-skill/SKILL.md` before you rewrite anything. I
 holds the 53-rule summary, the strict / STE-flavored split, the hedge rule
 (a hedge is content, never cut one to shorten a sentence), and the output
 contract. Its `references/writing-rules.md` has the full rule summary with
-citations; its `examples/before-after.md` has worked examples.
+citations. Its `examples/before-after.md` holds worked examples.
 
 If that directory does not exist, say so and stop. Do not reconstruct the
-rules from memory. The skill is installed by `agent-skills.nix` from the
+rules from memory. `agent-skills.nix` installs the skill from the
 `nix-skills` pin in `lib/skills-sh.nix`.
 
 ## Mode by surface
@@ -53,8 +53,8 @@ Pick the mode from the surface, then state the mode in one line.
 | Talk abstracts, HTML decks, anything persuasive | Never |
 
 For a surface not in the table: strict when an agent or a compiler-adjacent
-reader parses it with Alyssa absent; STE-flavored when a person reads it for
-the reasoning; never when voice is the point.
+reader parses it with Alyssa absent. STE-flavored when a person reads it for
+the reasoning. Never when voice is the point.
 
 Strict keeps every fact, hedge, number, and scope qualifier. It changes form
 only. A sentence that reads better because the rewrite supplied a cause or a
@@ -72,7 +72,7 @@ dictionary as long as each name has one meaning and one spelling. Treat
    heading is an approved technical name. Its "Flagged ambiguities" section
    lists the synonym pairs that already caused confusion.
 2. Use each approved name verbatim. Do not vary it for style. "Profile" and
-   "user environment" are different things there; a rewrite that swaps one
+   "user environment" are different things there. A rewrite that swaps one
    for the other introduced a bug, not polish.
 3. When a rewrite needs a term that has no entry, keep the term the source
    used and add one `Dictionary:` line after the output that proposes the
@@ -94,14 +94,14 @@ This skill runs after the skills that own structure, never instead of them.
   STE-flavored rows above. Never on `--format=pushback` output.
 - **commit-craft** owns the seven rules (subject line, wrap, what-and-why).
   ste100 is a sentence-level pass on the body afterward, in STE-flavored
-  mode. It does not touch the subject line; the 50-character limit already
+  mode. It does not touch the subject line. The 50-character limit already
   forces one reading.
 - **brag-doc** and **failure-doc** produce records in Alyssa's voice. Do not
   run ste100 on their output. If she asks, say why and offer a strict pass on
   any quoted command or symptom inside the entry instead.
-- **outbound-comment-gate** still applies. A rewrite that is destined for a
-  PR comment, review, issue, or message is shown to Alyssa before it is
-  posted, the same as any other body.
+- **outbound-comment-gate** still applies. Show Alyssa any rewrite bound for
+  a PR comment, review, issue, or message before you post it, the same as
+  any other body.
 
 ## Process
 
@@ -127,7 +127,7 @@ This skill runs after the skills that own structure, never instead of them.
 4. Read `CONCEPTS.md` and collect the approved names.
 5. Rewrite. Keep every fact, hedge, number, and scope qualifier. Keep every
    approved name verbatim. Keep code, paths, flags, and command output
-   verbatim; STE applies to the prose around them, never to them.
+   verbatim. STE applies to the prose around them, never to them.
 6. Output per the section below.
 
 ## Output
