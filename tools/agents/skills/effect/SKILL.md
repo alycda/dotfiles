@@ -131,9 +131,17 @@ the other way round.
 - To fail from a generator, write `return yield* new MyError(...)`. Without the
   `return`, TypeScript thinks execution continues.
 - Expected failures go in `E` as tagged errors. Broken invariants are defects
-  (`Effect.die`, `orDie`) and stay out of `E`. Name a payload field `reason`,
-  not `cause`: `Data.TaggedError` extends `Error`, whose `cause` conflicts
-  with a readonly redeclaration.
+  (`Effect.die`, `orDie`) and stay out of `E`. A payload field named `cause`
+  is fine, including `readonly cause: unknown`, on v3 and v4 (checked:
+  3.22.2 and rc.117). The playground's lesson 06 comment says it conflicts
+  with `Error.cause`. It does not: renaming that field to `cause` still
+  typechecks and passes 6/6 tests. Do not repeat that comment.
+- Ask for a dependency with `yield* Service` inside the function. Do not pass
+  it in as an argument. The requirement then shows in `R`, and a missing
+  Layer is a compile error. Pass a service as an argument only at a non-Effect
+  boundary. (create-epoch-app's `effect-dependency-injection` rule; Topcoat's
+  "functions, not middlewares" is the same rule without the compile-time
+  check, see the `topcoat` skill.)
 - Decode untrusted input with `Schema`. Do not cast.
 - Keep the playground's tsconfig strictness: `strict`,
   `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`. Without `strict`,
@@ -158,5 +166,29 @@ calls a live API, so CI does not run it.
 - Set up a new v4 repo: the pinned `effect-ts` skill.
 - Migrate v3 → v4: `/effect-v3-to-v4`, and only on request. That skill forbids
   compat shims and casts. This one agrees.
+- Wrap a Promise-based SDK (Stripe, Resend, AWS) as a service: the pinned
+  `effect-client-wrapper` skill (Rhys Sullivan). Its code is v3:
+  `Context.Tag` and a hand-written `static Default` layer, and a
+  `Schedule.intersect` retry. On v4, keep the pattern (one `use(fn)` that
+  turns a rejected promise into a tagged error and a span) and convert the
+  code with the table above.
+- The same app in Rust, or a comparison of a full-stack Effect design with
+  one: the `topcoat` skill, which holds the Effect ↔ Topcoat pairing.
 - Rust→WASM through Effect (playground lesson 07): the Rust side is ordinary
   FFI work, so `power-of-ten` applies to any `unsafe` in it.
+
+## Reference projects, and what not to take from them
+
+- **effect-playground** (Alyssa's): the Rust lens above. v3, strict tsconfig.
+- **create-epoch-app** (github.com/RhysSullivan/create-epoch-app): a
+  full-stack starter (Effect + Convex + Next.js + effect-atom, bun). On
+  2026-09-22 it was on Effect `^3.19.8`, and its last commit was
+  2026-01-11. Its agent rules are Cursor `.mdc` files. The dependency rule
+  above comes from them. Do not import two of the others unchanged:
+  `effect-primitives.mdc` prefers `Either` and `catchAll`, which v4 renames,
+  and it prefers `Chunk`/`HashMap`/`List` over native collections by
+  default. That is a style choice: it costs a conversion at every interop
+  boundary, and the rule gives no benchmark for it (Alyssa's review, not an
+  upstream position). `never-use-as-any`
+  also bans `unknown`, but `Schema.decodeUnknown*` takes `unknown` input by
+  design. The ban on `as` and `any` is right. The ban on `unknown` is not.

@@ -55,6 +55,10 @@
 #                           surfaces; carries no rule text, delegates to the
 #                           external asd-ste100-skill and reads CONCEPTS.md as
 #                           the project's technical-name dictionary
+#   topcoat               - tokio-rs/topcoat (server-rendered Rust web apps):
+#                           reads the guides shipped in the crates at the
+#                           locked version, the two contracts the compiler
+#                           does not check, and the Effect <-> Topcoat pairing
 #
 # One of them is vendored rather than authored:
 #   hackmd-cli - upstream's own skill, extracted from the hackmd-cli.skill zip
@@ -104,10 +108,12 @@ let
     "jujutsu"
     "power-of-ten"
     "ste100"
+    "topcoat"
   ];
 
   externalSkills = {
     asd-ste100-skill = pkgs.skills-sh.asd-ste100-skill;
+    effect-client-wrapper = pkgs.skills-sh.effect-client-wrapper;
     effect-ts = pkgs.skills-sh.effect-ts;
     effect-v3-to-v4 = pkgs.skills-sh.effect-v3-to-v4;
     here-now = pkgs.skills-sh.here-now;

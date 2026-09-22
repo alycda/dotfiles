@@ -389,7 +389,15 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   package, not from memory: typechecking effect-playground against
   4.0.0-rc.117 found `Schema.Date`, a name that v4 keeps with a different
   meaning, and a v4 name written from memory (`Schema.TaggedErrorClass`)
-  that did not exist
+  that did not exist. A source you trust needs the same check. The
+  playground's own comment (a `Data.TaggedError` field cannot be named
+  `cause`) went into the skill as a rule, and it was false: the renamed
+  field typechecks and passes the lesson's tests. Where the guides ship
+  also differs by project. Topcoat embeds its guides in the published crates
+  (`~/.cargo/registry/src/*/topcoat-<ver>/docs/`), but its `AGENTS.md`
+  index exists only in the repo, and `main` drifts from the release. The
+  `topcoat` skill reads the crate at the `Cargo.lock` version and the index
+  at the matching tag
 
 ### When nixpkgs lags: prefer the vendor's own Nix repo over NUR
 
@@ -821,6 +829,7 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
+*Last updated: 2026-09-22 - Added the `topcoat` skill (tokio-rs/topcoat, with the Effect <-> Topcoat pairing), pinned Rhys Sullivan's `effect-client-wrapper`, and reviewed create-epoch-app; corrected a `cause`-field rule the `effect` skill had copied unverified from effect-playground*
 *Last updated: 2026-09-22 - Added the `effect` skill as a layer over the Effect team's pinned `effect-ts` / `effect-v3-to-v4` skills, and recorded the lesson: check whether a library ships its own agent docs in the package (Effect v4 does, v3 does not), gate on the installed version, and verify v3/v4 claims by typechecking against the real package*
 *Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
 *Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
