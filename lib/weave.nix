@@ -1,7 +1,11 @@
 # weave (Ataraxy Labs) - entity-level semantic merge driver; see the
-# entity-level-git agent skill. nixpkgs' derivation, pinned forward.
+# entity-level-git agent skill. nixpkgs' derivation, pinned forward onto a
+# fork branch.
 #
-# Why a pin at all: nixpkgs packages weave, which is why home.nix takes it
+# Two pins in one, and they have different lifetimes. Read both before
+# touching this file.
+#
+# PIN 1 (the version, longer-lived): nixpkgs packages weave, which is why home.nix takes it
 # from there rather than the ataraxy-labs tap (see lib/inspect.nix for that
 # tap's failure mode). But nixpkgs tracks 0.3.6, tagged 2026-06-05, while
 # upstream shipped 0.5.4 on 2026-09-01 - two minor versions and ~3 months
@@ -36,21 +40,48 @@
 # CLI surface across versions before (older READMEs call the CLI
 # `weave-cli` and document a `setup --global` that no longer exists), so
 # re-verify `weave --help` against the skill after this lands.
+#
+# PIN 2 (the fork, shorter-lived): src is alycda/weave's ARB branch, not the
+# upstream v0.5.4 tag. Upstream does not route `.arb` - Flutter localization
+# bundles, which are JSON under another extension - to the JSON plugin, so
+# they line-merge. Measured on the stock 0.5.4 build with byte-identical
+# content in both files:
+#
+#     app_en.json — auto-resolved   unchanged: 1, added-ours: 1, added-theirs: 1
+#     app_en.arb  — CONFLICTS: 1 (line-level fallback)
+#
+# A localization bundle is precisely the file two parallel agents both append
+# a message to, so that fallback costs a conflict on a routine merge.
+# alycda/weave#1 aliases `.arb` onto the JSON plugin and routes every registry
+# construction in the workspace through `weave_core::create_registry()`, so
+# `weave setup` cannot claim an extension the driver then disowns.
+#
+# Pinned to the commit rather than the branch name deliberately: a branch ref
+# moves, and the next amend to that PR would leave this hash describing a tree
+# that no longer exists at that ref. Bump `rev` and both hashes together.
+#
+# Revert to the upstream tag - `owner = "ataraxy-labs"`, `tag = "v${version}"`
+# - once the ARB change lands in Ataraxy-Labs/weave. `version` stays "0.5.4"
+# because that is what the fork's crates still declare and what
+# versionCheckHook greps `weave --version` for; the fork is 0.5.4 plus that
+# one patch, not a new release.
 pkgs:
 let
   version = "0.5.4";
+  # alycda/weave#1 @ claude/gallant-archimedes-jtwpt4
+  rev = "6443c7b4202f1da5013507a37058f6db91e50ff6";
   src = pkgs.fetchFromGitHub {
-    owner = "ataraxy-labs";
+    owner = "alycda";
     repo = "weave";
-    tag = "v${version}";
-    hash = "sha256-en8HwzvC2uPBwyHnQyUHrRLvWyWDWPptfTpX353i/pU=";
+    inherit rev;
+    hash = "sha256-Zukg5KMwhYuDUXtTSxQfWPNa7qGlMge6Hlqt/MOKWDM=";
   };
 in
 pkgs.weave.overrideAttrs (old: {
   inherit version src;
   cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
     inherit src;
-    hash = "sha256-LYcHCc3OkBmWY9tSpm3Mp+Dw/CRoTICngL7+GkUDAHk=";
+    hash = "sha256-vRaSmAxbJlEoa2R5lN9X2mQZbzd13Icq4NBROx7FjsE=";
   };
   # 0.5.x added crates/weave-driver/tests/public_properties.rs, which shells
   # out to `git` to build a conflicted merge and then abort it. The nix build
