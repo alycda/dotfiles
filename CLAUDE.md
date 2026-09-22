@@ -136,6 +136,7 @@ dotfiles/
 │   ├── charm-nur.nix       # scoped overlay for charmbracelet/nur (crush)
 │   ├── core-packages.nix   # Packages shared by devShells + home-manager
 │   ├── ghost.nix           # overlay: Ghost CLI + server from the alycda/ghost fork (flake input)
+│   ├── inspect.nix         # Ataraxy inspect: release binary repointed at nix openssl
 │   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
@@ -356,6 +357,26 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   (e.g. compound-engineering) belongs in
   `tools/agents/plugins/catalog.json`, not here — a plugin already carries
   its skills, so installing them via nix-skills too would duplicate them
+- **Tailor by layering, not by forking.** When an indexed skill has the
+  right rule set but generic triggers, pin it here and write a thin repo
+  skill that delegates to it and carries only what is specific to this
+  workflow: which surfaces get which mode, what the local glossary is,
+  which sibling skills hand off to it. `tools/agents/skills/ste100` on top
+  of `asd-ste100-skill` is the worked example — no rule text of its own, and it
+  reads `CONCEPTS.md` as the project's technical-name dictionary, which is
+  how a controlled-language skill gets a word list without redistributing
+  ASD's. Re-authoring the rules locally would have meant maintaining a
+  3,500-word fork for a 150-line difference.
+- **Write the layer against the pinned rev, not upstream HEAD.** The
+  `ste100` skill was drafted from `danyuchn/asd-ste100-skill` master, which
+  had `scripts/ste-lint.py`; the rev the lock installed (indexed 2026-08-30)
+  did not, so the repo's own skill named a file the install lacked. The
+  pinned SKILL.md itself was self-consistent — checking it would have found
+  nothing. Before committing a layering skill, check every path it names
+  against the indexed rev (`data/by-name/<initial>/skills.json` in the
+  locked nix-skills, then the file at that rev) or against
+  `~/.agents/skills/<name>/` after a switch, and give the skill a fallback
+  for anything that can lag
 
 ### When nixpkgs lags: prefer the vendor's own Nix repo over NUR
 
@@ -497,6 +518,21 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   secret, or an installed package stays in the Nix module. `helix.nix` is the
   worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
   hand", and now reads them.
+- **Prebuilt binaries installed into a persisted `$HOME` are image-scoped state.**
+  nixpkgs' `rustup` patchelfs every toolchain binary it downloads to the glibc of
+  the image that installed it, and `~/.rustup` lives in the container's `devhome`
+  volume — which outlives image rebuilds. The toolchain then points its ELF
+  interpreter at a store path the new image never had, and every shim dies with
+  `error: command failed: 'cargo': No such file or directory (os error 2)` —
+  ENOENT for the *loader*, naming the binary that is right there. Two rules fall
+  out, and both generalize past rustup: **guard activation on whether the tool
+  executes, not whether it exists** (an existence check can only ever fix the
+  empty case, so activation can never repair state that went bad in place); and
+  repair by removing it — `rustup toolchain uninstall` then install, because
+  `install --force` re-downloads nothing when the channel manifest says
+  "unchanged". Full write-up:
+  `docs/solutions/runtime-errors/stale-rustup-toolchain-after-image-rebuild.md`
+  (PR #80.)
 - **A vendor CLI outlives its service if the contract is public.** #56 was
   "get the ghost.build CLI on PATH" until ghost.build announced it was winding
   down. The CLI repo was client-only, but it shipped the full `openapi.yaml`
@@ -736,6 +772,23 @@ without reading the full diff. It's display-only: no config, no API keys,
 and it never fails the build, so it doesn't gate merging alongside the
 lint/check jobs above.
 
+Sem is also installed locally, alongside its siblings weave (entity-level
+merge driver) and inspect (review triage) from the same Ataraxy Labs stack.
+The three arrive by three routes, each the least-bad available: weave from
+nixpkgs (desktop profiles), sem from homebrew-core as `sem-cli` (nixpkgs'
+`sem` attribute is an unrelated Semaphore CI tool — same name, wrong
+program), and inspect from `lib/inspect.nix`, which fetches upstream's
+release binary and repoints it at nixpkgs' openssl. inspect is pointedly
+*not* from the `ataraxy-labs/tap` brew tap: that formula's checksum went
+stale when upstream moved the release tag, so it cannot install — a live
+instance of "A third-party tap runs its Ruby inside your activation" above.
+Usage guidance lives in the
+`entity-level-git` skill (`tools/agents/skills/entity-level-git/`), not
+here — tool-specific depth belongs in on-demand skills, with only a
+compact pointer in the always-loaded `tools/agents/preferred-tooling.md`.
+Since CI already posts the sem entity diff on every PR, don't post
+duplicate entity-diff comments.
+
 ## Learning Resources
 
 When adding new Nix patterns or configurations, include links to:
@@ -755,13 +808,19 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
-
 *Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
-*Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
+*Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
+*Last updated: 2026-09-16 - Verified inspect against a real binary and found its declared install route could never have worked: the ataraxy-labs/tap formula pins a checksum upstream invalidated by moving the v0.1.1 tag, so the brew fails and would abort activation. Replaced it with `lib/inspect.nix` (release binary, tart-style). Two lessons, both already in the tap write-up and both nearly repeated: a tap's risk is its maintenance, so check the formula's age and hash before declaring it, not after; and a prebuilt binary that runs on *this* machine proves little — this one linked Homebrew's openssl by absolute path, so `otool -L` is part of verifying any fetched macOS binary*
+
+*2026-09-16 - Corrected the entity-level-git work after merging main: "none of sem/weave/inspect are in nixpkgs" had been written into the skill and preferred-tooling from a sandbox with no `nix` to check it, and was wrong — nixpkgs carries weave, and its `sem` is a different program entirely. Moved weave to nixpkgs per the third-party-tap lesson, re-verified every sem and weave command against real binaries (two weave commands were wrong), and narrowed the skill's `allowed-tools` from wildcards to read-only subcommands, since a wildcard pre-approves the very `setup`/`login` commands the skill says never to run unprompted. Rule worth keeping: an availability claim about a package set is a checkable fact — check it, or mark it unverified*
+
+*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
 
 *2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
+
+*2026-09-14 - Recorded the layer-not-fork pattern for tailoring an indexed skill (`ste100` over the pinned `asd-ste100-skill`, with `CONCEPTS.md` as its dictionary) and the rule to write the layer against the rev the lock installs, not upstream HEAD, after the ste100 skill named a linter the first pin did not carry (lesson corrected 2026-09-22: the pinned SKILL.md never referenced the linter; the repo's own skill did)*
 
 *2026-09-06 - Recorded that a third-party Homebrew tap executes its
 formula Ruby inside activation and can abort a whole `darwin-rebuild switch`
@@ -781,6 +840,8 @@ under Homebrew 6.0; includes the two traps found routing around it (a green
 *2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
 
 *2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
+
+*2026-08-05 - Added the Ataraxy Labs entity-level git stack (sem/weave/inspect). Decision: full usage went into the on-demand `entity-level-git` skill rather than always-loaded instructions — the agents README's "don't over-centralize tool-specific behavior" non-goal — with only a compact table in `preferred-tooling.md` and a CI cross-reference here*
 
 *2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
 

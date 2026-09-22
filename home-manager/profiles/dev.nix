@@ -2,12 +2,21 @@
 { pkgs, ... }:
 
 {
-  # Decrypt agenix secrets from the activation script. REQUIRED here, not an
-  # optimisation: ragenix's home-manager module installs secrets from a systemd
-  # *user* service and contributes no activation step, and this container has no
-  # user systemd daemon - so without this every age.secrets entry silently never
-  # arrives. See the module header for the full story.
-  imports = [ ../modules/agenix-activation.nix ];
+  imports = [
+    # Decrypt agenix secrets from the activation script. REQUIRED here, not an
+    # optimisation: ragenix's home-manager module installs secrets from a systemd
+    # *user* service and contributes no activation step, and this container has no
+    # user systemd daemon - so without this every age.secrets entry silently never
+    # arrives. See the module header for the full story.
+    ../modules/agenix-activation.nix
+
+    # Rust in the container image. rustup is 94 MiB and fetches toolchains at
+    # runtime into ~/.rustup - the devhome volume, not an image layer - so this
+    # stays cheap for alyssa@dev-x86 on the 2012 MBP, whose disk headroom is the
+    # constraint PR #34 blew through. It is only affordable because lldb's 1.6 GiB
+    # left the shared module first.
+    ../modules/dev/rust.nix
+  ];
 
   home = {
     username = "root";

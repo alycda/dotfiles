@@ -33,6 +33,7 @@ pkgs: with pkgs; [
   just
   jq
   gh
+  glab
   hcloud
   nodejs
   # postgresql

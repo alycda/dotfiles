@@ -40,6 +40,13 @@ _:
     # Homebrew 6.0 enables HOMEBREW_REQUIRE_TAP_TRUST by default: loading a
     # formula from an untrusted third-party tap aborts activation, so declare
     # trust here instead of imperative per-machine `brew trust`.
+    #
+    # Deliberately absent: ataraxy-labs/tap. Its inspect formula pins a sha256
+    # for the v0.1.1 source tarball that upstream invalidated by moving the
+    # tag two hours later (2026-04-02) and never refreshed, so the install
+    # cannot pass its checksum - and it would drag Homebrew's own rust in as a
+    # build dependency, against the rustup-only rule. inspect comes from
+    # lib/inspect.nix instead; weave from nixpkgs; sem from core below.
     taps = [
       {
         name = "getditto/build-infra";
@@ -50,7 +57,7 @@ _:
 
     # Formulae (CLI packages)
     brews = [
-      "envchain"        # Keychain-backed secrets as env vars
+      "envchain"      # Keychain-backed secrets as env vars
       "envelope"
       "hunk"
       "kondo"           # Clean build artifacts
