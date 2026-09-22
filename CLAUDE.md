@@ -154,6 +154,10 @@ dotfiles/
 │                           #   workflow patterns - by category, with YAML frontmatter
 │                           #   (module, tags, problem_type). Relevant when implementing
 │                           #   or debugging in an area one of them covers.
+├── docs/plans/             # dated plans for work that starts here but lands elsewhere
+│                           #   (alyssa-rs: the CV site, a separate jj repo on venari's
+│                           #   Soft Serve); a plan records decisions and open questions,
+│                           #   not a design
 ├── CONCEPTS.md             # shared domain vocabulary (entities, named processes,
 │                           #   status concepts) with project-specific meaning
 ├── Dockerfile              # multi-arch (x86_64 + arm64) dev image
