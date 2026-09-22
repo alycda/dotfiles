@@ -1,4 +1,4 @@
-{ pkgs, lib, nix-vscode-extensions, claude-code-nix, nix-skills, charm-nur, ... }:
+{ pkgs, lib, nix-vscode-extensions, claude-code-nix, nix-skills, charm-nur, ghost, ... }:
 
 {
   # Nix package manager settings
@@ -24,6 +24,7 @@
     claude-code-nix.overlays.default
     (import ../lib/skills-sh.nix nix-skills)
     (import ../lib/charm-nur.nix charm-nur)
+    (import ../lib/ghost.nix ghost)
   ];
 
   # macOS system defaults
