@@ -35,14 +35,24 @@ from memory. `agents.nix` deploys `tools/agents/rubrics/` to that path.
 Each entry names the rule, the Rust form, and the check that proves it.
 
 1. **Simple control flow, no recursion.** No recursion in any function
-   reachable from an `extern "C"` entry point or a foreign-invoked callback;
-   walk trees with an explicit stack and a bound. No panic may reach an
-   `extern "C"` frame: on Rust 1.81 and later that aborts the process, and
-   before it was undefined behavior. Wrap the body in
-   `std::panic::catch_unwind` and convert to an error code. `extern
-   "C-unwind"` is a deliberate choice with a comment, never a default.
-   Check: `grep -n 'extern "C"' | grep -v catch_unwind` on the shim module
-   lists every unguarded entry point.
+   reachable from an `extern "C"` entry point or a foreign-invoked callback.
+   Walk trees with an explicit stack and a bound. No panic may reach an
+   `extern "C"` frame. Since Rust 1.81 the non-unwind ABIs abort the process
+   on an uncaught unwind, and before 1.81 that was undefined behavior. Wrap
+   the body in `std::panic::catch_unwind` and convert to an error code.
+   `extern "C-unwind"` is a deliberate choice with a comment, never a
+   default.
+   Check: in the shim module, the count of entry-point definitions equals
+   the count of guards:
+
+   ```sh
+   grep -cE 'extern "C" fn [A-Za-z_]' src/ffi.rs
+   grep -c  'catch_unwind'            src/ffi.rs
+   ```
+
+   The first pattern matches definitions and not `Option<extern "C" fn(...)>`
+   parameter types. A count is a heuristic: a mismatch is a finding, a
+   match is not proof.
 
 2. **Every loop has a fixed upper bound.** Iterate over a slice or a
    `take(n)`. A `loop {}` carries a counted retry bound, not a condition.
@@ -83,14 +93,18 @@ Each entry names the rule, the Rust form, and the check that proves it.
    saying which thread owns it and why.
    Check: `grep -rn 'static mut'` is empty.
 
-7. **Check every return value; validate every parameter.** Every function
-   returning `Result` or a status code is `#[must_use]`. Enable
-   `unused_results` and `clippy::let_underscore_must_use` in the shim
-   crate, so a dropped error is a compile error, not a code review find.
-   Parameter validation is rule 5's checks; nullable pointers are
-   `Option<&T>` or `Option<extern "C" fn(...)>`, which are FFI-safe and force
-   the check at the type level.
-   Check: no `let _ =` on a `Result` in the shim.
+7. **Check every return value. Check every parameter.** `Result` is
+   `#[must_use]` already, so a bare `fallible();` warns with no help. Put
+   `#[must_use]` on every function that returns a plain status code
+   (`c_int`), because integers are not. `let _ = fallible();` passes both,
+   so enable `clippy::let_underscore_must_use` (restriction group) in the
+   shim crate. Do not reach for `unused_results`: it fires on every
+   discarded non-unit value, `HashMap::insert` included. Warnings become
+   failures through rule 10's `-D warnings` in CI, never in source.
+   Parameter checks are rule 5's checks. Nullable pointers are `Option<&T>`
+   or `Option<extern "C" fn(...)>`, which are FFI-safe and force the check
+   at the type level.
+   Check: no `let _ =` on a `Result` or a status code in the shim.
 
 8. **Preprocessor use limited.** Rust's equivalents are `macro_rules!`,
    proc macros, `cfg`, and `build.rs`. A macro expands to complete items
@@ -117,11 +131,22 @@ Each entry names the rule, the Rust form, and the check that proves it.
 10. **All warnings on, pedantic, and static analysis daily.** In source:
     `#![warn(clippy::pedantic)]` on the shim crate,
     `#![deny(unsafe_op_in_unsafe_fn)]`, and `#![warn(missing_docs)]` so
-    every `extern "C"` function gets a `# Safety` section. In CI only,
-    never in source: `RUSTFLAGS=-Dwarnings`, `cargo clippy -- -D warnings`,
-    and `cargo miri test` over the crate's `unsafe` code. Local: `bacon`
-    with clippy as the default job, per preferred-tooling.
-    Check: the CI job exists and is red on a warning.
+    every public item has a doc comment. `missing_docs` does not demand a
+    `# Safety` section. The lint that does, `clippy::missing_safety_doc`,
+    fires only on `pub unsafe fn`. So declare every entry point that takes
+    a raw pointer as `pub unsafe extern "C" fn`. That is the honest
+    signature, since the caller must uphold the pointer contract, and it
+    puts the section under a lint. A safe `pub extern "C" fn` gets its
+    section from Process step 3 and from review, not from a lint. In CI
+    only, never in source: `RUSTFLAGS=-Dwarnings`,
+    `cargo clippy -- -D warnings`, and `cargo miri test` over the crate's
+    `unsafe` code. Local: `bacon` with clippy as the default job, per
+    preferred-tooling.
+    Check: the CI job exists and fails on a warning.
+
+    Lint behavior in rules 7 and 10, the FFI-safety of
+    `Option<extern "C" fn>`, and the abort in rule 1 were checked against
+    rustc 1.94.1 and clippy 0.1.94 on 2026-09-22.
 
 ## The other side of the boundary
 
