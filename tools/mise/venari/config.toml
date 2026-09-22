@@ -1,0 +1,56 @@
+# Global mise config for venari: Debian 12, x86_64, glibc 2.36. The box has no
+# Nix, so its CLI tools come from here - the same arrangement felixia has, for
+# a different reason. felixia cannot run Nix (macOS 10.15); venari simply has
+# not been given it, because four tools do not justify a Nix install on a
+# 4 GB box that mostly serves git.
+#
+# Link THIS directory, not tools/mise, to ~/.config/mise on venari:
+#
+#   ln -s ~/dotfiles/tools/mise/venari ~/.config/mise
+#
+# The bootstrap one-liner is NOT available yet from this branch. `MISE_CONFIG=`
+# is a felixia-stack change (draft #162, stacked on #154 -> #153), and this
+# branch is off main, which still has the single-config bootstrap.sh. Once that
+# stack merges, this also works and needs no change here:
+#
+#   curl -fsSL https://raw.githubusercontent.com/alycda/dotfiles/main/tools/mise/bootstrap.sh | MISE_CONFIG=venari sh
+#
+# Until then the box's ~/.config/mise/config.toml is a COPY of this file rather
+# than a link into a checkout, so edits here do not reach the box by themselves.
+# Re-link it when the checkout lands; bootstrap's link() moves a stray copy
+# aside rather than deleting it.
+#
+# mise reads only the directory it is pointed at, so ../config.toml never loads
+# here - which matters less than it does on felixia (nothing here dies in dyld)
+# but keeps the two machines' lists from drifting into each other.
+#
+# This is the UNPRIVILEGED user's config. That user has no sudo and is not in
+# the docker group; anything needing root (apt, compose, /etc) goes through the
+# separate root key. See tools/venari/README.md.
+#
+# Every version below was installed AND run on the box on 2026-09-21, not just
+# installed - the rule this repo keeps learning the hard way. All four resolve
+# to `aqua:` (prebuilt release binaries) ahead of `cargo:`, so none of them
+# compiles on the box; check `mise registry <tool>` before adding a fifth,
+# because a cargo fallback would build from source on 2 vCPUs.
+
+[tools]
+jj = "0.45.1"          # aqua:jj-vcs/jj - same pin as felixia
+helix = "25.07.1"      # aqua:helix-editor/helix
+ripgrep = "15.2.0"     # aqua:BurntSushi/ripgrep
+# rga searches INSIDE pdfs, archives and office documents. Two things it needs
+# that installing it does not give you, both found here on 2026-09-21:
+#
+#   1. `rg` on PATH. rga shells out to ripgrep and exits with
+#      `Could not find executable "rg"` without it. Installing them together
+#      from this file is enough; `mise exec ripgrep-all -- rga` alone is not.
+#   2. `pdftotext`, from Debian's poppler-utils (apt, not mise - the box has
+#      it installed). `rga --rga-list-adapters` lists the poppler adapter
+#      whether or not the binary exists, so that listing proves nothing.
+#      pandoc (.docx/.epub) and ffmpeg (media) are deliberately NOT installed:
+#      both are large, and PDFs are what this is for.
+#
+# Proven end to end on the box: a Flate-compressed PDF that plain `rg` cannot
+# match (the phrase is absent from the raw bytes) is found by `rga`, framed as
+# "Page 1:". Repeat that test after a bump rather than trusting `--version`.
+ripgrep-all = "0.10.10" # aqua:phiresky/ripgrep-all

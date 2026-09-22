@@ -1,0 +1,25 @@
+# Soft Serve on venari: private git over SSH, loopback only. Reached with an
+# ssh ProxyJump through the box's own sshd, so it adds no public port (the
+# cloud firewall admits 22 alone anyway). HTTP (23232), stats (23233) and the
+# git daemon (9418) stay inside the container.
+#
+# On the box: /srv/soft-serve/docker-compose.yml, next to an untracked .env
+# (see .env.example) and data/ (repos, SQLite db, host keys - never tracked).
+name: soft-serve
+services:
+  soft-serve:
+    image: charmcli/soft-serve:v0.12.2
+    container_name: soft-serve
+    restart: unless-stopped
+    volumes:
+      - ./data:/soft-serve
+    ports:
+      - "127.0.0.1:23231:23231"
+    environment:
+      # Only read on first start; after that the users live in data/soft-serve.db.
+      SOFT_SERVE_INITIAL_ADMIN_KEYS: "${SOFT_SERVE_ADMIN_KEY:?set it in .env}"
+      # Upstream defaults are anon-access: read-only and allow-keyless: true.
+      SOFT_SERVE_ANON_ACCESS: no-access
+      SOFT_SERVE_ALLOW_KEYLESS: "false"
+      SOFT_SERVE_SSH_PUBLIC_URL: "ssh://hermes-git"
+    mem_limit: 256m
