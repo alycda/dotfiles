@@ -66,11 +66,13 @@ nix-skills: final: _: {
       # own `ste100` skill (tools/agents/skills/ste100) carries no rule text and
       # delegates to this one; it maps the rules onto this repo's surfaces.
       #
-      # Pin lag, worth knowing at install time: the rev nix-skills indexed on
-      # 2026-08-30 predates the linter. Until the index re-resolves the repo
-      # (`nix flake update nix-skills` once it has), scripts/ste-lint.py is
-      # absent from the installed skill and `ste100` falls back to linting from
-      # the rule table. Path "." means the repo root is the skill.
+      # Pin lag, seen once already: the rev nix-skills indexed on 2026-08-30
+      # predated the linter, so the first pin installed a SKILL.md that named
+      # a scripts/ste-lint.py that was not there. The index re-resolved on
+      # 2026-09-15 and the lock caught up on 2026-09-18. `ste100` keeps its
+      # fallback (lint from the rule table when the script is absent) because
+      # the same gap can reopen on any upstream commit that adds a file.
+      # Path "." means the repo root is the skill.
       asd-ste100 = mkSkill {
         owner = "danyuchn";
         repo = "asd-ste100-skill";
