@@ -22,6 +22,7 @@ the box is the running copy.
 | `ssh/soft-tunnel.authorized_keys` | `/var/lib/soft-tunnel/.ssh/authorized_keys` (root-owned, 644) |
 | `ghost/docker-compose.yml` | `/srv/ghost/docker-compose.yml`, with `.env` (from `.env.example`), `certs/`, `data/` and `server/` beside it |
 | `ghost/server/Dockerfile` | `/srv/ghost/server/Dockerfile`, next to the `ghost-server` binary it packages |
+| `convex/docker-compose.yml` | `/srv/convex/docker-compose.yml`, with `data/` beside it (no `.env`) |
 
 The dev-box side is `tools/mise/venari/` — the same arrangement felixia has,
 for the same reason: no Nix here either.
@@ -193,6 +194,92 @@ invites, shares, API-key management (the key is configuration). `ghost logs`
 returns an empty page. Backups: the cluster rides the provider's box backups,
 like Soft Serve's `data/`; Ghost databases are disposable by design.
 
+## Convex: a self-hosted app backend
+
+[Convex](https://www.convex.dev) is the backend create-epoch-app is built on:
+a document database, server functions (queries, mutations, actions), and live
+queries that push new results to subscribed clients. `/srv/convex/` runs the
+open-source backend and dashboard from
+[get-convex/convex-backend](https://github.com/get-convex/convex-backend)
+(`self-hosted/`), pinned to one revision for both images.
+
+It is not a replacement for Ghost, and Ghost is not one for it. Ghost hands out
+disposable Postgres databases, so it is the *test* database. Convex is where an
+app's data lives. That difference drives the storage choice:
+
+- **SQLite in `data/`**, which is upstream's default and its recommended starting
+  point. Not Postgres in the Ghost cluster. Convex's data would then share a
+  lifecycle with databases that are disposable by design, and a separate
+  Postgres would cost RAM this box does not have spare. Moving later is
+  `npx convex export`, then set `POSTGRES_URL`, then `npx convex import`
+  (upstream `self-hosted/advanced/postgres_or_mysql.md`).
+- **`data/` is the whole state**: the database, stored files and modules, and
+  `credentials/`. The backend generates the instance name and secret there on
+  first start, so there is no `.env`.
+
+Measured on 2026-09-22, in a container off the box, against the pinned
+revision. A project with a schema, a mutation, a query, and a `"use node"`
+action deployed with `npx convex deploy` (convex 1.46.0). A `ConvexClient`
+subscription saw 252 pushed updates, from 1 row to 501, while 500 concurrent
+mutations ran. Peak memory was 150 MiB for the backend and 270 MiB for the
+dashboard (at startup), so the limits are 512m and 384m. With Soft Serve and
+Ghost, the box's container limits then total about 2 GB of its 4 GB. The
+images take about 1.5 GB of disk (798 MB + 668 MB). These are not load
+figures for this box: that machine was not venari, and venari has 2 vCPUs.
+
+All three ports listen on the box's loopback. From the laptop:
+
+```sh
+just convex-tunnel                      # 3210 -> API, 3211 -> HTTP actions, 6791 -> dashboard
+just convex-admin-key                   # prints a new admin key (via venari-root)
+open http://127.0.0.1:6791              # dashboard; paste the admin key
+just convex-tunnel-close
+```
+
+In a Convex project, put the URL and key in `.env.local`, which is gitignored
+by the project and never in this repo. `npx convex dev` and `deploy` then
+target venari:
+
+```sh
+CONVEX_SELF_HOSTED_URL='http://127.0.0.1:3210'
+CONVEX_SELF_HOSTED_ADMIN_KEY='<from just convex-admin-key>'
+```
+
+Every call to `generate_admin_key.sh` returns a different key. All of them
+stay valid, because they are signed with the instance secret in `data/`. A
+key issued before a restart still worked after it. So there is no single key
+to keep in agenix. Revoking a key means rotating the instance secret, which
+invalidates every key.
+
+`CONVEX_CLOUD_ORIGIN` and `NEXT_PUBLIC_DEPLOYMENT_URL` say
+`http://127.0.0.1:3210`, which is the laptop's end of the tunnel. That means
+this deployment serves one person through ssh. A frontend that other people
+use needs a public HTTPS origin for the API. That means a port other than 22
+in the cloud firewall and a TLS reverse proxy. It is a separate decision,
+not a config change.
+
+Both outbound calls the images make by default are off. `DISABLE_BEACON`
+turns off the anonymous usage ping. `NEXT_PUBLIC_LOAD_MONACO_INTERNALLY`
+serves the dashboard's editor from the image instead of from a CDN.
+
+Setup, as root on the box, after copying `convex/` here to `/srv/convex/`:
+
+```sh
+cd /srv/convex && umask 077 && mkdir -p data
+docker compose up -d --wait
+curl -s http://127.0.0.1:3210/version; echo
+docker compose logs backend | grep -m1 'Connected to SQLite'
+```
+
+Upgrading, from upstream `self-hosted/advanced/upgrading.md`:
+
+1. Run `npx convex export` from a project against this deployment, so there is
+   a copy to restore.
+2. Bump **both** image tags to the same revision. Upstream does not guarantee
+   that a mismatched backend and dashboard work together.
+3. Run `docker compose up -d --wait`, then watch the logs for the
+   `MigrationComplete` line.
+
 ## Updates and reboots
 
 `unattended-upgrades` runs daily and may reboot the box at 11:00 UTC — see
@@ -209,7 +296,10 @@ original: a `*.bak-<ts>` left in `/etc/apt/apt.conf.d/` makes apt print
 
 ## Not covered yet
 
-- Backups. `data/` (repos plus db) should be backed up as a unit, and the
+- Backups. Soft Serve's `data/` (repos plus db) should be backed up as a unit, and the
   planned home for that is restic to R2. `ledger-age` is itself a backup
   (ciphertext, with the plaintext still on felixia), so losing it is
   recoverable. The Moment repos are not.
+  Convex's `data/` needs the same treatment. It is the one directory on this
+  box that holds application data nothing else has a copy of. Until restic
+  lands, `npx convex export` from the laptop is the only backup.

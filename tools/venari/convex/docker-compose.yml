@@ -1,0 +1,74 @@
+# Convex on venari: the self-hosted Convex backend and its dashboard, from
+# get-convex/convex-backend's self-hosted/docker/docker-compose.yml. Both listen
+# on the box's loopback only and are reached over ssh -L, like Soft Serve and
+# Ghost: the cloud firewall admits 22 alone.
+#
+# On the box: /srv/convex/docker-compose.yml, next to data/ (never tracked).
+# data/ is the whole state: the SQLite database, stored files and modules, and
+# credentials/ - the instance name and secret the backend generates on first
+# start. Admin keys are signed with that secret: `generate_admin_key.sh` gives a
+# different key on every call, and every one stays valid as long as data/ does
+# (checked 2026-09-22: a key issued before a restart still worked after it).
+# There is no .env: nothing here is a secret that data/ does not already hold.
+#
+# Storage is SQLite, upstream's default and its recommended starting point.
+# Not Postgres in the Ghost cluster: those databases are disposable by design,
+# and Convex's are not. Moving later is `npx convex export`, set POSTGRES_URL,
+# `npx convex import` (upstream: self-hosted/advanced/postgres_or_mysql.md).
+#
+# Upstream ships `:latest`. Both images are pinned to one revision here, because
+# upstream says a backend and dashboard of different versions are not
+# guaranteed to work together. Upgrading: self-hosted/advanced/upgrading.md -
+# `npx convex export` first, then bump BOTH tags.
+name: convex
+services:
+  backend:
+    # 0cf49cb = get-convex/convex-backend main on 2026-09-21; the tag :latest
+    # pointed at on 2026-09-22.
+    image: ghcr.io/get-convex/convex-backend:0cf49cbf8c4b7e22e631ceda9b5111f6cccbcd49
+    container_name: convex-backend
+    restart: unless-stopped
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    volumes:
+      - ./data:/convex/data
+    ports:
+      - "127.0.0.1:3210:3210" # client API, websocket sync
+      - "127.0.0.1:3211:3211" # HTTP actions
+    environment:
+      # What clients are told the backend is: the laptop's end of the tunnel
+      # (`just convex-tunnel` forwards the same port numbers). These appear in
+      # storage URLs and action callbacks, so they must be the address the
+      # client actually uses, not the container's.
+      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
+      CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
+      # The anonymous usage beacon (a random ID plus the backend version).
+      DISABLE_BEACON: "true"
+      DISABLE_METRICS_ENDPOINT: "true"
+      # Upstream's compose default: keep old document versions for 2 days.
+      DOCUMENT_RETENTION_DELAY: "172800"
+      RUST_LOG: info
+    healthcheck:
+      test: curl -f http://localhost:3210/version
+      interval: 5s
+      start_period: 10s
+    mem_limit: 512m
+
+  dashboard:
+    image: ghcr.io/get-convex/convex-dashboard:0cf49cbf8c4b7e22e631ceda9b5111f6cccbcd49
+    container_name: convex-dashboard
+    restart: unless-stopped
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    ports:
+      - "127.0.0.1:6791:6791"
+    environment:
+      # Read by the dashboard in the *browser*, so it is the laptop's tunnel
+      # end too.
+      NEXT_PUBLIC_DEPLOYMENT_URL: http://127.0.0.1:3210
+      # Otherwise the editor panes load monaco from a CDN.
+      NEXT_PUBLIC_LOAD_MONACO_INTERNALLY: "true"
+    depends_on:
+      backend:
+        condition: service_healthy
+    mem_limit: 384m
