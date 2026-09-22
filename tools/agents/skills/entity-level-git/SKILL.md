@@ -22,8 +22,11 @@ description: >
 # which the body says never to run unprompted - the permission prompt is the
 # backstop for those rules, so the allowlist must not remove it. Also excluded:
 # `inspect review` (sends code to an LLM API) and `inspect comment` (posts to
-# GitHub).
-allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(inspect diff *), Bash(inspect predict *), Bash(inspect pr *), Bash(inspect file *), Bash(git status), Bash(git log *), Bash(git diff *)
+# GitHub). `weave apply` and `weave patch apply` write working files, so they
+# are excluded too; `weave explain`/`check` and `sem graph` are read-only and
+# are listed because the body tells the reader to run them - explain and check
+# exist only from 0.5.x, so on an older weave they simply do not resolve.
+allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem graph *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(weave explain *), Bash(weave check *), Bash(inspect diff *), Bash(inspect predict *), Bash(inspect pr *), Bash(inspect file *), Bash(git status), Bash(git log *), Bash(git diff *)
 ---
 
 # Entity-Level Git (sem, weave, inspect)
@@ -31,7 +34,8 @@ allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(s
 Three sibling tools from [Ataraxy Labs](https://github.com/Ataraxy-Labs) that
 share one mental model: parse code with tree-sitter into **entities**
 (functions, classes, methods) and operate on those instead of lines. Language
-coverage is broad but uneven — sem ~32, weave ~28, inspect ~19; the mainstream
+coverage is broad but uneven — sem 32, weave 38, inspect 19 (upstream's own
+README counts, re-checked 2026-09-22); the mainstream
 languages (Rust, TS/JS, Python, Go, Java, C/C++) are covered everywhere, and
 files a tool can't parse degrade gracefully (weave falls back to line merge).
 That degradation is silent, though, and for one language it is verified to be
@@ -52,7 +56,7 @@ yourself.
 
   | Tool | nixpkgs | Installed via | Where |
   |---|---|---|---|
-  | `weave` | yes — `nixpkgs#weave` | home-manager (`profiles/home.nix`, `work.nix`) | both Macs |
+  | `weave` | yes, but stale — see below | `lib/weave.nix`, from home-manager (`profiles/home.nix`, `work.nix`) | both Macs |
   | `sem` | **no — and the name is taken** | Homebrew core, as `sem-cli` | both Macs |
   | `inspect` | no | `lib/inspect.nix` — upstream's release binary, repointed at nixpkgs' openssl | both Macs |
 
@@ -73,10 +77,12 @@ yourself.
   brew-managed, and a self-update fights the package manager.
 - Check with `command -v sem weave inspect` before building a plan around them.
 - **Check versions against upstream before trusting a capability verdict**
-  (`gh release list -R Ataraxy-Labs/<tool>`). As of 2026-09-21 sem 0.25.0 is
-  current and inspect 0.1.1 is the latest upstream has, but the
-  home-manager-pinned weave 0.3.6 (2026-06-05) is four months behind v0.5.4.
-  A missing feature may just be a stale pin.
+  (`gh release list -R Ataraxy-Labs/<tool>`). As of 2026-09-22 sem 0.25.0 is
+  current and inspect 0.1.1 is the latest upstream has. weave is the awkward
+  one: nixpkgs tracks 0.3.6 (2026-06-05) against upstream's 0.5.4, so
+  `lib/weave.nix` pins past it — onto `alycda/weave`'s ARB branch rather than
+  the upstream tag. A missing weave feature is therefore about *which build
+  you have*, not about weave. Run `weave --version` first.
 
 ## Language coverage: Dart/Flutter (verified 2026-09-21)
 
@@ -246,8 +252,11 @@ on those four.
   (`weave patch extract` only reads.)
 - When weave is active, a merge that "just works" on a file both sides edited
   is weave doing its job — don't treat the absence of conflicts as suspicious.
-- **jj integration** (relevant here — jj is the house VCS): weave registers as
-  a jj merge tool. In `jj config edit --user`:
+- **jj integration** (relevant here — jj is the house VCS): weave *can* be
+  registered as a jj merge tool, but is not configured on this machine —
+  `jj config get merge-tools.weave.program` finds nothing, so this block is
+  setup you'd have to propose, not something already in place. In
+  `jj config edit --user`:
 
   ```toml
   [merge-tools.weave]
@@ -257,6 +266,13 @@ on those four.
   merge-tool-edits-conflict-markers = true
   conflict-marker-style = "git"
   ```
+
+  The argument shape above is unchanged between 0.3.6 and 0.5.4, so this
+  block does not need revisiting with the version. 0.5.x adds `--audit` (or
+  `WEAVE_AUDIT=1`, for merge-driver configs that can set env but not add
+  flags) to write a per-entity resolution audit as JSON, and
+  `WEAVE_FINDINGS=1` to drop a `<path>.weave-findings.json` beside a
+  conflicted file.
 
   Then `jj resolve --tool weave` on conflicted files. Note the jujutsu skill
   says to avoid `jj resolve` because it opens a TUI — `--tool weave` is the
