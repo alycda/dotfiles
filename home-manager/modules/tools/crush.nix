@@ -67,6 +67,8 @@ in
       };
       permissions.allowed_tools = [
         "mcp_linear_get_issue"
+        "mcp_linear_list_comments"
+        "mcp_linear_list_issues"
       ];
       hooks.PreToolUse = [
         {
