@@ -124,9 +124,10 @@ in all three tools — one of them dangerously:
   `lib/weave.nix` pins this machine to `alycda/weave#1`, which aliases
   `.arb` onto the JSON plugin, so here both files report `auto-resolved`
   with identical stats. Anywhere without that pin — a sandbox, a
-  devcontainer, `nix run nixpkgs#weave` — still line-merges ARB. Check
-  `weave --version` isn't 0.3.x and assume stock behavior unless you know
-  the pin is in play.
+  devcontainer, `nix run nixpkgs#weave` — still line-merges ARB. **Don't
+  use `weave --version` to decide which you have**: the fork and stock
+  0.5.4 both report `weave 0.5.4`. Use the store-path or behaviour probe
+  above, and assume stock unless one of them says otherwise.
 
 Net: in a Dart repo, use `sem diff` / `blame` / `log` / `entities` /
 `context` and `weave` freely, never trust `sem impact` / `callers` / `refs`,
@@ -226,10 +227,18 @@ READMEs call the CLI `weave-cli`; that name does not exist, so don't propose
 it. (`setup --global` *does* exist again in 0.5.x — see the setup bullet.)
 
 **0.5.x is newer than nixpkgs.** nixpkgs tracks 0.3.6; `lib/weave.nix` pins
-this machine forward to 0.5.4. On a machine without that pin — a sandbox, a
-devcontainer, `nix run nixpkgs#weave` — you get 0.3.6, which has no
-`explain`, `check`, `patch` or `apply`. Run `weave --version` before relying
-on those four.
+this machine forward onto `alycda/weave`'s ARB branch, which is 0.5.4 plus
+one patch. On a machine without that pin — a sandbox, a devcontainer,
+`nix run nixpkgs#weave` — you get 0.3.6, which has no `explain`, `check`,
+`patch` or `apply`. `weave --version` answers *that* question.
+
+**But `--version` cannot tell the fork from stock 0.5.4** — both print
+exactly `weave 0.5.4`, because `lib/weave.nix` deliberately keeps
+`version = "0.5.4"` so nixpkgs' `versionCheckHook` still passes. When the
+difference matters (it matters for `.arb`, below), discriminate one of two
+ways: compare `readlink -f $(command -v weave)` against the store path
+`lib/weave.nix` evaluates to, or probe the behaviour — merge a scratch
+`.arb` and see whether it auto-resolves.
 
 - **Start with `weave preview`.** It changes nothing, so it's safe to run
   unprompted, and it answers "would weave have dissolved these conflicts?"
@@ -238,7 +247,13 @@ on those four.
   are read-only and safe unprompted: `explain` says why a file conflicted
   before you touch it, `check` says whether your resolution silently dropped
   something either side had written. `check` exits 1 when it has findings —
-  that's the point, not a failure.
+  that's the point, not a failure. Exercised end to end on a real conflict:
+  `explain` names the refusing guard and the contested hunk (`class Greeter
+  — both_modified (F), refused_by: container_member`, listing only hunks
+  *both* sides wrote in), and `check` goes from exit 1 / `3 conflict marker
+  line(s) still present` to exit 0 / `markers cleared, no unanimous-line
+  loss, no duplicated definitions or lines, no dangling references` once the
+  file is actually resolved.
 - `weave setup` **mutates repo config and possibly tracked files**
   (`.gitattributes`): propose it and let the user choose the variant; don't
   run it unprompted. `--local` is the least invasive; **`--global` is the most
