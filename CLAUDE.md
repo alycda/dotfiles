@@ -135,6 +135,7 @@ dotfiles/
 ├── lib/
 │   ├── charm-nur.nix       # scoped overlay for charmbracelet/nur (crush)
 │   ├── core-packages.nix   # Packages shared by devShells + home-manager
+│   ├── ghost.nix           # overlay: Ghost CLI + server from the alycda/ghost fork (flake input)
 │   └── skills-sh.nix       # skills.sh agent skills pinned via nix-skills
 ├── tools/                  # Non-Nix tool content wired in by modules/tools/*
 │   ├── agents/             # Agent-instruction overlay (AGENTS.md, #40)
@@ -142,8 +143,10 @@ dotfiles/
 │   ├── claude/             # Claude rules
 │   ├── hackmd/             # npm pin (package.json + lock) for hackmd-cli
 │   ├── helix/              # Helix config
-│   └── mise/               # Global mise config for the no-Nix, non-admin account
+│   ├── mise/               # Global mise config for the no-Nix, non-admin account
 │                           #   (bootstrap.sh links it to ~/.config/mise; no module)
+│   └── venari/             # the rented box: twins of its /srv compose files (Soft Serve,
+│                           #   Ghost) and /etc drop-ins; nothing deploys them
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
@@ -494,6 +497,21 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   secret, or an installed package stays in the Nix module. `helix.nix` is the
   worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
   hand", and now reads them.
+- **A vendor CLI outlives its service if the contract is public.** #56 was
+  "get the ghost.build CLI on PATH" until ghost.build announced it was winding
+  down. The CLI repo was client-only, but it shipped the full `openapi.yaml`
+  and read `api_url` from config, so the answer was a server for that
+  contract (`alycda/ghost`, branch `ghost-server`, run on venari per
+  `tools/venari/README.md`), not a rewrite. Two checks before declaring "no
+  client patch needed", both missed on the first pass: grep the client for
+  assumptions the hosted service made true (`dbName := "tsdb"`, because every
+  database had its own instance; one cluster needed a `dbname` field), and
+  check how its config library treats an empty env var (viper drops them
+  without `AllowEmptyEnv`, so the docs proxy could not be turned off from a
+  wrapper). Client side follows the hackmd pattern: a wrapper that sets
+  `GHOST_*` env vars (`modules/tools/ghost.nix`), never a managed copy of the
+  config file the CLI itself writes. Packaged from the fork as a flake input
+  (`lib/ghost.nix`), because the upstream release binary lacks the field.
 
 ## Migration Workflow
 
@@ -738,6 +756,7 @@ This document should evolve as patterns emerge. When you:
 
 ---
 
+*Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
 *Last updated: 2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
 
 *2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
