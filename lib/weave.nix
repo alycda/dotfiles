@@ -65,6 +65,22 @@
 # because that is what the fork's crates still declare and what
 # versionCheckHook greps `weave --version` for; the fork is 0.5.4 plus that
 # one patch, not a new release.
+#
+# The cost of that choice, which is easy to miss: **`weave --version` cannot
+# tell you whether this pin is in effect.** This build and stock upstream
+# 0.5.4 both print exactly `weave 0.5.4`, so the one command a reader would
+# reach for to check answers a different question than the one being asked.
+# It is a real trap - advice depending on that distinction was written into
+# the entity-level-git skill and had to be corrected. Two checks do work:
+#
+#   readlink -f "$(command -v weave)"    # compare against this file's outPath
+#   # ...or probe the behaviour: merge a scratch .arb and see if it resolves
+#
+# The alternative is giving the derivation a distinguishable `pname`, so the
+# store path itself carries the signal. Not taken: versionCheckHook locates
+# the binary through `meta.mainProgram`/`pname`, and changing it risks the
+# hook silently testing nothing - which would cost a real check to buy a
+# cosmetic one. Worth revisiting only with that hook verified still firing.
 pkgs:
 let
   version = "0.5.4";
