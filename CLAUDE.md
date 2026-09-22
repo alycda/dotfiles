@@ -147,7 +147,7 @@ dotfiles/
 │   ├── mise/               # Global mise config for the no-Nix, non-admin account
 │                           #   (bootstrap.sh links it to ~/.config/mise; no module)
 │   └── venari/             # the rented box: twins of its /srv compose files (Soft Serve,
-│                           #   Ghost) and /etc drop-ins; nothing deploys them
+│                           #   Ghost, Convex) and /etc drop-ins; nothing deploys them
 ├── secrets/                # agenix/ragenix age-encrypted secrets
 ├── docker/                 # container notes (per-arch CLAUDE.md) + entrypoint
 ├── docs/solutions/         # documented solutions to past problems - bugs, practices,
