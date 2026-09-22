@@ -42,17 +42,27 @@ Each entry names the rule, the Rust form, and the check that proves it.
    the body in `std::panic::catch_unwind` and convert to an error code.
    `extern "C-unwind"` is a deliberate choice with a comment, never a
    default.
-   Check: in the shim module, the count of entry-point definitions equals
-   the count of guards:
+   Check: every entry point reaches a guard. Counting the two does not
+   show that, so do not compare the totals — measured against six
+   correctly guarded shims on 2026-09-22, the comparison reported a
+   finding on all six. `catch_unwind` also appears on the `use` line and
+   in the doc comment that explains the guard, and entry points that
+   delegate to one shared helper share its single guard, so the guard
+   count is legitimately unequal to the entry-point count in both
+   directions.
+
+   Use the counts to find the files worth reading, then read them:
 
    ```sh
-   grep -cE 'extern "C" fn [A-Za-z_]' src/ffi.rs
-   grep -c  'catch_unwind'            src/ffi.rs
+   grep -nE 'extern "C" fn [A-Za-z_]' src/ffi.rs   # every entry point
+   grep -n  'catch_unwind'            src/ffi.rs   # every guard, use line included
    ```
 
    The first pattern matches definitions and not `Option<extern "C" fn(...)>`
-   parameter types. A count is a heuristic: a mismatch is a finding, a
-   match is not proof.
+   parameter types. Zero guards beside one or more entry points is the
+   finding worth acting on. Any other ratio needs the file read: trace
+   each entry point to the guard it reaches, directly or through the
+   helper it calls.
 
 2. **Every loop has a fixed upper bound.** Iterate over a slice or a
    `take(n)`. A `loop {}` carries a counted retry bound, not a condition.
@@ -91,7 +101,18 @@ Each entry names the rule, the Rust form, and the check that proves it.
    goes behind `OnceLock`, `Mutex`, or a handle the caller owns. Declare at
    first use. A `thread_local!` is a scope decision and needs a comment
    saying which thread owns it and why.
-   Check: `grep -rn 'static mut'` is empty.
+   Check: this is empty, comment lines included in the filter because
+   `grep -rn` prefixes each hit with `file:line:`, so a bare `^//` never
+   matches.
+
+   ```sh
+   grep -rn 'static mut' --include='*.rs' | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'
+   ```
+
+   The comment filter matters: a codebase that got this right tends
+   to carry a comment saying why it chose `AtomicI32` or `OnceLock` *over*
+   a `static mut`, and the unfiltered grep turns that comment into a
+   finding.
 
 7. **Check every return value. Check every parameter.** `Result` is
    `#[must_use]` already, so a bare `fallible();` warns with no help. Put
@@ -113,7 +134,10 @@ Each entry names the rule, the Rust form, and the check that proves it.
    platform selection at module boundaries, not scattered through function
    bodies. Generated bindings (bindgen, cbindgen, ffigen) live in one
    module that is never hand-edited.
-   Check: no `cfg` inside a function body in the shim crate.
+   Check: no `cfg` inside a function body in the shim. Grepping for
+   `cfg(` answers a different question — it also matches the `#[cfg(test)]`
+   on the test module, which every well-tested shim has. Look for `cfg`
+   between a `fn` signature and its closing brace.
 
 9. **Pointers restricted: one dereference, no function pointers.** Raw
    pointers exist only inside the `extern "C"` function that received them.
