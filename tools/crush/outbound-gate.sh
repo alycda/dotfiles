@@ -5,9 +5,13 @@
 # Modes:
 #   (no args)  gate mode: runs as a PreToolUse hook. Blocks outbound-posting
 #              calls unless a matching one-shot approval exists.
-#   approve    approval mode: record a one-shot approval for the exact payload
-#              on stdin (the exact bash command, or for MCP tools the exact
-#              "<tool_name>:<stdin json>" string shown in the deny message).
+#   approve [--file PATH]
+#              approval mode: record a one-shot approval for the exact payload
+#              ("bash:<command>", or for MCP tools "<tool_name>:<stdin json>",
+#              as shown in the deny message), read from PATH or stdin.
+#              Agents must use --file: an approve command that carries the
+#              payload in its own text (printf '...' | approve) contains the
+#              gated command, so the gate blocks the approval itself (#177).
 #
 # Approvals are one-shot and exact-payload: any change to the body, title, or
 # destination re-triggers the gate. This is a guardrail for a cooperative
@@ -27,8 +31,14 @@ hash_payload() {
 
 if [[ "${1:-}" == "approve" ]]; then
 	mkdir -p "$APPROVALS_DIR"
-	payload="$(cat)"
-	[[ -n "$payload" ]] || { echo "approve: empty payload on stdin" >&2; exit 1; }
+	if [[ "${2:-}" == "--file" ]]; then
+		[[ -r "${3:-}" ]] || { echo "approve: --file needs a readable path" >&2; exit 1; }
+		# $(<) strips trailing newlines, so an editor's final newline is harmless
+		payload="$(<"$3")"
+	else
+		payload="$(cat)"
+	fi
+	[[ -n "$payload" ]] || { echo "approve: empty payload" >&2; exit 1; }
 	hash="$(printf '%s' "$payload" | hash_payload)"
 	: >"$APPROVALS_DIR/$hash"
 	echo "Recorded one-shot approval: $hash"
@@ -115,8 +125,12 @@ Required flow:
    (PR/issue/thread/channel/recipient).
 2. Wait for their explicit approval in chat. An earlier instruction like
    "reply to X" authorizes the act, not the unseen content.
-3. Record a one-shot approval for this EXACT payload, then retry unchanged:
-     printf '%s' '$payload' | ~/.config/crush/hooks/outbound-gate.sh approve
+3. Record a one-shot approval for this EXACT payload, then retry unchanged.
+   Write the payload below to a file with your file-writing tool (not a
+   shell command - one that contains the payload is itself gated), then:
+     ~/.config/crush/hooks/outbound-gate.sh approve --file /path/to/payload
+   Payload:
+$payload
    For a user-approved batch, approve each payload once; one chat approval
    covers the batch.
 4. Any change to body/title/destination invalidates the approval and this
