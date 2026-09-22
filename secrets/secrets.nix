@@ -64,4 +64,10 @@ in
   # `just edit-secret personal/venice-api-key.age` before wiring it into
   # home-manager. Armored, like the linear keys above.
   "personal/venice-api-key.age".publicKeys = [ alyssa ];
+
+  # Bearer token for ghost-server on venari (tools/venari/ghost/). The value
+  # was generated on the box and lives in its /srv/ghost/.env; this is the
+  # laptop's copy, exported as GHOST_API_KEY by the ghost wrapper in
+  # home-manager/modules/tools/ghost.nix. Armored, like the keys above.
+  "personal/ghost-api-key.age".publicKeys = [ alyssa ];
 }
