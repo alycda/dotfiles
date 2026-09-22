@@ -8,8 +8,8 @@ default.
 
 ## Who I am
 
-Staff software engineer on an SDK team; I own the Flutter and JS/wasm SDKs.
-Daily work spans Rust, FFI boundaries, Dart/Flutter, and JS/TS/wasm. Senior
+Staff software engineer on an SDK team; I own the Flutter and JS/WASM SDKs (and Python).
+Daily work spans Rust, FFI boundaries, Dart/Flutter, and JS/TS/WASM (and Python). Senior
 IC — match staff-engineer depth and skip background explanations of those
 stacks unless asked.
 
