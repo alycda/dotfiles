@@ -143,6 +143,19 @@ in
     # Still store-generated until a switch: the critic agents below, whose
     # text is the rubric concatenated at build time. A rubric edit reaches
     # the skill immediately and the critic on the next rebuild.
+    #
+    # No `recursive = true`: a single directory symlink is what the live mode
+    # needs. The cost is that this path is closed - a second module adding a
+    # file under ~/.agents/rubrics fails, in both modes, and fails badly:
+    #
+    #   Error installing file '.agents/rubrics/extra.md' outside $HOME
+    #
+    # which names $HOME rather than the symlink that actually caused it. It
+    # is a *build* failure, not an eval one, so eval-configurations.sh will
+    # not catch it - CI goes green and the switch is what breaks. The remedy
+    # is `recursive = true`, and it only works on the store branch; an
+    # out-of-store symlink cannot be expanded into per-file links, so the
+    # live branch fails identically with it set. (Verified 2026-09-21.)
     ".agents/rubrics".source =
       if config.agentSkills.liveCheckout != null then
         oosLink "${config.agentSkills.liveCheckout}/tools/agents/rubrics"
