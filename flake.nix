@@ -47,12 +47,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # The Ghost CLI fork (alycda/ghost, branch ghost-server): Timescale's
-    # `ghost` plus a server for its API, now that the hosted service is
-    # winding down. Not a flake; lib/ghost.nix builds it. Bump with
-    # `nix flake update ghost`.
+    # The Ghost CLI fork (alycda/ghost): Timescale's `ghost` plus a server
+    # for its API, now that the hosted service is winding down. Not a flake;
+    # lib/ghost.nix builds it. Bump with `nix flake update ghost`.
     ghost = {
-      url = "github:alycda/ghost/ghost-server";
+      url = "github:alycda/ghost";
       flake = false;
     };
   };

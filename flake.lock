@@ -145,16 +145,15 @@
     "ghost": {
       "flake": false,
       "locked": {
-        "lastModified": 1790051414,
+        "lastModified": 1790051710,
         "narHash": "sha256-STbTr0diH0fLaRVEzROM2/yDY2Hd+qkeUkNecv6zyAw=",
         "owner": "alycda",
         "repo": "ghost",
-        "rev": "2b1495364631a2f48a697374d7af54780d176271",
+        "rev": "c4f353ad7546417705f244c07bc450c22a0a57c9",
         "type": "github"
       },
       "original": {
         "owner": "alycda",
-        "ref": "ghost-server",
         "repo": "ghost",
         "type": "github"
       }
