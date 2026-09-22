@@ -1,0 +1,15 @@
+# Bash commands Crush may run without a permission prompt.
+# Read by allow-commands.sh (PreToolUse hook). One entry per line: a
+# whitespace-separated word prefix, matched word-for-word against the start
+# of the command. `gh pr view` allows `gh pr view 42 --json title`, not
+# `gh pr viewer` and not `gh -R o/r pr view`.
+#
+# Only read-only commands belong here. Any command containing a shell
+# metacharacter (; & | < > ` $ ( ) { } \ or a newline) is never
+# auto-allowed, whatever it starts with, so an entry cannot be chained
+# into something else.
+#
+# MCP tools are not listed here: they go in permissions.allowed_tools in
+# home-manager/modules/tools/crush.nix, crush's native per-tool allowlist.
+
+gh pr view
