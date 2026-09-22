@@ -48,7 +48,7 @@
 #                           to ~/.agents/rubrics) and adds the Rust mapping
 #   ste100                - ASD-STE100 rewrites/lints mapped onto this repo's
 #                           surfaces; carries no rule text, delegates to the
-#                           external asd-ste100 skill and reads CONCEPTS.md as
+#                           external asd-ste100-skill and reads CONCEPTS.md as
 #                           the project's technical-name dictionary
 #
 # One of them is vendored rather than authored:
@@ -101,7 +101,7 @@ let
   ];
 
   externalSkills = {
-    asd-ste100 = pkgs.skills-sh.asd-ste100;
+    asd-ste100-skill = pkgs.skills-sh.asd-ste100-skill;
     here-now = pkgs.skills-sh.here-now;
     supabase-postgres-best-practices = pkgs.skills-sh.supabase-postgres-best-practices;
   };

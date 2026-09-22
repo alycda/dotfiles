@@ -72,12 +72,19 @@ nix-skills: final: _: {
       # 2026-09-15 and the lock caught up on 2026-09-18. `ste100` keeps its
       # fallback (lint from the rule table when the script is absent) because
       # the same gap can reopen on any upstream commit that adds a file.
-      # Path "." means the repo root is the skill.
-      asd-ste100 = mkSkill {
+      # Path "." means the repo root is the skill, and that fixes the name:
+      # nix-skills' getSkillName returns null for "." and falls back to the
+      # repo, so upstream's pname is danyuchn.asd-ste100-skill.asd-ste100-skill
+      # and its yq pass writes `name: asd-ste100-skill` into SKILL.md. Passing
+      # the same name here is what keeps the byte-identical-drvPath claim in
+      # this file's header true for a root-path skill; a prettier `asd-ste100`
+      # would be a different derivation with different frontmatter. The
+      # price is the directory name ~/.agents/skills/asd-ste100-skill.
+      asd-ste100-skill = mkSkill {
         owner = "danyuchn";
         repo = "asd-ste100-skill";
         path = ".";
-        name = "asd-ste100";
+        name = "asd-ste100-skill";
       };
 
       # https://www.skills.sh/supabase/agent-skills/supabase-postgres-best-practices

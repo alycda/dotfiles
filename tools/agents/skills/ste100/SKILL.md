@@ -11,7 +11,7 @@ description: >
   description or a rule file. Do not trigger on persona, constitution,
   brag-doc, failure-doc, or pushback text; voice is the point there. Carries no
   rule text: it delegates the rule set, examples, and linter to the pinned
-  asd-ste100 skill and adds only what is specific to Alyssa's surfaces.
+  asd-ste100-skill and adds only what is specific to Alyssa's surfaces.
 ---
 
 # STE100
@@ -24,7 +24,7 @@ dictionary, and handoffs to the other writing skills in this repo.
 
 ## The rules live in the pinned skill
 
-Read `~/.agents/skills/asd-ste100/SKILL.md` before you rewrite anything. It
+Read `~/.agents/skills/asd-ste100-skill/SKILL.md` before you rewrite anything. It
 holds the 53-rule summary, the strict / STE-flavored split, the hedge rule
 (a hedge is content, never cut one to shorten a sentence), and the output
 contract. Its `references/writing-rules.md` has the full rule summary with
@@ -107,13 +107,13 @@ This skill runs after the skills that own structure, never instead of them.
 
 1. Name the surface and the mode in one line. If the surface is in a Never
    row, say so and stop.
-2. Read the pinned `asd-ste100` SKILL.md. In strict mode also read its
+2. Read the pinned `asd-ste100-skill` SKILL.md. In strict mode also read its
    `references/writing-rules.md`.
 3. Run the linter when it exists:
 
    ```sh
-   python3 ~/.agents/skills/asd-ste100/scripts/ste-lint.py FILE
-   python3 ~/.agents/skills/asd-ste100/scripts/ste-lint.py --baseline N FILE
+   python3 ~/.agents/skills/asd-ste100-skill/scripts/ste-lint.py FILE
+   python3 ~/.agents/skills/asd-ste100-skill/scripts/ste-lint.py --baseline N FILE
    ```
 
    Use `--baseline` when adopting on an existing file: set N to the current

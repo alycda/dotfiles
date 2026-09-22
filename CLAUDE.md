@@ -359,7 +359,7 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   skill that delegates to it and carries only what is specific to this
   workflow: which surfaces get which mode, what the local glossary is,
   which sibling skills hand off to it. `tools/agents/skills/ste100` on top
-  of `asd-ste100` is the worked example — no rule text of its own, and it
+  of `asd-ste100-skill` is the worked example — no rule text of its own, and it
   reads `CONCEPTS.md` as the project's technical-name dictionary, which is
   how a controlled-language skill gets a word list without redistributing
   ASD's. Re-authoring the rules locally would have meant maintaining a
@@ -796,7 +796,7 @@ This document should evolve as patterns emerge. When you:
 
 *2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
 
-*2026-09-14 - Recorded the layer-not-fork pattern for tailoring an indexed skill (`ste100` over the pinned `asd-ste100`, with `CONCEPTS.md` as its dictionary) and the reminder that a nix-skills pin can predate a file the skill's own text references*
+*2026-09-14 - Recorded the layer-not-fork pattern for tailoring an indexed skill (`ste100` over the pinned `asd-ste100-skill`, with `CONCEPTS.md` as its dictionary) and the reminder that a nix-skills pin can predate a file the skill's own text references*
 
 *2026-09-06 - Recorded that a third-party Homebrew tap executes its
 formula Ruby inside activation and can abort a whole `darwin-rebuild switch`
