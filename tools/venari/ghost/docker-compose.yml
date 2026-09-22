@@ -1,0 +1,64 @@
+# Ghost on venari: a Postgres cluster and ghost-server, the self-hosted Ghost
+# API from the alycda/ghost fork (branch ghost-server). Both listen on the
+# box's loopback only and are reached over ssh -L, like Soft Serve: the cloud
+# firewall admits 22 alone.
+#
+# On the box: /srv/ghost/docker-compose.yml, next to an untracked .env (see
+# .env.example), certs/ (self-signed, generated on the box), data/ (the
+# cluster, never tracked) and server/ (the Dockerfile plus the ghost-server
+# binary cross-compiled on the laptop; the binary is not tracked).
+#
+# The CLI insists on sslmode=require, so the cluster runs TLS with a
+# self-signed certificate; the CLI does not verify it. The key must be owned
+# by the image's postgres user (uid 70) and mode 600 or Postgres refuses it.
+name: ghost
+services:
+  postgres:
+    image: timescale/timescaledb:2.30.1-pg17
+    container_name: ghost-postgres
+    restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/certs/server.crt
+      - -c
+      - ssl_key_file=/certs/server.key
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set it in .env}"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+      - ./certs:/certs:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    shm_size: 128m
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  server:
+    build: ./server
+    image: ghost-server:local
+    container_name: ghost-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GHOST_SERVER_LISTEN: 0.0.0.0:8787
+      GHOST_SERVER_API_KEY: "${GHOST_API_KEY:?set it in .env}"
+      GHOST_SERVER_POSTGRES_URL: "postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres"
+      # What clients are told to connect to: the laptop's end of the tunnel
+      # (`ssh -fN venari-ghost` forwards 15432 to the box's 5432).
+      GHOST_SERVER_PUBLIC_HOST: 127.0.0.1
+      GHOST_SERVER_PUBLIC_PORT: "15432"
+      GHOST_SERVER_SPACE_ID: venari
+      GHOST_SERVER_SPACE_NAME: venari
+      GHOST_SERVER_STORAGE_LIMIT_MIB: "10240"
+    ports:
+      - "127.0.0.1:8787:8787"
+    mem_limit: 128m

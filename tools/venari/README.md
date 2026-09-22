@@ -20,6 +20,8 @@ the box is the running copy.
 | `cloud/99-hostname.cfg` | `/etc/cloud/cloud.cfg.d/99-hostname.cfg` |
 | `ssh/20-soft-tunnel.conf` | `/etc/ssh/sshd_config.d/20-soft-tunnel.conf` |
 | `ssh/soft-tunnel.authorized_keys` | `/var/lib/soft-tunnel/.ssh/authorized_keys` (root-owned, 644) |
+| `ghost/docker-compose.yml` | `/srv/ghost/docker-compose.yml`, with `.env` (from `.env.example`), `certs/`, `data/` and `server/` beside it |
+| `ghost/server/Dockerfile` | `/srv/ghost/server/Dockerfile`, next to the `ghost-server` binary it packages |
 
 The dev-box side is `tools/mise/venari/` — the same arrangement felixia has,
 for the same reason: no Nix here either.
@@ -129,6 +131,67 @@ Checked from felixia (2026-09-18). `ls-remote` and push work. These all fail:
 a shell ("This account is currently not available"), `-W` to another port
 ("administratively prohibited"), `-R` ("remote port forwarding failed"),
 reading any other repo ("not authorized"), and admin commands ("unauthorized").
+
+## Ghost: disposable Postgres for agents
+
+[Ghost](https://ghost.build) was Timescale's hosted "database for agents":
+create a Postgres database per task, fork it, throw it away. The service is
+winding down, so `/srv/ghost/` runs our own. The CLI is unchanged apart from
+learning one field; the server is `ghost-server` from the `ghost-server`
+branch of the `alycda/ghost` fork (see `internal/server/` there). Everything
+about the design is in that package's doc comment; the parts that matter on
+this box:
+
+- One TimescaleDB cluster (`ghost-postgres`). Each Ghost database is a Postgres
+  database named after its ID; a fork is `CREATE DATABASE ... TEMPLATE`, so it
+  copies files and needs no one connected to the source (the server ends those
+  sessions first). Pause is `ALLOW_CONNECTIONS false`.
+- One role, `tsdbadmin`, because the CLI hardcodes it. `ghost password`
+  therefore changes the password for every database.
+- TLS is on with a self-signed certificate, because the CLI insists on
+  `sslmode=require`. It does not verify the certificate.
+- Bookkeeping is in the cluster (`ghost.databases`, `ghost.settings` in the
+  `postgres` database), so `data/` is the whole state.
+
+Both containers listen on the box's loopback. From the laptop:
+
+```sh
+just ghost-tunnel                       # ssh -fN venari-ghost: 8787 -> API, 15432 -> Postgres
+ghost create scratch && ghost psql scratch
+ghost fork scratch experiment
+ghost delete experiment --confirm
+just ghost-tunnel-close
+```
+
+The `ghost` on PATH is a wrapper (`home-manager/modules/tools/ghost.nix`) that
+points the CLI at `127.0.0.1:8787`, turns off analytics, the update check and
+the Timescale docs proxy, and exports the API key from agenix. Connection
+strings it prints say `127.0.0.1:15432`, which is the tunnel's Postgres end.
+
+Deploying a new server binary: `just ghost-deploy` cross-compiles
+`cmd/ghost-server` from `~/Projects/ghost` for linux/amd64, copies it to
+`/srv/ghost/server/`, rebuilds the tiny image and restarts the container.
+Nothing else needs a Go toolchain: the box has none.
+
+Setup from scratch, as root on the box, after copying `ghost/` here to
+`/srv/ghost/`:
+
+```sh
+cd /srv/ghost && umask 077
+printf 'POSTGRES_PASSWORD=%s\nGHOST_API_KEY=gt_%s\n' "$(openssl rand -hex 24)" "$(openssl rand -hex 20)" > .env
+openssl req -new -x509 -days 3650 -nodes -subj /CN=venari-ghost -keyout certs/server.key -out certs/server.crt
+chown 70:70 certs/server.*; chmod 600 certs/server.key; chmod 644 certs/server.crt   # uid 70 = the image's postgres
+docker compose up -d                    # after `just ghost-deploy` has delivered server/ghost-server
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8787/v0/health
+```
+
+Then encrypt the box's `GHOST_API_KEY` into `secrets/personal/ghost-api-key.age`
+(`just edit-secret`), so the wrapper can find it.
+
+Not supported, and answered with 501: billing, spaces beyond the one, members,
+invites, shares, API-key management (the key is configuration). `ghost logs`
+returns an empty page. Backups: the cluster rides the provider's box backups,
+like Soft Serve's `data/`; Ghost databases are disposable by design.
 
 ## Updates and reboots
 

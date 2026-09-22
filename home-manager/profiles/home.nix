@@ -4,6 +4,8 @@
 {
   imports = [
     ../modules/ide/vscode.nix
+    # Ghost CLI against the server on venari; personal, so home.nix only.
+    ../modules/tools/ghost.nix
   ];
 
   # Live-edit agent skills from the local checkout (module imported via
