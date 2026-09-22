@@ -109,7 +109,14 @@ in all three tools — one of them dangerously:
 - **weave handles Dart fine** — support merged upstream in PR #85
   (2026-05-11), shipped from v0.3.3. Verified on 0.3.6: two branches
   editing two different methods of one class preview as
-  `a.dart — auto-resolved`. Use it normally on Flutter work.
+  `a.dart — auto-resolved`. Use it normally on Flutter work — with one
+  gap: `.arb` (Flutter localization bundles, which are JSON under another
+  extension) is not routed to the JSON plugin. Verified on stock 0.5.4 with
+  byte-identical content in both files: `app_en.json — auto-resolved`,
+  `app_en.arb — CONFLICTS: 1 (line-level fallback)`. So ARB files still
+  line-merge and still conflict when two branches add different messages.
+  `alycda/weave#1` fixes this by aliasing `.arb` onto the JSON plugin; if
+  that lands, drop this caveat.
 
 Net: in a Dart repo, use `sem diff` / `blame` / `log` / `entities` /
 `context` and `weave` freely, never trust `sem impact` / `callers` / `refs`,
@@ -190,23 +197,49 @@ back to normal line merging.
 ```bash
 weave preview <branch>          # dry-run merging <branch> into HEAD; read-only
 weave preview <branch> --file f # ...for one file
+weave explain <file>            # read-only: why THIS file conflicted — which guard
+                                #   refused, and the hunks both sides wrote in.
+                                #   Reads the three merge stages out of the index
+weave check                     # read-only: verify a resolution against those stages
+                                #   (markers left behind, lines silently dropped,
+                                #   references that no longer resolve). Exits 1 on
+                                #   findings, so guard it in a `&&` chain
 weave summary <file>            # structured summary of weave conflict markers
 weave setup                     # enable: writes .gitattributes + merge driver config
 weave setup --local             # .git/info/attributes instead (nothing committed)
 weave unsetup                   # revert to standard git merge
 ```
 
-Commands checked against `weave 0.3.6`, which ships three binaries: `weave`
+Commands checked against `weave 0.5.4`, which ships three binaries: `weave`
 (the CLI above), `weave-driver` (what git/jj invoke), and `weave-mcp`. Older
-READMEs call the CLI `weave-cli` and show a `setup --global`; neither exists
-in this version, so don't propose them.
+READMEs call the CLI `weave-cli`; that name does not exist, so don't propose
+it. (`setup --global` *does* exist again in 0.5.x — see the setup bullet.)
+
+**0.5.x is newer than nixpkgs.** nixpkgs tracks 0.3.6; `lib/weave.nix` pins
+this machine forward to 0.5.4. On a machine without that pin — a sandbox, a
+devcontainer, `nix run nixpkgs#weave` — you get 0.3.6, which has no
+`explain`, `check`, `patch` or `apply`. Run `weave --version` before relying
+on those four.
 
 - **Start with `weave preview`.** It changes nothing, so it's safe to run
   unprompted, and it answers "would weave have dissolved these conflicts?"
   before anyone commits to configuring a merge driver.
+- **`weave explain` then `weave check` is the conflict loop** (0.5.x). Both
+  are read-only and safe unprompted: `explain` says why a file conflicted
+  before you touch it, `check` says whether your resolution silently dropped
+  something either side had written. `check` exits 1 when it has findings —
+  that's the point, not a failure.
 - `weave setup` **mutates repo config and possibly tracked files**
   (`.gitattributes`): propose it and let the user choose the variant; don't
-  run it unprompted. `--local` is the least invasive.
+  run it unprompted. `--local` is the least invasive; **`--global` is the most
+  — it writes `~/.gitconfig` plus a global attributes file and makes weave the
+  default merge driver in every repo on the machine.** Never propose
+  `--global` as the default variant.
+- **`weave apply` and `weave patch apply` write to working files** — `apply`
+  materializes entity edits from the CRDT onto the tree, `patch apply` lands
+  typed entity ops as a three-way entity merge. Neither is read-only; treat
+  them like any other edit and don't run them to "have a look".
+  (`weave patch extract` only reads.)
 - When weave is active, a merge that "just works" on a file both sides edited
   is weave doing its job — don't treat the absence of conflicts as suspicious.
 - **jj integration** (relevant here — jj is the house VCS): weave registers as
