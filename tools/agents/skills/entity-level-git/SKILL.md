@@ -109,14 +109,18 @@ in all three tools — one of them dangerously:
 - **weave handles Dart fine** — support merged upstream in PR #85
   (2026-05-11), shipped from v0.3.3. Verified on 0.3.6: two branches
   editing two different methods of one class preview as
-  `a.dart — auto-resolved`. Use it normally on Flutter work — with one
-  gap: `.arb` (Flutter localization bundles, which are JSON under another
-  extension) is not routed to the JSON plugin. Verified on stock 0.5.4 with
-  byte-identical content in both files: `app_en.json — auto-resolved`,
-  `app_en.arb — CONFLICTS: 1 (line-level fallback)`. So ARB files still
-  line-merge and still conflict when two branches add different messages.
-  `alycda/weave#1` fixes this by aliasing `.arb` onto the JSON plugin; if
-  that lands, drop this caveat.
+  `a.dart — auto-resolved`. Use it normally on Flutter work. **`.arb`
+  depends on which build you have.** Flutter localization bundles are JSON
+  under another extension, and stock weave doesn't route them to the JSON
+  plugin — verified on upstream 0.5.4 with byte-identical content in both
+  files: `app_en.json — auto-resolved`, `app_en.arb — CONFLICTS: 1
+  (line-level fallback)`. Two branches each adding one message conflict.
+  `lib/weave.nix` pins this machine to `alycda/weave#1`, which aliases
+  `.arb` onto the JSON plugin, so here both files report `auto-resolved`
+  with identical stats. Anywhere without that pin — a sandbox, a
+  devcontainer, `nix run nixpkgs#weave` — still line-merges ARB. Check
+  `weave --version` isn't 0.3.x and assume stock behavior unless you know
+  the pin is in play.
 
 Net: in a Dart repo, use `sem diff` / `blame` / `log` / `entities` /
 `context` and `weave` freely, never trust `sem impact` / `callers` / `refs`,
