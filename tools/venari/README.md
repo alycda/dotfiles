@@ -1,7 +1,7 @@
 # venari — the always-on box
 
-A small rented VM (2 vCPU, 4 GB, 38 GB disk, Debian 12, Helsinki). It was
-stood up on 2026-09-16 as a trial home for Hermes, and kept on 2026-09-18.
+A small rented VM running Debian 12. It was stood up on 2026-09-16 as a
+trial home for Hermes, and kept on 2026-09-18.
 Hermes moved back to felixia on 2026-09-21 — the agent needs the ledger broker
 on felixia's loopback and the iCloud inbox, and neither can follow it here —
 so what this box is now is a private git server and a small dev box.
@@ -61,8 +61,8 @@ jj git remote add venari venari-git:myrepo  # then: jj git push --remote venari 
 ssh venari-git                             # TUI
 ```
 
-Anonymous and keyless access are both off (upstream defaults to anonymous
-read). An unknown key sees no repos and cannot clone, including non-private ones.
+An unknown key sees no repos and cannot clone, including non-private ones;
+`docker-compose.yml` has the settings that make that true.
 
 ## felixia's access: one tunnel, one repo
 
@@ -76,9 +76,8 @@ one in Soft Serve:
   shell. Its key line (`restrict,port-forwarding,permitopen=...`) allows one
   local forward to Soft Serve's loopback port and nothing else. The file is
   root-owned, so the user cannot edit its own line.
-- **`20-soft-tunnel.conf`** repeats that for the user in sshd itself, and adds
-  what a key line cannot: `AllowTcpForwarding local` blocks `-R`, which the
-  key's `port-forwarding` would otherwise re-enable.
+- **`20-soft-tunnel.conf`** — sshd's copy of the same restriction, and the only
+  layer that stops `-R`; the file says why.
 - **Soft Serve user `felixia`**: not an admin, and a read-write collaborator on
   `ledger-age` only.
 
@@ -133,18 +132,13 @@ reading any other repo ("not authorized"), and admin commands ("unauthorized").
 
 ## Updates and reboots
 
-`unattended-upgrades` installs security updates daily (Debian's default; the
-run is around 06:30 UTC). `52unattended-reboot` lets it reboot when an update
-needs one, at 11:00 UTC (04:00 Pacific). Every container on the box uses
-`restart: unless-stopped` and docker starts at boot, so services come back by
-themselves.
+`unattended-upgrades` runs daily and may reboot the box at 11:00 UTC — see
+`apt/52unattended-reboot`. Every container uses `restart: unless-stopped` and
+docker starts at boot, so services come back by themselves.
 
-That reboot is also what makes `cloud/99-hostname.cfg` necessary. cloud-init
-runs `set_hostname` and `update_hostname` on every boot, and the provider's own
-`90-hetznercloud.cfg` sets `preserve_hostname: false` — so a plain
-`hostnamectl set-hostname` would have been quietly undone at the next reboot,
-days after anyone connected the two. Drop-ins merge in lexical order, so the
-`99-` file wins.
+That reboot is why `cloud/99-hostname.cfg` exists: cloud-init would otherwise
+revert the hostname at the next one, days after anyone connected the two. The
+file says how.
 
 Backups of files under `/etc` go in `/root/config-backups/`, not beside the
 original: a `*.bak-<ts>` left in `/etc/apt/apt.conf.d/` makes apt print
