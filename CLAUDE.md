@@ -377,6 +377,19 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   locked nix-skills, then the file at that rev) or against
   `~/.agents/skills/<name>/` after a switch, and give the skill a fallback
   for anything that can lag
+- **For a library, look inside the package before writing a skill for it.**
+  Effect v4 ships `AGENTS.md` and `ai-docs/` in its npm tarball, and the
+  Effect team's own `effect-ts` skill is only a pointer to them. A local API
+  reference would restate that content, and it would go stale at each
+  release candidate. The repo's `effect` skill therefore carries what the
+  package cannot: a gate on the *installed* major version (the v3 tarball
+  ships no agent docs, and `effect-ts` starts with `pnpm add effect@rc`, which
+  in a v3 project is an unrequested major upgrade), plus Alyssa's Rust
+  mapping. Get version-specific claims from a typecheck against the real
+  package, not from memory: typechecking effect-playground against
+  4.0.0-rc.117 found `Schema.Date`, a name that v4 keeps with a different
+  meaning, and a v4 name written from memory (`Schema.TaggedErrorClass`)
+  that did not exist
 
 ### When nixpkgs lags: prefer the vendor's own Nix repo over NUR
 
@@ -808,6 +821,7 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
+*Last updated: 2026-09-22 - Added the `effect` skill as a layer over the Effect team's pinned `effect-ts` / `effect-v3-to-v4` skills, and recorded the lesson: check whether a library ships its own agent docs in the package (Effect v4 does, v3 does not), gate on the installed version, and verify v3/v4 claims by typechecking against the real package*
 *Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
 *Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
 *Last updated: 2026-09-16 - Verified inspect against a real binary and found its declared install route could never have worked: the ataraxy-labs/tap formula pins a checksum upstream invalidated by moving the v0.1.1 tag, so the brew fails and would abort activation. Replaced it with `lib/inspect.nix` (release binary, tart-style). Two lessons, both already in the tap write-up and both nearly repeated: a tap's risk is its maintenance, so check the formula's age and hash before declaring it, not after; and a prebuilt binary that runs on *this* machine proves little — this one linked Homebrew's openssl by absolute path, so `otool -L` is part of verifying any fetched macOS binary*
