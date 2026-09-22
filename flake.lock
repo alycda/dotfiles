@@ -142,6 +142,23 @@
         "type": "github"
       }
     },
+    "ghost": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790051414,
+        "narHash": "sha256-STbTr0diH0fLaRVEzROM2/yDY2Hd+qkeUkNecv6zyAw=",
+        "owner": "alycda",
+        "repo": "ghost",
+        "rev": "2b1495364631a2f48a697374d7af54780d176271",
+        "type": "github"
+      },
+      "original": {
+        "owner": "alycda",
+        "ref": "ghost-server",
+        "repo": "ghost",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -269,6 +286,7 @@
         "charm-nur": "charm-nur",
         "claude-code-nix": "claude-code-nix",
         "darwin": "darwin",
+        "ghost": "ghost",
         "home-manager": "home-manager",
         "nix-skills": "nix-skills",
         "nix-vscode-extensions": "nix-vscode-extensions",
