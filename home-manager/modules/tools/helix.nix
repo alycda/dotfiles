@@ -42,7 +42,7 @@ in
     # Provides the `harper-ls` binary - a fast, offline, Rust grammar checker.
     # https://writewithharper.com/ - no desktop app, just the LSP for helix.
     harper
-  ] ++ lib.optionals pkgs.stdenv.isDarwin [
+  ] ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
     swift-format          # Swift formatter (sourcekit-lsp from Xcode)
   ];
 
