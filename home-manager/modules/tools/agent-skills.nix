@@ -42,6 +42,14 @@
 #   html-deck             - self-contained single-file HTML slide decks
 #   jj-extract-gitignores - roll .gitignore additions back into ancestors
 #   jujutsu               - operate in jj repos without git muscle memory
+#   power-of-ten          - NASA/JPL Power of Ten while writing FFI/unsafe
+#                           Rust; carries no rule text, reads the rubric
+#                           code-critic judges against (deployed by agents.nix
+#                           to ~/.agents/rubrics) and adds the Rust mapping
+#   ste100                - ASD-STE100 rewrites/lints mapped onto this repo's
+#                           surfaces; carries no rule text, delegates to the
+#                           external asd-ste100-skill and reads CONCEPTS.md as
+#                           the project's technical-name dictionary
 #
 # One of them is vendored rather than authored:
 #   hackmd-cli - upstream's own skill, extracted from the hackmd-cli.skill zip
@@ -88,9 +96,12 @@ let
     "html-deck"
     "jj-extract-gitignores"
     "jujutsu"
+    "power-of-ten"
+    "ste100"
   ];
 
   externalSkills = {
+    asd-ste100-skill = pkgs.skills-sh.asd-ste100-skill;
     here-now = pkgs.skills-sh.here-now;
     supabase-postgres-best-practices = pkgs.skills-sh.supabase-postgres-best-practices;
   };

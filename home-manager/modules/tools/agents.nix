@@ -125,6 +125,42 @@ in
     # ~/.claude/rules (claude-code.nix), crush loads it via context_paths
     # (crush.nix).
     ".agents/rules/outbound-comment-gate.md".source = ../../../tools/agents/rules/outbound-comment-gate.md;
+    # The judging rubrics, deployed as files as well as being concatenated
+    # into the critic agents below. A rubric that exists only inside a critic
+    # is review-only: nothing can load it while writing. Deploying the
+    # directory gives a skill a stable path to read one on demand
+    # (tools/agents/skills/power-of-ten reads power-of-ten.md from here).
+    #
+    # Same two modes as the repo skills in agent-skills.nix, keyed on the
+    # same option, so the skill and the rubric it reads move together: with
+    # agentSkills.liveCheckout set (desktop profiles), a live symlink into
+    # the checkout, and an edit to a rubric lands without a rebuild; with it
+    # null (dev container), the store snapshot. Without this parity the
+    # desktop got a live skill telling the agent to read a stale store rubric.
+    # The option is declared in agent-skills.nix; both modules are imported
+    # by common.nix, so it is always present here.
+    #
+    # Still store-generated until a switch: the critic agents below, whose
+    # text is the rubric concatenated at build time. A rubric edit reaches
+    # the skill immediately and the critic on the next rebuild.
+    #
+    # No `recursive = true`: a single directory symlink is what the live mode
+    # needs. The cost is that this path is closed - a second module adding a
+    # file under ~/.agents/rubrics fails, in both modes, and fails badly:
+    #
+    #   Error installing file '.agents/rubrics/extra.md' outside $HOME
+    #
+    # which names $HOME rather than the symlink that actually caused it. It
+    # is a *build* failure, not an eval one, so eval-configurations.sh will
+    # not catch it - CI goes green and the switch is what breaks. The remedy
+    # is `recursive = true`, and it only works on the store branch; an
+    # out-of-store symlink cannot be expanded into per-file links, so the
+    # live branch fails identically with it set. (Verified 2026-09-21.)
+    ".agents/rubrics".source =
+      if config.agentSkills.liveCheckout != null then
+        oosLink "${config.agentSkills.liveCheckout}/tools/agents/rubrics"
+      else
+        ../../../tools/agents/rubrics;
 
     # Claude include path: local imports, not a URL. Point at ~/.agents so
     # edits and the runtime decryption of the overlay flow through one place.
