@@ -60,7 +60,10 @@ your system will be depended on by somebody."* When a change touches a
 surface other code or people observe (API, CLI output, config or file
 format, FFI/ABI), list what observably moves, promised or not. The
 checklist is in `~/.agents/rubrics/hyrums-law.md`, and the `code-critic`
-agent applies it.
+agent applies it. Its counterpart for trait impls, alternate implementations
+and test doubles is Liskov and Wing's behavioral subtyping
+(`~/.agents/rubrics/behavioral-subtyping.md`): whatever stands in for a
+thing must keep its contract, not only its signature.
 
 ## Command-line defaults
 

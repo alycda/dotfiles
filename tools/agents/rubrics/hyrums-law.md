@@ -81,3 +81,10 @@ because we serve its OpenAPI contract" turned out to be false twice:
 
 In both cases the contract matched and the behavior the client depended on
 did not.
+
+## Relation to behavioral subtyping
+
+`behavioral-subtyping.md` (Liskov and Wing) sets what a replacement must
+preserve: everything provable from the specification. This rubric explains
+why that is necessary but not sufficient: users depend on more than the
+specification says.
