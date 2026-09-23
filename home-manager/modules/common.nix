@@ -26,6 +26,7 @@ in
     ./tools/git-worktree-clone.nix
     ./tools/hackmd.nix
     ./tools/helix.nix
+    ./tools/lazydiff.nix
     ./tools/starship.nix
     ./tools/television.nix
     ./git.nix
