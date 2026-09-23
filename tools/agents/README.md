@@ -72,8 +72,8 @@ re-derive the one-liners rather than letting the two drift.
   canonical in `tools/agents/*-critic.md`, judged-against material appended
   as layers — so full rubrics load on demand instead of always:
   `constitution-critic` (personal constitution + company values),
-  `code-critic` (TigerStyle, NASA Power of Ten, Test Desiderata from
-  `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
+  `code-critic` (TigerStyle, NASA Power of Ten, Test Desiderata, Hyrum's Law
+  from `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
   principles/techniques/products, judging process rather than code),
 - deploys `tools/agents/rubrics/` to `~/.agents/rubrics/` as plain files too,
   so a skill can read a rubric while *writing* rather than only a critic
