@@ -31,7 +31,8 @@
 # The byte-identical-drvPath claim is checkable the same way: build both
 # package sets over one nixpkgs and diff the drvPaths. Verified 2026-09-21
 # for all three skills below, including the root-path one, whose name is
-# load-bearing (see asd-ste100-skill).
+# load-bearing (see asd-ste100-skill). liteparse, added later, is patched
+# with overrideAttrs and so is deliberately excluded from that claim.
 #
 # Tradeoff: data/by-name/<initial>/skills.json and nix/build-skill are
 # nix-skills internals, not its public API; an upstream refactor may require
@@ -109,6 +110,47 @@ nix-skills: final: _: {
         path = ".";
         name = "asd-ste100-skill";
       };
+
+      # https://www.skills.sh/run-llama/llamaparse-agent-skills/liteparse
+      # Local, model-free document extraction (PDF/DOCX/PPTX/XLSX/images) via
+      # the `lit` CLI, plus the discipline that makes it cheap: parse once to
+      # a file, grep that file, screenshot a page only as a last resort. Here
+      # so every harness reading ~/.agents/skills handles a document the same
+      # way, instead of each falling back to whatever its own reader does.
+      #
+      # Only one of the repo's three skills. `llamaparse` and
+      # `llamacloud-index` both drive LlamaCloud, a hosted service that needs
+      # LLAMA_CLOUD_API_KEY, and llamaparse's description ("when the user asks
+      # to parse the content of an unstructured file") claims the same tasks
+      # as liteparse. Installed together, an agent picks between a local
+      # parser and an upload per task - the inconsistency this skill is here
+      # to remove. Add them as separate entries if a LlamaCloud account ever
+      # exists.
+      #
+      # Patched, so this one is NOT byte-identical to upstream's derivation.
+      # Upstream's SKILL.md runs its BM25 helper as
+      # ./.claude/skills/effective-liteparse/scripts/search.py - relative to
+      # the agent's cwd and under a skill name that exists nowhere, so it
+      # cannot resolve for any harness. Same reasoning as the hackmd-cli
+      # LOCAL EDITs in agent-skills.nix: a skill is instructions, and a known-
+      # wrong command in it costs more than fidelity buys. --replace-fail
+      # makes the build fail once upstream fixes the line, which is the cue to
+      # drop the override. The helper's shebang is `uv run --script`; without
+      # uv on PATH it fails and the skill's grep path still works.
+      liteparse =
+        (mkSkill {
+          owner = "run-llama";
+          repo = "llamaparse-agent-skills";
+          path = "skills/liteparse";
+          name = "liteparse";
+        }).overrideAttrs
+          {
+            postInstall = ''
+              substituteInPlace "$out/SKILL.md" --replace-fail \
+                './.claude/skills/effective-liteparse/scripts/search.py' \
+                '~/.agents/skills/liteparse/scripts/search.py'
+            '';
+          };
 
       # https://www.skills.sh/supabase/agent-skills/supabase-postgres-best-practices
       # Postgres performance/schema/RLS guidance across 8 priority categories.
