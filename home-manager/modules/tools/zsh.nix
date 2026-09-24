@@ -9,6 +9,22 @@ _:
 # contains "vi", and EDITOR is hx.
 {
   programs.zsh = {
+    # Options the 2026-09-16 status comment on #15 listed as worth adding.
+    # Sharing and dedupe (SHARE_HISTORY, HIST_IGNORE_DUPS) are already
+    # home-manager's defaults.
+    history = {
+      extended = true; # EXTENDED_HISTORY: timestamps, for `tv shell-history`
+      findNoDups = true; # HIST_FIND_NO_DUPS: search skips repeats
+    };
+    # No typed option for this one; merges with what history sets.
+    setOptions = [ "HIST_REDUCE_BLANKS" ];
+
+    autocd = true; # AUTO_CD: a bare directory name cds into it
+    shellAliases = {
+      ".." = "cd ..";
+      "..." = "cd ../..";
+    };
+
     initContent = ''
       # undo keeps zsh's stock emacs keys: ^_, ^Xu, ^X^U. redo ships with no
       # key at all. ^X^R replaces _read_comp, which compinit binds there; this
