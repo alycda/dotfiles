@@ -110,6 +110,53 @@ nix-skills: final: _: {
         name = "asd-ste100-skill";
       };
 
+      # https://www.skills.sh/effect-ts/skills
+      # The Effect team's own skills. Both are deliberately thin: `effect-ts`
+      # tells an agent to read node_modules/effect/AGENTS.md, which the v4
+      # npm tarball ships alongside ai-docs/ (the v3 tarball ships neither),
+      # and `effect-v3-to-v4` drives a migration from the generated
+      # migration/v3-to-v4.md in Effect-TS/effect. The repo's `effect` skill
+      # (tools/agents/skills/effect) layers on both: a version gate, because
+      # `effect-ts` step 1 is `pnpm add effect@rc` and in a v3 project that
+      # is an unrequested major upgrade; and the Rust mapping from
+      # effect-playground. effect-v3-to-v4 sets disable-model-invocation, so
+      # it only runs when invoked by name.
+      #
+      # Written against the pinned rev 2309e6f (indexed 2026-08-28), which was
+      # also upstream HEAD on 2026-09-22.
+      effect-ts = mkSkill {
+        owner = "effect-ts";
+        repo = "skills";
+        path = "skills/effect-ts";
+        name = "effect-ts";
+      };
+
+      effect-v3-to-v4 = mkSkill {
+        owner = "effect-ts";
+        repo = "skills";
+        path = "skills/effect-v3-to-v4";
+        name = "effect-v3-to-v4";
+      };
+
+      # https://www.skills.sh/rhyssullivan/skills/effect-client-wrapper
+      # Wrap a Promise-based SDK as an Effect service behind one `use(fn)`
+      # that maps rejections to a tagged error and opens a span. By the author
+      # of create-epoch-app. Its code is Effect v3 (Context.Tag, a static
+      # Default layer, Schedule.intersect); the repo's `effect` skill says to
+      # keep the pattern and translate the code on v4 rather than copy it.
+      #
+      # Taken from rhyssullivan/skills (indexed 2026-07-10, rev ab3a455, which
+      # was upstream HEAD on 2026-09-22), not from the older standalone
+      # rhyssullivan/effect-client-wrapper-skill repo the index also carries
+      # (indexed 2026-03-05). The rest of rhyssullivan/skills (quality-code,
+      # no-ui-flash, ...) is not wanted here.
+      effect-client-wrapper = mkSkill {
+        owner = "rhyssullivan";
+        repo = "skills";
+        path = "skills/effect-client-wrapper";
+        name = "effect-client-wrapper";
+      };
+
       # https://www.skills.sh/supabase/agent-skills/supabase-postgres-best-practices
       # Postgres performance/schema/RLS guidance across 8 priority categories.
       supabase-postgres-best-practices = mkSkill {
