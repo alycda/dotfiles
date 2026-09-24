@@ -1,0 +1,102 @@
+# Logseq advanced queries - Datalog over the Datascript db
+# Type `<query` to insert the #+BEGIN_QUERY block. Attributes: logseq/schema.
+# https://docs.logseq.com/#/page/advanced%20queries
+
+## Shape
+#+BEGIN_QUERY
+{:title  [:h2 "Your query title"]        ; hiccup or a string
+ :query  [:find (pull ?b [*])
+          :in $ ?input1 %
+          :where ...]
+ :inputs [...]                           ; values bound to :in, in order
+ :view (fn [result] [:div ...])          ; or :keyword from config.edn
+ :result-transform (fn [result] ...)     ; or :keyword from config.edn
+ :rules [...]                            ; extra datalog rules
+ :collapsed? false                       ; default false
+ :group-by-page? true                    ; default true, list view only
+ :remove-block-children? true}           ; default true, block queries only
+#+END_QUERY
+
+## Conventions
+?b   must be used for blocks       ?p   must be used for pages
+$    the database, always first in :in
+%    the ruleset, when you pass :rules or rules via :inputs
+# Page names are stored lower-cased. `(Dev) Show block data` in the command
+# palette (needs Developer mode) dumps the real attributes of a block.
+
+## Inputs
+:current-page   lower-cased name of the page you are on
+:query-page     lower-cased name of the page the query lives on
+:current-block  :db/id of the block holding the query
+:parent-block   :db/id of its parent
+:today :yesterday :tomorrow :right-now-ms
+:-7d :+10d :-11w :+1m :-2y      direction + amount + d|w|m|y
+# Timestamp suffixes for ms attributes (:block/created-at etc):
+:-1d-start :+1d-end :today-start :today-end :+1d-14 :+1d-1430
+:+1d-143015 :+1d-143015777 :-1d-ms
+# Deprecated: :Xd :Xd-before :Xd-after :start-of-today-ms :end-of-today-ms
+
+## Examples
+;; all tasks
+[:find (pull ?b [*]) :where [?b :block/marker _]]
+
+;; blocks tagged #project
+[:find (pull ?b [*])
+ :where [?p :block/name "project"] [?b :block/refs ?p]]
+
+;; TODO tasks on journals in the last 7 days that mention [[datalog]]
+{:query [:find (pull ?b [*])
+         :in $ ?start ?today ?tag
+         :where (between ?b ?start ?today) (page-ref ?b ?tag)]
+ :inputs [:-7d :today "datalog"]}
+
+;; TODO tasks referencing the current page
+{:query [:find (pull ?b [*])
+         :in $ ?current-page
+         :where [?p :block/name ?current-page]
+                [?b :block/refs ?p]
+                (task ?b #{"TODO"})]
+ :inputs [:current-page]}
+
+;; next 7 days of scheduled/deadline
+{:query [:find (pull ?b [*])
+         :in $ ?start ?next
+         :where (or [?b :block/scheduled ?d] [?b :block/deadline ?d])
+                [(> ?d ?start)] [(< ?d ?next)]]
+ :inputs [:today :+7d]}
+
+;; children of this very block
+{:inputs [:current-block]
+ :query  [:find (pull ?b [*])
+          :in $ ?current-block
+          :where [?b :block/parent ?current-block]]}
+
+;; aggregate: count blocks on the current page
+{:query [:find (count ?b)
+         :in $ ?current-page
+         :where [?p :block/name ?current-page] [?b :block/page ?p]]
+ :inputs [:current-page]}
+
+## Custom rules
+{:query [:find (pull ?b [*])
+         :in $ %
+         :where (starts-with ?b "https://")]
+ :rules [[(starts-with ?b ?substr)
+          [?b :block/content ?content]
+          [(clojure.string/starts-with? ?content ?substr)]]]}
+# Rules can also be passed as the last :inputs value when :in ends with %.
+
+## Sorting / rendering the result
+:result-transform (fn [result] (sort-by (fn [h] (get h :block/priority "Z")) result))
+:result-transform (fn [result] (sort-by (fn [h] (get h :block/created-at)) result))
+:view (fn [rows] [:div.flex.flex-col
+                  (for [p (flatten rows)]
+                    [:a {:href (str "#/page/" p)} p])])
+# Reusable versions live under :query/views and :query/result-transforms in
+# config.edn and are referenced by keyword, e.g. :view :pprint
+
+## Learning datalog
+https://qwxlea.github.io/#/page/datalog%2Fintro%20to%20datalog
+http://www.learndatalogtoday.org/
+https://docs.datomic.com/query.html
+https://siferiax.github.io/#/page/logseq%2Fadvanced%20queries

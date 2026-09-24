@@ -1,0 +1,82 @@
+# Logseq config.edn - graph settings
+# Per graph:  <graph>/logseq/config.edn
+# All graphs: ~/.logseq/config/config.edn  (global; per-graph wins)
+# Template:   https://github.com/logseq/logseq/blob/master/src/resources/templates/config.edn
+
+## Everyday keys
+:preferred-workflow :now            ; :now (LATER/NOW) or :todo (TODO/DOING)
+:preferred-format "Markdown"
+:start-of-week 6                    ; 0=Monday ... 6=Sunday
+:hidden ["/archived" "../assets/archived"]   ; paths Logseq ignores
+:default-home {:page "home" :sidebar ["Contents"]}
+:journal/page-title-format "EEE do, MMM yyyy"
+:journal/file-name-format "yyyy_MM_dd"
+:pages-directory "pages"
+:journals-directory "journals"
+:scheduled/future-days 7            ; look-ahead for the scheduled query
+:ref/default-open-blocks-level 2
+:ref/linked-references-collapsed-threshold 50
+:block/content-max-length 10000
+
+## UI / features
+:ui/show-brackets? true
+:ui/enable-tooltip? true
+:ui/show-empty-bullets? false
+:ui/auto-expand-block-refs? true
+:feature/enable-journals? true
+:feature/enable-flashcards? true
+:feature/enable-whiteboards? true
+:feature/enable-block-timestamps? false
+:feature/disable-scheduled-and-deadline-query? false
+:custom-css-url "@import url('https://.../custom.css');"
+:custom-js-url "https://cdn.logseq.com/custom.js"
+
+## Properties
+:property-pages/enabled? true       ; give every property its own page
+:property-pages/exclude-list [:tags]
+:property/separated-by-commas [:foo]  ; treat `foo:: a, b` as page refs
+:ignored-page-references-keywords [:description]
+
+## Macros - {{name arg1, arg2}} with $1 $2 placeholders
+:macros {"poem"  "Rose is $1, violet's $2."
+         "mark"  "[:mark \"$1\"]"
+         "query-done" "{{query (and (task done) $1)}}"}
+# Macros can render hiccup or raw html and can invoke simple queries,
+# but they cannot invoke advanced queries.
+
+## Reusable query pieces (referenced by keyword from a query)
+:query/views
+{:pprint (fn [r] [:pre.code (pprint r)])}
+:query/result-transforms
+{:sort-by-priority (fn [result] (sort-by (fn [h] (get h :block/priority "Z")) result))}
+
+## Queries pinned to the bottom of today's journal
+:default-queries
+{:journals
+ [{:title "NOW"
+   :query [:find (pull ?h [*])
+           :in $ ?start ?today
+           :where
+           [?h :block/marker ?marker]
+           [(contains? #{"NOW" "DOING"} ?marker)]
+           [?h :block/page ?p]
+           [?p :block/journal? true]
+           [?p :block/journal-day ?d]
+           [(>= ?d ?start)] [(<= ?d ?today)]]
+   :inputs [:-14d :today]
+   :result-transform :sort-by-priority
+   :group-by-page? false}]}
+# Set to {} to remove the built-in NOW/NEXT blocks entirely.
+
+## Other
+:shortcuts {}          ; see logseq/keys
+:commands []           ; extra command-palette entries
+:outliner/block-title-collapse-enabled? false
+:publishing/all-pages-public? false
+:export/bullet-indentation :tab
+
+## Gotchas
+- It is EDN, not JSON: comments start with `;;`, no commas needed.
+- Some keys (shortcuts, macros) need a refresh/restart before they take effect.
+- Global config.edn is a good home for :shortcuts and :macros you want in
+  every graph; anything graph-shaped belongs in the per-graph file.

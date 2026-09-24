@@ -1,0 +1,66 @@
+# Logseq db schema + built-in rules (file-based graphs)
+# Attribute names for advanced queries. DB-version renames: logseq/db-version
+# https://github.com/logseq/logseq/blob/0.10.9/deps/db/src/logseq/db/schema.cljs
+
+## A page is just a block that has :block/name.
+
+## Block attributes
+:db/id                          entity id (what :current-block resolves to)
+:block/uuid                     the ((...)) reference id      unique
+:block/content                  full text of the block
+:block/format                   :markdown or :org
+:block/page             ref     the page this block lives on
+:block/parent           ref     parent block
+:block/left             ref     previous sibling (ordering)
+:block/collapsed?
+:block/pre-block?               first block of a page, i.e. frontmatter
+:block/refs             ref many  pages/blocks this block references
+:block/path-refs        ref many  refs inherited from ancestors too
+:block/tags             ref many
+:block/macros           ref many
+:block/marker                   "TODO" "DOING" "NOW" "LATER" "DONE" ...
+:block/priority                 "A" "B" "C"
+:block/scheduled                yyyymmdd integer
+:block/deadline                 yyyymmdd integer
+:block/repeated?
+:block/properties               map: key -> set of refs (or raw text)
+:block/properties-order         vector of keys
+:block/properties-text-values   map: key -> original text
+:block/created-at               ms timestamp
+:block/updated-at               ms timestamp
+:block/type                     "whiteboard", "macros", ...
+:block/file             ref
+
+## Page-only attributes
+:block/name                     lower-cased page name       unique
+:block/original-name            as typed                    unique
+:block/journal?                 true for journal pages
+:block/journal-day              20210529 style integer
+:block/namespace        ref     parent page of `parent/child`
+:block/alias            ref many
+
+## File attributes
+:file/path (unique)   :file/content   :file/handle
+
+## Built-in rules (usable in :where without declaring them)
+(task ?b #{"TODO" "DOING"})        marker in the set
+(priority ?b #{"A"})               priority in the set
+(between ?b ?start ?end)           block is on a journal page in the range
+(page ?b ?page-name)               block belongs to a named page
+(page-ref ?b ?page-name)           block or an ancestor references the page
+(block-content ?b ?substring)      substring of :block/content
+(property ?b ?key ?val)            block property equals / contains
+(has-property ?b ?key)             block has the property at all
+(page-property ?p ?key ?val)       page property
+(has-page-property ?p ?key)
+(page-tags ?p #{"tag"})            page tagged with any of these
+(all-page-tags ?p)                 ?p is used as a tag somewhere
+(namespace ?p ?namespace)          direct parent namespace of a page
+# From logseq.db.rules; property values are sets, so use #{...} for the
+# marker/priority/tag arguments.
+
+## Recursive rules (pass via :rules, they are not on by default)
+[(namespace ?p ?c) [?c :block/namespace ?p]]
+[(namespace ?p ?c) [?t :block/namespace ?p] (namespace ?t ?c)]
+[(alias ?e2 ?e1) [?e2 :block/alias ?e1]]
+[(alias ?e2 ?e1) [?e1 :block/alias ?e2]]

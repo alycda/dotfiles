@@ -29,6 +29,7 @@ cheatsheets/
 │   ├── claude/    # Claude Code tips
 │   ├── git/       # Git commands
 │   ├── jj/        # Jujutsu commands
+│   ├── logseq/    # Logseq syntax, queries, datalog schema
 │   └── nix/       # Nix commands
 └── personal/      # Machine-specific or private sheets
 ```

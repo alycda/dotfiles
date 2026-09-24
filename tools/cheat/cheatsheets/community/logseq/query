@@ -1,0 +1,49 @@
+# Logseq simple queries - {{query ...}} DSL
+# Type /query. For the datalog form see logseq/datalog.
+# https://docs.logseq.com/#/page/queries
+
+## Operators (wrap any filters)
+{{query (and [[page 1]] [[page 2]])}}          all must match
+{{query (or [[page 1]] [[page 2]])}}           any may match
+{{query (and [[tag2]] (not [[tag1]]))}}        exclude
+
+## Block filters
+[[page]]                       blocks referencing a page
+"free text"                    full-text search (desktop app only)
+(task now later)               by marker: now later todo doing done wait ...
+(priority a)  (priority a b)   by priority
+(property type book)           block property; matches page/tag values only
+(page "term/alias")            blocks on a given page
+(between -7d +7d)              journal blocks in a date range
+(between -2w today)            symbols: today|yesterday|tomorrow|now
+                               offsets: +|- N y|m|w|d|h|min
+(between [[Dec 5th, 2020]] [[Dec 7th, 2020]])
+
+## Page filters - cannot be mixed with block filters
+(page-property related "Block embed")
+(page-tags embed)
+(all-page-tags)
+
+## Sorting
+(sort-by created-at desc)      order omitted means desc
+(and (task now later) (sort-by created-at desc))
+# created-at / updated-at only work for pages. Clicking a query-table column
+# header sorts too, and that takes precedence over sort-by.
+
+## Result display
+query-table:: true                   render as a table (block property)
+query-properties:: [:page :block]    which columns show
+query-sort-by:: page
+query-sort-desc:: false
+:logseq.query/nlp-date:: true        parse "Aug 12th, 2022" values as dates
+{{function (sum :price)}}            aggregate in a CHILD block of the query
+{{function (average :price)}}        also: min, max, count
+{{function (sum (map (fn [x] (* (:price x) (:qty x))) result))}}
+
+## Gotchas
+- Property filters match pages/tags inside a value: for
+  `description:: I liked this #book`, `(property description book)` matches
+  but `(property description liked)` does not.
+- Page names are stored lower-cased.
+- A simple query can also be the :query of an advanced query, e.g.
+  {:title "DOING with priority A" :query (and (task doing) (priority a))}
