@@ -29,6 +29,7 @@ in
     ./tools/lazydiff.nix
     ./tools/starship.nix
     ./tools/television.nix
+    ./tools/zsh.nix
     ./git.nix
   ];
 
