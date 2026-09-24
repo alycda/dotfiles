@@ -18,6 +18,35 @@ _:
       # Expand history designators (!!, !$, !-2, ...) in place on space, so
       # the command is visible before Enter runs it.
       bindkey ' ' magic-space
+
+      # chpwd: on entering a repository, show where you are - `jj log -r @` for
+      # jj, else `git status -sb`. Quiet while moving inside the same one. The
+      # nearer root wins, so a git worktree nested in a jj workspace (Claude
+      # Code's worktrees) reports as git. --ignore-working-copy keeps a cd from
+      # snapshotting, so @ may lag an unsnapshotted edit. add-zsh-hook leaves
+      # direnv's own chpwd hook in place.
+      autoload -Uz add-zsh-hook
+      typeset -g _dotfiles_repo_root=
+
+      _dotfiles_repo_status() {
+        local jj_root git_root
+        (( $+commands[jj] )) && jj_root=$(jj root --ignore-working-copy 2>/dev/null)
+        (( $+commands[git] )) && git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+
+        local root=$jj_root kind=jj
+        if (( ''${#git_root} > ''${#jj_root} )); then root=$git_root kind=git; fi
+
+        [[ $root == "$_dotfiles_repo_root" ]] && return
+        _dotfiles_repo_root=$root
+        [[ -z $root ]] && return
+
+        if [[ $kind == jj ]]; then
+          jj log --ignore-working-copy --no-graph -r @ -T builtin_log_oneline
+        else
+          git status -sb
+        fi
+      }
+      add-zsh-hook chpwd _dotfiles_repo_status
     '';
   };
 }
