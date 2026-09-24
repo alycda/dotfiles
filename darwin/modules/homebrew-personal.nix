@@ -13,11 +13,31 @@ _:
       upgrade = true;
     };
 
+    # Casks that carry `auto_updates true` (most GUI apps: arc, brave-browser,
+    # claude, dropbox, obsidian, orbstack, proton-*, zoom, ...) are skipped
+    # by `brew upgrade` - and therefore by the `brew bundle` above - on the
+    # assumption that the app updates itself. When the app *can't* (a bundle
+    # owned by another account, a non-admin user who can't write the
+    # /Applications swap), nothing upgrades it and it nags forever. greedy
+    # makes brew the updater for those too: every cask line gets
+    # `greedy: true`, i.e. `brew upgrade --cask --greedy`.
+    #
+    # Cost: brew compares its *recorded* install version, not the app bundle's.
+    # An app that self-updated past what homebrew-cask has indexed is reinstalled
+    # at the cask's version - a transient downgrade, stable after one switch.
+    # `version :latest` casks would reinstall on every switch (no version to
+    # compare); none are listed here, so keep an eye out when adding one.
+    greedyCasks = true;
+
+    # Export HOMEBREW_BUNDLE_FILE pointing at the generated Brewfile, so a bare
+    # `brew bundle install` upgrades exactly what's declared here - that's what
+    # `just brew-upgrade` uses to pull cask updates between switches, since
+    # nix-darwin only runs brew during activation. This lands in /etc/zshenv and
+    # so reaches every account on the machine (see the CLAUDE.md note about
+    # system-level shell config); it's inert for an account with no Homebrew.
+    global.brewfile = true;
+
     taps = [
-      {
-        name = "cirruslabs/cli";
-        trusted = true;
-      }
       {
         name = "charmbracelet/tap";
         trusted = true;
@@ -28,8 +48,11 @@ _:
     # provides them (common.nix / core-packages): asciinema, gh, helix, jj,
     # node. Their brew copies get zapped and the nix ones take over.
     brews = [
-      "cirruslabs/cli/tart" # VM management
       "docker" # CLI only; the daemon is OrbStack (cask below)
+      # Keychain-backed secrets as env vars. The non-admin account on this
+      # machine uses this copy from /opt/homebrew/bin, since it can run brew
+      # formulae but not install them.
+      "envchain"
       "kondo" # Clean build artifacts
       "llmfit"
       "ollama"
@@ -77,7 +100,7 @@ _:
       "visual-studio-code"
       # Kept on this machine even though ditto dropped it for cmux; remove
       # deliberately once cmux is confirmed as the daily terminal here too.
-      "warp"
+      # "warp"
       "workflowy"
       "zoom"
     ];

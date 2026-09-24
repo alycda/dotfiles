@@ -32,43 +32,39 @@
       # casper's Responses wire natively, and crush<->venice is 
       # OpenAI-compatible end to end. See cheat claude/casper.
       litellm
+      # Was in modules/dev/rust.nix; kept here so this profile's package set is
+      # unchanged, but out of the shared module because its 1.6 GiB closure is
+      # the whole reason the container profiles could not import Rust.
+      lldb
       # flutter - managed by puro (manually installed)
       openjdk
       # swig - installed via homebrew (locked tap)
-      # lazydiff - alpha, not in nixpkgs yet; installed via official script below
+      # lazydiff - now a real derivation in modules/tools/lazydiff.nix,
+      # imported via common.nix, so every profile gets it
     ]
     # darwin-only packages: this profile is also alyssa@work-dev on
     # aarch64-linux (see agentSkills.liveCheckout above), and cocoapods
     # only supports aarch64-darwin
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       cocoapods # for flutter (to be removed soon)
+      # taskbook's Node closure is why it isn't in lib/core-packages.nix; the
+      # same reasoning keeps it out of the aarch64-linux devcontainer.
+      taskbook # interim CLI task manager
+      # VM management, for verifying a switch on a clean macOS image. Moved
+      # off the cirruslabs/cli tap, whose tart.rb no longer loads under
+      # Homebrew 6.0 and aborted the whole activation; version-pinned for
+      # macOS 15. Both explained in lib/tart.nix.
+      (import ../../lib/tart.nix pkgs)
+      # Entity-level merge driver (Ataraxy Labs; see the entity-level-git
+      # skill). nixpkgs rather than the ataraxy-labs brew tap, same reasoning
+      # as tart. It does build for aarch64-linux, but its ~230 MiB closure
+      # keeps it out of the devcontainer alongside taskbook. Pinned forward
+      # past nixpkgs' 0.3.6; see lib/weave.nix.
+      (import ../../lib/weave.nix pkgs)
+      # Entity-level review triage, weave's sibling. aarch64-darwin only (see
+      # lib/inspect.nix for why, and for why this is not the brew tap).
+      (import ../../lib/inspect.nix pkgs)
     ];
-
-    # The installer drops the binary in ~/.lazydiff/bin and appends a PATH
-    # export to the shell rc — which does nothing once home-manager owns the
-    # rc files. Put the directory on PATH declaratively instead.
-    sessionPath = [ "$HOME/.lazydiff/bin" ];
-
-    activation = {
-      # lazydiff (Ataraxy-Labs) is alpha and not packaged in nixpkgs,
-      # so use the official install script for now, guarded so it only
-      # runs when the binary is missing. Revisit with a real Nix
-      # derivation once it stabilizes.
-      #
-      # Activation runs with a sanitized PATH (no /usr/bin), so the installer
-      # can't find `tar` unless we provide it. Guard on the install path, not
-      # `command -v` — lazydiff is never on the activation PATH, so that
-      # guard re-ran the installer on every switch. Pin the version: the
-      # installer's `releases/latest` lookup hits the GitHub API, which is
-      # rate-limited for unauthenticated clients; a pinned version downloads
-      # directly and keeps the install reproducible.
-      installLazydiff = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        if ! [ -x "$HOME/.lazydiff/bin/lazydiff" ]; then
-          run /bin/sh -c "export PATH=${lib.makeBinPath [ pkgs.curl pkgs.gnutar pkgs.gzip pkgs.coreutils ]}:\$PATH; curl -fsSL https://raw.githubusercontent.com/Ataraxy-Labs/lazydiff/main/install | /bin/sh -s -- --version 0.1.0-alpha.17"
-          [ -x "$HOME/.lazydiff/bin/lazydiff" ] || { echo "lazydiff install failed" >&2; exit 1; }
-        fi
-      '';
-    };
   };
 
   # The ditto-worktree agent recipes, layered into the global justfile that

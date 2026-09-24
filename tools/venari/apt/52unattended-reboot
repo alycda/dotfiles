@@ -1,0 +1,11 @@
+// venari: let unattended-upgrades reboot when an update needs it (kernel,
+// libc), so security fixes actually take effect. Its own file rather than an
+// edit of Debian's 50unattended-upgrades, so package upgrades never conflict.
+//
+// 11:00 UTC = 04:00 Pacific (03:00 in winter). The upgrade run is ~06:30 UTC,
+// so a reboot it needs waits until then. Every container here uses
+// restart: unless-stopped and docker is enabled at boot, so Hermes, signal-cli
+// and Soft Serve come back on their own; Signal is down for about two minutes.
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+Unattended-Upgrade::Automatic-Reboot-Time "11:00";

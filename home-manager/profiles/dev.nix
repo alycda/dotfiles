@@ -2,12 +2,21 @@
 { pkgs, lib, config, ... }:
 
 {
-  # Decrypt agenix secrets from the activation script. REQUIRED here, not an
-  # optimisation: ragenix's home-manager module installs secrets from a systemd
-  # *user* service and contributes no activation step, and this container has no
-  # user systemd daemon - so without this every age.secrets entry silently never
-  # arrives. See the module header for the full story.
-  imports = [ ../modules/agenix-activation.nix ];
+  imports = [
+    # Decrypt agenix secrets from the activation script. REQUIRED here, not an
+    # optimisation: ragenix's home-manager module installs secrets from a systemd
+    # *user* service and contributes no activation step, and this container has no
+    # user systemd daemon - so without this every age.secrets entry silently never
+    # arrives. See the module header for the full story.
+    ../modules/agenix-activation.nix
+
+    # Rust in the container image. rustup is 94 MiB and fetches toolchains at
+    # runtime into ~/.rustup - the devhome volume, not an image layer - so this
+    # stays cheap for alyssa@dev-x86 on the 2012 MBP, whose disk headroom is the
+    # constraint PR #34 blew through. It is only affordable because lldb's 1.6 GiB
+    # left the shared module first.
+    ../modules/dev/rust.nix
+  ];
 
   home = {
     username = "root";
@@ -105,6 +114,16 @@
   # Dockerfile already documents copying in for git-config; the same key covers
   # both secrets.
   hackmd.account = "personal";
+
+  # cf-now's R2 profile. Enabled here for the same reason as the HackMD token
+  # above: a container is where credentials most need to arrive on their own,
+  # and this profile's ~/.aws belongs to nothing else - so there is no existing
+  # AWS config for the `path` overrides to displace. Deliberately NOT enabled
+  # in work.nix, where that assumption does not hold.
+  #
+  # The `aws` binary is not installed; summon it with
+  # `nix run nixpkgs#awscli2 -- ...` (see ../modules/tools/cf-now.nix).
+  cfNow.enable = true;
 
   # Configure bash, but do NOT ship a bash. common.nix enables programs.bash so
   # the container's fallback shell gets a prompt and direnv; that module also

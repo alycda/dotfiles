@@ -41,10 +41,13 @@
     # docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md.
     package = lib.hiPrio pkgs.git;
 
+    # Settings that work without Nix (defaultBranch, pull/push behaviour,
+    # aliases) live in tools/git/config, which the mise account includes
+    # from ~/.gitconfig. Only what needs Nix or a secret stays below.
+    includes = [ { path = ../../tools/git/config; } ];
+
     settings = {
       include.path = "${config.home.homeDirectory}/.local/share/agenix/git-config";
-      init.defaultBranch = "main";
-      push.autoSetupRemote = true;
 
       # `gh auth login` stores its token in ~/.config/gh/hosts.yml for gh's own
       # use; it never teaches git anything. Without a helper, an https push

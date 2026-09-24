@@ -1,0 +1,39 @@
+# Git settings that work on every account, with or without Nix.
+#
+#   Nix accounts:    home-manager/modules/git.nix includes this file.
+#   mise account:    git config --global include.path ~/dotfiles/tools/git/config
+#
+# Keep out of this file anything that only works on one side: identity (an
+# encrypted secret on the Nix side), credential helpers that name a store
+# path, and core.editor. Nix sets EDITOR=hx, and a core.editor here would
+# override it everywhere, including containers with no `code` on PATH.
+#
+# Also keep out a global remote.origin.fetch refspec for bare worktree clones.
+# Tested with git 2.50.1: once it is global, every `git clone` fails with
+# "multiple updates for ref 'refs/remotes/origin/main' not allowed", because
+# clone writes the same refspec into the repo. git-worktree-clone.sh sets it
+# per repo instead.
+
+[init]
+	defaultBranch = main
+
+[push]
+	autoSetupRemote = true
+
+[pull]
+	rebase = true
+
+[log]
+	date = relative
+
+[alias]
+	br = branch
+	co = checkout
+	cp = cherry-pick
+	st = status
+	branches = branch -a
+	remotes = remote -v
+	# Last 20 commits: short SHA, subject, author
+	l = log --color --graph --format='%C(magenta)%h%Creset %s %C(cyan)<%an>%Creset' -n 20 --abbrev-commit
+	# Short SHA, refs, subject, relative commit time, author
+	lg = log --color --graph --format='%C(magenta)%h%Creset -%C(green)%d%Creset %s %C(yellow)(%cr) %C(cyan)<%an>%Creset' --abbrev-commit --

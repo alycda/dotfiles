@@ -1,5 +1,11 @@
 # Core packages shared across devShells and home-manager profiles
-# This ensures consistency between ephemeral shells and persistent environments
+# This ensures consistency between ephemeral shells and persistent environments.
+#
+# Keep this list LEAN: common.nix imports it into ALL profiles, including the
+# headless `dev`/x86 devcontainer, and the flake devShells pull it too. A heavy
+# personal tool (e.g. taskbook's Node closure) bloats the disk-constrained 2012
+# MBP image for no container benefit — put those in the desktop profiles
+# (home.nix, work.nix) instead. Only universal, lightweight CLIs belong here.
 pkgs: with pkgs; [
   asciinema
   gawk
@@ -22,11 +28,17 @@ pkgs: with pkgs; [
   file
   glow # https://github.com/charmbracelet/glow
   eza
+  # hunk: review-first terminal diff viewer. Was a Homebrew brew, which meant
+  # it only ever existed on the Mac - nixpkgs carries the same version and
+  # supports aarch64/x86_64 on both Linux and Darwin, so it belongs here.
+  hunk
   ripgrep
   jujutsu
   just
   jq
   gh
+  glab
+  hcloud
   nodejs
   # postgresql
   # Python 3 for agent-plugin tooling: compound-engineering's bundled
@@ -41,8 +53,26 @@ pkgs: with pkgs; [
   # but sed is its own GNU package, so nothing else supplies it (and nothing
   # else collides with it either).
   gnused
+  # charmbracelet's local key-value store — the macOS analogue to the iOS
+  # Cheatsheet app. Deliberately a third thing next to the two stores that
+  # already exist here: `cheat` and the global justfile hold *runnable*
+  # command memory, agenix/NordPass hold *secrets*, and skate holds the short
+  # dumb strings that are neither — an age recipient key, which flake target a
+  # machine class wants, the SSH line for a box touched twice a year. Namespace
+  # them (`skate set <key> @personal`) to mirror the home-manager profile split.
+  #
+  # From nixpkgs rather than pkgs.charm-nur: the NUR exists here for packages
+  # nixpkgs lags on, which is the whole argument in lib/charm-nur.nix for
+  # crush. skate is not one — upstream's latest is v1.0.1 (2025-03-06) and
+  # nixpkgs and the NUR both carry exactly 1.0.1. Same call as glow and vhs.
+  #
+  # Two caveats worth knowing before trusting it with anything: nixpkgs still
+  # describes it as a "multi-machine syncable" store, which stopped being true
+  # when Charm Cloud sunset — it is local-only now, so no phone<->laptop sync.
+  # And it is plaintext BadgerDB on disk: not a vault, same caveat as
+  # Cheatsheet itself. Secrets stay in agenix.
+  skate
   supabase-cli
-  taskbook
   tmux
   vhs # charmbracelet
 ]

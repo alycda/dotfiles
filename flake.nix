@@ -46,9 +46,17 @@
       url = "github:charmbracelet/nur";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # The Ghost CLI fork (alycda/ghost): Timescale's `ghost` plus a server
+    # for its API, now that the hosted service is winding down. Not a flake;
+    # lib/ghost.nix builds it. Bump with `nix flake update ghost`.
+    ghost = {
+      url = "github:alycda/ghost";
+      flake = false;
+    };
   };
 
-  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, claude-code-nix, nix-skills, charm-nur, ... }:
+  outputs = { nixpkgs, darwin, home-manager, nix-vscode-extensions, ragenix, claude-code-nix, nix-skills, charm-nur, ghost, ... }:
     let
       # Systems supported for devShells
       # x86_64-darwin dropped: nixpkgs 26.11 removed support for it, and every
@@ -72,6 +80,7 @@
             claude-code-nix.overlays.default
             (import ./lib/skills-sh.nix nix-skills)
             (import ./lib/charm-nur.nix charm-nur)
+            (import ./lib/ghost.nix ghost)
           ];
         };
 
@@ -89,7 +98,7 @@
         darwin.lib.darwinSystem {
           inherit system;
 
-          specialArgs = { inherit nix-vscode-extensions claude-code-nix nix-skills charm-nur; };
+          specialArgs = { inherit nix-vscode-extensions claude-code-nix nix-skills charm-nur ghost; };
 
           modules = [
             ./darwin/configuration.nix

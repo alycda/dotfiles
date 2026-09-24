@@ -4,6 +4,11 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ## Dev container
 
+### Dev image
+The container image this repo builds to serve as a complete development environment, with the home-manager closure built in at image-build time rather than installed when a container starts.
+
+Its filesystem is a Nix store rather than a conventional Unix layout: the standard library and system-binary directories are absent, and several configuration files that do sit in the usual place are symlinks pointing into the store. This is load-bearing rather than incidental. External tooling that assumes a conventional layout fails against this image while working normally everywhere else — prebuilt binaries that expect a system dynamic linker, and host-side path resolution that refuses to follow a symlink out of its parent directory, are the two recurring shapes. Such failures characteristically report something other than the layout, so the reported error is rarely the place to start.
+
 ### Baked generation
 The home-manager generation built into the dev image at image-build time. The container entrypoint re-activates it only when the volume's home profile is missing or its active generation differs — so hand-activated generations inside a running container are ephemeral, and the baked generation is what every restart converges back to.
 
@@ -35,6 +40,26 @@ The merged symlink tree that becomes the active set of installed programs, assem
 
 ### Activation
 The process that makes a generation live. It runs in ordered stages, and in practice the stage that links files runs before the stage that installs packages — so a failed activation can leave a machine with correct dotfiles and none of its tools. Activation is non-fatal by design in the container: the entrypoint reports the failure and still starts a shell.
+
+## Agent instructions
+
+### Public layers
+The agent-instruction files that are safe to publish and are tracked in the repo — entrypoint, preferred tooling, company values, persona. They reach every agent surface as local files written by home-manager activation, not fetched from a URL at runtime.
+
+### Private overlay
+The encrypted agent-instruction layer, decrypted by agenix only on machines holding the identity key. It is ordered last in the managed import block, so it is authoritative on conflict with the public layers — and it may legitimately dangle on a machine without the key, which consumers tolerate by skipping the unresolvable import rather than failing.
+
+## Sharing
+
+### Slug
+The opaque random identifier that names one published upload and stands in for access control. Note this inverts the usual meaning: a slug here is deliberately *unreadable*, because unguessability is the only thing keeping a private object private — the bucket is never public and content is reached solely through time-limited signed URLs.
+
+A slug is stable and reusable: republishing to an existing slug replaces its content in place, so a link already shared keeps working. Uploads are ephemeral by default, expiring through a storage lifecycle rule unless explicitly published as permanent; permanence governs how long the *object* survives, which is independent of how long any signed URL for it remains valid.
+
+## Cross-cutting
+
+### Drift
+Divergence between committed source and a derived artifact that should faithfully reflect it — a built image carrying uncommitted state, a runtime config with no source of record, or a stale pin emitting flags newer tools reject. Runtime state that cannot be traced to a commit is drift to be committed or filed, never adopted as truth.
 
 ## Flagged ambiguities
 

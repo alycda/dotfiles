@@ -17,6 +17,7 @@ in
     ./dev/nix-lang.nix
     ./tools/agent-skills.nix
     ./tools/agents.nix
+    ./tools/cf-now.nix
     ./tools/cheat.nix
     ./tools/claude-code.nix
     ./tools/crush.nix
@@ -25,8 +26,10 @@ in
     ./tools/git-worktree-clone.nix
     ./tools/hackmd.nix
     ./tools/helix.nix
+    ./tools/lazydiff.nix
     ./tools/starship.nix
     ./tools/television.nix
+    ./tools/zsh.nix
     ./git.nix
   ];
 

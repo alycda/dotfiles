@@ -10,19 +10,24 @@ check:
 check-all:
     nix flake check --all-systems
 
-# Run all linters (statix + deadnix)
+# Run all linters (statix + deadnix + skill frontmatter)
 [group('lint')]
-lint: lint-statix lint-deadnix
+lint: lint-statix lint-deadnix lint-skills
 
 # Check for Nix anti-patterns with statix
 [group('lint')]
 lint-statix:
     nix run nixpkgs#statix -- check .
 
-# Check for unused code with deadnix
+# Check for unused code with deadnix (--fail to match CI, which uses --fail)
 [group('lint')]
 lint-deadnix:
-    nix run nixpkgs#deadnix -- .
+    nix run nixpkgs#deadnix -- --fail .
+
+# Check agent-skill frontmatter against Crush's loader rules (1024-byte description)
+[group('lint')]
+lint-skills:
+    nix shell nixpkgs#yq-go --command ./.github/scripts/check-skill-frontmatter.sh
 
 # Run all CI checks locally (lint + flake check)
 [group('lint')]
@@ -49,6 +54,32 @@ darwin-generations:
 [group('darwin')]
 rollback-to generation:
     darwin-rebuild --switch-generation {{generation}}
+
+# Pull Homebrew updates without a full darwin-rebuild switch. nix-darwin only
+# runs `brew bundle` during activation, so between switches nothing brew-managed
+# moves - including the auto_updates casks, which only upgrade at all because
+# homebrew.greedyCasks puts `greedy: true` on every cask line.
+#
+# Deliberately no --zap/--force-cleanup: this upgrades what's declared, it does
+# not reconcile. Installing newly-declared packages and removing dropped ones
+# stays a `darwin-rebuild switch`, so this can never uninstall anything.
+[group('darwin')]
+brew-upgrade:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # HOMEBREW_BUNDLE_FILE points at the *activated* generation's Brewfile, which
+    # is the right reference for "upgrade what I'm running" - the working tree may
+    # be ahead of it. It's exported by homebrew.global.brewfile into /etc/zshenv.
+    if [ -z "${HOMEBREW_BUNDLE_FILE:-}" ]; then
+      echo "HOMEBREW_BUNDLE_FILE is unset." >&2
+      echo "It is set at activation by homebrew.global.brewfile and read from" >&2
+      echo "/etc/zshenv, so it is missing in a shell that predates the switch which" >&2
+      echo "enabled it, and in a non-zsh shell. Start a new login shell, or pass the" >&2
+      echo "Brewfile explicitly: brew bundle install --file=<path>" >&2
+      exit 1
+    fi
+    brew update
+    brew bundle install --file="$HOMEBREW_BUNDLE_FILE"
 
 # queries and lists all packages installed in the current user's profile
 _list-env:
