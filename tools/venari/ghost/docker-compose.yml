@@ -32,6 +32,13 @@ services:
       - ./certs:/certs:ro
     ports:
       - "127.0.0.1:5432:5432"
+    # Also on venari-postgres, the network Convex reaches this cluster through
+    # (tools/venari/convex/docker-compose.yml). It is created once by hand and
+    # owned by neither project, so `docker compose down` here cannot take it
+    # away from Convex, and the reverse.
+    networks:
+      - default
+      - venari-postgres
     shm_size: 128m
     mem_limit: 768m
     healthcheck:
@@ -62,3 +69,7 @@ services:
     ports:
       - "127.0.0.1:8787:8787"
     mem_limit: 128m
+
+networks:
+  venari-postgres:
+    external: true
