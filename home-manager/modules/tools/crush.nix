@@ -1,11 +1,20 @@
 # Crush (charmbracelet) declarative config slice.
 #
-# Providers/models stay in the hand-managed ~/.config/crush/crushrc (its
-# api-key lines reference $VARs, never literals). This module owns the JSON
-# sibling: crush merges crush.json and crushrc from the same directory
-# (verified in crush 0.88.1 load.go; crushrc wins on key conflicts and crush
-# warns), so the two files compose instead of fighting - as long as the
-# crushrc never sets the keys owned here (global_context_paths, hooks).
+# This module owns both of crush's global config files: crush.json, built
+# below, and crushrc, the shell-form sibling linked from tools/crush/crushrc.
+# crush merges the two from the same directory (verified in crush 0.88.1
+# load.go; crushrc wins on key conflicts and crush warns), so they compose
+# instead of fighting - as long as the crushrc never sets the keys owned here
+# (global_context_paths, hooks, permissions.allowed_tools).
+#
+# crushrc used to be hand-managed, because provider api-key lines were
+# expected to hold secrets. It holds none: the one provider it touches,
+# Venice, is built into crush's catwalk catalog, and the crushrc only fills in
+# the key from envchain at startup. It is a script crush executes, not data,
+# so a failing command in it (exit 127 for an unknown one) aborts crush's
+# whole config load - which is how the hand-managed copy broke, and why the
+# tracked one guards every binary it calls: this module reaches the Linux
+# devcontainer via common.nix, and envchain is macOS-only.
 #
 # global_context_paths is crush's key for ABSOLUTE, always-loaded context
 # files (plain context_paths entries are project-relative names). Setting it
@@ -49,6 +58,8 @@ in
     };
     # Read by allow-commands.sh from its own directory.
     "crush/hooks/allowed-commands".source = ../../../tools/crush/allowed-commands;
+
+    "crush/crushrc".source = ../../../tools/crush/crushrc;
 
     "crush/crush.json".text = builtins.toJSON {
       "$schema" = "https://charm.land/crush.json";

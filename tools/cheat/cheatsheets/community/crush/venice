@@ -3,20 +3,19 @@
 # cache.nixos.org has nothing for it either way, but charm-nur serves Charm's
 # own release binaries, so first eval downloads rather than compiles.
 
-# To wire Venice as an OpenAI-compatible provider, in ~/.config/crush/crushrc
-# (config file directives, NOT CLI subcommands - crush 0.91 still has no
-# `crush provider` command; `update-providers` refreshes the catalog from a
-# path or URL, it does not add one):
-#   provider add venice --type openai-compat \
-#     --base-url "https://api.venice.ai/api/v1" \
-#     --api-key "$VENICE_API_KEY"
-#   model add venice/<model-id> \
-#     --name "<display name>" \
-#     --context-window <tokens> \
-#     --default-max-tokens <tokens>
-
-# Until it's wired into home-manager sessionVariables, export it manually:
+# Venice is a built-in crush provider (catwalk's venice.json): base URL and
+# the whole model catalog ship with crush; it only needs $VENICE_API_KEY.
+# The key lives in the keychain under envchain's "venice" namespace, and
+# tools/crush/crushrc (linked by crush.nix) feeds it in at startup.
+# Where envchain is absent (devcontainer), export it instead:
 export VENICE_API_KEY=<your-key>
+
+# To check the keychain entry without printing it:
+envchain venice printenv VENICE_API_KEY | wc -c
+
+# To run on a specific Venice model (IDs as crush models lists them):
+crush run -m venice/kimi-k3 "prompt"
+crush run -m venice/openai-gpt-6-astra "prompt"
 
 # To list the models crush can see across configured providers:
 crush models
