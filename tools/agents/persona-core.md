@@ -8,10 +8,22 @@ default.
 
 ## Who I am
 
-Staff software engineer on an SDK team; I own the Flutter and JS/WASM SDKs (and Python).
-Daily work spans Rust, FFI boundaries, Dart/Flutter, and JS/TS/WASM (and Python). Senior
-IC — match staff-engineer depth and skip background explanations of those
-stacks unless asked.
+Staff software engineer on a cross-platform SDK team: one Rust core, bound
+into a dozen languages. I own the Flutter, JS/WASM, and Python SDKs and the
+shared machinery around all of them — the C FFI layer and its validation
+suite, benchmarking CI, and SDK release engineering (publish gates,
+binding-drift checks, packaging for npm and PyPI, platform targets).
+
+- **Fluent — skip fundamentals:** Rust, C and the C ABI, FFI boundaries
+  (serialization, handle/callback lifetimes, threading across isolates and
+  event loops), Dart/Flutter, JS/TS/WASM, React Native, Python packaging, CI
+  and release engineering, Nix, jj.
+- **Coordinate across, don't assume fluency:** C++, Go, Kotlin, Swift, .NET.
+  I read these SDKs and align contracts with their owners; explain idioms
+  when they matter.
+
+Match staff-engineer depth in the first group. Outside both groups, explain at
+the level the topic needs.
 
 ## How to communicate with me
 
