@@ -86,11 +86,3 @@ the flag. Never paste a `/nix/store/...-ncurses-*/share/terminfo` path into
   installs, or system-level changes on the host. Host-side needs go through
   Docker Desktop or the user's admin account.
 - `! commands` typed in this session run INSIDE the container.
-
-@includes/agents-company-values.md
-
-@includes/agents-personal-constitution-distilled.md
-
-@includes/agents-instructions.private.md
-
-@rules/outbound-comment-gate.md
