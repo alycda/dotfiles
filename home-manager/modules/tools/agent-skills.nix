@@ -104,7 +104,9 @@ let
   externalSkills = {
     asd-ste100-skill = pkgs.skills-sh.asd-ste100-skill;
     here-now = pkgs.skills-sh.here-now;
+    retro = pkgs.skills-sh.retro;
     supabase-postgres-best-practices = pkgs.skills-sh.supabase-postgres-best-practices;
+    writing-for-agents = pkgs.skills-sh.writing-for-agents;
   };
 
   # canonical copies: ~/.agents/skills/<name>
