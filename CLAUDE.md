@@ -831,13 +831,37 @@ When adding new Nix patterns or configurations, include links to:
 
 ## Meta: Updating This Document
 
-This document should evolve as patterns emerge. When you:
-- Discover a new pattern or convention
-- Solve a tricky problem
-- Learn something worth documenting
-- See repeated mistakes
+This file is the implementation agent's context. Every line here loads before
+any code is written, in every session, whether or not the session touches the
+area the line is about. That makes it the most expensive place a lesson can
+live: the implementer already carries exploration, the change, and debugging,
+and a reviewer gets a diff and nothing else, so a rule enforced at review
+costs nothing at write time. (Matt Pocock's `retro` skill states this
+directly; adopted in #90.) So a lesson does not default to "add it here."
+Triage it first:
 
-**Add it here** and commit with a message explaining what prompted the addition.
+- **A check** (something a tool can catch: a lint rule, an eval failure, a
+  byte limit) goes into CI or the justfile. Here, at most one line naming the
+  check and what it fails on. `repeated_keys` under CI Checks is the model: the
+  rule is statix's; the paragraph here says only why the third key is the trap.
+- **A standard** (how code or config should be written, judged rather than
+  parsed) goes where the reviewer loads it: `tools/agents/rubrics/` for the
+  critics, or a repo's `CODING_STANDARDS.md` for the `review` skill. Not here.
+- **A post-mortem** (what broke, how it was diagnosed, what was measured) goes
+  in `docs/solutions/<category>/` with frontmatter, and here as the
+  one-sentence rule plus the pointer. When the write-up already exists, a
+  paragraph here retelling it is duplication, not documentation.
+- **Orientation** stays: where things are, which placement feeds which
+  consumer (`common.nix` feeds the container), what Nix cannot manage and the
+  shape of the workaround. An implementer needs this before the first edit,
+  and a reviewer cannot cheaply retrofit it.
+
+The test for a paragraph: would an implementer make a worse *first edit*
+without it? If not, it is review-side or archive-side material.
+
+When you add, commit with a message explaining what prompted the addition,
+and put one dated line in the trailer below. The trailer keeps the five most
+recent entries; the full history is `jj log -- CLAUDE.md` (or `git log`).
 
 ---
 *Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
