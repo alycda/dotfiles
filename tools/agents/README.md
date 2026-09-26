@@ -76,6 +76,12 @@ re-derive the one-liners rather than letting the two drift.
   Desiderata, Hyrum's Law, Liskov/Wing behavioral subtyping from
   `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
   principles/techniques/products, judging process rather than code),
+  All three carry `tools: Read, Grep, Glob`. A critic judges; it never
+  edits, commits, or runs a build. The `power-of-ten` skill used to ask this
+  ("do not ask the critic to write"); the allowlist enforces it the same way
+  `entity-level-git`'s `allowed-tools` keeps the permission prompt on the
+  commands its body says never to run. The diff a critic judges arrives in
+  its prompt (from the `review` skill), so it needs no shell,
 - deploys `tools/agents/rubrics/` to `~/.agents/rubrics/` as plain files too,
   so a skill can read a rubric while *writing* rather than only a critic
   judging afterward (`skills/power-of-ten` reads `power-of-ten.md` from
