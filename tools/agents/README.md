@@ -72,13 +72,19 @@ re-derive the one-liners rather than letting the two drift.
   canonical in `tools/agents/*-critic.md`, judged-against material appended
   as layers — so full rubrics load on demand instead of always:
   `constitution-critic` (personal constitution + company values),
-  `code-critic` (TigerStyle, NASA Power of Ten, Test Desiderata, Hyrum's Law,
-  Liskov/Wing behavioral subtyping from `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
+  `code-critic` (TigerStyle, NASA Power of Ten plus its Rust/FFI checks, Test
+  Desiderata, Hyrum's Law, Liskov/Wing behavioral subtyping from
+  `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
   principles/techniques/products, judging process rather than code),
 - deploys `tools/agents/rubrics/` to `~/.agents/rubrics/` as plain files too,
   so a skill can read a rubric while *writing* rather than only a critic
   judging afterward (`skills/power-of-ten` reads `power-of-ten.md` from
-  there). Honors `agentSkills.liveCheckout` the same way the skills do, so
+  there). The split between the two Power of Ten files is deliberate:
+  the skill holds the contract rules a writer must settle first, and
+  `power-of-ten-rust-ffi.md` holds the mechanical rules and every check,
+  which only the critic applies. Standards are imposed at review, where the
+  agent has a diff and no context pressure, not at implementation (#90).
+  Honors `agentSkills.liveCheckout` the same way the skills do, so
   on a desktop profile a rubric edit is live for the skill immediately; the
   generated critic agents still pick it up on the next switch,
 - symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
