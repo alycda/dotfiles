@@ -136,7 +136,10 @@ Decryption on a machine requires the private identity at
   `~/.agents/company-values.md` itself; listing it here would load it twice.
 
   The full constitution loads on demand instead: ask Claude to run the
-  `constitution-critic` agent against a plan, PR, or decision.
+  `constitution-critic` agent against a plan, PR, or decision. `code-critic`
+  is normally reached through the `review` skill
+  (`tools/agents/skills/review`), which pins a base, produces the diff, and
+  runs the critic (Standards) and a spec check (Spec) as isolated subagents.
 
   On a fresh machine the private include may briefly dangle until agenix
   decrypts during activation — that is expected; Claude Code skips

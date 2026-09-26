@@ -97,6 +97,7 @@ let
     "jj-extract-gitignores"
     "jujutsu"
     "power-of-ten"
+    "review"
     "ste100"
   ];
 
