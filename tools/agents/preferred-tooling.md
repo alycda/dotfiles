@@ -32,6 +32,11 @@ learn from work I didn't watch happen. Concretely:
   didn't take, what you learned. A wrong turn followed by a fix is valuable
   history when it teaches something — keep it; squash only true "oops" fixups
   with no learning value.
+- **Standards are applied after the commit, not during the edit.** Once the
+  implementation commit exists, run the `review` skill: it hands the diff to
+  the critic (Standards) and to the issue or spec (Spec) in separate
+  subagents, and lands mechanical fixes as one further "Conform:" commit.
+  Do not hold the rubrics in mind while writing; hold the problem.
 
 ### Entity-level git: sem, weave, inspect
 

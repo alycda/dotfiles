@@ -185,13 +185,16 @@ in
         ../../../tools/agents/company-values.md
       ];
 
-    # code-critic: engineering rubrics (TigerStyle, NASA Power of Ten, Test
-    # Desiderata, Hyrum's Law, behavioral subtyping) for judging code,
-    # designs, and tests.
+    # code-critic: engineering rubrics (TigerStyle, NASA Power of Ten and
+    # its Rust/FFI checks, Test Desiderata, Hyrum's Law, behavioral
+    # subtyping) for judging code, designs, and tests. The Rust/FFI file is
+    # the review-side half of the power-of-ten skill: the checks moved out
+    # of the skill so the implementer is not told to self-review (#90).
     ".claude/agents/code-critic.md".text =
       mkCritic ../../../tools/agents/code-critic.md [
         ../../../tools/agents/rubrics/tiger-style.md
         ../../../tools/agents/rubrics/power-of-ten.md
+        ../../../tools/agents/rubrics/power-of-ten-rust-ffi.md
         ../../../tools/agents/rubrics/test-desiderata.md
         ../../../tools/agents/rubrics/hyrums-law.md
         ../../../tools/agents/rubrics/behavioral-subtyping.md

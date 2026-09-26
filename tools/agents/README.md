@@ -72,13 +72,25 @@ re-derive the one-liners rather than letting the two drift.
   canonical in `tools/agents/*-critic.md`, judged-against material appended
   as layers — so full rubrics load on demand instead of always:
   `constitution-critic` (personal constitution + company values),
-  `code-critic` (TigerStyle, NASA Power of Ten, Test Desiderata, Hyrum's Law,
-  Liskov/Wing behavioral subtyping from `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
+  `code-critic` (TigerStyle, NASA Power of Ten plus its Rust/FFI checks, Test
+  Desiderata, Hyrum's Law, Liskov/Wing behavioral subtyping from
+  `tools/agents/rubrics/`), and `factory-critic` (StrongDM Software Factory
   principles/techniques/products, judging process rather than code),
+  All three carry `tools: Read, Grep, Glob`. A critic judges; it never
+  edits, commits, or runs a build. The `power-of-ten` skill used to ask this
+  ("do not ask the critic to write"); the allowlist enforces it the same way
+  `entity-level-git`'s `allowed-tools` keeps the permission prompt on the
+  commands its body says never to run. The diff a critic judges arrives in
+  its prompt (from the `review` skill), so it needs no shell,
 - deploys `tools/agents/rubrics/` to `~/.agents/rubrics/` as plain files too,
   so a skill can read a rubric while *writing* rather than only a critic
   judging afterward (`skills/power-of-ten` reads `power-of-ten.md` from
-  there). Honors `agentSkills.liveCheckout` the same way the skills do, so
+  there). The split between the two Power of Ten files is deliberate:
+  the skill holds the contract rules a writer must settle first, and
+  `power-of-ten-rust-ffi.md` holds the mechanical rules and every check,
+  which only the critic applies. Standards are imposed at review, where the
+  agent has a diff and no context pressure, not at implementation (#90).
+  Honors `agentSkills.liveCheckout` the same way the skills do, so
   on a desktop profile a rubric edit is live for the skill immediately; the
   generated critic agents still pick it up on the next switch,
 - symlinks `~/.codex/AGENTS.md` to the canonical entrypoint so Codex loads it
@@ -124,7 +136,10 @@ Decryption on a machine requires the private identity at
   `~/.agents/company-values.md` itself; listing it here would load it twice.
 
   The full constitution loads on demand instead: ask Claude to run the
-  `constitution-critic` agent against a plan, PR, or decision.
+  `constitution-critic` agent against a plan, PR, or decision. `code-critic`
+  is normally reached through the `review` skill
+  (`tools/agents/skills/review`), which pins a base, produces the diff, and
+  runs the critic (Standards) and a spec check (Spec) as isolated subagents.
 
   On a fresh machine the private include may briefly dangle until agenix
   decrypts during activation — that is expected; Claude Code skips

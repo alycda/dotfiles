@@ -191,28 +191,21 @@ so the casks list is the authoritative app inventory. Any app referenced in
 the dock config is applied before the (missing) app exists. Add the cask when you
 pin the app. (Lesson from PR #13.)
 
-**Pinning nix-darwin is not set-and-forget.** A pinned rev's `brew bundle`
-invocation can be rejected by a newer Homebrew CLI (e.g. `--zap` now needing
-`--force-cleanup`). Because `homebrew.onActivation.autoUpdate = true`, the host
-updates brew and then self-breaks on its next rebuild against a stale pin. When
-this bites, repin to a rev whose brew call matches current brew — and remember the
-fixing rev may run `brew` as the configured user (`sudo --user=`), which requires
-that user own the Homebrew prefix. (Lesson from PR #35.)
+**Pinning nix-darwin is not set-and-forget.** `homebrew.onActivation.autoUpdate
+= true` means the host updates brew and then self-breaks on its next rebuild
+against a stale pin whose `brew bundle` call the newer CLI rejects. Repin to a
+rev whose brew call matches current brew; the fixing rev may run `brew` as the
+configured user, which requires that user own the Homebrew prefix. (PR #35.)
 
-**A third-party tap runs its Ruby inside your activation.** `brew bundle` loads
-every formula in `brews`, so a tap that raises takes the whole
-`darwin-rebuild switch` with it — on a machine where no `.nix` file changed,
-at a time chosen by `onActivation.autoUpdate`. The `cirruslabs/cli` tart
-formula started raising when Homebrew 6.0 *disabled* declaring `depends_on
-:macos` twice; `brew update` could not fix it (origin/main had the same file)
-and neither could waiting (five upstream PRs, three closed unmerged, and the
-formula is GoReleaser-generated `DO NOT EDIT`). Prefer nixpkgs for anything
-nixpkgs actually has — a pinned input moves when you run `nix flake update`,
-not when a background `brew update` decides. Two traps on the way out: a green
-`nix build` of a *prebuilt-binary* derivation verifies a hash, not an ABI (run
-`<store-path>/bin/<prog> --version` — nixpkgs' tart built fine and then died in
-dyld on macOS 15), and `cleanup = "zap"` cannot remove a formula it cannot
-load, so uninstall by hand before the switch. Full write-up:
+**A third-party tap runs its Ruby inside your activation.** `brew bundle`
+loads every formula in `brews`, so a tap that raises aborts the whole
+`darwin-rebuild switch` at a time chosen by `onActivation.autoUpdate`, with no
+`.nix` change. Prefer nixpkgs for anything nixpkgs actually has: a pinned input
+moves when you run `nix flake update`, not when a background `brew update`
+decides. Two traps on the way out: a green `nix build` of a prebuilt-binary
+derivation verifies a hash, not an ABI (run the binary), and `cleanup = "zap"`
+cannot remove a formula it cannot load, so uninstall by hand before the switch.
+Full write-up:
 `docs/solutions/build-errors/third-party-tap-formula-aborts-darwin-rebuild.md`
 
 ### Module Organization
@@ -286,50 +279,29 @@ lightweight CLIs belong here; a heavy personal tool goes in the desktop profiles
 
 ### Packaging an npm CLI that nixpkgs doesn't have
 
-`home-manager/modules/tools/hackmd.nix` is the worked example. When a tool
-only exists on npm, package it from a **pin-only** `tools/<tool>/package.json`
-whose single dependency is the published package, plus the `package-lock.json`
-generated from it — then build with `pkgs.importNpmLock.buildNodeModules` and
-wrap `node <entrypoint>` in a `writeShellApplication` (which shellchecks the
-wrapper for free, and leaves room for a guard — see the last paragraph here).
+`home-manager/modules/tools/hackmd.nix` is the worked example, and its header
+comment carries the full reasoning. The shape: a **pin-only**
+`tools/<tool>/package.json` whose single dependency is the published package,
+its `package-lock.json`, `pkgs.importNpmLock.buildNodeModules`, and a
+`writeShellApplication` wrapper around `node <entrypoint>`. Use
+`importNpmLock`, not `buildNpmPackage`'s `fetchNpmDeps`: the lockfile *is* the
+pin, and there is no `npmDepsHash` to obtain by running a build first.
 
-Use `importNpmLock`, not `buildNpmPackage`'s default `fetchNpmDeps`. The latter
-needs an `npmDepsHash` over the whole dependency FOD, which you can only obtain
-by running a build and copying the hash out of the mismatch error — impossible
-to produce in an environment without Nix, and a second thing to keep in sync
-forever. `importNpmLock` fetches each dependency by the integrity hash already
-in the lockfile, so the lockfile *is* the pin.
+Two consequences of "the lockfile is the pin": every lock entry is fetched,
+including per-platform binaries you will never run, and npm-declared runtime
+deps are often nothing of the sort. Both are fixed with npm `overrides` (pin
+to a pure-JS version; alias an over-declared dep to a package already in the
+tree). Each override needs a comment saying what it buys, because a later
+`npm install --package-lock-only` silently reverts to the fat tree if someone
+drops it. `**/node_modules` is in `.gitignore` and `.dockerignore` for the
+same reason: the bump procedure runs npm inside the repo.
 
-Two consequences of "the lockfile is the pin" that bit on the first use:
-
-- **Every entry in the lock is fetched, not just the ones for the build
-  platform.** A dependency that ships per-platform binaries (typescript 7.x
-  ships 20 of them) downloads all of them on every machine to install one.
-  Pin such a dependency down to a pure-JS version with an npm `overrides`
-  entry.
-- **npm-declared runtime dependencies are often nothing of the sort.**
-  hackmd-cli declares the `oclif` publisher CLI — yeoman, aws-sdk v2 — as a
-  runtime dep while its shipped code only ever requires `@oclif/core`.
-  Redirect the edge with an `overrides` alias to a package already in the tree
-  rather than deleting it, so a surprise `require` gets a real module. (npm
-  does not dedupe an alias against the real package, so the aliased target is
-  installed twice — cheap next to what the override saves, but not free.)
-  Between the two overrides: 770 packages / 263MB → 161 / 50MB.
-
-Both overrides need a comment saying what they buy, because a later
-`rm package-lock.json && npm install --package-lock-only` silently reverts to
-the fat tree if someone drops them. Add `**/node_modules` coverage to both
-`.gitignore` and `.dockerignore` while you are here: the bump procedure runs
-npm inside the repo, and `tools/` is in the Docker build context.
-
-One more thing a CLI needs before it belongs in `common.nix`: **a credential
-prompt must not be reachable headlessly.** `common.nix` is inherited by the
-devcontainer, so anything installed there gets called by agents on machines
-where nobody ever ran `login`. A CLI that prompts for a token and re-asks on an
-empty answer does not fail there — it spins until killed. Guard the
-non-interactive path in the wrapper (`tools/hackmd/token-guard.sh` is the
-worked example: no TTY + no token + a command that needs one = exit 1 with the
-env var to set), and leave the TTY path alone.
+**A credential prompt must not be reachable headlessly.** `common.nix` is
+inherited by the devcontainer, so a CLI there gets called by agents on machines
+where nobody ran `login`. One that prompts for a token and re-asks on empty
+input spins until killed. Guard the non-interactive path in the wrapper
+(`tools/hackmd/token-guard.sh`: no TTY + no token + a command that needs one =
+exit 1 naming the env var) and leave the TTY path alone.
 
 ### External agent skills (`lib/skills-sh.nix`)
 
@@ -337,127 +309,87 @@ Skills from [skills.sh](https://www.skills.sh/) install declaratively through
 the `nix-skills` flake input ([sudosubin/nix-skills](https://github.com/sudosubin/nix-skills),
 an auto-refreshed index that pins rev+hash for every published skill repo).
 
-**Do not apply nix-skills' overlay.** Forcing any single `pkgs.skills.*`
-attribute parses all ~48MB of index JSON and materializes a 480k-entry
-attrset — measured at ~65s wall / 3.6GB peak RSS per evaluation (2026-08-04).
-Since agent-skills.nix is in common.nix, that cost would hit every switch and
-every configuration in `nix flake check --all-systems`.
+**Do not apply nix-skills' overlay.** Forcing any `pkgs.skills.*` attribute
+parses the whole index (measured at ~65s / 3.6GB per evaluation, 2026-08-04),
+and agent-skills.nix is in common.nix. `lib/skills-sh.nix` instead reads one
+per-first-letter data shard per source repo and calls upstream's `buildSkill`
+directly: byte-identical derivations at ~1s. Exposed as `pkgs.skills-sh.<name>`
+via an overlay wired in `flake.nix` (mkHome) and `darwin/configuration.nix`,
+consumed by `home-manager/modules/tools/agent-skills.nix`.
 
-Instead, `lib/skills-sh.nix` reads only the per-first-letter data shard for
-each source repo and calls upstream's `buildSkill` directly — byte-identical
-derivations at ~1s eval cost. It's exposed as `pkgs.skills-sh.<name>` via an
-overlay wired in both `flake.nix` (mkHome) and `darwin/configuration.nix`,
-and consumed by `home-manager/modules/tools/agent-skills.nix`.
-
-- **Add a skill**: new `mkSkill` entry in `lib/skills-sh.nix` + a
-  `home.file` line in agent-skills.nix
-- **Update pins**: `nix flake update nix-skills` (pins can lag upstream HEAD
-  by days-to-weeks — they move when the index re-resolves the repo)
+- **Add a skill**: new `mkSkill` entry in `lib/skills-sh.nix` + an
+  `externalSkills` line in agent-skills.nix
+- **Update pins**: `nix flake update nix-skills` (pins lag upstream HEAD by
+  days-to-weeks; they move when the index re-resolves the repo)
 - **Plugins are not skills**: anything shipped as a Claude Code plugin
-  (e.g. compound-engineering) belongs in
-  `tools/agents/plugins/catalog.json`, not here — a plugin already carries
-  its skills, so installing them via nix-skills too would duplicate them
-- **Tailor by layering, not by forking.** When an indexed skill has the
-  right rule set but generic triggers, pin it here and write a thin repo
-  skill that delegates to it and carries only what is specific to this
-  workflow: which surfaces get which mode, what the local glossary is,
-  which sibling skills hand off to it. `tools/agents/skills/ste100` on top
-  of `asd-ste100-skill` is the worked example — no rule text of its own, and it
-  reads `CONCEPTS.md` as the project's technical-name dictionary, which is
-  how a controlled-language skill gets a word list without redistributing
-  ASD's. Re-authoring the rules locally would have meant maintaining a
-  3,500-word fork for a 150-line difference.
-- **Write the layer against the pinned rev, not upstream HEAD.** The
-  `ste100` skill was drafted from `danyuchn/asd-ste100-skill` master, which
-  had `scripts/ste-lint.py`; the rev the lock installed (indexed 2026-08-30)
-  did not, so the repo's own skill named a file the install lacked. The
-  pinned SKILL.md itself was self-consistent — checking it would have found
-  nothing. Before committing a layering skill, check every path it names
-  against the indexed rev (`data/by-name/<initial>/skills.json` in the
-  locked nix-skills, then the file at that rev) or against
-  `~/.agents/skills/<name>/` after a switch, and give the skill a fallback
-  for anything that can lag
+  (compound-engineering) belongs in `tools/agents/plugins/catalog.json`, not
+  here; installing its skills again would duplicate them
+- **Tailor by layering, not by forking.** When an indexed skill has the right
+  rule set but generic triggers, pin it and write a thin repo skill that
+  delegates to it and carries only what is specific to this workflow.
+  `tools/agents/skills/ste100` over `asd-ste100-skill` is the worked example:
+  no rule text of its own, `CONCEPTS.md` as its dictionary.
+- **Write the layer against the pinned rev, not upstream HEAD.** Check every
+  path the layer names against the indexed rev
+  (`data/by-name/<initial>/skills.json` in the locked nix-skills) or against
+  `~/.agents/skills/<name>/` after a switch, and give the layer a fallback for
+  anything that can lag. The `ste100` skill once named a linter the pinned rev
+  did not carry; the pinned SKILL.md was self-consistent, the layer was not.
 
 ### When nixpkgs lags: prefer the vendor's own Nix repo over NUR
 
-nixpkgs is a *downstream* packager. For a fast-moving upstream that ships
-more often than a volunteer remembers to bump it, `nix flake update` is not
-a fix — it locks a newer nixpkgs that still contains the same old package.
-Diagnose it that way before reaching for anything: check the pinned rev's
-`pkgs/by-name/<xx>/<pkg>/package.nix`, then check nixpkgs **master**, then
-check for an open bump PR. If master is stale too, no lockfile move can help.
+nixpkgs is a *downstream* packager. For an upstream that ships faster than a
+volunteer bumps it, `nix flake update` locks a newer nixpkgs with the same old
+package. Diagnose it that way first: the pinned rev's
+`pkgs/by-name/<xx>/<pkg>/package.nix`, then nixpkgs **master**, then open bump
+PRs. If master is stale too, no lockfile move can help. That is how crush
+ended up three releases behind (#128); the full account is the header of
+`lib/charm-nur.nix`. Three rules to carry forward:
 
-That is exactly how `crush` ended up three releases behind (nixpkgs 0.88.1
-from 2026-08-07 vs upstream 0.91.2 on 2026-08-26, no open PR). The nixpkgs
-bumps land every one to three weeks and crush tags weekly, so the drift is
-structural rather than a one-off.
-
-The fix is `charmbracelet/nur` as a **direct flake input** (`lib/charm-nur.nix`
-+ the `charm-nur` input in `flake.nix`). Three things to carry forward:
-
-- **Prefer the vendor's repo to `nix-community/NUR` even when NUR is what
-  surfaced it.** NUR is a meta-index: it *republishes* per-user repos behind
-  its own `repos.json` pins, so consuming crush through it adds a staleness
-  layer and a large lazy eval surface for one package, and the thing that
-  moves the version is NUR's index refresh rather than your lockfile. Taken
-  directly, the same expressions are pinned in `flake.lock` and
-  `nix flake update charm-nur` is the operation that bumps them. Use NUR
-  itself for *discovery* — `nur.nix-community.org/repos/<user>/` is how you
-  learn the vendor repo exists and what version it carries.
-- **Scope the overlay; never apply the vendor's `overlays.default`.** Charm's
-  is `final: prev: import ./pkgs { pkgs = final; }` — it shadows *every*
-  Charm attribute in nixpkgs (glow, vhs, gum, …) at the top level. Ours are
-  already current in nixpkgs and built from source there; wanting a fresh
-  crush is not a reason to silently swap them for prebuilt binaries. Bind the
-  set to one attribute (`pkgs.charm-nur.<name>`) instead, and wire that overlay
-  in all three places pkgs gets built: `mkHome`, `darwin/configuration.nix`,
-  **and** the flake's devShells (`lib/core-packages.nix` is shared with the
-  devShells, so an attribute missing there is an evaluation failure).
+- **Prefer the vendor's repo to `nix-community/NUR`**, even when NUR surfaced
+  it. NUR republishes per-user repos behind its own pins, so the version moves
+  on NUR's refresh, not your lockfile. Use NUR for *discovery* only.
+- **Scope the overlay; never apply the vendor's `overlays.default`.** Bind the
+  set to one attribute (`pkgs.charm-nur.<name>`) so it cannot shadow Charm
+  attributes nixpkgs already builds from source, and wire that overlay in all
+  three places pkgs gets built: `mkHome`, `darwin/configuration.nix`, and the
+  flake's devShells (`lib/core-packages.nix` is shared with them).
 - **Take the package, not the vendor's home-manager module.** Charm's
-  `programs.crush` writes `xdg.configFile."crush/crush.json"` — the exact
-  path `home-manager/modules/tools/crush.nix` already owns. Two modules, one
-  path, one activation conflict of the kind already catalogued below.
+  `programs.crush` writes the same `crush/crush.json` that
+  `home-manager/modules/tools/crush.nix` owns: one path, two modules, an
+  activation conflict.
 
-One eval detail worth remembering: a vendor flake's `packages.<system>`
-output imports nixpkgs *itself*, with no `config`, so for an unfree package
-(crush is FSL-1.1-MIT) forcing it throws regardless of our `allowUnfree`.
-Applying their overlay against our own `final` sidesteps that — the package
-set gets built with our config. The upside of the switch is that these are
-GoReleaser release binaries rather than source builds, and cache.nixos.org
-never had a binary for the unfree nixpkgs build anyway, so every machine had
-been compiling crush from scratch.
+A vendor flake's `packages.<system>` imports nixpkgs itself with no `config`,
+so forcing an unfree package there throws regardless of our `allowUnfree`;
+applying their overlay against our own `final` sidesteps it.
 
 ### Configuration Conflicts to Avoid
 
 1. **Overlays**: Set `nixpkgs.overlays` ONLY at darwin system level, not in home-manager modules
 2. **Rust-analyzer**: Don't install standalone - rustup provides it (conflicts otherwise)
 3. **Shell paths**: Use system shells (e.g., `terminal.integrated.defaultProfile.osx = "zsh"`) instead of nix-managed paths
-4. **Base-image package collisions**: The `nixos/nix` image ships its own populated `nix-env` profile in the container, so anything home-manager installs can collide with a package already there and abort activation. This has bitten three times (`git-minimal` #34, `man-db` #60, `bash` #74). Three remedies, chosen by who needs the program:
-   - **Ship none** — `programs.<x>.package = null` when you only wanted the module's *config* (see `home-manager/profiles/dev.nix`)
-   - **Remove the base copy** — the `nix-env -e` loop in `docker/entrypoint.sh`, when home-manager's version is genuinely required
-   - **`lib.hiPrio`** — only for collisions *within* home-manager's own closure; it cannot reach across nix-env profile elements
+4. **Base-image package collisions**: the `nixos/nix` image ships a populated
+   `nix-env` profile, so anything home-manager installs can collide with it and
+   abort activation (`git-minimal` #34, `man-db` #60, `bash` #74). Three
+   remedies, chosen by who needs the program: `programs.<x>.package = null`
+   when you only wanted the module's config (see `profiles/dev.nix`); the
+   `nix-env -e` loop in `docker/entrypoint.sh` when home-manager's version is
+   required; `lib.hiPrio` only for collisions *within* home-manager's own
+   closure (it cannot reach across nix-env profile elements). A green
+   `nix build` does not catch these: the profile union is computed at
+   activation on the target machine. Full write-up:
+   `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
 
-   A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
-
-   The `hiPrio` remedy has a live instance now, and it is worth knowing as the
-   contrast: `ncurses` and `ghostty.terminfo` both provide
+   The contrast case: `ncurses` and `ghostty.terminfo` both provide
    `share/terminfo/g/ghostty` (#116). Both are things *we* asked for, so the
-   comparison happens inside home-manager's own `buildEnv` - which reads
-   `meta.priority` - and fails at *build* time with a different message
-   (`pkgs.buildEnv error: two given paths contain a conflicting subpath`). The
-   base-image collisions above fail one layer up, at activation, when nix-env unions
-   `home-manager-path` with the base image's profile, where there is no
-   priority to compare. Similar-sounding errors, different layers; work out
-   which before picking a remedy.
-
-5. **System-level shell config reaches every account**: anything under
-   `programs.zsh.*` in nix-darwin is written to `/etc/zshrc` / `/etc/zshenv`,
-   which every user on the machine reads - including a non-admin account with
-   no Nix, no home-manager, and no way to opt out. `brew shellenv` there puts
-   the admin's `/opt/homebrew` on their `FPATH`, and nix-darwin's global
-   `compinit` then prompts them about it on every login. Write system-level
-   shell config for the account that owns the least, not for the one running
-   `darwin-rebuild`. Full write-up:
+   comparison happens inside home-manager's `buildEnv`, reads `meta.priority`,
+   and fails at *build* time with `two given paths contain a conflicting
+   subpath`. Similar-sounding errors, different layers; work out which before
+   picking a remedy.
+5. **System-level shell config reaches every account**: `programs.zsh.*` in
+   nix-darwin lands in `/etc/zshrc`, which a non-admin account with no Nix
+   reads too. Write system-level shell config for the account that owns the
+   least. Full write-up:
    `docs/solutions/runtime-errors/zsh-compinit-prompts-every-non-admin-login.md`
 6. **Don't hand-list a package a `programs.*` module already provides.** Enabling
    `programs.direnv` installs direnv; also adding `direnv` to `systemPackages` is a
@@ -472,6 +404,14 @@ been compiling crush from scratch.
    credentials) breaks on first write if home-manager points that path at a
    read-only Nix-store symlink. Install the binary only; leave the state files
    unmanaged. (PRs #44, #10, #38.)
+9. **Terminal capability in the container**: the `nixos/nix` image populates
+   none of the FHS paths ncurses searches, so the dev profile installs
+   `ncurses` (+ `ghostty.terminfo`) and sets `TERMINFO_DIRS` to
+   `${config.home.profileDirectory}/share/terminfo`. Point it at the profile,
+   never at a `/nix/store/...-ncurses-*` path. `pkgs.ncurses.terminfo` is an
+   eval error, not an output; plain `pkgs.ncurses` is what you want.
+   Full write-up:
+   `docs/solutions/runtime-errors/container-ships-no-terminfo-term-falls-back-to-xterm.md`
 
 ### Tools Nix Can't Fully Manage
 
@@ -485,23 +425,22 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   `buildRustPackage` from source, and **never commit a `lib.fakeHash` placeholder**
   — the derivation can't build. PR #19 tried to package `envelope` from source with
   fakeHash and was abandoned; it now installs via a Homebrew cask.
-- **Installer-script tools under home-manager activation** (the lazydiff pattern,
-  see `home-manager/profiles/work.nix`). Five things bite, all non-obvious:
+- **Installer-script tools under home-manager activation.** lazydiff started
+  this way (PRs #32 → #37) and has since graduated to a real derivation
+  (`modules/tools/lazydiff.nix`); the rules stand for the next one:
   1. Run the installer in `lib.hm.dag.entryAfter [ "writeBoundary" ]`, guarded so it
      only runs when missing, with a TODO to replace with a real derivation.
-  2. Activation runs with a **sanitized PATH** (no `/usr/bin`) — installers can't
-     find `tar`/`curl`/`gzip`. `export PATH=${lib.makeBinPath [ ... ]}:$PATH` with
-     the nixpkgs tools. Note an env prefix does **not** cross a `| /bin/sh` pipe, so
-     it must be `export`ed inside the piped command, not inlined before it.
+  2. Activation runs with a **sanitized PATH** (no `/usr/bin`). `export
+     PATH=${lib.makeBinPath [ ... ]}:$PATH` with the nixpkgs tools, *inside*
+     any `| /bin/sh` pipe, since an env prefix does not cross it.
   3. Put the tool's bin dir on PATH with `home.sessionPath`, **not** an rc-file
-     export — home-manager regenerates `.zshrc`, so the installer's own PATH append
-     is discarded.
+     export — home-manager regenerates `.zshrc`.
   4. Guard on the **binary path** (`[ -x "$HOME/.tool/bin/tool" ]`), not
-     `command -v tool` — the sanitized activation PATH can't see the tool, so a
-     `command -v` guard always fails and reinstalls on every switch.
-  5. **Pin the installer version** (`--version x.y.z`); `releases/latest` hits the
-     unauthenticated GitHub API (rate-limited, non-reproducible).
-  (PRs #32 → #37. #32 merged green but delivered no working binary — see Testing.)
+     `command -v tool`: the sanitized PATH can't see the tool, so a
+     `command -v` guard reinstalls on every switch.
+  5. **Pin the installer version**; `releases/latest` hits the unauthenticated
+     GitHub API (rate-limited, non-reproducible).
+  (#32 merged green but delivered no working binary — see Testing.)
 - **Activation ordering for generated imports:** if an activation entry appends an
   `@import` line pointing at a *linked* file, gate it with
   `entryAfter [ "linkGeneration" ]`, not `writeBoundary` — otherwise CLAUDE.md can
@@ -510,66 +449,44 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
 - **Keep a CLI version-matched to its companion extension by pinning a dedicated
   fast-updating input, not nixpkgs.** `claude-code` is pinned to
   `sadjow/claude-code-nix` (ships Anthropic's prebuilt binary, updates hourly)
-  because nixpkgs lagged the VSCode extension by a full minor version. The failure
-  mode is nasty: a skewed CLI surfaced only as an opaque **"Interrupted"** with no
-  version message. If the extension misbehaves, suspect the pin first. (PR #26.)
+  because nixpkgs lagged the VSCode extension by a full minor version. A skewed
+  CLI surfaced only as an opaque **"Interrupted"** with no version message. If
+  the extension misbehaves, suspect the pin first. (PR #26.)
 - **An account with no Nix gets its tools from mise.** A non-admin macOS account
   can't run `darwin-rebuild` and doesn't use home-manager, so `tools/mise/config.toml`
   lists its handful of tools. `tools/mise/bootstrap.sh` (curl-able, safe to run
   again) clones the repo over https, installs mise and links the *directory*
-  to `~/.config/mise`, so `mise use -g` edits the tracked file in place with
-  comments kept and a new tool shows up as a diff. Steps that prompt stay in
-  mise tasks, not the script: piped from curl, stdin is the script itself. Keep the list short and prefer aqua
-  (prebuilt) backends: mise falls back to `cargo:` for some tools (jj), and that
-  compiles from source. This does not replace `lib/core-packages.nix`; the
-  containers still get their tools from Nix.
+  to `~/.config/mise`, so `mise use -g` edits the tracked file in place. Steps
+  that prompt stay in mise tasks, not the script: piped from curl, stdin is
+  the script itself. Keep the list short and prefer aqua (prebuilt) backends;
+  mise falls back to `cargo:` for some tools (jj), which compiles from source.
+  This does not replace `lib/core-packages.nix`; the containers still get
+  their tools from Nix.
 - **Share a tool's config with that account as a plain file, not a generator.**
   Keep the file in `tools/<tool>/`, have the Nix module read it the way the tool
   loads config anyway (`fromTOML` for helix, git's `include`), and link or
   include the same file on the mise account. Anything tied to a store path, a
-  secret, or an installed package stays in the Nix module. `helix.nix` is the
-  worked example: it used to repeat `tools/helix/*.toml` inline, "translated by
-  hand", and now reads them.
+  secret, or an installed package stays in the Nix module. `helix.nix` reads
+  `tools/helix/*.toml` this way.
 - **Prebuilt binaries installed into a persisted `$HOME` are image-scoped state.**
-  nixpkgs' `rustup` patchelfs every toolchain binary it downloads to the glibc of
-  the image that installed it, and `~/.rustup` lives in the container's `devhome`
-  volume — which outlives image rebuilds. The toolchain then points its ELF
-  interpreter at a store path the new image never had, and every shim dies with
-  `error: command failed: 'cargo': No such file or directory (os error 2)` —
-  ENOENT for the *loader*, naming the binary that is right there. Two rules fall
-  out, and both generalize past rustup: **guard activation on whether the tool
-  executes, not whether it exists** (an existence check can only ever fix the
-  empty case, so activation can never repair state that went bad in place); and
-  repair by removing it — `rustup toolchain uninstall` then install, because
-  `install --force` re-downloads nothing when the channel manifest says
-  "unchanged". Full write-up:
+  nixpkgs' `rustup` patchelfs downloaded toolchains to the glibc of the image
+  that installed them, and `~/.rustup` in the `devhome` volume outlives image
+  rebuilds; every shim then dies with ENOENT for a *loader* that no longer
+  exists. Two rules: **guard activation on whether the tool executes, not
+  whether it exists** (an existence check can never repair state that went bad
+  in place); and repair by removing it, because `install --force` re-downloads
+  nothing when the manifest says "unchanged". (#80.) Full write-up:
   `docs/solutions/runtime-errors/stale-rustup-toolchain-after-image-rebuild.md`
-  (PR #80.)
-- **A vendor CLI outlives its service if the contract is public.** #56 was
-  "get the ghost.build CLI on PATH" until ghost.build announced it was winding
-  down. The CLI repo was client-only, but it shipped the full `openapi.yaml`
-  and read `api_url` from config, so the answer was a server for that
-  contract (`alycda/ghost`, branch `ghost-server`, run on venari per
-  `tools/venari/README.md`), not a rewrite. Two checks before declaring "no
-  client patch needed", both missed on the first pass: grep the client for
-  assumptions the hosted service made true (`dbName := "tsdb"`, because every
-  database had its own instance; one cluster needed a `dbname` field), and
-  check how its config library treats an empty env var (viper drops them
-  without `AllowEmptyEnv`, so the docs proxy could not be turned off from a
-  wrapper). Client side follows the hackmd pattern: a wrapper that sets
-  `GHOST_*` env vars (`modules/tools/ghost.nix`), never a managed copy of the
-  config file the CLI itself writes. Packaged from the fork as a flake input
-  (`lib/ghost.nix`), because the upstream release binary lacks the field.
-
-6. **Terminal capability in the container**: the `nixos/nix` image populates
-   none of the FHS paths ncurses is compiled to search, so the dev profile
-   installs `ncurses` (+ `ghostty.terminfo`) and sets `TERMINFO_DIRS` to
-   `${config.home.profileDirectory}/share/terminfo`. Point it at the profile,
-   never at a `/nix/store/...-ncurses-*` path - the latter works right up until
-   the next bump or `nix-collect-garbage`. Note ncurses has no `terminfo`
-   output; its database is in `$out/share/terminfo`, so plain `pkgs.ncurses` is
-   what you want (`pkgs.ncurses.terminfo` is an eval error, not a fallback).
-   Full write-up: `docs/solutions/runtime-errors/container-ships-no-terminfo-term-falls-back-to-xterm.md`
+- **A vendor CLI outlives its service if the contract is public.** ghost.build
+  wound down, but its CLI shipped the full `openapi.yaml` and read `api_url`
+  from config, so the answer was a server for that contract (`alycda/ghost`,
+  run on venari per `tools/venari/README.md`), not a rewrite (#56). Before
+  declaring "no client patch needed", grep the client for assumptions the
+  hosted service made true, and check how its config library treats an empty
+  env var (viper drops them without `AllowEmptyEnv`). Client side follows the
+  hackmd pattern: an env-setting wrapper (`modules/tools/ghost.nix`), never a
+  managed copy of the config file the CLI writes; packaged from the fork as a
+  flake input (`lib/ghost.nix`), whose header records both assumptions.
 
 ## Migration Workflow
 
@@ -638,7 +555,10 @@ binary landed, or that it's resolvable in a login shell. PR #32 merged green but
 delivered no working `lazydiff`; three stacked bugs only surfaced under a clean
 tart-VM `darwin-rebuild switch` followed by `zsh -lc 'command -v lazydiff'`.
 Verify the end state (binary present *and* on the interactive PATH), ideally in a
-throwaway VM, before calling an install done. (PR #37.)
+throwaway VM, before calling an install done. (PR #37.) A prebuilt macOS
+binary that runs on *this* machine proves little either: `lib/inspect.nix`'s
+first candidate linked Homebrew's openssl by absolute path, so `otool -L` is
+part of verifying any fetched Mach-O.
 
 ## CI Checks
 
@@ -696,10 +616,7 @@ CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs
 the rules Crush's skill loader enforces: the YAML must parse, `name` must match
 the directory, and `description` must be at most **1024 bytes**. Crush uses Go's
 `len()`, so the limit is bytes, not characters: an em-dash costs 3. Crush skips
-a skill that fails with no visible error. cf-now (1043 bytes) and
-entity-level-git (1146) were skipped until they were trimmed. The first guess
-was that nested colons broke the YAML. They did not: `:` is literal inside a
-`>` block scalar.
+a skill that fails with no visible error (#175).
 
 ### Check job: `nix flake check --all-systems` + config evaluation
 
@@ -744,82 +661,40 @@ cache step as maintenance landmines. (PR #1.)
 
 ### Flake input updates: `update-flake-lock.yml`
 
-`.github/workflows/update-flake-lock.yml` runs `nix flake update` — weekly
-on a `schedule:` cron, or on demand via `workflow_dispatch`, where a text
-field can scope the update to specific inputs — validates the result, and
-opens a PR on the `automation/flake-update` branch. The manual trigger
-exists so lockfile updates can be kicked off and validated from anywhere
-(including the GitHub mobile app) without needing a checkout on whichever
-machine happens to be current; the weekly cron exists so they happen even
-when nobody thinks to ask.
+`.github/workflows/update-flake-lock.yml` runs `nix flake update` (weekly
+cron, or `workflow_dispatch` with a text field to scope it to named inputs),
+validates the result with the full check-job steps, pushes
+`automation/flake-update`, and opens a PR. The workflow's header comment
+explains its own compensations; what an editor needs to know:
 
-The schedule is only safe because the validation below already gates PR
-creation: an unattended run cannot produce a PR for a lockfile that doesn't
-evaluate. Two `schedule:` mechanics worth remembering — it fires only for
-the copy of the workflow on the **default branch** (editing the cron on a
-feature branch changes nothing until it merges), and GitHub **disables
-scheduled workflows after 60 days of repo inactivity**, emailing the owner
-to re-enable them from the Actions tab.
-
-The wrinkle it works around: **PRs created with the default `GITHUB_TOKEN`
-never trigger `pull_request` workflows** (GitHub's anti-recursion rule), so
-nix.yml would sit idle on the bot PR. Two compensations:
-
-1. The workflow runs the full check-job validation *before* creating the
-   PR, so a PR only ever appears for a lockfile that already evaluates.
-2. `workflow_dispatch` is exempt from the anti-recursion rule, so after
-   opening the PR it runs `gh workflow run nix.yml --ref
-   automation/flake-update`, giving the PR real lint/check runs — the "two
-   jobs must pass" rule above holds for bot PRs too.
-
-nix.yml also triggers on pushes to `automation/flake-update`, so a manual
-fixup commit on a bot PR is re-validated (bot pushes are exempt from that
-trigger; human pushes fire it). Operational notes: the repo setting "Allow
-GitHub Actions to create and approve pull requests" (Settings → Actions →
-General → Workflow permissions) must stay enabled or PR creation fails; and
-a later run force-pushes the branch, superseding any still-open update PR.
-That superseding is what keeps the weekly cron from piling up review debt —
-an unmerged update PR is rolled forward onto the newest lockfile instead of
-a second one opening beside it — but it also means a *narrow* manual
-dispatch (`nixpkgs` alone, say) must be merged before the next Monday, since
-the scheduled run updates everything and will replace it.
-
-That setting is the one thing the workflow cannot establish for itself, and
-it is what the first dispatch died on: `permissions: pull-requests: write`
-in a workflow only *narrows* what `GITHUB_TOKEN` may do, so a repo (or
-account) setting that withholds PR creation overrides it, and `gh pr
-create` is refused identically. PR creation is therefore non-fatal — the
-validated lockfile is already pushed by then, so the run dispatches nix.yml
-on the branch anyway and writes a compare link into the job summary before
-failing. Full write-up:
-`docs/solutions/ci-errors/github-actions-not-permitted-to-create-pull-requests.md`
+- **PRs created with `GITHUB_TOKEN` never trigger `pull_request` workflows**
+  (GitHub's anti-recursion rule), so validation runs *before* the PR exists
+  and the workflow then dispatches nix.yml on the branch by hand
+  (`workflow_dispatch` is exempt). The "two jobs must pass" rule holds for
+  bot PRs too.
+- **`schedule:` fires only from the default branch** (editing the cron on a
+  feature branch changes nothing until it merges), and GitHub **disables
+  scheduled workflows after 60 days of repo inactivity**.
+- **Each run force-pushes the branch**, superseding any open update PR. That
+  keeps the weekly cron from piling up review debt, and it means a narrow
+  manual dispatch must be merged before the next Monday.
+- **PR creation is non-fatal** because the repo setting "Allow GitHub Actions
+  to create and approve pull requests" is the one thing the workflow cannot
+  grant itself: a `permissions:` block only narrows `GITHUB_TOKEN`. Full
+  write-up:
+  `docs/solutions/ci-errors/github-actions-not-permitted-to-create-pull-requests.md`
 
 ### Entity diff (informational, non-blocking)
 
 `.github/workflows/entity-diff.yml` runs [Sem](https://github.com/Ataraxy-Labs/sem)'s
-GitHub Action on every PR. It posts a sticky PR comment listing which
-functions, classes, and methods changed (entity-level diff via tree-sitter,
-not line-by-line) — useful for scanning what actually changed in a module
-without reading the full diff. It's display-only: no config, no API keys,
-and it never fails the build, so it doesn't gate merging alongside the
-lint/check jobs above.
-
-Sem is also installed locally, alongside its siblings weave (entity-level
-merge driver) and inspect (review triage) from the same Ataraxy Labs stack.
-The three arrive by three routes, each the least-bad available: weave from
-nixpkgs (desktop profiles), sem from homebrew-core as `sem-cli` (nixpkgs'
-`sem` attribute is an unrelated Semaphore CI tool — same name, wrong
-program), and inspect from `lib/inspect.nix`, which fetches upstream's
-release binary and repoints it at nixpkgs' openssl. inspect is pointedly
-*not* from the `ataraxy-labs/tap` brew tap: that formula's checksum went
-stale when upstream moved the release tag, so it cannot install — a live
-instance of "A third-party tap runs its Ruby inside your activation" above.
-Usage guidance lives in the
-`entity-level-git` skill (`tools/agents/skills/entity-level-git/`), not
-here — tool-specific depth belongs in on-demand skills, with only a
-compact pointer in the always-loaded `tools/agents/preferred-tooling.md`.
-Since CI already posts the sem entity diff on every PR, don't post
-duplicate entity-diff comments.
+GitHub Action on every PR and posts a sticky comment listing which functions,
+classes, and methods changed. Display-only: it never fails the build. Sem,
+weave, and inspect are also installed locally by three different routes
+(weave from nixpkgs; sem from homebrew-core as `sem-cli`, since nixpkgs' `sem`
+is an unrelated Semaphore CI tool; inspect from `lib/inspect.nix`, because the
+`ataraxy-labs/tap` formula's checksum went stale). Usage lives in the
+`entity-level-git` skill, not here. Since CI already posts the entity diff on
+every PR, don't post duplicate entity-diff comments.
 
 ## Learning Resources
 
@@ -831,54 +706,41 @@ When adding new Nix patterns or configurations, include links to:
 
 ## Meta: Updating This Document
 
-This document should evolve as patterns emerge. When you:
-- Discover a new pattern or convention
-- Solve a tricky problem
-- Learn something worth documenting
-- See repeated mistakes
+This file is the implementation agent's context. Every line here loads before
+any code is written, in every session, whether or not the session touches the
+area the line is about. That makes it the most expensive place a lesson can
+live: the implementer already carries exploration, the change, and debugging,
+and a reviewer gets a diff and nothing else, so a rule enforced at review
+costs nothing at write time. (Matt Pocock's `retro` skill states this
+directly; adopted in #90.) So a lesson does not default to "add it here."
+Triage it first:
 
-**Add it here** and commit with a message explaining what prompted the addition.
+- **A check** (something a tool can catch: a lint rule, an eval failure, a
+  byte limit) goes into CI or the justfile. Here, at most one line naming the
+  check and what it fails on. `repeated_keys` under CI Checks is the model: the
+  rule is statix's; the paragraph here says only why the third key is the trap.
+- **A standard** (how code or config should be written, judged rather than
+  parsed) goes where the reviewer loads it: `tools/agents/rubrics/` for the
+  critics, or a repo's `CODING_STANDARDS.md` for the `review` skill. Not here.
+- **A post-mortem** (what broke, how it was diagnosed, what was measured) goes
+  in `docs/solutions/<category>/` with frontmatter, and here as the
+  one-sentence rule plus the pointer. When the write-up already exists, a
+  paragraph here retelling it is duplication, not documentation.
+- **Orientation** stays: where things are, which placement feeds which
+  consumer (`common.nix` feeds the container), what Nix cannot manage and the
+  shape of the workaround. An implementer needs this before the first edit,
+  and a reviewer cannot cheaply retrofit it.
+
+The test for a paragraph: would an implementer make a worse *first edit*
+without it? If not, it is review-side or archive-side material.
+
+When you add, commit with a message explaining what prompted the addition,
+and put one dated line in the trailer below. The trailer keeps the five most
+recent entries; the full history is `jj log -- CLAUDE.md` (or `git log`).
 
 ---
-*Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
-*Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
-*Last updated: 2026-09-16 - Verified inspect against a real binary and found its declared install route could never have worked: the ataraxy-labs/tap formula pins a checksum upstream invalidated by moving the v0.1.1 tag, so the brew fails and would abort activation. Replaced it with `lib/inspect.nix` (release binary, tart-style). Two lessons, both already in the tap write-up and both nearly repeated: a tap's risk is its maintenance, so check the formula's age and hash before declaring it, not after; and a prebuilt binary that runs on *this* machine proves little — this one linked Homebrew's openssl by absolute path, so `otool -L` is part of verifying any fetched macOS binary*
-
-*2026-09-16 - Corrected the entity-level-git work after merging main: "none of sem/weave/inspect are in nixpkgs" had been written into the skill and preferred-tooling from a sandbox with no `nix` to check it, and was wrong — nixpkgs carries weave, and its `sem` is a different program entirely. Moved weave to nixpkgs per the third-party-tap lesson, re-verified every sem and weave command against real binaries (two weave commands were wrong), and narrowed the skill's `allowed-tools` from wildcards to read-only subcommands, since a wildcard pre-approves the very `setup`/`login` commands the skill says never to run unprompted. Rule worth keeping: an availability claim about a package set is a checkable fact — check it, or mark it unverified*
-
-*2026-09-16 - Added tools/mise/bootstrap.sh, keeping prompts out of it because a curl-piped script owns stdin*
-
-*2026-09-16 - Made helix.nix read tools/helix/*.toml directly so the mise account can link the same files, and recorded that as the pattern for sharing config with it*
-
-*2026-09-16 - Added `tools/mise/` for the account with no Nix and no admin rights, which can't run a switch, and recorded linking the whole directory so `mise use -g` edits the tracked file in place*
-
-*2026-09-14 - Recorded the layer-not-fork pattern for tailoring an indexed skill (`ste100` over the pinned `asd-ste100-skill`, with `CONCEPTS.md` as its dictionary) and the rule to write the layer against the rev the lock installs, not upstream HEAD, after the ste100 skill named a linter the first pin did not carry (lesson corrected 2026-09-22: the pinned SKILL.md never referenced the linter; the repo's own skill did)*
-
-*2026-09-06 - Recorded that a third-party Homebrew tap executes its
-formula Ruby inside activation and can abort a whole `darwin-rebuild switch`
-with no local change, after the cirruslabs/cli tart formula started raising
-under Homebrew 6.0; includes the two traps found routing around it (a green
-`nix build` of a prebuilt binary proves nothing about whether it runs, and
-`cleanup = "zap"` cannot uninstall a formula it cannot load)*
-
-*2026-08-29 - Put the flake-update workflow on a weekly cron now that its manual dispatches have proven out, and recorded the two `schedule:` mechanics that make a cron behave unlike a dispatch (default-branch-only, auto-disabled after 60 days idle) plus why branch superseding is what keeps recurring updates from piling up review debt*
-
-*2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
-
-*2026-08-28 - Documented the `importNpmLock` pattern for packaging an npm-only CLI (hackmd-cli), including why the lockfile-as-pin approach makes over-declared npm dependencies and per-platform binary packages a build-size problem worth overriding away, and added the rule that a CLI reaching `common.nix` must not be able to hit an interactive credential prompt headlessly*
-
-*2026-08-23 - Recorded the container terminfo fix (#116): why terminal capability is a profile-level concern rather than a devShell one, that `pkgs.ncurses` has no `terminfo` output, and the `ncurses`/`ghostty.terminfo` overlap as the first in-closure collision `lib.hiPrio` actually resolves*
-
-*2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
-
-*2026-08-17 - Recorded why the flake-update workflow's first dispatch could not open its PR ("Allow GitHub Actions to create and approve pull requests" was off; a workflow's `permissions:` block cannot re-grant it) and made PR creation non-fatal so a validated lockfile is never discarded*
-
-*2026-08-17 - Documented the flake-update workflow (`update-flake-lock.yml`), the `GITHUB_TOKEN` anti-recursion rule and its `workflow_dispatch` exemption, and the check job's config-evaluation step (`nix flake check` skips `darwinConfigurations`/`homeConfigurations` as unknown outputs — CI previously only exercised the devShells)*
-
-*2026-08-05 - Added the Ataraxy Labs entity-level git stack (sem/weave/inspect). Decision: full usage went into the on-demand `entity-level-git` skill rather than always-loaded instructions — the agents README's "don't over-centralize tool-specific behavior" non-goal — with only a compact table in `preferred-tooling.md` and a CI cross-reference here*
-
-*2026-08-05 - Documented statix's `repeated_keys` threshold: it fires on the third assignment sharing a dotted prefix, so a green two-key pattern makes the next additive change fail CI (#79)*
-
-*2026-08-04 - Documented the `lib/skills-sh.nix` pattern for declarative skills.sh installs via nix-skills (and why its full overlay is avoided); surfaced the knowledge store (`docs/solutions/`) and `CONCEPTS.md` in Repository Structure; added base-image package collisions as a fourth configuration conflict after it bit a third time (#74)*
-
-*2026-07-28 - Synced Repository Structure with reality (lib/, tools/, secrets/, docker/, modules/tools/); documented the shared `lib/core-packages.nix` pattern; compounded durable lessons mined from closed PRs (#1, #3, #6, #7, #11, #13, #14, #19, #20, #23, #24, #26, #32, #35, #37, #38, #44, #46) into Config Conflicts, a new "Tools Nix Can't Fully Manage" section, System-vs-User, Module Organization, Testing, and CI Checks*
+*2026-09-26 - Applied the triage rule backward (#90): post-mortems that already have a `docs/solutions/` write-up or a file-header account (tart tap, base-image collisions, terminfo, rustup, crush/charm-nur, hackmd, ghost, the flake-update workflow) are now the rule plus a pointer; the trailer keeps five entries. 53KB to 40KB; what remains is orientation by the section's own test*
+*2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
+*2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed (#80)*
+*2026-09-16 - Replaced inspect's stale-checksum tap formula with `lib/inspect.nix`; recorded that `otool -L` is part of verifying any fetched macOS binary, and that an availability claim about a package set is a checkable fact*
+*2026-09-14 - Recorded the layer-not-fork pattern for tailoring an indexed skill (`ste100` over the pinned `asd-ste100-skill`) and the rule to write the layer against the rev the lock installs, not upstream HEAD*

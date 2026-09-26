@@ -30,7 +30,7 @@
 #
 # The byte-identical-drvPath claim is checkable the same way: build both
 # package sets over one nixpkgs and diff the drvPaths. Verified 2026-09-21
-# for all three skills below, including the root-path one, whose name is
+# for the three skills then listed, including the root-path one, whose name is
 # load-bearing (see asd-ste100-skill).
 #
 # Tradeoff: data/by-name/<initial>/skills.json and nix/build-skill are
@@ -117,6 +117,42 @@ nix-skills: final: _: {
         repo = "agent-skills";
         path = "skills/supabase-postgres-best-practices";
         name = "supabase-postgres-best-practices";
+      };
+
+      # https://www.skills.sh/mattpocock/skills/retro
+      # A retrospective over a coding session that proposes changes to the
+      # agent's *environment*: navigation pointers, automated checks, review
+      # rules, steering-file no-ops, tool economy. Its Coding Standards step
+      # is the triage rule CLAUDE.md's Meta section now uses (a mechanical
+      # violation gets a deterministic check; CODING_STANDARDS.md is for
+      # judgement calls; CLAUDE.md is navigation pointers), so installing it
+      # is how that rule gets exercised rather than only stated. On trial
+      # (#90): user-invoked only (`disable-model-invocation: true`), so it
+      # costs no context until someone runs it.
+      #
+      # Path caveat: it lives under skills/in-progress/ at the pinned rev
+      # (c55ee46, indexed 2026-09-18). When upstream graduates it, the path
+      # moves and the `lib.elem path entry.skills` check in mkSkill throws
+      # at eval, naming the path. That is the intended failure; update the
+      # path here when it fires.
+      retro = mkSkill {
+        owner = "mattpocock";
+        repo = "skills";
+        path = "skills/in-progress/retro";
+        name = "retro";
+      };
+
+      # https://www.skills.sh/mattpocock/skills/writing-for-agents
+      # retro's step 1 calls this skill for its style guide (context
+      # pointers, the two loads, branch-per-trigger descriptions), so it is
+      # pinned alongside. Also the closest thing to a house style for the
+      # SKILL.md files under tools/agents/skills; ste100 owns the sentences,
+      # this owns the structure.
+      writing-for-agents = mkSkill {
+        owner = "mattpocock";
+        repo = "skills";
+        path = "skills/productivity/writing-for-agents";
+        name = "writing-for-agents";
       };
     };
 }
