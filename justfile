@@ -25,5 +25,7 @@ task title:
         exit 1
     fi
     mkdir -p "${id}"
-    printf '# %s\n\n- STATUS: OPEN\n- TAGS:\n\n# Description\n\n' {{ quote(title) }} > "${id}/TASK.md"
-    printf '%s\n' "${id}/TASK.md"
+    printf '# %s\n\n- STATUS: OPEN\n- TAGS:\n\n## Description\n\n' {{ quote(title) }} > "${id}/TASK.md"
+    # Relative to the justfile, where recipes run by default (task-edit does),
+    # not to tasks/, where this one runs.
+    printf 'tasks/%s\n' "${id}/TASK.md"
