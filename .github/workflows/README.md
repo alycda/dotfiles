@@ -1,8 +1,8 @@
 # CI
 
 `lint.yml` and `test.yml` run on every push and pull request. They need
-neither Nix nor mise. `devcontainer.yml` runs when the devcontainer files
-change. Actions are pinned to commit SHAs, with the tag in a
+neither Nix nor mise. `devcontainer.yml` and `extension.yml` run when their
+files change. Actions are pinned to commit SHAs, with the tag in a
 comment.
 
 ## editorconfig
@@ -57,3 +57,19 @@ in the repo. Run them locally with `bats tests`.
 - **prebuild:** pushes the image to `ghcr.io/<repo>/devcontainer:nix`. It only
   runs when started by hand from the Actions tab, so nothing is published
   until you choose to.
+
+## extension
+
+`extension.yml` checks the HUID Tasks extension:
+
+- **unit:** `node --test` runs `test/` on Node 20 and 22: the logic in
+  `tasks.js` against `tasks/README.md`, and contract tests against the
+  manifest, the repo's tasks, and a task `just task` really creates.
+- **types:** `tsc --checkJs` against the typings for the oldest VS Code in
+  `engines` (1.74) and its Node (16), to catch an API that VS Code lacks.
+  Not strict.
+- **lint:** `biome lint`.
+- **package:** `vsce package`, as `just vscode-tasks-install` does, then checks
+  the VSIX holds every file the extension needs and none of its tests.
+
+Run the tests locally with `node --test extensions/vscode-huid-tasks/test/*.test.js`.

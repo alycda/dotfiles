@@ -1,0 +1,81 @@
+# The HUID Tasks VS Code extension (extensions/vscode-huid-tasks): its logic,
+# its types against the VS Code it claims to support, lint, and packaging.
+name: extension
+
+on:
+  push:
+    paths: &paths
+      - extensions/vscode-huid-tasks/**
+      - justfile
+      - tasks/**
+      - .github/workflows/extension.yml
+  pull_request:
+    paths: *paths
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: extensions/vscode-huid-tasks
+
+jobs:
+  # Unit and contract tests (test/): plain `node --test`, no dependencies.
+  # just is installed so the contract test can create a task for real.
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [20, 22]
+    steps:
+      # Actions are pinned to commits; the comment is the tag that was pinned.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.58.0
+      - run: node --test test/*.test.js
+
+  # Type-check the JavaScript against @types/vscode for the oldest VS Code in
+  # package.json's engines (1.74) and that VS Code's Node (16), to catch an API
+  # it doesn't have. Not strict: this is about the API, not full typing.
+  # Installed outside the repo; the extension itself has no dependencies.
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Install TypeScript and the typings
+        run: npm install --prefix "$RUNNER_TEMP/types" --no-save --no-package-lock typescript@7.0.2 @types/vscode@1.74.1 @types/node@16.18.126
+      - name: Type-check
+        run: |
+          t="$RUNNER_TEMP/types/node_modules"
+          "$t/.bin/tsc" --allowJs --checkJs --noEmit --strict false \
+            --module commonjs --target es2021 --lib es2022 \
+            --types node,vscode --typeRoots "$t/@types" \
+            extension.js tasks.js
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: npx -y @biomejs/biome@2.5.14 lint .
+
+  # Package it the way `just vscode-tasks-install` does, which also validates
+  # the manifest, and check the VSIX holds every file the extension needs.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: npx -y @vscode/vsce@4.0.0 package --no-dependencies --skip-license --allow-missing-repository -o huid-tasks.vsix
+      - name: Check the contents
+        run: |
+          unzip -l huid-tasks.vsix
+          for f in package.json extension.js tasks.js; do
+            unzip -l huid-tasks.vsix | grep -q " extension/$f\$" || { echo "missing: $f"; exit 1; }
+          done
+          ! unzip -l huid-tasks.vsix | grep -q ' extension/test/'

@@ -1,0 +1,10 @@
+# `mise dotfiles apply` from this directory links the plain-file configs into
+# $HOME. This is the path for an account without Nix; home-manager sources
+# the same files once it exists.
+#
+[dotfiles]
+"~/.config/zsh/dotfiles.zsh" = { source = "tools/zsh/interactive.zsh", mode = "symlink" }
+"~/.zshrc/dotfiles" = { line = "[[ -r ~/.config/zsh/dotfiles.zsh ]] && source ~/.config/zsh/dotfiles.zsh" }
+
+[tools]
+just = "latest"

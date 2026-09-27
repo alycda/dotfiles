@@ -1,6 +1,6 @@
 # Devcontainer(s)
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - TAGS: devcontainer, nix, mise, vscode, docker, bootstrap
 
 ## Description
