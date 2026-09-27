@@ -24,8 +24,9 @@ builds the version mise pins.
 
 [home-manager/common.nix](home-manager/common.nix) is the Nix side of the root
 `mise.toml`: it puts the same files from `tools/` in the same places and
-installs the same tools. In a devcontainer (user `vscode`), switch with the
-home-manager this flake pins:
+installs the same tools. The Nix devcontainer (`.devcontainer.json`) switches
+to it on create, so it matches the mise one. To switch again after an edit, in
+the container (user `vscode`), use the home-manager this flake pins:
 
 ```sh
 USER=$(id -un) nix run .#home-manager -- switch --flake ".#vscode@$(uname -m)-linux"

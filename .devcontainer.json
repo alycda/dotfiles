@@ -5,12 +5,17 @@
     "image": "mcr.microsoft.com/devcontainers/base:bookworm",
 
     "features": {
-        // enable nix
+        // Nix only. The tools and dotfiles come from the home-manager profile
+        // (postCreateCommand), the same one any other Nix account switches to.
         "ghcr.io/devcontainers/features/nix:1": {
-            // equivalent to `nix profile add` for critical
-            "packages": ["jujutsu", "just"]
+            "extraNixConfig": "experimental-features = nix-command flakes"
         }
     },
+
+    // Apply this checkout's home-manager profile: tools/ files in place, and
+    // every tool mise.toml lists. Lifecycle commands don't set $USER, which the
+    // home-manager CLI needs.
+    "postCreateCommand": "USER=$(id -un) nix run .#home-manager -- switch --flake \".#vscode@$(uname -m)-linux\"",
 
     "remoteEnv": {
         "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
@@ -21,8 +26,9 @@
     // Install the HUID Tasks extension from this checkout on every attach, so
     // the container always runs the checked-out version. postAttach, not
     // postCreate: the recipe installs through the VS Code server's CLI, which
-    // only exists once VS Code has attached.
-    "postAttachCommand": "just _vscode-tasks-install",
+    // only exists once VS Code has attached. just comes from the home-manager
+    // profile, which isn't on the plain /bin/sh PATH lifecycle commands get.
+    "postAttachCommand": "~/.nix-profile/bin/just _vscode-tasks-install",
 
     "customizations": {
         "vscode": {
