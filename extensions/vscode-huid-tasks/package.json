@@ -12,6 +12,7 @@
     "main": "./extension.js",
     "files": [
         "extension.js",
+        "tasks.js",
         "README.md"
     ],
     "activationEvents": [

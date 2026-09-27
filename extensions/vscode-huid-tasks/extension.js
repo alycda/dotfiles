@@ -2,24 +2,7 @@
 // host at runtime, so plain CommonJS is enough.
 const vscode = require("vscode");
 
-const GLOB = "tasks/*/TASK.md";
-// HUID: YYYYMMDD-HHMMSS in UTC, optionally suffixed. See tasks/README.md.
-const HUID = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:-[a-zA-Z0-9-]*)?$/;
-
-/** @returns {Date | undefined} */
-function parseHuid(id) {
-  const m = HUID.exec(id);
-  if (!m) return undefined;
-  const [, y, mo, d, h, mi, s] = m.map(Number);
-  return new Date(Date.UTC(y, mo - 1, d, h, mi, s));
-}
-
-/** Parse the header of a TASK.md; only the title and STATUS matter here. */
-function parseTask(text) {
-  const title = /^#\s+(.+)$/m.exec(text)?.[1].trim();
-  const status = /^-\s*STATUS:\s*(\S+)/m.exec(text)?.[1].toUpperCase();
-  return { title, status };
-}
+const { GLOB, openTasks } = require("./tasks");
 
 const formatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -33,7 +16,8 @@ class TaskProvider {
   }
 
   refresh() {
-    this._onDidChange.fire();
+    // undefined means "the whole tree"; the 1.74 typings require the argument.
+    this._onDidChange.fire(undefined);
   }
 
   getTreeItem(item) {
@@ -44,19 +28,15 @@ class TaskProvider {
     if (element) return [];
 
     const uris = await vscode.workspace.findFiles(GLOB);
-    const tasks = await Promise.all(
-      uris.map(async (uri) => {
-        const bytes = await vscode.workspace.fs.readFile(uri);
-        const { title, status } = parseTask(Buffer.from(bytes).toString("utf8"));
-        const id = uri.path.split("/").at(-2);
-        return { uri, id, title, status, created: parseHuid(id) };
-      }),
+    const files = await Promise.all(
+      uris.map(async (uri) => ({
+        uri,
+        id: uri.path.split("/").at(-2),
+        text: Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf8"),
+      })),
     );
 
-    return tasks
-      .filter((t) => t.status === "OPEN")
-      // HUIDs sort lexically in time order; newest first.
-      .sort((a, b) => b.id.localeCompare(a.id))
+    return openTasks(files)
       .map((t) => {
         const item = new vscode.TreeItem(t.title || t.id);
         // Tree rows are single-line; `description` is the greyed, smaller
@@ -96,4 +76,4 @@ function activate(context) {
 
 function deactivate() {}
 
-module.exports = { activate, deactivate, parseHuid, parseTask };
+module.exports = { activate, deactivate };

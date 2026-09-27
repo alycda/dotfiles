@@ -1,0 +1,51 @@
+# Linked to ~/.config/jj/conf.d/dotfiles.toml by mise.toml. conf.d is merged
+# over config.toml, so never put a [user] block here: it would silently beat
+# `jj config set --user` (and the identity task).
+#
+# This file is user-level config for every repo on the machine. Anything that
+# should only apply to the dotfiles goes in the scope below. The paths are the
+# host checkout and the devcontainer's.
+[[--scope]]
+--when.repositories = ["~/dotfiles", "/workspaces/dotfiles"]
+
+# Track every bookmark on origin as soon as it exists, locally or fetched, so
+# `jj git push -b <name>` needs no `jj bookmark track` first. Fine here, where
+# only I push; in a shared repo it would track everyone's bookmarks.
+[--scope.remotes.origin]
+auto-track-bookmarks = "*"
+
+# A bare `jj fix` starts at @ (fix always includes descendants), never below it.
+# The default, reachable(@, mutable()), also rewrites @'s ancestors: across this
+# history that reformats commits written before these formatters existed.
+[--scope.revsets]
+fix = "@"
+
+# `jj n`: format @ (and anything on top), then `jj new` with the same
+# arguments. There are no pre-commit hooks, so this is the habit instead.
+# `jj new` itself can't be aliased; jj ignores aliases named after built-ins.
+[--scope.aliases]
+n = ["util", "exec", "--", "sh", "-c", "jj fix && jj new \"$@\"", "jj-n"]
+
+# `jj fix` formatters. Each reads the file on stdin and writes it to stdout.
+[--scope.fix.tools.taplo]
+command = ["taplo", "fmt", "-"]
+patterns = ["root-glob:'**/*.toml'", "root-file:'tools/jujutsu/config'"]
+
+# markdownlint's rules, with its fixes. Reads .markdownlint.* like the VS Code
+# extension does.
+[--scope.fix.tools.rumdl]
+command = ["rumdl", "fmt", "-", "--stdin-filename", "$path"]
+patterns = ["root-glob:'**/*.md'"]
+
+# JSON with comments. Indent passed explicitly (matches .editorconfig) because
+# biome looks for .editorconfig from its working directory, not the file's.
+# The devcontainer CLI writes .devcontainer-lock.json; leave it as generated.
+[--scope.fix.tools.biome]
+command = [
+  "biome",
+  "format",
+  "--indent-style=space",
+  "--indent-width=4",
+  "--stdin-file-path=$path",
+]
+patterns = ["root-glob:'**/*.json' ~ root-file:'.devcontainer-lock.json'"]
