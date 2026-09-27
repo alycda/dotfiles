@@ -8,3 +8,4 @@
 
 [tools]
 just = "latest"
+helix = "25"
