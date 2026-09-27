@@ -30,6 +30,10 @@ task title:
     # not to tasks/, where this one runs.
     printf 'tasks/%s\n' "${id}/TASK.md"
 
+# Import GitHub issue N from alycda/dotfiles as a task
+import-issue number:
+    @tasks/scripts/import-issue {{ quote(number) }}
+
 # Node is only needed to package the VSIX, not to run the extension (VS Code
 # ships its own), so without npx on PATH it is fetched into the Nix store for
 # this one command and left for nix-collect-garbage.
@@ -57,3 +61,4 @@ _vscode-tasks-install:
         cli="$(ls -t "${servers[@]}" | head -1)"
     fi
     "$cli" --install-extension "$stage/huid-tasks.vsix" --force
+

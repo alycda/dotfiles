@@ -1,0 +1,48 @@
+# The flake: does it evaluate on every system it lists, with the lock as
+# committed, is its Nix formatted, and does the dev shell deliver its tools?
+# Runs when Nix files change.
+name: nix
+
+on:
+  push:
+    paths: &paths
+      - flake.nix
+      - flake.lock
+      - "**/*.nix"
+      - .github/workflows/nix.yml
+  pull_request:
+    paths: *paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Evaluation only, so one runner covers every system. --no-update-lock-file
+  # fails when flake.lock no longer matches the inputs in flake.nix. nixfmt
+  # comes from the flake's own nixpkgs pin, not whatever the registry says.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commits; the comment is the tag that was pinned.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Evaluate for every system
+        run: nix flake check --all-systems --no-update-lock-file
+      - name: Format
+        run: git ls-files -z '*.nix' | xargs -0 nix run --inputs-from . nixpkgs#nixfmt -- --check
+
+  # Building the dev shell needs the system itself, so one runner per system
+  # the flake lists: Linux on both architectures, and an Apple Silicon Mac.
+  shell:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Dev shell
+        run: nix develop --no-update-lock-file -c sh -c 'jj --version && just --version'

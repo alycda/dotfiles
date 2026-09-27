@@ -12,16 +12,20 @@
         "aarch64-linux"
         "x86_64-linux"
       ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
+      # claude-code is the one unfree package, and the only one allowed.
+      pkgsFor =
+        system:
+        import nixpkgs {
+          inherit system;
+          config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "claude-code";
+        };
+      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (pkgsFor system));
     in
     {
-      # The same two tools the Nix devcontainer installs through its feature.
+      # Every tool mise.toml installs, from one list (lib/packages.nix).
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
-          packages = [
-            pkgs.jujutsu
-            pkgs.just
-          ];
+          packages = import ./lib/packages.nix { inherit pkgs; };
         };
       });
     };

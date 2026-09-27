@@ -7,13 +7,18 @@ bare-bones dotfiles (for accounts without Nix or Docker)
 ## Nix
 
 The flake grows towards the full setup one testable step at a time. So far it
-has a single dev shell with `jj` and `just`, the same two tools the Nix
-devcontainer installs:
+has a dev shell with the Nix package list, which starts as the tools the root
+`mise.toml` installs, at the same versions:
 
 ```sh
-nix develop       # a shell with jj and just
+nix develop       # a shell with the mise tools
 nix flake check   # evaluate the flake
 ```
+
+The package list is [lib/packages.nix](lib/packages.nix). It's meant to
+outgrow `mise.toml`, which stays lean for accounts without Nix. Where both have
+a tool, keep the versions matched: nixpkgs is behind on cheat, so the list
+builds the version mise pins.
 
 nixpkgs follows `nixos-unstable`, pinned in `flake.lock`. `nix flake update`
 moves the pin.

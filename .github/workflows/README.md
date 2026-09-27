@@ -1,8 +1,8 @@
 # CI
 
 `lint.yml` and `test.yml` run on every push and pull request. They need
-neither Nix nor mise. `devcontainer.yml` and `extension.yml` run when their
-files change. Actions are pinned to commit SHAs, with the tag in a
+neither Nix nor mise. `devcontainer.yml`, `extension.yml` and `nix.yml` run
+when their files change. Actions are pinned to commit SHAs, with the tag in a
 comment.
 
 ## editorconfig
@@ -50,7 +50,12 @@ in jj and git repositories. `tests/mise.bats` checks the root `mise.toml`: it's
 formatted, its `[dotfiles]` apply to a clean HOME and a second apply changes
 nothing, zsh started there gets the config, and a bad version pin fails an
 install (a dry run only warns, so the job's real `mise install` is the check).
-Run them locally with `bats tests`.
+`tests/import-issue.bats` checks `just import-issue` against a stubbed `gh`:
+the HUID from when the issue was opened, the TASK.md for open and closed
+issues, argument checks, and importing twice or into a taken second. One test
+sends the real query to GitHub. It runs only when `GH_TOKEN` is set, which
+the job sets from its own token. Run them locally with `bats tests`, or
+`GH_TOKEN="$(gh auth token)" bats tests` to include that test.
 
 ## devcontainer
 
@@ -65,6 +70,17 @@ Run them locally with `bats tests`.
 - **prebuild:** pushes the image to `ghcr.io/<repo>/devcontainer:nix`. It only
   runs when started by hand from the Actions tab, so nothing is published
   until you choose to.
+
+## nix
+
+`nix.yml` checks the flake in two jobs:
+
+- **check:** `nix flake check --all-systems` evaluates every output for every
+  system the flake lists, with `--no-update-lock-file` so a `flake.lock` that
+  no longer matches the inputs fails. nixfmt, from the flake's own nixpkgs,
+  checks every `*.nix` file.
+- **shell:** builds the dev shell on each system (Linux x86_64 and arm64, and
+  an Apple Silicon Mac) and checks `jj` and `just` run inside.
 
 ## extension
 

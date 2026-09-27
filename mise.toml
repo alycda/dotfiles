@@ -18,25 +18,17 @@
 
 [env]
 EDITOR = "hx"
-# cheat reads .cheat.yml only inside this repo; see that file
-CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
 
 [settings]
 minimum_release_age_excludes = ["claude"]
 
 [tools]
-bat = "latest"
-cheat = "5.1"
 just = "latest"
 jujutsu = "0.45"
 helix = "25"
 gh = "latest"
 claude = "latest"
 tmux = "latest"
-# formatters for `jj fix`
-taplo = "0.10"
-rumdl = "0.2"
-biome = "2.5"
 
 # Tasks are one-time setup steps you run by hand (`mise run <task>`), written
 # so that running one again does nothing. Never make them run automatically,
