@@ -1,0 +1,22 @@
+# Checks that need neither Nix nor mise, so they're fast and run everywhere.
+name: lint
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  editorconfig:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commits; the comment is the tag that was pinned.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: editorconfig-checker/action-editorconfig-checker@51f63319f592f97930c73d9c46184d20bd206393 # v3.0.0
+        with:
+          version: v4.0.2
+      # Exclusions and their reasons: .editorconfig-checker.json and the
+      # commit that added this workflow.
+      - run: editorconfig-checker

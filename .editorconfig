@@ -17,3 +17,13 @@ trim_trailing_whitespace = true
 
 [*.json]
 indent_size = 4
+
+# Markdown indentation is rumdl's (jj fix): list continuations align with the
+# item's text, which isn't a multiple of indent_size.
+[*.md]
+indent_style = unset
+indent_size = unset
+
+# Tabs, as git writes them.
+[tools/git/config]
+indent_style = tab
