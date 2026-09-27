@@ -20,9 +20,10 @@
 
     // Install the HUID Tasks extension from this checkout on every attach, so
     // the container always runs the checked-out version. postAttach, not
-    // postCreate: the recipe installs through the VS Code server's CLI, which
-    // only exists once VS Code has attached.
-    "postAttachCommand": "just _vscode-tasks-install",
+    // postCreate: the script installs through the VS Code server's CLI, which
+    // only exists once VS Code has attached. Called by path: it needs only
+    // bash and zip, not just or mise.
+    "postAttachCommand": "tasks/scripts/huid-tasks-vscode",
 
     "customizations": {
         "vscode": {

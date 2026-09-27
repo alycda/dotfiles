@@ -7,8 +7,9 @@
 
     // Install mise before VS Code attaches. onCreateCommand finishes before
     // extensions start; postCreateCommand runs after, which is why
-    // mise-vscode found no binary.
-    "onCreateCommand": "curl -fsSL https://mise.run | sh",
+    // mise-vscode found no binary. The zsh installer also adds the activate
+    // line to ~/.zshrc, as on the Mac, so mise's tools are on zsh's PATH.
+    "onCreateCommand": "curl -fsSL https://mise.run/zsh | sh",
 
     // The test. Trust this checkout's mise.toml, apply its [dotfiles], and print
     // the status: both entries should stop reading "missing". No --force, so
@@ -65,9 +66,8 @@
 
     // Install the HUID Tasks extension from this checkout on every attach, so
     // the container always runs the checked-out version. postAttach, not
-    // postCreate: the recipe installs through the VS Code server's CLI, which
-    // only exists once VS Code has attached. Through `mise exec` because
-    // lifecycle commands run in a plain /bin/sh where mise isn't activated, so
-    // `just` isn't on PATH.
-    "postAttachCommand": "~/.local/bin/mise exec -- just _vscode-tasks-install"
+    // postCreate: the script installs through the VS Code server's CLI, which
+    // only exists once VS Code has attached. Called by path: it needs only
+    // bash and zip, not just or mise.
+    "postAttachCommand": "tasks/scripts/huid-tasks-vscode"
 }

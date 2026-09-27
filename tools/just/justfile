@@ -1,0 +1,13 @@
+# just's global justfile: `just -g <recipe>` from anywhere, run in the
+# directory it's called from. mise links ~/.config/just to this directory.
+# Linking the directory matters: just resolves imports relative to where it
+# finds the justfile, so a linked file would look for them in ~/.config/just.
+#
+# The root only imports, one file per topic. Recipes call real commands (on
+# PATH through mise's [dotfiles]) rather than holding the logic.
+
+import 'tasks.just'
+
+# Recipes for one machine only, outside the repo (and outside this linked
+# directory, or they'd land in it).
+import? '~/.local/share/just/local.just'
