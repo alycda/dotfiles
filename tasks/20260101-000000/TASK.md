@@ -8,12 +8,12 @@
 Reproducibility and testing Nix (and mise) without rebuilding on the live
 account while applications and services are running.
 
-### Why multiple?
+## Why multiple?
 
 - **nix** is the default.
 - **mise** is the for the account with no Nix and no admin rights.
 
-### Layout
+## Layout
 
 - `.devcontainer.json` (Nix)
 - `.devcontainer/mise/devcontainer.json`,

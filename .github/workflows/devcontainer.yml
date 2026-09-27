@@ -1,0 +1,73 @@
+# The Nix devcontainer (.devcontainer.json): is the config valid, does the
+# lock file match it, and does the container build and deliver its tools?
+# Runs when the devcontainer files change; a build takes minutes.
+name: devcontainer
+
+on:
+  push:
+    paths: &paths
+      - .devcontainer.json
+      - .devcontainer-lock.json
+      - .devcontainer/**
+      - .github/workflows/devcontainer.yml
+  pull_request:
+    paths: *paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The devcontainer CLI, run through npx on the runner's Node.
+  DEVCONTAINER_CLI: "@devcontainers/cli@0.89.0"
+
+jobs:
+  # Cheap checks first. The CLI's own parser accepts truncated JSONC, so
+  # biome parses the config strictly, and `outdated` shows where the lock
+  # stands against each feature's latest release.
+  config:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commits; the comment is the tag that was pinned.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse the config
+        run: npx -y @biomejs/biome@2.5.14 check --formatter-enabled=false --linter-enabled=false .devcontainer.json
+      - name: Read it as the CLI does
+        run: npx -y "$DEVCONTAINER_CLI" read-configuration --workspace-folder . > /dev/null
+      - name: Features against the lock
+        run: npx -y "$DEVCONTAINER_CLI" outdated --workspace-folder .
+
+  # Build from the locked features (a stale lock fails with "Lockfile does not
+  # match"), then check the container has what the config promises.
+  build:
+    needs: config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and start
+        run: npx -y "$DEVCONTAINER_CLI" up --workspace-folder . --experimental-frozen-lockfile
+      - name: Smoke test
+        run: npx -y "$DEVCONTAINER_CLI" exec --workspace-folder . sh -c 'jj --version && nix --version'
+
+  # Publish the built image to GHCR, so opening the container elsewhere pulls
+  # it instead of building. Manual only for now: nothing is published until
+  # it's run by hand from the Actions tab.
+  prebuild:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}/devcontainer"
+          npx -y "$DEVCONTAINER_CLI" build --workspace-folder . --experimental-frozen-lockfile \
+            --cache-from "$image:nix" --image-name "$image:nix" --push
