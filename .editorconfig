@@ -1,0 +1,29 @@
+# EditorConfig is awesome: http://EditorConfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+
+# tabs are dead
+indent_style = space
+indent_size = 2
+
+# Make sure every file has a blank line at the end
+insert_final_newline = true
+
+# Remove any whitespace characters preceding newline characters
+trim_trailing_whitespace = true
+
+[*.json]
+indent_size = 4
+
+# Markdown indentation is rumdl's (jj fix): list continuations align with the
+# item's text, which isn't a multiple of indent_size.
+[*.md]
+indent_style = unset
+indent_size = unset
+
+# Tabs, as git writes them.
+[tools/git/config]
+indent_style = tab

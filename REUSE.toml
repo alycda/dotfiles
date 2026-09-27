@@ -1,0 +1,50 @@
+# Licensing by path, for `reuse lint` (the lint workflow's reuse job). Texts
+# are in LICENSES/. When several annotations match a file, the last one wins,
+# so the general rule comes first and the exceptions after it.
+version = 1
+
+# Everything: CC-BY-4.0, as the README says, "except where otherwise noted".
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2026 Alyssa Evans"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# Code and config: MIT.
+[[annotations]]
+path = [
+  # code
+  "**/*.nix",
+  "**/*.sh",
+  "**/*.js",
+  "**/*.jq",
+  "**/*.graphql",
+  "**/justfile",
+  "**/*.just",
+  "tasks/scripts/**",
+  "tools/jj-stash/jj-stash",
+  "extensions/**",
+  "docker/**",
+  "Dockerfile",
+  # config and data
+  "**/*.toml",
+  "**/*.json",
+  "**/*.yml",
+  "**/*.yaml",
+  "**/*.zsh",
+  "flake.lock",
+  "secrets/**",
+  "tools/**/config",
+  "tools/**/ignore",
+  ".editorconfig",
+  ".gitignore",
+  ".ignore",
+  ".dockerignore",
+]
+SPDX-FileCopyrightText = "2026 Alyssa Evans"
+SPDX-License-Identifier = "MIT"
+
+# Prose stays CC-BY-4.0 wherever it sits: Markdown, and cheatsheets.
+[[annotations]]
+path = ["**/*.md", ".cheat/**", "tools/cheat/cheatsheets/**"]
+SPDX-FileCopyrightText = "2026 Alyssa Evans"
+SPDX-License-Identifier = "CC-BY-4.0"
