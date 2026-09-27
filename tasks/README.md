@@ -44,7 +44,15 @@ Markdown.
 Markdown.
 
 `just task "Some title"` creates a directory with a fresh HUID and seeds this
-file, retrying once if the second is already taken.
+file, retrying once if the second is already taken. `just task-edit` also opens
+it in `$EDITOR`.
+
+The recipes are global (`just -g task` works in any repo), so a repo that can't
+track HUIDs gets them in `.tasks/` instead, which the global git ignore keeps
+untracked. `TASKS_DIR` overrides where they go.
+
+mise puts the task commands in `scripts/` on `PATH`. `import-issue` isn't one:
+it only makes sense in this repo, so its recipe calls it by path.
 
 `just import-issue 183` imports issue #183 from alycda/dotfiles the same way,
 with the HUID taken from when the issue was opened and `issue-183` as its tag.

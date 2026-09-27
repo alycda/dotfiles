@@ -18,11 +18,27 @@
 # jj-stash (tools/jj-stash): park commit chains out of every jj UI. Needs
 # bash 4+, which mise can't supply: macOS's /bin/bash is 3.2.
 "~/.local/bin/jj-stash" = { source = "tools/jj-stash/jj-stash", mode = "symlink" }
+# The directory, not the justfile: just resolves imports relative to where it
+# finds the justfile. `just -g <recipe>` then works from anywhere.
+"~/.config/just" = { source = "tools/just", mode = "symlink" }
+# The commands the global recipes call. ~/.local/bin is on PATH in zsh on the
+# Mac and in the devcontainers.
+"~/.local/bin/huid-task" = { source = "tasks/scripts/huid-task", mode = "symlink" }
+"~/.local/bin/huid-task-edit" = { source = "tasks/scripts/huid-task-edit", mode = "symlink" }
+"~/.local/bin/huid-tasks-vscode" = { source = "tasks/scripts/huid-tasks-vscode", mode = "symlink" }
+# just itself, globally: the root [tools] only apply inside this repo.
+"~/.config/mise/conf.d/dotfiles.toml" = { source = "tools/mise/global.toml", mode = "symlink" }
 
 [env]
 EDITOR = "hx"
 # cheat reads .cheat.yml only inside this repo; see that file
 CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
+
+# After every `mise install`: install the HUID Tasks extension from this
+# checkout. --if-available skips when there's no VS Code yet (a new
+# devcontainer, where postAttachCommand installs it once VS Code attaches).
+[hooks]
+postinstall = "{{config_root}}/tasks/scripts/huid-tasks-vscode --if-available"
 
 [settings]
 minimum_release_age_excludes = ["claude"]

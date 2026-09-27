@@ -1,0 +1,5 @@
+# Global mise tools, linked to ~/.config/mise/conf.d/dotfiles.toml: only what
+# the global justfile needs outside this repo. The repo's own tools stay in the
+# root mise.toml.
+[tools]
+just = "latest"

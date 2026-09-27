@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# huid-tasks-vscode [--if-available]: package the HUID Tasks extension from this
+# checkout and install it into VS Code.
+#
+# A VSIX is a zip with the extension under extension/, and that is all VS Code
+# reads from it, so plain zip packages it: no vsce, no Node. It's built in a
+# temp dir and never lands in the checkout.
+#
+# --if-available exits 0 when there's no VS Code CLI yet, for callers that run
+# before VS Code does (mise's postinstall hook in a new devcontainer).
+set -euo pipefail
+
+# Through the real path: mise links this into ~/.local/bin.
+repo="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)"
+ext="$repo/extensions/vscode-huid-tasks"
+
+# `code` works on the desktop and in a VS Code terminal. In a devcontainer
+# lifecycle command it's the base image's wrapper, which exits 127 because VS
+# Code only puts its CLI on the terminal's PATH. The server's own CLI installs
+# into the same extensions dir; take the newest server.
+if code --version >/dev/null 2>&1; then
+  cli=code
+else
+  shopt -s nullglob
+  servers=(~/.vscode-server/bin/*/bin/code-server ~/.vscode-server/cli/servers/*/server/bin/code-server)
+  if [ ${#servers[@]} -eq 0 ]; then
+    if [ "${1:-}" = --if-available ]; then
+      echo "huid-tasks-vscode: no VS Code CLI yet, skipping" >&2
+      exit 0
+    fi
+    echo "no VS Code CLI: neither code nor a VS Code server found" >&2
+    exit 127
+  fi
+  # Server dirs are named by commit hash, so ls -t is safe; it sorts by mtime.
+  # shellcheck disable=SC2012
+  cli="$(ls -t "${servers[@]}" | head -1)"
+fi
+
+stage="$(mktemp -d)"
+trap 'rm -rf "$stage"' EXIT
+mkdir "$stage/extension"
+cp "$ext/package.json" "$ext/extension.js" "$ext/tasks.js" "$ext/README.md" "$stage/extension/"
+(cd "$stage" && zip -qr huid-tasks.vsix extension)
+"$cli" --install-extension "$stage/huid-tasks.vsix" --force

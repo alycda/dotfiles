@@ -1,0 +1,24 @@
+---
+syntax: sh
+tags: [ git, jj ]
+---
+# Ignore files in ONE clone without touching .gitignore: nothing to commit,
+# nothing anyone else sees. Same syntax as .gitignore. jj honours it in a
+# colocated repo.
+#
+# For every repo on this machine, use the global ignore instead
+# (tools/git/ignore, linked to ~/.config/git/ignore), which already has .tasks/.
+
+# Where it is (works from any subdirectory, and in worktrees)
+git rev-parse --git-path info/exclude
+
+# Add a pattern
+echo 'notes/' >> "$(git rev-parse --git-path info/exclude)"
+
+# Which rule ignores a path: global ignore, .gitignore or info/exclude.
+# --no-index checks tracked files too; without it they print nothing.
+git check-ignore -v --no-index notes/todo.md
+
+# Excluding doesn't untrack what's already tracked
+git rm -r --cached notes/   # git
+jj file untrack notes/      # jj; the exclude has to be in place first
