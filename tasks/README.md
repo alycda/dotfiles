@@ -32,12 +32,12 @@ Each directory holds a mandatory `TASK.md` plus any attachments it references.
 - STATUS: OPEN
 - TAGS: comma, separated
 
-# Description
+## Description
 
 Markdown.
 ```
 
-`STATUS` is `OPEN` or `CLOSED`. Everything after `# Description` is free-form
+`STATUS` is `OPEN` or `CLOSED`. Everything after `## Description` is free-form
 Markdown.
 
 `just task "Some title"` creates a directory with a fresh HUID and seeds this
