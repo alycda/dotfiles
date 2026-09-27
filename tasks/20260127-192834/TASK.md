@@ -1,7 +1,7 @@
 # Zsh
 
 - STATUS: OPEN
-- TAGS: issue-15, zsh, shell
+- TAGS: issue-15, zsh, shell, home-manager
 
 ## Description
 

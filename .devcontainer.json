@@ -1,4 +1,6 @@
 {
+    "name": "dotfiles (Nix)",
+
     // minimal image for speed
     "image": "mcr.microsoft.com/devcontainers/base:bookworm",
 
@@ -23,6 +25,7 @@
                 "jjk.jjk",
                 "jnoortheen.nix-ide",
                 "skellock.just",
+                "tamasfe.even-better-toml",
                 // replaces git as Source Control
                 "visualjj.visualjj"
             ],
