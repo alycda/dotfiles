@@ -8,8 +8,7 @@
             // equivalent to `nix profile add` for critical
             "packages": [
                 "jujutsu",
-                "just",
-                "nodejs"
+                "just"
             ]
         }
     },
