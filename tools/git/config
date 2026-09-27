@@ -1,0 +1,17 @@
+# Git settings that work on every account.
+#
+# This file is tracked, so it never holds identity or credentials. Those go
+# in ~/.gitconfig, which includes this file (see [dotfiles] in mise.toml).
+# jj reads user.name/user.email from its own config, not from here.
+
+[init]
+	defaultBranch = main
+
+[push]
+	autoSetupRemote = true
+
+[pull]
+	rebase = true
+
+[log]
+	date = relative
