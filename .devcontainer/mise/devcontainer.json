@@ -15,28 +15,45 @@
     // a genuine conflict is reported rather than overwritten.
     "postCreateCommand": "~/.local/bin/mise trust && ~/.local/bin/mise dotfiles apply -y && ~/.local/bin/mise install && ~/.local/bin/mise dotfiles status",
 
+    "remoteEnv": {
+        "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
+        "JJ_USER": "${localEnv:JJ_USER}",
+        "JJ_EMAIL": "${localEnv:JJ_EMAIL}"
+    },
+
     "customizations": {
         "vscode": {
             "extensions": [
                 "editorconfig.editorconfig",
                 "hverlin.mise-vscode",
+                "jjk.jjk",
                 "skellock.just",
-                "tamasfe.even-better-toml"
+                "tamasfe.even-better-toml",
+                // replaces git as Source Control
+                "visualjj.visualjj"
             ],
             "settings": {
                 // zsh, so a new terminal is the test: [dotfiles] added the line
                 // to ~/.zshrc that sources interactive.zsh, which sets AUTO_CD.
                 // Typing `..` works only if that whole chain did.
                 "terminal.integrated.defaultProfile.linux": "zsh",
+
                 // disable copilot
                 "chat.disableAIFeatures": true,
+                "editor.rulers": [80],
                 "editor.wordWrap": "on",
                 "files.exclude": {
                     "**/.jj": true
                 },
+                "git.confirmSync": false,
+                // disable git for jj
+                "git.enabled": false,
                 "search.exclude": {
                     "**/.jj": true
                 },
+                "sourceControl.providers": [
+                    "jujutsu" // keep only the Jujutsu provider
+                ],
                 // hide copilot
                 "workbench.secondarySideBar.defaultVisibility": "hidden"
             }
