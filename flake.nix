@@ -1,10 +1,16 @@
 {
   description = "alycda's dotfiles";
 
-  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
 
   outputs =
-    { nixpkgs, ... }:
+    { nixpkgs, home-manager, ... }:
     let
       # Apple Silicon Macs, and the devcontainers on either kind of host.
       systems = [
@@ -20,6 +26,16 @@
           config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "claude-code";
         };
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (pkgsFor system));
+
+      mkHome =
+        system: username: homeDirectory:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = pkgsFor system;
+          modules = [
+            ./home-manager/common.nix
+            { home = { inherit username homeDirectory; }; }
+          ];
+        };
     in
     {
       # Every tool mise.toml installs, from one list (lib/packages.nix).
@@ -28,5 +44,17 @@
           packages = import ./lib/packages.nix { inherit pkgs; };
         };
       });
+
+      # The home-manager CLI at the version this flake pins:
+      #   nix run .#home-manager -- switch --flake .#vscode@$(uname -m)-linux
+      packages = forAllSystems (pkgs: {
+        home-manager = home-manager.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      });
+
+      # The devcontainers' user, on either kind of host.
+      homeConfigurations = {
+        "vscode@aarch64-linux" = mkHome "aarch64-linux" "vscode" "/home/vscode";
+        "vscode@x86_64-linux" = mkHome "x86_64-linux" "vscode" "/home/vscode";
+      };
     };
 }

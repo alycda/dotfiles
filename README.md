@@ -20,6 +20,23 @@ outgrow `mise.toml`, which stays lean for accounts without Nix. Where both have
 a tool, keep the versions matched: nixpkgs is behind on cheat, so the list
 builds the version mise pins.
 
+### home-manager
+
+[home-manager/common.nix](home-manager/common.nix) is the Nix side of the root
+`mise.toml`: it puts the same files from `tools/` in the same places and
+installs the same tools. In a devcontainer (user `vscode`), switch with the
+home-manager this flake pins:
+
+```sh
+USER=$(id -un) nix run .#home-manager -- switch --flake ".#vscode@$(uname -m)-linux"
+```
+
+home-manager copies the files into the Nix store instead of linking the
+checkout, so an edit under `tools/` takes effect on the next switch. It adds
+the same lines mise adds to `~/.zshrc` and `~/.gitconfig` rather than owning
+those files. cheat's config is linked globally, since home-manager can't limit
+it to this repo the way mise's `[env]` does.
+
 nixpkgs follows `nixos-unstable`, pinned in `flake.lock`. `nix flake update`
 moves the pin.
 
