@@ -15,6 +15,10 @@
 # so identity would land in the tracked config. conf.d is merged over it, so
 # this file must never carry a [user] block.
 "~/.config/jj/conf.d/dotfiles.toml" = { source = "tools/jujutsu/config", mode = "symlink" }
+# Only the script: ~/.claude/settings.json is rewritten by Claude Code itself
+# (/config, permission grants), so a tracked symlink would collect that churn.
+# `mise run claude-statusline` points settings.json at this path.
+"~/.claude/statusline.sh" = { source = "tools/claude/statusline.sh", mode = "symlink" }
 
 [env]
 EDITOR = "hx"
@@ -32,6 +36,8 @@ jujutsu = "0.45"
 helix = "25"
 gh = "latest"
 claude = "latest"
+# statusline.sh does all its formatting in jq
+jq = "1.8"
 tmux = "latest"
 # formatters for `jj fix`
 taplo = "0.10"
@@ -148,4 +154,19 @@ else
   jj config set --user user.email "$email"
   echo "jj:   set user.name/user.email to $name <$email>"
 fi
+'''
+
+[tasks.claude-statusline]
+description = "Point Claude Code's status line at ~/.claude/statusline.sh"
+# settings.json belongs to Claude Code, so merge one key into it rather than
+# own the file. jq writes to a temp file first: a failed parse must never
+# truncate the user's settings. Re-running rewrites the same value.
+run = '''
+settings=~/.claude/settings.json
+mkdir -p ~/.claude
+[ -s "$settings" ] || echo '{}' > "$settings"
+tmp=$(mktemp)
+jq '.statusLine = {type: "command", command: "~/.claude/statusline.sh", padding: 0}' "$settings" > "$tmp" \
+  && mv "$tmp" "$settings" \
+  && echo "claude: statusLine -> ~/.claude/statusline.sh"
 '''
