@@ -5,6 +5,10 @@
 [dotfiles]
 "~/.config/zsh/dotfiles.zsh" = { source = "tools/zsh/interactive.zsh", mode = "symlink" }
 "~/.zshrc/dotfiles" = { line = "[[ -r ~/.config/zsh/dotfiles.zsh ]] && source ~/.config/zsh/dotfiles.zsh" }
+"~/.config/helix" = { source = "tools/helix", mode = "symlink" }
+
+[env]
+EDITOR = "hx"
 
 [tools]
 just = "latest"
