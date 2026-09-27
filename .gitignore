@@ -1,6 +1,9 @@
 ## Agents
 .claude/worktrees
 
+# jj-stash plaintext: parked commit chains, readable in the editor. The commits
+# are held by refs/jj-stash/*, not by these files.
+.claude/stashes/
 
 ## Nix
 # Ignore build outputs from performing a nix-build or `nix build` command
