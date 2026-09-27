@@ -1,6 +1,7 @@
 {
     "Exclude": [
         "^LICENSE$",
+        "^LICENSES/",
         "\\.age$",
         "^\\.devcontainer-lock\\.json$",
         "^tools/jj-stash/"

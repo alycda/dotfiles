@@ -1,0 +1,27 @@
+# CI
+
+`lint.yml` runs on every push and pull request. Its checks need neither Nix
+nor mise. Actions are pinned to commit SHAs, with the tag in a comment.
+
+## editorconfig
+
+`editorconfig-checker` checks every file against `.editorconfig`: charset,
+line endings, final newline, trailing whitespace and indentation. Markdown
+indentation is left to rumdl (`jj fix`), since list continuations align with
+the item's text.
+
+`.editorconfig-checker.json` excludes files that aren't ours to reformat:
+
+- `LICENSE`, `LICENSES/`: license texts, as published.
+- `*.age`: encrypted secrets.
+- `.devcontainer-lock.json`: written by the devcontainer CLI.
+- `tools/jj-stash/`: vendored, kept identical to upstream.
+
+## reuse
+
+`reuse lint` checks that every file declares its license and copyright.
+`REUSE.toml` does that by path, so no file needs a header. Everything is
+CC-BY-4.0, as the README says, except code and config, which are MIT, and
+Markdown and cheatsheets, which stay CC-BY-4.0 wherever they sit. The texts are
+in `LICENSES/`. When a new kind of file fails this check, add it to the right
+annotation in `REUSE.toml`.
