@@ -43,7 +43,14 @@ annotation in `REUSE.toml`.
 `tests/`, with the `just` version mise pins. `tests/huid-tasks.bats` checks the
 HUID task recipes against the spec in `tasks/README.md`: the HUID and its
 collision handling, the TASK.md template, `task-edit`, and every task already
-in the repo. Run them locally with `bats tests`.
+in the repo. `tests/zsh.bats` checks `tools/zsh/interactive.zsh`: it parses and
+loads silently, its options, key bindings and aliases, typing `..` or a
+directory's name at a real prompt (driven through `zpty`), and the chpwd hook
+in jj and git repositories. `tests/mise.bats` checks the root `mise.toml`: it's
+formatted, its `[dotfiles]` apply to a clean HOME and a second apply changes
+nothing, zsh started there gets the config, and a bad version pin fails an
+install (a dry run only warns, so the job's real `mise install` is the check).
+Run them locally with `bats tests`.
 
 ## devcontainer
 

@@ -1,5 +1,0 @@
-# Every file in a dotfiles repo is hidden, so the default (hidden = true,
-# meaning "ignore hidden files") leaves the file picker empty and `hx .`
-# drops into a scratch buffer. Paired with .ignore, which keeps .git/ out.
-[editor.file-picker]
-hidden = false
