@@ -1,7 +1,8 @@
 # CI
 
 `lint.yml` and `test.yml` run on every push and pull request. They need
-neither Nix nor mise. Actions are pinned to commit SHAs, with the tag in a
+neither Nix nor mise. `devcontainer.yml` runs when the devcontainer files
+change. Actions are pinned to commit SHAs, with the tag in a
 comment.
 
 ## editorconfig
@@ -43,3 +44,16 @@ annotation in `REUSE.toml`.
 HUID task recipes against the spec in `tasks/README.md`: the HUID and its
 collision handling, the TASK.md template, `task-edit`, and every task already
 in the repo. Run them locally with `bats tests`.
+
+## devcontainer
+
+`devcontainer.yml` checks the Nix devcontainer in three jobs:
+
+- **config:** biome parses `.devcontainer.json` strictly (the devcontainer
+  CLI's own parser accepts truncated JSONC), the CLI reads it, and `outdated`
+  shows the locked features against their latest releases.
+- **build:** builds with `--experimental-frozen-lockfile`, so a lock that no
+  longer matches the config fails, then checks `jj` and `nix` run inside.
+- **prebuild:** pushes the image to `ghcr.io/<repo>/devcontainer:nix`. It only
+  runs when started by hand from the Actions tab, so nothing is published
+  until you choose to.
