@@ -6,7 +6,7 @@ description: >
   fetch, rebase, history rewriting, file tracking, and `.gitignore` changes. Especially
   trigger before creating new files, running builds, or editing `.gitignore`, since jj
   auto-snapshots everything and retroactive cleanup is expensive if not done right. Pinned
-  to jj v0.44. Raw `git` commands in a non-colocated jj repo can corrupt state, so always
+  to jj v0.45. Raw `git` commands in a non-colocated jj repo can corrupt state, so always
   reach for this skill first when she mentions jj, jujutsu, change IDs, revsets, bookmarks,
   or anything VCS-shaped in a jj repo — even if she just says "commit this" or "what's
   the status," because in a jj repo those words mean different operations. Also trigger
@@ -17,25 +17,27 @@ allowed-tools: Bash(jj *), Bash(git status), Bash(git log *)
 
 # Jujutsu (jj) Skill
 
-Alyssa uses Jujutsu (jj) as her daily-driver VCS in colocated mode (both `.jj/` and
-`.git/` present). This skill teaches Claude to operate in jj repos without reaching for
-git muscle memory.
+Alyssa uses Jujutsu (jj) as her daily-driver VCS in colocated mode (both `.jj/`
+and `.git/` present). This skill teaches Claude to operate in jj repos without
+reaching for git muscle memory.
 
-**Pinned version:** jj v0.44. The canonical destination flag for `rebase`, `split`, and
-`revert` is `--onto`/`-o` (`--destination`/`-d` survives as an alias). Two flags older
-tutorials use are **gone** in v0.44: `jj git push --allow-new` (use `--named
-<name>=<rev>`) and `jj describe --edit`. See `references/version-notes.md` for the full
-delta.
+**Pinned version:** jj v0.45 (0.45.1). The canonical destination flag for `rebase`,
+`split`, and `revert` is `--onto`/`-o` (`--destination`/`-d` survives as an alias).
+Two flags older tutorials use are **gone** since v0.44: `jj git push --allow-new`
+(use `--named <name>=<rev>`) and `jj describe --edit`. New in v0.45: `jj converge`
+for divergent changes, and `jj config set --user` no longer prompts when several
+user config files exist (use `--file <PATH>`). See `references/version-notes.md`
+for the full delta.
 
-**Core principle:** jj's auto-snapshot behavior is a power tool. It captures every file
-in the working directory automatically — which means if Claude generates an artifact
-without checking `.gitignore` first, that artifact is now in version control. Retroactive
-cleanup is possible but expensive. The cheapest fix happens **before** the file gets
-tracked, not after.
+**Core principle:** jj's auto-snapshot behavior is a power tool. It captures every
+file in the working directory automatically — which means if Claude generates an
+artifact without checking `.gitignore` first, that artifact is now in version control.
+Retroactive cleanup is possible but expensive. The cheapest fix happens **before**
+the file gets tracked, not after.
 
-**Detection:** If `.jj/` exists in the project root (or any parent), this is a jj repo.
-Use jj commands. Do not fall back to `git` unless the repo is colocated AND you know what
-you're doing — see "Colocated Repos" below.
+**Detection:** If `.jj/` exists in the project root (or any parent), this is a jj
+repo. Use jj commands. Do not fall back to `git` unless the repo is colocated AND
+you know what you're doing — see "Colocated Repos" below.
 
 ---
 
@@ -43,24 +45,24 @@ you're doing — see "Colocated Repos" below.
 
 ### The working copy is a commit
 
-There is no staging area. There is no `jj add`. The working directory is always a commit,
-referenced as `@`. Every time Claude runs any jj command, jj snapshots the working copy
-first. New files appear automatically. Deleted files disappear automatically. There is no
-`git add`/`git rm` step.
+There is no staging area. There is no `jj add`. The working directory is always
+a commit, referenced as `@`. Every time Claude runs any jj command, jj snapshots
+the working copy first. New files appear automatically. Deleted files disappear
+automatically. There is no `git add`/`git rm` step.
 
 Implication: between `jj` commands, anything in the working directory that isn't
 gitignored is effectively committed. Be deliberate about what's in the working directory.
 
 ### Change ID vs commit ID
 
-- **Change ID** (e.g., `tqpwlqmp`) — stable across rewrites. Use these when referring to
-  commits in conversation, scripts, or sequenced operations. They survive rebase, amend,
-  and squash.
-- **Commit ID** (e.g., `3ccf7581`) — content hash. Changes whenever the commit's content
-  changes. Compatible with git tools.
+- **Change ID** (e.g., `tqpwlqmp`) — stable across rewrites. Use these when referring
+  to commits in conversation, scripts, or sequenced operations. They survive rebase,
+  amend, and squash.
+- **Commit ID** (e.g., `3ccf7581`) — content hash. Changes whenever the commit's
+  content changes. Compatible with git tools.
 
-**Default:** Use change IDs. Only use commit IDs when interoperating with git tooling or
-when explicitly asked.
+**Default:** Use change IDs. Only use commit IDs when interoperating with git
+tooling or when explicitly asked.
 
 ### Revsets
 
@@ -75,29 +77,30 @@ jj uses a small functional language for selecting commits. The ones that come up
 - `::<change-id>` — that change and all ancestors
 - `<a>..<b>` — between, exclusive of `<a>`
 
-Pass revsets via `-r`: `jj log -r 'trunk()..@'`. Quote revsets with spaces or special
-characters.
+Pass revsets via `-r`: `jj log -r 'trunk()..@'`. Quote revsets with spaces or
+special characters.
 
 ### The immutability boundary
 
-By default, `trunk()` and its ancestors are immutable — jj refuses to rewrite them. This
-is a safety rail. If Claude tries to `jj edit` or `jj rebase` something in this set, jj
-will error out with a hint. **Treat the error as a stop sign.** It almost always means
-something pushed has entered the picture. Surface the situation to Alyssa rather than
-overriding with `--ignore-immutable`.
+By default, `trunk()` and its ancestors are immutable — jj refuses to rewrite them.
+This is a safety rail. If Claude tries to `jj edit` or `jj rebase` something in
+this set, jj will error out with a hint. **Treat the error as a stop sign.** It
+almost always means something pushed has entered the picture. Surface the situation
+to Alyssa rather than overriding with `--ignore-immutable`.
 
 ### .gitignore semantics in jj (read this carefully)
 
 jj reads `.gitignore` files. But the semantics are not identical to git:
 
-1. **`.gitignore` only prevents auto-tracking of files that aren't yet tracked.** Files
-   already tracked in any visible commit stay tracked even if `.gitignore` would match them.
-2. **`jj file untrack <path>` only works if `<path>` is already in `.gitignore`** at the
-   point you run it. Otherwise the next auto-snapshot retracks it. There is no flag to
-   force this — open issue jj-vcs/jj#5225.
-3. **Rebasing past a new `.gitignore` does not remove already-tracked content from rebased
-   commits.** This is the most common confusion. The diff being reapplied still adds the
-   file.
+1. **`.gitignore` only prevents auto-tracking of files that aren't yet tracked.**
+   Files already tracked in any visible commit stay tracked even if `.gitignore`
+   would match them.
+2. **`jj file untrack <path>` only works if `<path>` is already in `.gitignore`**
+   at the point you run it. Otherwise the next auto-snapshot retracks it. There
+   is no flag to force this — open issue jj-vcs/jj#5225.
+3. **Rebasing past a new `.gitignore` does not remove already-tracked content from
+   rebased commits.** This is the most common confusion. The diff being reapplied
+   still adds the file.
 
 The implication is in the next section.
 
@@ -107,8 +110,8 @@ The implication is in the next section.
 
 ### Always use `-m` for messages
 
-Editor prompts hang in non-interactive environments. Every command that accepts `-m` must
-get one inline:
+Editor prompts hang in non-interactive environments. Every command that accepts
+`-m` must get one inline:
 
 ```text
 jj describe -m "message"      # NOT: jj describe
@@ -130,16 +133,16 @@ These open TUIs and hang. Use alternatives:
 
 ### Verify after mutation
 
-After any of `squash`, `abandon`, `rebase`, `restore`, `new`, `edit`, or `untrack`, run
-`jj st` and `jj log` to confirm the state. jj is good but it's not magic; verify before
-moving on. Especially after `restore --from --to`, because that operation modifies a
-non-`@` commit and the change isn't visible in working-copy diffs.
+After any of `squash`, `abandon`, `rebase`, `restore`, `new`, `edit`, or `untrack`,
+run `jj st` and `jj log` to confirm the state. jj is good but it's not magic; verify
+before moving on. Especially after `restore --from --to`, because that operation
+modifies a non-`@` commit and the change isn't visible in working-copy diffs.
 
 ### Diff format
 
 Default `jj diff` uses a side-by-side numbered format that does not look like git's
-`+`/`-` output. Always use `jj diff --git` to get standard unified diff format. Same goes
-for `jj show --git`.
+`+`/`-` output. Always use `jj diff --git` to get standard unified diff format.
+Same goes for `jj show --git`.
 
 ### Colocated repos
 
@@ -148,8 +151,8 @@ Alyssa's repos are colocated (`.jj/` and `.git/` both exist). Rules:
 - **Default to `jj` commands for everything.** Including `jj git push`, `jj git fetch`.
   Never run `git push` or `git pull` from the agent.
 - **Read-only `git` is fine.** `git log`, `git status`, `git diff` won't corrupt state.
-- **Never `git checkout`, `git switch`, `git reset`, `git rebase`, or `git commit`.** Use
-  `jj edit`, `jj new`, `jj undo`, `jj rebase`, and `jj commit` respectively.
+- **Never `git checkout`, `git switch`, `git reset`, `git rebase`, or `git commit`
+  .** Use `jj edit`, `jj new`, `jj undo`, `jj rebase`, and `jj commit` respectively.
 - **GitHub CLI (`gh`) is fine** for PR-shaped operations after a `jj git push`.
 
 ---
@@ -170,20 +173,20 @@ jj new -m "What I'm about to do"
 # Now make changes — they auto-snapshot into @
 ```
 
-This pattern surfaces intent before code exists. If Alyssa hasn't told Claude what to
-commit message-wise, ask once and then proceed.
+This pattern surfaces intent before code exists. If Alyssa hasn't told Claude what
+to commit message-wise, ask once and then proceed.
 
 ### Atomic commits
 
-One logical change per commit. If a commit description starts to need "and" to cover
-everything, that's the signal to split. Use the squash/restore patterns to peel out
-unrelated changes rather than mashing them in.
+One logical change per commit. If a commit description starts to need "and" to
+cover everything, that's the signal to split. Use the squash/restore patterns to
+peel out unrelated changes rather than mashing them in.
 
 Commit message format (Alyssa's convention, matches the team's):
 
 - Imperative verb, sentence case, no trailing period
-- `feat:` / `fix:` / `refactor:` / `docs:` / `chore:` prefixes when conventional commits
-  are in use in the repo
+- `feat:` / `fix:` / `refactor:` / `docs:` / `chore:` prefixes when conventional
+  commits are in use in the repo
 
 ### Viewing history
 
@@ -207,15 +210,15 @@ jj prev -e                      # set @ to @-
 jj next -e                      # set @ to @+
 ```
 
-**`jj new` vs `jj edit`:** `jj new` creates a fresh empty child. `jj edit` makes an
-existing commit the working copy. Default to `jj new`; use `jj edit` only when explicitly
-modifying a specific historical change.
+**`jj new` vs `jj edit`:** `jj new` creates a fresh empty child. `jj edit` makes
+an existing commit the working copy. Default to `jj new`; use `jj edit` only when
+explicitly modifying a specific historical change.
 
 ### Presenting options as sibling commits
 
 When Alyssa is choosing between approaches, she often can't decide from a prose
-description — she needs to read the implementations side by side. Build each option as a
-**sibling commit** off the same parent:
+description — she needs to read the implementations side by side. Build each option
+as a **sibling commit** off the same parent:
 
 ```text
 jj new <parent> -m "option A: <one-line characterization>"
@@ -233,14 +236,14 @@ jj diff --git -r <option-a>     # each option's diff in isolation
 jj diff --git -r <option-b>
 ```
 
-Continue from whichever she picks with `jj new <chosen>`, or `jj edit <chosen>` to keep
-building inside it.
+Continue from whichever she picks with `jj new <chosen>`, or `jj edit <chosen>`
+to keep building inside it.
 
-**The rejected siblings stay. Do not abandon them, and do not offer to.** They are a
-deliberate paper trail of what was considered; Alyssa cleans them up herself, on her own
-schedule. A dangling described commit costs nothing — it isn't reachable from a bookmark
-so it never pushes, and `jj log` still shows it. Treating "there are dangling commits" as
-a mess to tidy destroys the record of the decision.
+**The rejected siblings stay. Do not abandon them, and do not offer to.** They are
+a deliberate paper trail of what was considered; Alyssa cleans them up herself,
+on her own schedule. A dangling described commit costs nothing — it isn't reachable
+from a bookmark so it never pushes, and `jj log` still shows it. Treating "there
+are dangling commits" as a mess to tidy destroys the record of the decision.
 
 Concretely: no `jj abandon` on an option commit, no `jj undo` to unwind the losing
 branch, and no closing summary that ends with "want me to clean these up?"
@@ -249,14 +252,14 @@ branch, and no closing summary that ends with "want me to clean these up?"
 
 ## File Tracking and .gitignore
 
-**This section is load-bearing for Alyssa's workflow.** Claude must follow these rules
-strictly. See `references/gitignore-recovery.md` for the full scenario walkthroughs.
+**This section is load-bearing for Alyssa's workflow.** Claude must follow these
+rules strictly. See `references/gitignore-recovery.md` for the full scenario walkthroughs.
 
 ### Rule 1: Check `.gitignore` BEFORE generating files
 
 Before running any command that creates artifacts (`cargo build`, `npm install`,
-`pytest`, `flutter build`, code generators, etc.), check `.gitignore` to confirm the
-expected output directories are covered. Common patterns by ecosystem:
+`pytest`, `flutter build`, code generators, etc.), check `.gitignore` to confirm
+the expected output directories are covered. Common patterns by ecosystem:
 
 - Rust: `target/`, `Cargo.lock` (libraries only)
 - Node: `node_modules/`, `dist/`, `.next/`, `coverage/`
@@ -269,22 +272,22 @@ If a relevant pattern is missing and the build is about to happen, add it to
 
 ### Rule 2: Reflex pattern when an unwanted file is in `@`
 
-If `jj st` shows a file in `@` that shouldn't be tracked, fix it before doing anything
-else. Two commands:
+If `jj st` shows a file in `@` that shouldn't be tracked, fix it before doing
+anything else. Two commands:
 
 ```text
 echo '<pattern>' >> .gitignore
 jj file untrack <path>
 ```
 
-This adds the pattern to `.gitignore`, then untracks the file (which works because the
-pattern is now in `.gitignore`). Both edits land in `@`'s snapshot together. Don't move
-to a new commit until `jj st` is clean of the unwanted file.
+This adds the pattern to `.gitignore`, then untracks the file (which works because
+the pattern is now in `.gitignore`). Both edits land in `@`'s snapshot together.
+Don't move to a new commit until `jj st` is clean of the unwanted file.
 
 ### Rule 3: Retroactive fix for local commits (NOT pushed)
 
-When the file is in earlier local commits in the stack, use the elegant pattern. Three
-phases:
+When the file is in earlier local commits in the stack, use the elegant pattern.
+Three phases:
 
 **Phase 1 — put `.gitignore` in place as an ancestor commit, without leaving `@`:**
 
@@ -292,8 +295,8 @@ phases:
 # Add the pattern in @ (it auto-snapshots)
 echo '<pattern>' >> .gitignore
 
-# Create an empty commit before the earliest tainted change, WITHOUT switching to it
-jj new --no-edit --insert-before <earliest-tainted-change> -m "ignore <pattern>"
+# Create an empty commit before the earliest tainted change, WITHOUT switching to
+it jj new --no-edit --insert-before <earliest-tainted-change> -m "ignore <pattern>"
 # Capture the new change ID from output, e.g. `wxyz`
 
 # Move the .gitignore change from @ into the new early commit
@@ -310,8 +313,8 @@ After this, `@` is back to its pre-edit state, and the new commit `wxyz` carries
 jj restore --from wxyz --to <tainted-change> <path>
 ```
 
-`jj restore --from X --to Y <path>` copies the state of `<path>` from `X` into `Y`. Since
-`<path>` doesn't exist in `wxyz`, this effectively removes it from `<tainted-change>`.
+`jj restore --from X --to Y <path>` copies the state of `<path>` from `X` into `Y`.
+Since `<path>` doesn't exist in `wxyz`, this effectively removes it from `<tainted-change>`.
 `@` doesn't move. Repeat for each tainted commit.
 
 **Phase 3 — verify:**
@@ -323,16 +326,16 @@ jj st
 
 ### Rule 4: Pushed already? Stop
 
-If the tainted commits have been pushed (visible in `jj log` with a remote bookmark or
-in the immutable set), do not unilaterally rewrite. Surface the situation:
+If the tainted commits have been pushed (visible in `jj log` with a remote bookmark
+or in the immutable set), do not unilaterally rewrite. Surface the situation:
 
 > "[file] was tracked in <change-id>, which has already been pushed to <remote>.
-> Rewriting requires coordinating with anyone who has pulled this branch. Should I
-> proceed with rewriting (force-push), or add the file to `.gitignore` and `jj file
-> untrack` going forward?"
+> Rewriting requires coordinating with anyone who has pulled this branch. Should
+> I proceed with rewriting (force-push), or add the file to `.gitignore` and `jj
+> file untrack` going forward?"
 
-Wait for Alyssa's decision. The second option preserves history but leaves the file in
-the historical commits.
+Wait for Alyssa's decision. The second option preserves history but leaves the
+file in the historical commits.
 
 ### Rule 5: The `snapshot.auto-track` escape hatch
 
@@ -359,9 +362,9 @@ work. They have no clean git equivalent.
 
 ### `jj squash <path>... --from <X> --into <Y>`
 
-Move specific file changes between two arbitrary commits without switching `@`. `--from`
-takes a revset (can resolve to many commits — changes are squashed out of all of them).
-`--into` takes a single commit.
+Move specific file changes between two arbitrary commits without switching `@`.
+`--from` takes a revset (can resolve to many commits — changes are squashed out
+of all of them). `--into` takes a single commit.
 
 ```text
 # Move just the .gitignore change from @ into an earlier commit
@@ -541,7 +544,7 @@ stays where it was. You must move it explicitly before pushing.
 ```text
 jj bookmark create my-feature -r @          # create at @
 jj bookmark move   my-feature --to @         # move to @
-jj bookmark advance                           # move the closest bookmark(s) to @ (v0.44)
+jj bookmark advance                           # move the closest bookmark(s) to @ (since v0.44)
 jj bookmark list                              # show bookmarks
 jj bookmark delete my-feature                 # delete (commits stay)
 jj bookmark track <name>@<remote>             # track a remote bookmark
@@ -663,8 +666,9 @@ keep this file under context budget.
   merges render as an empty diff. Load when working in a repo whose history
   converges on merge commits, or when a merge conflicts for no obvious reason.
 
-- **`references/version-notes.md`** — jj v0.44-specific behavior: flags removed since
-  the tutorials were written (`--allow-new`, `describe --edit`), the
+- **`references/version-notes.md`** — jj v0.45-specific behavior: what's new in v0.45
+  (`jj converge`, `config --file`), flags removed since the tutorials were written
+  (`--allow-new`, `describe --edit`), the
   `--destination`/`-d` → `--onto`/`-o` rename, current config-key names, and the
   migration notes that matter for muscle memory. Load when commands are erroring
   with unfamiliar messages, when an example from an older tutorial doesn't work, or
@@ -690,6 +694,11 @@ they're not actionable in jj.
 **"Commit is immutable" error.** Means you're trying to rewrite something in `trunk()`
 or its ancestry (usually because it's been pushed). Do not pass `--ignore-immutable`
 without explicit go-ahead from Alyssa. Surface the situation instead.
+
+**Divergent change (`jj log` shows one change ID on two commits).** Happens when the same
+change was rewritten from two places (e.g. two workspaces). Run
+`jj converge --no-interactive` (v0.45+); if it can't decide on its own it changes nothing
+and says so — then surface it to Alyssa rather than abandoning one side yourself.
 
 **"working copy stale" message.** Run `jj workspace update-stale`. If it asks about a
 recovery commit, accept and verify with `jj log`.

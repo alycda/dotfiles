@@ -1,8 +1,8 @@
 # Gitignore Recovery Patterns
 
 Detailed walkthroughs for file-tracking scenarios that exceed the rules in `SKILL.md`'s
-"File Tracking and .gitignore" section. Load this when Claude needs to recover from a
-non-trivial tracking situation.
+"File Tracking and .gitignore" section. Load this when Claude needs to recover
+from a non-trivial tracking situation.
 
 ## Contents
 
@@ -24,13 +24,13 @@ Three jj behaviors drive these patterns. Internalize them before doing recovery 
 **Fact 1.** `.gitignore` only prevents auto-tracking of files that aren't already tracked
 in any visible commit. Adding a pattern to `.gitignore` does not retroactively untrack.
 
-**Fact 2.** `jj file untrack <path>` requires `<path>` to be in `.gitignore` at the
-moment the command runs. Otherwise the next auto-snapshot retracks. This is jj-vcs/jj
-issue #5225, open as of jj v0.44.
+**Fact 2.** `jj file untrack <path>` requires `<path>` to be in `.gitignore` at
+the moment the command runs. Otherwise the next auto-snapshot retracks. This is
+jj-vcs/jj issue #5225, open as of jj v0.45.1.
 
-**Fact 3.** Rebasing past a new ancestor commit does not strip already-tracked content
-from the rebased commits. The rebase reapplies each commit's diff, and that diff still
-adds the unwanted file.
+**Fact 3.** Rebasing past a new ancestor commit does not strip already-tracked
+content from the rebased commits. The rebase reapplies each commit's diff, and
+that diff still adds the unwanted file.
 
 Together, these mean recovery has two phases:
 
@@ -58,8 +58,8 @@ jj file untrack foo.log
 jj st               # confirm foo.log is gone, src/main.rs remains
 ```
 
-Done. The `.gitignore` change lands in `@`'s snapshot alongside whatever real work is
-there.
+Done. The `.gitignore` change lands in `@`'s snapshot alongside whatever real
+work is there.
 
 **Variant — file should be untracked but kept on disk:** Same commands. `jj file untrack`
 removes the file from jj's tracking but leaves it on disk in the working directory.
@@ -109,8 +109,8 @@ jj st                                    # @ should be unchanged
 
 - `jj new --no-edit --insert-before` creates a new commit at the position you want
   without making it the working copy. Descendants rebase through it automatically.
-- `jj squash <path> --from @ --into <new>` moves just the `.gitignore` change out of
-  `@` into the new ancestor. `@` stays put.
+- `jj squash <path> --from @ --into <new>` moves just the `.gitignore` change out
+  of `@` into the new ancestor. `@` stays put.
 - `jj restore --from X --to Y <path>` copies `<path>`'s state in `X` into `Y`. Since
   `<path>` doesn't exist in the new ancestor, restoring it into `ijklmnop` removes it.
 
@@ -173,22 +173,22 @@ $ jj log -r 'trunk()..@'
 ○  trunk
 ```
 
-**Do not unilaterally rewrite.** Force-pushing rewritten history past `trunk()` requires
-coordinating with anyone who has pulled from the remote. This is a workflow decision,
-not a tooling one.
+**Do not unilaterally rewrite.** Force-pushing rewritten history past `trunk()`
+requires coordinating with anyone who has pulled from the remote. This is a workflow
+decision, not a tooling one.
 
 **Surface the situation. Verbatim template Claude can adapt:**
 
 > `foo.log` was tracked in change `cccc3333` ("feat: scaffold api"), which is at
 > `main@origin`. Two options:
 >
-> 1. **Stop tracking going forward.** Add `foo.log` to `.gitignore` in a new commit on
->    top, then `jj file untrack foo.log` in that commit. The file remains in history
->    but doesn't accumulate further. No force-push, no coordination needed.
+> 1. **Stop tracking going forward.** Add `foo.log` to `.gitignore` in a new commit
+>    on top, then `jj file untrack foo.log` in that commit. The file remains in
+>    history but doesn't accumulate further. No force-push, no coordination needed.
 >
 > 2. **Rewrite history.** Apply the Scenario C pattern, then `jj git push --force-with-lease`.
->    Anyone with a local copy of this branch will need to re-fetch and reset. Coordinate
->    first.
+>    Anyone with a local copy of this branch will need to re-fetch and reset.
+>    Coordinate first.
 >
 > Option 1 is the default. Option 2 only if the file contains secrets (credentials,
 > tokens, keys) or otherwise must be removed from history. Which?
@@ -240,18 +240,18 @@ jj restore --from <ignore-cmt> --to <tainted> node_modules/   # for earlier comm
 
 `jj file untrack` and `jj restore` both accept directory paths and operate recursively.
 
-**Warning on large directories:** If `node_modules/` has thousands of files, the squash
-and restore operations are cheap (they're metadata operations, not file content), but
-the subsequent working-copy materialization may need to write/delete many files. Expect
-the first `jj st` after the cleanup to be slow.
+**Warning on large directories:** If `node_modules/` has thousands of files, the
+squash and restore operations are cheap (they're metadata operations, not file
+content), but the subsequent working-copy materialization may need to write/delete
+many files. Expect the first `jj st` after the cleanup to be slow.
 
 ---
 
 ## snapshot.auto-track configuration
 
-If the same kind of cleanup keeps happening, the structural fix is to narrow what jj
-snapshots automatically. By default jj snapshots all non-`.gitignore`'d files. The
-`snapshot.auto-track` setting changes that to "only files matching this fileset."
+If the same kind of cleanup keeps happening, the structural fix is to narrow what
+jj snapshots automatically. By default jj snapshots all non-`.gitignore`'d files.
+The `snapshot.auto-track` setting changes that to "only files matching this fileset."
 
 ```sh
 # In .jj/repo/config.toml:
@@ -272,8 +272,8 @@ This is the opposite default from git: track-by-allowlist instead of track-every
 - Alyssa is running parallel Claude sessions that generate lots of throwaway files
 - The team has standardized on a specific set of file extensions
 
-**Tradeoff:** New legitimate file types now need explicit `jj file track`. This is a
-small friction but a hard guard against accidental tracking.
+**Tradeoff:** New legitimate file types now need explicit `jj file track`. This
+is a small friction but a hard guard against accidental tracking.
 
 The fileset language is documented at the [filesets reference](https://docs.jj-vcs.dev/latest/filesets/).
 Globs use `glob:"<pattern>"`. Multiple patterns combine with `|`. Negation with `~`.
@@ -301,5 +301,5 @@ git log --all -- <path>                 # expect to NOT see new commits adding <
 jj op log -n 10
 ```
 
-If something looks wrong: `jj undo` repeatedly until back to a safe state. The op log
-makes recovery reversible.
+If something looks wrong: `jj undo` repeatedly until back to a safe state. The op
+log makes recovery reversible.
