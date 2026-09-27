@@ -3,8 +3,10 @@
         "anthropic.claude-code",
         "davidanson.vscode-markdownlint",
         "editorconfig.editorconfig",
+        "foxundermoon.shell-format",
         "jnoortheen.nix-ide",
         "ms-vscode-remote.remote-containers",
+        "tamasfe.even-better-toml",
         "skellock.just"
     ]
 }

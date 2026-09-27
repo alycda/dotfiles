@@ -1,5 +1,9 @@
 # dotfiles
 
+## Mise
+
+bare-bones dotfiles (for accounts without Nix or Docker)
+
 ## Tasks
 
 Work is tracked in `tasks/`, one directory per task, named with a HUID: a UTC

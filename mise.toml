@@ -5,11 +5,20 @@
 [dotfiles]
 "~/.config/zsh/dotfiles.zsh" = { source = "tools/zsh/interactive.zsh", mode = "symlink" }
 "~/.zshrc/dotfiles" = { line = "[[ -r ~/.config/zsh/dotfiles.zsh ]] && source ~/.config/zsh/dotfiles.zsh" }
+# conf.d, not ~/.config/jj/config.toml: `jj config set --user` writes that file,
+# so identity would land in the tracked config. conf.d is merged over it, so
+# this file must never carry a [user] block.
+"~/.config/jj/conf.d/dotfiles.toml" = { source = "tools/jujutsu/config", mode = "symlink" }
 
 [settings]
 minimum_release_age_excludes = ["claude"]
 
 [tools]
 just = "latest"
+jujutsu = "0.45"
 claude = "latest"
 tmux = "latest"
+# formatters for `jj fix`
+taplo = "0.10"
+rumdl = "0.2"
+biome = "2.5"
