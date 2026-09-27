@@ -5,6 +5,7 @@
 [dotfiles]
 "~/.config/zsh/dotfiles.zsh" = { source = "tools/zsh/interactive.zsh", mode = "symlink" }
 "~/.zshrc/dotfiles" = { line = "[[ -r ~/.config/zsh/dotfiles.zsh ]] && source ~/.config/zsh/dotfiles.zsh" }
+"~/.config/git/ignore" = { source = "tools/git/ignore", mode = "symlink" }
 
 [tools]
 just = "latest"
