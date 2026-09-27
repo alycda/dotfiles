@@ -1,7 +1,7 @@
 # Command Reference
 
-Full git-to-jj command mapping plus less-common jj commands. Load when translating a
-specific git workflow Alyssa describes, or when she asks "how do I do <git operation>
+Full git-to-jj command mapping plus less-common jj commands. Load when translating
+a specific git workflow Alyssa describes, or when she asks "how do I do <git operation>
 in jj?"
 
 ## Contents
@@ -34,8 +34,8 @@ in jj?"
 | `git blame <file>` | `jj file annotate <file>` |
 | `git ls-files` | `jj file list` |
 
-**Always pass `--git` to `jj diff` and `jj show`** to get standard unified diff format
-instead of jj's side-by-side default.
+**Always pass `--git` to `jj diff` and `jj show`** to get standard unified diff
+format instead of jj's side-by-side default.
 
 ---
 
@@ -53,9 +53,9 @@ are auto-snapshotted into `@` on every command.
 | `git commit --amend -a` | edit working copy, then `jj squash` to fold into `@-` |
 | Two-step describe-then-code | `jj new -m "msg"` then edit files |
 
-**`jj commit` vs `jj describe`:** `commit` finalizes `@`'s content and creates a fresh
-empty `@` on top. `describe` just sets the message on `@` without moving forward. Use
-`describe` when describing-first.
+**`jj commit` vs `jj describe`:** `commit` finalizes `@`'s content and creates a
+fresh empty `@` on top. `describe` just sets the message on `@` without moving
+forward. Use `describe` when describing-first.
 
 ---
 
@@ -72,17 +72,17 @@ empty `@` on top. `describe` just sets the message on `@` without moving forward
 | `git branch --list` | `jj bookmark list` |
 | `git branch --set-upstream` | `jj bookmark track foo@<remote>` |
 
-**Key conceptual difference:** Bookmarks don't auto-advance. Creating a commit on top of
-a bookmark leaves the bookmark behind. Move it explicitly with `jj bookmark move foo --to @`
-before pushing — or `jj bookmark advance`, which moves the closest bookmark(s) to `@` for
-you. Either way it's an explicit step.
+**Key conceptual difference:** Bookmarks don't auto-advance. Creating a commit
+on top of a bookmark leaves the bookmark behind. Move it explicitly with
+`jj bookmark move foo --to @` before pushing — or `jj bookmark advance`, which
+moves the closest bookmark(s) to `@` for you. Either way it's an explicit step.
 
 ---
 
 ## Editing history
 
-This is where jj is dramatically better than git. Most history edits don't need an
-interactive rebase.
+This is where jj is dramatically better than git. Most history edits don't need
+an interactive rebase.
 
 | Git | jj |
 | --- | --- |
@@ -91,6 +91,7 @@ interactive rebase.
 | `git rebase -i HEAD~5` to drop | `jj abandon <change-id>` |
 | `git rebase -i HEAD~5` to split | `jj split <path>...` (non-interactive when given paths) |
 | `git rebase -i HEAD~5` to reorder | `jj rebase -r <change> --before <other>` |
+| (no git equivalent) fix a divergent change | `jj converge --no-interactive` (v0.45+) |
 | `git cherry-pick <commit>` | `jj rebase -r <change-id> -d @` OR `jj duplicate <change-id> --onto @` |
 | `git revert <commit>` | `jj revert <change-id>` (creates a new commit that undoes it) |
 
@@ -146,9 +147,9 @@ jj op log                # see all operations
 jj op restore <op-id>    # jump to any prior state
 ```
 
-`jj undo` is non-destructive. It creates a new operation that inverts the last one. You
-can `jj undo` the `jj undo` if needed. **Reach for `jj undo` first** whenever something
-looks wrong.
+`jj undo` is non-destructive. It creates a new operation that inverts the last
+one. You can `jj undo` the `jj undo` if needed. **Reach for `jj undo` first**
+whenever something looks wrong.
 
 ---
 
@@ -169,8 +170,8 @@ All git-side network operations are namespaced under `jj git ...`.
 | `git push -u origin foo` | `jj git push -b foo` (auto-tracks) |
 | Push current state with auto-bookmark | `jj git push --change @` or `jj git push --change @-` |
 
-`jj git push` is `--force-with-lease`-safe by default. It will refuse to overwrite a
-remote bookmark that has moved since the last fetch.
+`jj git push` is `--force-with-lease`-safe by default. It will refuse to
+overwrite a remote bookmark that has moved since the last fetch.
 
 ---
 
@@ -185,15 +186,15 @@ remote bookmark that has moved since the last fetch.
 | `git rebase --continue` | (not needed — jj completes rebase even with conflicts) |
 
 **Conflict behavior:** jj rebases complete even when conflicts arise. The conflicted
-commits are marked but the rebase finishes. Resolve at your own pace by editing the
-conflicted files directly. No `--abort` / `--continue` dance.
+commits are marked but the rebase finishes. Resolve at your own pace by editing
+the conflicted files directly. No `--abort` / `--continue` dance.
 
 ---
 
 ## Stashing equivalent
 
-There is no `jj stash`. The model is different: every state is already a commit, so
-"setting aside work" is just leaving `@` and creating a new one.
+There is no `jj stash`. The model is different: every state is already a commit,
+so "setting aside work" is just leaving `@` and creating a new one.
 
 | Git | jj |
 | --- | --- |
@@ -201,8 +202,8 @@ There is no `jj stash`. The model is different: every state is already a commit,
 | `git stash pop` | `jj edit <old-change-id>` (resume the previous `@`) |
 | `git stash list` | `jj log -r 'heads(::)'` (all leaf commits — includes set-aside work) |
 
-Set-aside commits get descriptive names if you `jj describe -m "wip: ..."` before leaving
-them. They're not lost; they're just other commits.
+Set-aside commits get descriptive names if you `jj describe -m "wip: ..."` before
+leaving them. They're not lost; they're just other commits.
 
 ---
 
@@ -245,7 +246,8 @@ before.
 ```sh
 jj config list                              # all config
 jj config get <key>                         # one value
-jj config set --user <key> <value>          # user-level (in ~/.config/jj/config.toml)
+jj config set --user <key> <value>          # user-level (first loaded user file, e.g. ~/.config/jj/config.toml)
+jj config set --file <path> <key> <value>   # a specific file, e.g. conf.d/*.toml (v0.45+)
 jj config set --repo <key> <value>          # repo-level (in .jj/repo/config.toml)
 jj config path --user                       # show user config file path
 jj config edit --user                       # open user config in editor
@@ -265,7 +267,7 @@ jj log -r 'mine() & ~immutable()'                   # my mutable commits
 jj log -r 'heads(::)'                               # all leaf commits
 jj log -r 'bookmarks()'                             # commits with bookmarks
 jj log -r 'conflicts()'                             # commits with conflicts
-jj log -r 'description("regex")'                    # commits matching message
+jj log -r 'description(substring:"text")'           # commits matching message (bare form is exact)
 jj log -r 'author("alyssa")'                        # by author
 ```
 

@@ -1,16 +1,82 @@
-# jj v0.44 Version Notes
+# jj v0.45 Version Notes
 
-The jujutsu skill is pinned to jj v0.44. This file documents what differs from older
-tutorials and blog posts, which flags are **removed** (not merely deprecated), and what
-to watch when upgrading further.
+The jujutsu skill is pinned to jj v0.45 (0.45.1). This file documents what differs
+from older tutorials and blog posts, which flags are **removed** (not merely deprecated),
+and what to watch when upgrading further.
 
 Load this when:
 
 - A command from a tutorial doesn't work as expected
 - jj prints an "unknown flag" or "unexpected argument" error
-- Alyssa asks "what changed in v0.44?"
+- Alyssa asks "what changed in v0.45?" (or v0.44)
 
-Every claim below was verified against `jj --version` = 0.44.0 via `--help` output.
+The v0.44 sections were first verified against 0.44.0 and re-checked against
+`jj --version` = 0.45.1 via `--help` output and scratch revsets; everything still holds.
+
+---
+
+## New in v0.45
+
+0.45.1 is a packaging/signing fix release on top of 0.45.0 — nothing in it changes
+day-to-day commands. Everything below is from 0.45.0.
+
+### `jj converge` — resolve divergent changes
+
+A change is **divergent** when one change ID has more than one visible commit
+(`jj log` flags them as divergent). It usually happens when the same change was
+rewritten from two places — two workspaces, or a concurrent op and a fetch.
+
+```sh
+jj log -r 'divergent()'                  # find them
+jj converge --no-interactive             # agent form: fix automatically, or change nothing
+jj converge -r <revset> --no-interactive # narrow the search space
+```
+
+With no `-r`, it searches `revsets.converge` (default `mutable() & divergent()`).
+It replaces the divergent commits with a single one, rebases descendants onto it,
+and moves local bookmarks along. It may prompt to merge descriptions or pick parents;
+`--no-interactive` warns and exits without changes instead — **always pass it**,
+since Claude can't answer prompts. The result can carry file conflicts even if
+neither side had any; check `jj st` afterwards. `jj undo` reverses it.
+
+### Breaking: `jj config {edit,set,unset} --user` no longer prompts
+
+With several user config files (e.g. `~/.config/jj/config.toml` plus `conf.d/*.toml`),
+`--user` used to ask which one. It now silently targets the **first loaded** file.
+To write somewhere specific, use the new `--file <PATH>`:
+
+```sh
+jj config set --file ~/.config/jj/conf.d/aliases.toml aliases.l '["log"]'
+```
+
+`--file` must point at a location jj actually loads (including `conf.d/` or a
+`--config-file` path).
+
+### Breaking: `jj git import` skips detached Git HEAD in non-colocated repos
+
+Only matters in non-colocated repos, where commits reachable only from a detached
+Git HEAD are no longer imported. Alyssa's repos are colocated, so this rarely applies.
+
+### Behavior fixes worth knowing
+
+- **`immutable_heads()` now includes `untracked_remote_tags()`.** Commits under
+  a remote tag you haven't tracked are now immutable. If a rewrite suddenly fails
+  with "commit is immutable" after a fetch, this is a likely cause — same rule as
+  always: surface it, don't reach for `--ignore-immutable`.
+- **Colocated `git add` no longer corrupts the index.** Before 0.45, running
+  `git add` after a `jj` command could leave a stale cache-tree in `.git/index`,
+  producing trees with duplicate entries (`git fsck: duplicateEntries`). Fixed,
+  but **already-corrupted repos aren't repaired**. It's still best not to mix
+  `git add` into a jj workflow.
+- **`jj workspace update-stale` in colocated workspaces** now resets Git HEAD to
+  the parent of the fresh working-copy commit (it used to be left wrong).
+- **Default pager flags include `-K`**, so Ctrl+C in `less` exits cleanly.
+  Irrelevant for agent use, which should pass `--no-pager` or pipe output anyway.
+- **`jj run`** stops at the first revision whose process exits nonzero.
+- **`jj bisect`** says so when skips make the first bad revision ambiguous.
+- **Git HEAD is tracked per worktree** internally (migrated automatically) —
+  groundwork for jj workspaces each having their own Git HEAD in colocated repos.
+  Nothing to do yet.
 
 ---
 
@@ -32,10 +98,10 @@ you are creating — `--named` "automatically tracks the bookmark if it is new."
 
 ### `jj describe --edit` — removed
 
-`--editor` still exists but **does not mean the same thing**. In v0.44 it "forces an
-editor to open when using `--stdin` or `--message`", i.e. it is a modifier on a supplied
-message, not a standalone "open the editor" flag. Irrelevant for agent use, which always
-passes `-m`.
+`--editor` still exists but **does not mean the same thing**. In v0.44 it "forces
+an editor to open when using `--stdin` or `--message`", i.e. it is a modifier on
+a supplied message, not a standalone "open the editor" flag. Irrelevant for agent
+use, which always passes `-m`.
 
 ---
 
@@ -79,8 +145,8 @@ description(substring:"oops")  -> nkylquwn
 description(glob:"*oops*")     -> nkylquwn
 ```
 
-**Use `substring:` or `glob:` for descriptions.** The bare form only matches if you
-supply the entire description including its newline, which in practice never happens.
+**Use `substring:` or `glob:` for descriptions.** The bare form only matches if
+you supply the entire description including its newline, which in practice never happens.
 
 ---
 
@@ -103,17 +169,17 @@ The destination flag for `jj rebase`, `jj split`, and `jj revert` is canonically
 **`jj squash` was not renamed** — it continues to use `--from`/`--into` (`-f`/`-t`).
 
 **Tutorial impact:** Steve Klabnik's tutorial, Chris Krycho's posts, and older official
-docs were written when `-d` was canonical. Their examples still run. New patterns Claude
-writes should use `-o`.
+docs were written when `-d` was canonical. Their examples still run. New patterns
+Claude writes should use `-o`.
 
 ---
 
 ## Config keys
 
-The per-remote `remotes.<name>.auto-track-bookmarks` key that older notes describe as the
-replacement for `git.auto-local-bookmark` / `git.push-new-bookmarks` is **not** present in
-v0.44's defaults. Don't write it into a config expecting it to take effect. The relevant
-real keys in v0.44:
+The per-remote `remotes.<name>.auto-track-bookmarks` key that older notes describe
+as the replacement for `git.auto-local-bookmark` / `git.push-new-bookmarks` is
+**not** present in v0.44 or v0.45 defaults. Don't write it into a config expecting
+it to take effect. The relevant real keys (unchanged in v0.45):
 
 ```toml
 [git]
@@ -126,16 +192,16 @@ auto-track = "all()"                      # default — governs what auto-snapsh
 legacy-bookmark-behavior = true           # default
 ```
 
-`snapshot.auto-track` is the one that matters for the file-tracking rules in SKILL.md —
-narrowing it is the config-level lever for keeping generated artifacts out of commits.
-See `gitignore-recovery.md`.
+`snapshot.auto-track` is the one that matters for the file-tracking rules in
+SKILL.md — narrowing it is the config-level lever for keeping generated artifacts
+out of commits. See `gitignore-recovery.md`.
 
 ---
 
 ## New since the older notes: `jj bookmark advance`
 
-v0.44 has a `jj bookmark advance` subcommand (alias `a`) — "Advance the closest bookmarks
-to a target revision." It is configured by two revset keys:
+v0.44 has a `jj bookmark advance` subcommand (alias `a`) — "Advance the closest
+bookmarks to a target revision." It is configured by two revset keys:
 
 ```toml
 [revsets]
@@ -143,10 +209,10 @@ bookmark-advance-from = 'heads(::to & bookmarks())'   # default: the closest boo
 bookmark-advance-to = '@'                              # default: the working copy
 ```
 
-**This does not make bookmarks auto-advance.** The "bookmarks aren't branches" rule in
-SKILL.md still holds — nothing moves without an explicit command. `advance` is just
-ergonomic sugar over `jj bookmark move <name> --to @` that finds the bookmark for you.
-`bookmark-advance-to = '@-'` is a documented alternative for squash-heavy workflows.
+**This does not make bookmarks auto-advance.** The "bookmarks aren't branches"
+rule in SKILL.md still holds — nothing moves without an explicit command. `advance`
+is just ergonomic sugar over `jj bookmark move <name> --to @` that finds the bookmark
+for you. `bookmark-advance-to = '@-'` is a documented alternative for squash-heavy workflows.
 
 ---
 
@@ -158,12 +224,12 @@ v0.44's help is explicit: "Paths to untrack. They must already be ignored. The p
 could be ignored via a .gitignore or .git/info/exclude (in colocated workspaces)."
 
 So Rule 2 in SKILL.md's file-tracking section stands unchanged, and upstream issue
-jj-vcs/jj#5225 (untrack without gitignoring first) is **still open** as of v0.44.
+jj-vcs/jj#5225 (untrack without gitignoring first) is **still open** as of v0.45.1.
 
 ### `jj new --insert-before` / `--insert-after` apply per-commit
 
-Long-standing behavior (since v0.18): repeating the flag means "insert relative to EACH
-listed commit," not one global setting.
+Long-standing behavior (since v0.18): repeating the flag means "insert relative
+to EACH listed commit," not one global setting.
 
 ```sh
 # This creates ONE commit with BOTH A and X as parents
@@ -174,8 +240,8 @@ Practical implication: usually you want a single `--insert-before`/`--insert-aft
 
 ### `jj diff` default format is NOT git-style
 
-Default is a side-by-side numbered format that looks broken to anyone used to git. Always
-add `--git` for unified diff output. Same for `jj show`.
+Default is a side-by-side numbered format that looks broken to anyone used to git.
+Always add `--git` for unified diff output. Same for `jj show`.
 
 ### Auto-snapshot timing
 
@@ -186,8 +252,8 @@ echo "new content" > foo.txt        # not yet snapshotted
 jj st                                # NOW it gets snapshotted; @ updates
 ```
 
-To inspect state without snapshotting (rare), use `jj --ignore-working-copy st` — almost
-never the right move.
+To inspect state without snapshotting (rare), use `jj --ignore-working-copy st`
+— almost never the right move.
 
 ### Message via stdin
 
@@ -198,13 +264,13 @@ commands; not usually relevant for agent use, which passes `-m`.
 
 ## What to watch on future upgrades
 
-- **`jj file untrack` for non-ignored files** — issue #5225. If it lands, Rule 2 in
-  SKILL.md's file-tracking section gets simpler. Watch for it.
-- **Bookmark advance defaults** — `revsets.bookmark-advance-to` is new enough that its
-  default (`@`) may be revisited. If it ever becomes automatic on commit, the
+- **`jj file untrack` for non-ignored files** — issue #5225. If it lands, Rule
+  2 in SKILL.md's file-tracking section gets simpler. Watch for it.
+- **Bookmark advance defaults** — `revsets.bookmark-advance-to` is new enough that
+  its default (`@`) may be revisited. If it ever becomes automatic on commit, the
   "bookmarks aren't branches" rule needs rewriting.
-- **Native (non-git) backend.** The git backend is production-ready; a native jj backend
-  is in development. Switching would require migration. Not imminent.
+- **Native (non-git) backend.** The git backend is production-ready; a native jj
+  backend is in development. Switching would require migration. Not imminent.
 
 ---
 
@@ -215,10 +281,10 @@ Tutorials that may show older syntax:
 - **Steve Klabnik's tutorial** (jj-tutorial.github.io) — uses `-d` in rebase examples;
   still runs via the alias. Mental-model content unchanged.
 - **Chris Krycho's "jj init"** and follow-ups — uses `-d`. Same.
-- **Official jj docs** — version-pinned; use the version switcher for v0.44 at
+- **Official jj docs** — version-pinned; use the version switcher for v0.45 at
   `https://docs.jj-vcs.dev/`.
 
-If a tutorial command fails in v0.44, check in this order:
+If a tutorial command fails in v0.45, check in this order:
 
 1. Is it `--allow-new`? → use `--named <name>=<rev>`.
 2. Is it `describe --edit`? → pass `-m` instead.

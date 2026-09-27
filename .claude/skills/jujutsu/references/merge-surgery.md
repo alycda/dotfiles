@@ -15,8 +15,8 @@ Load this when:
 
 ## Adding a commit to one branch of a merge
 
-Use `jj new --insert-after <branch-tip>`. It rewrites **exactly one parent edge** of
-the downstream merge and leaves the others byte-identical.
+Use `jj new --insert-after <branch-tip>`. It rewrites **exactly one parent edge**
+of the downstream merge and leaves the others byte-identical.
 
 ```sh
 jj new --insert-after <branch-tip> -m "message"
@@ -72,8 +72,8 @@ jj rebase -r <commit> -d <parent1> -d <parent2>     # shreds the chain
 In a chain `A → B → C`, `jj rebase -r B -d A -d S` leaves `C` hanging off `A`, and
 `B` becomes a side branch. Applied in a loop down a long chain this detaches every
 link, and because the content of each commit is then computed against the wrong
-ancestor, files silently change. The symptom is a checksum that moves and a wave of
-conflicts far from the edit.
+ancestor, files silently change. The symptom is a checksum that moves and a wave
+of conflicts far from the edit.
 
 `-s` moves the commit **and its descendants**, so `C` stays attached to `B`:
 
@@ -110,16 +110,16 @@ parent:
 jj rebase -r <merge> -d 'heads(parents(<merge>))'
 ```
 
-`-r` is correct here precisely because a merge commit's descendants should stay put.
-Verify afterwards that content is unaffected — every branch's files should still be
-reachable from the merge.
+`-r` is correct here precisely because a merge commit's descendants should stay
+put. Verify afterwards that content is unaffected — every branch's files should
+still be reachable from the merge.
 
 ---
 
 ## Append-only files cannot be built by sibling merges
 
-A file that is only ever appended to — `.gitignore`, a changelog, `SUMMARY.md` — has
-exactly one insertion point: the end. Siblings that each append there are all
+A file that is only ever appended to — `.gitignore`, a changelog, `SUMMARY.md` —
+has exactly one insertion point: the end. Siblings that each append there are all
 claiming the same offset, and the merge cannot choose:
 
 ```sh
@@ -132,15 +132,15 @@ tlzurkum  merge: language track ignores   CONFLICT
 The siblings are individually clean. Only the merge fails, and jj records all three
 alternatives as sides of one conflict.
 
-**The damage compounds**, because jj commits conflicts rather than halting. A second
-octopus built on the conflicted result inherits the first conflict and adds its own.
-Measured on one chain: 1605 bytes at the fork, 2439 after the first merge, **11450
-after the second** — nearly 3× the correct file, all of it markers. Git would have
-stopped at the first merge; jj lets the mistake propagate silently. That is the price
-of conflicts-as-values.
+**The damage compounds**, because jj commits conflicts rather than halting. A
+second octopus built on the conflicted result inherits the first conflict and
+adds its own. Measured on one chain: 1605 bytes at the fork, 2439 after the first
+merge, **11450 after the second** — nearly 3× the correct file, all of it markers.
+Git would have stopped at the first merge; jj lets the mistake propagate silently.
+That is the price of conflicts-as-values.
 
-A **linear chain has no such problem** — each commit appends after the previous one,
-so every hunk lands at a distinct offset and 3-way merge resolves cleanly.
+A **linear chain has no such problem** — each commit appends after the previous
+one, so every hunk lands at a distinct offset and 3-way merge resolves cleanly.
 
 ### The anchor workaround, and what it really costs
 
@@ -168,8 +168,8 @@ touch disjoint paths merges cleanly with any number of parents.
 
 ## Octopus merges are invisible in combined diffs
 
-An octopus merge of branches that touch disjoint paths produces a combined diff with
-**zero hunks**. `--stat` lists the files; the patch body is empty:
+An octopus merge of branches that touch disjoint paths produces a combined diff
+with **zero hunks**. `--stat` lists the files; the patch body is empty:
 
 ```sh
 --cc patch hunks:  0
