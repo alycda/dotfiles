@@ -8,6 +8,9 @@ timestamp matching `[0-9]{8}-[0-9]{6}`. Create one with `just task "Title"`.
 The format, and why a timestamp beats a counter in a repo whose history fans
 out and octopus-merges, are in [tasks/README.md](tasks/README.md).
 
+Open tasks are listed in VS Code's Explorer by the extension in
+[extensions/vscode-huid-tasks](extensions/vscode-huid-tasks/README.md).
+
 ## License
 
 Except where otherwise noted, this work is licensed under a

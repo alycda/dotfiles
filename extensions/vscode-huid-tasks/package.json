@@ -1,0 +1,58 @@
+{
+    "name": "huid-tasks",
+    "displayName": "HUID Tasks",
+    "description": "List open tasks from tasks/<HUID>/TASK.md",
+    "version": "0.0.1",
+    "publisher": "alycda",
+    "license": "MIT",
+    "private": true,
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "main": "./extension.js",
+    "files": [
+        "extension.js",
+        "README.md"
+    ],
+    "activationEvents": [
+        "workspaceContains:tasks/*/TASK.md"
+    ],
+    "contributes": {
+        "views": {
+            "explorer": [
+                {
+                    "id": "huidTasks",
+                    "name": "Open Tasks"
+                }
+            ]
+        },
+        "viewsWelcome": [
+            {
+                "view": "huidTasks",
+                "contents": "No open tasks. Create one with `just task \"Title\"`."
+            }
+        ],
+        "commands": [
+            {
+                "command": "huidTasks.refresh",
+                "title": "Refresh",
+                "icon": "$(refresh)"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "huidTasks.refresh",
+                    "when": "view == huidTasks",
+                    "group": "navigation"
+                }
+            ],
+            "commandPalette": [
+                {
+                    "command": "huidTasks.refresh",
+                    "when": "false"
+                }
+            ]
+        }
+    }
+}
