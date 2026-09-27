@@ -2,7 +2,7 @@
     "recommendations": [
         "davidanson.vscode-markdownlint",
         "editorconfig.editorconfig",
-        "skellock.just",
-        "tamasfe.even-better-toml"
+        "graphql.vscode-graphql-syntax",
+        "skellock.just"
     ]
 }
