@@ -1,0 +1,26 @@
+# Issue N from alycda/dotfiles, with what closed it: see import-issue.
+query($n: Int!) {
+  repository(owner: "alycda", name: "dotfiles") {
+    issue(number: $n) {
+      number title body url state stateReason createdAt closedAt
+      closedByPullRequestsReferences(first: 50, includeClosedPrs: true) {
+        nodes { number url mergedAt }
+      }
+      timelineItems(first: 100, itemTypes: [CLOSED_EVENT, CROSS_REFERENCED_EVENT]) {
+        nodes {
+          __typename
+          ... on ClosedEvent {
+            closer {
+              __typename
+              ... on PullRequest { number url mergedAt }
+              ... on Commit { oid url messageHeadline }
+            }
+          }
+          ... on CrossReferencedEvent {
+            source { __typename ... on PullRequest { number url mergedAt } }
+          }
+        }
+      }
+    }
+  }
+}

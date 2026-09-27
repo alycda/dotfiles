@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# import-issue N: import GitHub issue N from alycda/dotfiles as a task.
+#
+# The HUID is the issue's createdAt rather than "now", so imported tasks sort
+# by when the work was first raised. That also makes it deterministic: an
+# existing directory carrying the same issue tag means it was imported already.
+#
+# Locked to alycda/dotfiles (in import-issue.graphql): the repo is named
+# explicitly rather than inferred from origin, so it works from any clone or
+# remote setup.
+#
+# Closed issues get a "## Closed" section because issues were not always linked
+# to the PR that landed them: it records the closer when GitHub has one, the
+# development-panel links, and any other PR that cross-referenced the issue.
+# That rendering is import-issue.jq.
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+tasks="$(dirname "$here")"
+
+n="${1:-}"
+case "$n" in ''|*[!0-9]*) echo "issue number must be numeric: $n" >&2; exit 1 ;; esac
+
+json="$(gh api graphql -F n="$n" -F query=@"$here/import-issue.graphql" --jq '.data.repository.issue')"
+
+id="$(jq -r '.createdAt | fromdateiso8601 | strftime("%Y%m%d-%H%M%S")' <<<"$json")"
+dir="${tasks}/${id}"
+if [ -e "${dir}" ]; then
+    if grep -qx -- "- TAGS: issue-${n}" "${dir}/TASK.md" 2>/dev/null; then
+        echo "issue ${n} already imported as tasks/${id}" >&2
+        exit 1
+    fi
+    # Two issues opened in the same second. The README's remedy is a suffix.
+    dir="${dir}-issue-${n}"
+fi
+
+mkdir -p "${dir}"
+jq -r -f "$here/import-issue.jq" <<<"$json" > "${dir}/TASK.md"
+
+# stdout is the path, like `just task`, so this composes the same way. The
+# commit message convention goes to stderr as a hint.
+printf 'tasks/%s/TASK.md\n' "$(basename "$dir")"
+jq -r '"commit: issue-\(.number)\(if .state == "CLOSED" then " (closed)" else "" end): \(.title)"' <<<"$json" >&2
