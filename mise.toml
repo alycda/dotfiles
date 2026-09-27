@@ -13,3 +13,7 @@
 [tools]
 just = "latest"
 jujutsu = "0.45"
+# formatters for `jj fix`
+taplo = "0.10"
+rumdl = "0.2"
+biome = "2.5"
