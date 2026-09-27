@@ -38,7 +38,9 @@ _dotfiles_repo_status() {
 add-zsh-hook chpwd _dotfiles_repo_status
 
 # --- history and cd -----------------------------------------------------------
-# Sharing and dedupe are already on (macOS /etc/zshrc, home-manager defaults).
+# Sharing and dedupe come from whatever owns ~/.zshrc: home-manager's
+# programs.zsh defaults on a Nix account, macOS's /etc/zshrc on a Mac without
+# it, and the base image's oh-my-zsh in the mise devcontainer.
 setopt EXTENDED_HISTORY HIST_REDUCE_BLANKS HIST_FIND_NO_DUPS
 setopt AUTO_CD
 alias ..='cd ..' ...='cd ../..'

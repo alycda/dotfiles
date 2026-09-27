@@ -11,26 +11,34 @@
   ...
 }:
 let
-  # Append a line to a file this profile doesn't own, once. ~/.zshrc and
-  # ~/.gitconfig belong to the image (or the user), so taking them over would
-  # clobber them. These are the exact lines mise adds, so an account that has
-  # run both never gets a line twice.
+  # Append a line to a file this profile doesn't own, once. ~/.gitconfig
+  # belongs to the user (identity lives there), so taking it over would clobber
+  # it. This is the exact line mise adds, so an account that has run both
+  # never gets it twice.
   appendLine = file: line: ''
     if ! grep -qxF ${lib.escapeShellArg line} ${file} 2>/dev/null; then
       run sh -c 'printf "%s\n" "$1" >> "$2"' _ ${lib.escapeShellArg line} ${file}
     fi
   '';
-  sessionVars = "${config.home.profileDirectory}/etc/profile.d/hm-session-vars.sh";
 in
 {
   home.packages = import ../lib/packages.nix { inherit pkgs; };
 
-  # mise sets EDITOR in [env]; here it reaches zsh through hm-session-vars.sh,
-  # sourced by the second ~/.zshrc line below.
+  # mise sets EDITOR in [env]; here it reaches zsh through ~/.zshenv, which
+  # sources hm-session-vars.sh.
   home.sessionVariables.EDITOR = "hx";
 
+  # home-manager owns zsh: ~/.zshenv and ~/.zshrc, with its history defaults
+  # and compinit. On an account set up by mise first (or an image's
+  # oh-my-zsh), it takes over: switch with -b to move the old ~/.zshrc aside.
+  # The settings are still the one plain file mise links, sourced after
+  # compinit (initContent's default order), which its ^X^R binding relies on.
+  programs.zsh = {
+    enable = true;
+    initContent = "source ${../tools/zsh/interactive.zsh}";
+  };
+
   xdg.configFile = {
-    "zsh/dotfiles.zsh".source = ../tools/zsh/interactive.zsh;
     "helix".source = ../tools/helix;
     "git/ignore".source = ../tools/git/ignore;
     # Not ~/.config/git/config: with no ~/.gitconfig, git writes
@@ -46,9 +54,7 @@ in
   };
 
   home.activation.dotfilesLines = lib.hm.dag.entryAfter [ "writeBoundary" ] (
-    appendLine "$HOME/.zshrc" "[[ -r ~/.config/zsh/dotfiles.zsh ]] && source ~/.config/zsh/dotfiles.zsh"
-    + appendLine "$HOME/.zshrc" "[[ -r ${sessionVars} ]] && source ${sessionVars}"
-    + appendLine "$HOME/.gitconfig" "[include] path = ~/.config/git/dotfiles.gitconfig"
+    appendLine "$HOME/.gitconfig" "[include] path = ~/.config/git/dotfiles.gitconfig"
   );
 
   programs.home-manager.enable = true;
