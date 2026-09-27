@@ -1,7 +1,8 @@
 # CI
 
-`lint.yml` runs on every push and pull request. Its checks need neither Nix
-nor mise. Actions are pinned to commit SHAs, with the tag in a comment.
+`lint.yml` and `test.yml` run on every push and pull request. They need
+neither Nix nor mise. Actions are pinned to commit SHAs, with the tag in a
+comment.
 
 ## editorconfig
 
@@ -25,3 +26,11 @@ CC-BY-4.0, as the README says, except code and config, which are MIT, and
 Markdown and cheatsheets, which stay CC-BY-4.0 wherever they sit. The texts are
 in `LICENSES/`. When a new kind of file fails this check, add it to the right
 annotation in `REUSE.toml`.
+
+## bats
+
+`test.yml` runs every [bats](https://github.com/bats-core/bats-core) suite in
+`tests/`, with the `just` version mise pins. `tests/huid-tasks.bats` checks the
+HUID task recipes against the spec in `tasks/README.md`: the HUID and its
+collision handling, the TASK.md template, `task-edit`, and every task already
+in the repo. Run them locally with `bats tests`.
