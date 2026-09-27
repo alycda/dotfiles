@@ -1,0 +1,4 @@
+Vendored unchanged from https://github.com/alycda/jj/tree/jj-stash/contrib/jj-stash
+at 1f1aafa6cc7072e21452860af7a54cfc74fb714b (2026-09-27, "contrib/jj-stash: drop
+blocks only on stashes that sit on it"). To update, copy the five files again
+from a newer commit and change the hash above.

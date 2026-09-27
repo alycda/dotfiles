@@ -15,6 +15,9 @@
 # so identity would land in the tracked config. conf.d is merged over it, so
 # this file must never carry a [user] block.
 "~/.config/jj/conf.d/dotfiles.toml" = { source = "tools/jujutsu/config", mode = "symlink" }
+# jj-stash (tools/jj-stash): park commit chains out of every jj UI. Needs
+# bash 4+, which mise can't supply: macOS's /bin/bash is 3.2.
+"~/.local/bin/jj-stash" = { source = "tools/jj-stash/jj-stash", mode = "symlink" }
 
 [env]
 EDITOR = "hx"

@@ -1,0 +1,463 @@
+#!/usr/bin/env bash
+# Park commit chains out of every jj UI, and bring them back unchanged.
+#
+#   jj-stash push NAME REVSET   park REVSET; children outside it are detached
+#   jj-stash list               parked chains, one line each
+#   jj-stash index              rewrite .claude/stashes/INDEX.md now
+#   jj-stash show NAME          the plaintext file, under a live line saying
+#                               what it needs and what needs it
+#   jj-stash pop [--with-deps] NAME
+#                               bring the chain back and drop the stash; refuses
+#                               while it sits on another stash, unless
+#                               --with-deps pops that one first
+#   jj-stash drop NAME          forget the stash without restoring it; refuses
+#                               while another stash sits on it
+#
+# A parked chain is two things:
+#   .claude/stashes/NAME.md
+#                         plaintext: every commit's description and full diff,
+#                         oldest first, with the parents it sat on. For reading
+#                         before deciding, and a fallback patch.
+#   refs/jj-stash/NAME/*  git refs on the chain's roots, heads and bookmarks,
+#                         and on the chain commits each detached child lost.
+#                         jj does not import refs outside refs/heads and
+#                         refs/tags, so the commits are invisible to jj log,
+#                         VisualJJ and jjk; the refs keep git gc from pruning
+#                         them. jj writes a change-id header into every git
+#                         commit, so pop restores the SAME commits: same change
+#                         IDs, same commit IDs unless a parent was rewritten
+#                         while parked, in which case the root is rebased onto
+#                         the parent's current version.
+#
+# .claude/stashes/INDEX.md lists every stash with what it needs, rewritten on
+# every push and pop. Dependencies change whenever another stash is parked or
+# popped, so they are never written into a stash's own file: text fixed at
+# park time would go stale the first time anything else moved.
+#
+# The plaintext lives in the MAIN repo's root, whichever workspace this runs
+# from, and must be ignored or jj would snapshot it into @. It is always listed
+# in .git/info/exclude, even when a committed .gitignore also covers it: jj
+# reads ignore rules from the files on disk, so checking out a commit older
+# than that .gitignore rule would snapshot every stash file into it, and moving
+# off that commit would then delete them.
+set -euo pipefail
+
+J() { jj --no-pager "$@"; }
+die() { printf 'jj-stash: %s\n' "$*" >&2; exit 1; }
+
+# Resolve the repo the way jj does, so this works from a secondary workspace
+# (which has no .git of its own): the workspace's .jj/repo is either the repo
+# or a relative pointer to it, and the store's git_target points at the git
+# directory. The main root is the directory holding .jj/repo.
+ws_root=$(J workspace root)
+repo=$ws_root/.jj/repo
+[ -f "$repo" ] && repo=$(cd "$ws_root/.jj" && cd "$(cat repo)" && pwd)
+main_root=$(dirname "$(dirname "$repo")")
+export GIT_DIR GIT_WORK_TREE=$main_root
+GIT_DIR=$(cd "$repo/store" && cd "$(cat git_target)" && pwd)
+stash_dir="$main_root/.claude/stashes"
+
+ensure_excluded() {
+  grep -qxF '.claude/stashes/' "$GIT_DIR/info/exclude" 2>/dev/null && return
+  mkdir -p "$GIT_DIR/info"
+  printf '\n# jj-stash plaintext. Here, not only in .gitignore: it must hold for\n# whatever commit is checked out, including ones older than that rule.\n.claude/stashes/\n' >>"$GIT_DIR/info/exclude"
+}
+
+# Bookmark-list template prefix: local, non-conflicted bookmarks only. A remote
+# that is tracked but was never pushed lists as name@origin with no target.
+local_bm='if(remote || conflict, "", '
+
+# A pattern with no glob is a prefix match, so bookmark/ also finds names with
+# slashes (issue/134); a trailing * would match one path component only.
+refs_of() { git for-each-ref --format='%(objectname) %(refname)' "refs/jj-stash/$1/$2"; }
+
+# --- dependencies between stashes ---------------------------------------------
+#
+# pop only knows each root's direct parent. If that parent is itself parked in
+# another stash, reviving this one drags it back into view as an ancestor while
+# the other stash still claims it, and an edit made then diverges when that
+# stash pops. Likewise a detached child (reattach/) that is parked elsewhere
+# cannot be reattached. So a stash DEPENDS on another when:
+#   - a root's parent is hidden and is a member of the other stash, or
+#   - a detached child is hidden and is a member of the other stash.
+# pop refuses until its dependencies are popped, or pops them first with
+# --with-deps. Everything is keyed by change ID, so it holds across rewrites.
+
+change_of() { git cat-file -p "$1" | sed -n 's/^change-id //p'; }
+
+stash_names() {
+  git for-each-ref --format='%(refname)' 'refs/jj-stash/*/head-0' |
+    sed 's#refs/jj-stash/##; s#/head-0##'
+}
+
+# Members of a stash: its roots, plus every commit on an ancestry path from a
+# root to a head. That is jj's roots::heads, and it leaves out the ancestors of
+# a merge's outside parent, which a plain rev-list heads ^parents would include.
+members() {
+  local r h
+  local -a roots heads
+  mapfile -t roots < <(refs_of "$1" 'root-*' | cut -d' ' -f1)
+  mapfile -t heads < <(refs_of "$1" 'head-*' | cut -d' ' -f1)
+  {
+    printf '%s\n' "${roots[@]}"
+    for r in "${roots[@]}"; do
+      for h in "${heads[@]}"; do git rev-list --ancestry-path "$r..$h"; done
+    done
+  } | sort -u
+}
+
+# owner[change ID] = stash, for every parked commit. Callers load it in the
+# main shell before using deps_of: deps_of runs in $(...) subshells, which
+# inherit the map but cannot keep one they build, so loading it there would
+# rebuild it on every call.
+declare -A owner
+owners_loaded=
+load_owners() {
+  [ -n "$owners_loaded" ] && return
+  local n c
+  for n in $(stash_names); do
+    for c in $(members "$n"); do owner[$(change_of "$c")]=$n; done
+  done
+  owners_loaded=1
+}
+
+visible_change() {
+  [ -n "$(J log -r "present(change_id($1)) ~ hidden()" --no-graph -T '"x"' 2>/dev/null)" ]
+}
+
+# The stashes NAME needs popped first, one per line. KIND narrows it to one of
+# the two reasons: roots (a root sits on a commit parked there) or reattach (a
+# detached child is parked there). drop tells them apart.
+deps_of() {
+  local name=$1 kind=${2:-all} root p ch
+  load_owners
+  {
+    [ "$kind" = reattach ] || while read -r root _; do
+      for p in $(git log -1 --format=%P "$root"); do
+        ch=$(change_of "$p")
+        [ -n "${owner[$ch]:-}" ] && [ "${owner[$ch]}" != "$name" ] && ! visible_change "$ch" &&
+          printf '%s\n' "${owner[$ch]}"
+      done
+    done < <(refs_of "$name" 'root-*')
+    [ "$kind" = roots ] || for ch in $(git for-each-ref --format='%(refname)' "refs/jj-stash/$name/reattach/" |
+      sed "s#refs/jj-stash/$name/reattach/##; s#/[0-9]*\$##" | sort -u); do
+      [ -n "${owner[$ch]:-}" ] && [ "${owner[$ch]}" != "$name" ] && ! visible_change "$ch" &&
+        printf '%s\n' "${owner[$ch]}"
+    done
+    true   # a false test above must not become the block's status under pipefail
+  } | sort -u
+}
+
+# The stashes that need NAME popped first, one per line; KIND as for deps_of.
+needed_by() {
+  local other
+  for other in $(stash_names); do
+    [ "$other" = "$1" ] && continue
+    deps_of "$other" "${2:-all}" | grep -qxF "$1" && printf '%s\n' "$other"
+  done
+  true
+}
+
+# Rewrite INDEX.md from the refs. Called after every push and pop, which are the
+# only things that change what is parked.
+write_index() {
+  local n needs meta sits
+  owner=(); owners_loaded=; load_owners
+  ensure_excluded
+  mkdir -p "$stash_dir"
+  {
+    printf '# Parked chains\n\n'
+    printf 'Generated by jj-stash on every push and pop; edits here are overwritten.\n'
+    printf 'Pop a stash only after everything in its **needs** column, or use\n'
+    printf '`jj-stash pop --with-deps NAME`.\n\n'
+    if [ -z "$(stash_names)" ]; then
+      printf 'Nothing is parked.\n'
+    else
+      printf '| stash | commits | parked | sits on | needs |\n|---|---|---|---|---|\n'
+      for n in $(stash_names); do
+        needs=$(deps_of "$n" | paste -sd, - | sed 's/,/, /g')
+        meta="$stash_dir/$n.md"
+        sits=$(sed -n '/^## Sits on/,/^## /{/^- /{s/^- //;p;};}' "$meta" 2>/dev/null | paste -sd';' - | sed 's/;/; /g; s/|/\\|/g')
+        printf '| [%s](%s.md) | %s | %s | %s | %s |\n' "$n" "$n" \
+          "$(sed -n 's/^- commits: //p' "$meta" 2>/dev/null)" \
+          "$(sed -n 's/^- parked: //p' "$meta" 2>/dev/null)" \
+          "${sits:-?}" "${needs:-}"
+      done
+    fi
+  } >"$stash_dir/INDEX.md"
+}
+
+show() {
+  local name=$1 needs by
+  [ -n "$(git for-each-ref "refs/jj-stash/$name/")" ] || die "no stash named $name"
+  load_owners
+  needs=$(deps_of "$name" | paste -sd, - | sed 's/,/, /g')
+  by=$(needed_by "$name" | paste -sd, - | sed 's/,/, /g')
+  printf '> needs: %s\n> needed by: %s\n> (worked out now, from what is parked at this moment)\n\n' \
+    "${needs:-nothing}" "${by:-nothing}"
+  cat "$stash_dir/$name.md"
+}
+
+push() {
+  local name=$1 revset=$2
+  [[ $name =~ ^[A-Za-z0-9._-]+$ ]] || die "name must be [A-Za-z0-9._-]"
+  [ "$name" != INDEX ] || die "INDEX is reserved for .claude/stashes/INDEX.md"
+  [ -z "$(git for-each-ref "refs/jj-stash/$name/")" ] || die "a stash named $name already exists"
+
+  local count
+  count=$(J log -r "$revset" --no-graph -T '"x\n"' | wc -l | tr -d ' ')
+  [ "$count" -gt 0 ] || die "$revset is empty"
+
+  # A child outside the chain (typically a merge that collects several lanes)
+  # stays, minus the chain: it is rebased onto its other parents now and gets
+  # the chain back as parents on pop. A child with no parent outside the chain
+  # has nowhere to go, so refuse: park it too, or narrow the revset.
+  local stray child keep
+  for child in $(J log -r "children($revset) ~ ($revset)" --no-graph -T 'commit_id ++ "\n"'); do
+    keep=$(J log -r "parents($child) ~ ($revset)" --no-graph -T '"x"')
+    [ -n "$keep" ] || stray+=$(J log -r "$child" --no-graph \
+      -T 'change_id.short() ++ " " ++ description.first_line() ++ "\n"')
+  done
+  [ -z "${stray:-}" ] || die "$revset would leave these with no parent; add them or narrow it:
+$stray"
+  local wc
+  wc=$(J log -r "($revset) & working_copies()" --no-graph -T 'working_copies ++ "\n"')
+  [ -z "$wc" ] || die "$revset contains a working copy ($wc); move it off first"
+  J log -r "($revset) & immutable()" --no-graph -T '"x"' | grep -q x && die "$revset contains immutable commits"
+
+  # All or nothing: until the chain is abandoned, any failure restores the
+  # operation this started from and removes what was written.
+  local op0
+  op0=$(J op log --limit 1 --no-graph -T 'id')
+  trap 'J op restore "'"$op0"'" >/dev/null 2>&1; git for-each-ref --format="%(refname)" "refs/jj-stash/'"$name"'/" | xargs -n1 git update-ref -d 2>/dev/null; rm -f "'"$stash_dir/$name.md"'"; printf "jj-stash: push failed; restored the repo to where it was\n" >&2' EXIT
+
+  ensure_excluded
+  mkdir -p "$stash_dir"
+  local file="$stash_dir/$name.md"
+
+  {
+    printf '# stash: %s\n\n' "$name"
+    printf -- '- parked: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf -- '- revset: `%s`\n' "$revset"
+    printf -- '- commits: %s\n' "$count"
+    printf -- '- restore: `jj-stash pop %s`\n\n' "$name"
+    printf '## Sits on\n\n'
+    J log -r "roots($revset)-" --no-graph \
+      -T '"- " ++ change_id.short() ++ " " ++ description.first_line() ++ "\n"'
+    printf '\n## Bookmarks\n\n'
+    J bookmark list -r "$revset" -T "$local_bm"'"- " ++ name ++ "\n")' 2>/dev/null || true
+    printf '\n## Detached from (these stay; pop adds the chain back as a parent)\n\n'
+    J log -r "children($revset) ~ ($revset)" --no-graph \
+      -T '"- " ++ change_id.short() ++ " " ++ description.first_line() ++ "\n"'
+    printf '\n## Commits, oldest first\n'
+    local c
+    for c in $(J log -r "$revset" --reversed --no-graph -T 'commit_id ++ "\n"'); do
+      J log -r "$c" --no-graph \
+        -T '"\n### " ++ change_id.short() ++ " " ++ if(description, description.first_line(), "(no description)") ++ "\n\n- change: " ++ change_id ++ "\n- commit: " ++ commit_id ++ "\n- parents: " ++ parents.map(|p| p.change_id().short()).join(" ") ++ "\n- author: " ++ author.name() ++ " " ++ author.timestamp().format("%Y-%m-%d %H:%M") ++ "\n\n" ++ description ++ "\n"'
+      printf '```diff\n'
+      J diff -r "$c" --git
+      printf '```\n'
+    done
+  } >"$file"
+
+  local c i=0
+  for c in $(J log -r "roots($revset)" --no-graph -T 'commit_id ++ "\n"'); do
+    git update-ref "refs/jj-stash/$name/root-$((i++))" "$c"
+  done
+  i=0
+  for c in $(J log -r "heads($revset)" --no-graph -T 'commit_id ++ "\n"'); do
+    git update-ref "refs/jj-stash/$name/head-$((i++))" "$c"
+  done
+  J bookmark list -r "$revset" -T "$local_bm"'name ++ " " ++ normal_target.commit_id() ++ "\n")' 2>/dev/null |
+    while read -r b c; do git update-ref "refs/jj-stash/$name/bookmark/$b" "$c"; done
+
+  # Detach outside children. The ref path carries the child's change ID; each
+  # ref points at a chain commit that was one of its parents.
+  local p args chg
+  for child in $(J log -r "children($revset) ~ ($revset)" --no-graph -T 'commit_id ++ "\n"'); do
+    chg=$(J log -r "$child" --no-graph -T 'change_id')
+    i=0
+    for p in $(J log -r "parents($child) & ($revset)" --no-graph -T 'commit_id ++ "\n"'); do
+      git update-ref "refs/jj-stash/$name/reattach/$chg/$((i++))" "$p"
+    done
+    args=()
+    for p in $(git log -1 --format=%P "$child"); do
+      J log -r "$p & ($revset)" --no-graph -T '"x"' | grep -q x || args+=(-o "$p")
+    done
+    J rebase -s "$child" "${args[@]}" >/dev/null
+  done
+
+  J abandon "$revset" >/dev/null
+  trap - EXIT
+  printf 'parked %s commits as %s\n  read: %s\n' "$count" "$name" "${file#"$main_root"/}"
+
+  # Say so if other stashes now depend on this one: they sit on it, or a child
+  # they detached from is in it. pop enforces the order; this is the heads-up.
+  local other
+  owner=(); owners_loaded=; load_owners   # this push changed what is parked
+  for other in $(stash_names); do
+    [ "$other" = "$name" ] && continue
+    deps_of "$other" | grep -qxF "$name" &&
+      printf 'note: %s depends on this stash; pop %s before %s (or: jj-stash pop --with-deps %s)\n' \
+        "$other" "$name" "$other" "$other" >&2
+  done
+  return 0
+}
+
+popping=
+pop() {
+  local name=$1 with_deps=${2:-}
+  [ -n "$(git for-each-ref "refs/jj-stash/$name/")" ] || die "no stash named $name"
+  case " $popping " in *" $name "*) die "dependency cycle through $name:$popping" ;; esac
+
+  local deps d
+  load_owners
+  deps=$(deps_of "$name")
+  if [ -n "$deps" ]; then
+    [ -n "$with_deps" ] || die "$name sits on commits parked in another stash; pop that first:
+$(printf '  jj-stash pop %s\n' $deps)
+or pop them all in order with: jj-stash pop --with-deps $name"
+    popping+=" $name"
+    for d in $deps; do
+      # A dependency popped earlier in this run is no longer a stash.
+      [ -n "$(git for-each-ref "refs/jj-stash/$d/")" ] && pop "$d" --with-deps
+    done
+    popping=${popping% "$name"}
+  fi
+
+  # 1. Before anything is revived, note the current version of every parent
+  #    the roots sat on. Reviving brings the old versions back too, and then
+  #    change_id() would be ambiguous.
+  declare -A current
+  local root p ch now
+  while read -r root _; do
+    for p in $(git log -1 --format=%P "$root"); do
+      ch=$(git cat-file -p "$p" | sed -n 's/^change-id //p')
+      now=$(J log -r "present(change_id($ch)) ~ hidden()" --no-graph -T 'commit_id' 2>/dev/null || true)
+      current[$p]=${now:-$p}   # parent itself abandoned since: keep the original
+    done
+  done < <(refs_of "$name" 'root-*')
+
+  # 2. Revive the exact commits: a bookmark on a hidden commit makes it and its
+  #    ancestors visible again, and stays visible after the bookmark goes.
+  local head
+  while read -r head _; do
+    J bookmark create "jj-stash-tmp" -r "$head" >/dev/null
+    J bookmark delete "jj-stash-tmp" >/dev/null
+  done < <(refs_of "$name" 'head-*')
+
+  # 3. Any root whose parent was rewritten while parked moves onto the current
+  #    version; its descendants follow.
+  local args moved
+  while read -r root _; do
+    args=(); moved=
+    for p in $(git log -1 --format=%P "$root"); do
+      args+=(-o "${current[$p]}")
+      [ "${current[$p]}" = "$p" ] || moved=1
+    done
+    [ -z "$moved" ] || J rebase -s "$root" "${args[@]}" >/dev/null
+  done < <(refs_of "$name" 'root-*')
+
+  # 3b. Reviving brought back the OLD version of any parent that was rewritten
+  #     while parked (ancestors of a visible commit are visible). With the
+  #     chain moved off it, that copy is a childless duplicate of a live
+  #     change; abandon it. Only a childless one: anything else still has a
+  #     reason to be visible.
+  for p in "${!current[@]}"; do
+    [ "${current[$p]}" != "$p" ] || continue
+    if J log -r "$p & visible_heads()" --no-graph -T '"x"' 2>/dev/null | grep -q x; then
+      J abandon "$p" >/dev/null
+    fi
+  done
+
+  # 4. Bookmarks, by change ID so they follow a rebase.
+  local c b
+  while read -r c ref; do
+    b=${ref#"refs/jj-stash/$name/bookmark/"}
+    ch=$(git cat-file -p "$c" | sed -n 's/^change-id //p')
+    J bookmark set "$b" -r "change_id($ch)" --allow-backwards >/dev/null
+  done < <(refs_of "$name" 'bookmark/')
+
+  # 5. Reattach: children that were detached from the chain get it back as
+  #    parents, appended after their current ones. Skipped, with a note, if the
+  #    child has been abandoned since.
+  local chgs parent_chg args
+  chgs=$(git for-each-ref --format='%(refname)' "refs/jj-stash/$name/reattach/" |
+    sed "s#refs/jj-stash/$name/reattach/##; s#/[0-9]*\$##" | sort -u)
+  for chg in $chgs; do
+    child=$(J log -r "present(change_id($chg)) ~ hidden()" --no-graph -T 'commit_id' 2>/dev/null || true)
+    if [ -z "$child" ]; then
+      printf 'jj-stash: %s no longer exists; not reattached\n' "$chg" >&2
+      continue
+    fi
+    args=()
+    for p in $(J log -r "parents($child)" --no-graph -T 'commit_id ++ "\n"'); do args+=(-o "$p"); done
+    while read -r c _; do
+      parent_chg=$(git cat-file -p "$c" | sed -n 's/^change-id //p')
+      args+=(-o "change_id($parent_chg)")
+    done < <(refs_of "$name" "reattach/$chg/*")
+    J rebase -s "$child" "${args[@]}" >/dev/null
+  done
+
+  git for-each-ref --format='%(refname)' "refs/jj-stash/$name/" | xargs -n1 git update-ref -d
+  rm -f "$stash_dir/$name.md"
+  printf 'restored %s\n' "$name"
+  owner=(); owners_loaded=
+}
+
+# Forget a stash: delete its refs and plaintext, leave the commits abandoned.
+# Refuses while another stash's roots sit on commits in this one: pop revives a
+# chain by pointing a bookmark at its heads, which makes every ancestor
+# visible, so popping that stash would silently bring the dropped commits back.
+# A stash that only detached a child now parked here (a lane cut out of a
+# merge) is no reason to refuse: its pop skips a child that no longer exists
+# and brings back nothing of this stash. That is only warned about.
+#
+# Without the refs, only jj's own operation log keeps the commits from git gc,
+# so they stay recoverable by commit ID until `jj util gc` expires them. The
+# heads are printed for that.
+drop() {
+  local name=$1 by lose heads count
+  [ -n "$(git for-each-ref "refs/jj-stash/$name/")" ] || die "no stash named $name"
+  load_owners
+  by=$(needed_by "$name" roots)
+  [ -z "$by" ] || die "these stashes sit on commits in $name; popping them later would bring $name back:
+$(printf '  %s\n' $by)
+drop or pop them first"
+  lose=$(needed_by "$name" reattach)
+
+  heads=$(refs_of "$name" 'head-*' | cut -d' ' -f1)
+  count=$(members "$name" | wc -l | tr -d ' ')
+  git for-each-ref --format='%(refname)' "refs/jj-stash/$name/" | xargs -n1 git update-ref -d
+  rm -f "$stash_dir/$name.md"
+  printf 'dropped %s (%s commits)\n  until jj util gc, recover with: jj new %s\n' \
+    "$name" "$count" "$(printf '%s\n' $heads | cut -c1-12 | paste -sd' ' -)"
+  [ -z "$lose" ] || printf 'note: these were detached from commits in %s and will pop without being reattached:\n%s\n' \
+    "$name" "$(printf '  %s\n' $lose)" >&2
+  owner=(); owners_loaded=
+}
+
+list() {
+  local n
+  load_owners
+  for n in $(git for-each-ref --format='%(refname)' 'refs/jj-stash/*/head-0' | sed 's#refs/jj-stash/##; s#/head-0##'); do
+    local needs
+    needs=$(deps_of "$n" | paste -sd, -)
+    printf '%-24s %s%s\n' "$n" "$(sed -n 's/^- commits: /commits: /p; s/^- parked: /parked: /p' "$stash_dir/$n.md" 2>/dev/null | paste -sd' ' -)" \
+      "${needs:+  needs: $needs}"
+  done
+}
+
+case ${1:-} in
+  push) [ $# -eq 3 ] || die "usage: jj-stash push NAME REVSET"; push "$2" "$3"; write_index ;;
+  pop)
+    if [ "${2:-}" = --with-deps ] && [ $# -eq 3 ]; then pop "$3" --with-deps
+    elif [ $# -eq 2 ]; then pop "$2"
+    else die "usage: jj-stash pop [--with-deps] NAME"; fi
+    write_index ;;
+  drop) [ $# -eq 2 ] || die "usage: jj-stash drop NAME"; drop "$2"; write_index ;;
+  show) [ $# -eq 2 ] || die "usage: jj-stash show NAME"; show "$2" ;;
+  index) write_index; printf 'wrote %s\n' "${stash_dir#"$main_root"/}/INDEX.md" ;;
+  list) list ;;
+  *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

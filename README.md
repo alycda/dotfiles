@@ -15,6 +15,14 @@ out and octopus-merges, are in [tasks/README.md](tasks/README.md).
 Open tasks are listed in VS Code's Explorer by the extension in
 [extensions/vscode-huid-tasks](extensions/vscode-huid-tasks/README.md).
 
+## jj-stash
+
+[tools/jj-stash](tools/jj-stash/README.md) parks chains of commits out of every
+jj UI (`jj log`, VisualJJ, jjk) and restores them unchanged: `push`, `list`,
+`show`, `index`, `pop` and `drop`. It's vendored from the jj fork (see
+`tools/jj-stash/UPSTREAM`), and mise links it into `~/.local/bin`. It needs
+bash 4 or later, which mise can't supply: macOS's `/bin/bash` is 3.2.
+
 ## License
 
 Except where otherwise noted, this work is licensed under a
