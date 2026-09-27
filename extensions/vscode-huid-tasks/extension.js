@@ -16,7 +16,8 @@ class TaskProvider {
   }
 
   refresh() {
-    this._onDidChange.fire();
+    // undefined means "the whole tree"; the 1.74 typings require the argument.
+    this._onDidChange.fire(undefined);
   }
 
   getTreeItem(item) {
