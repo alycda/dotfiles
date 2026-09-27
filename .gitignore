@@ -22,4 +22,8 @@ result-*
 ._*
 
 
+## VS Code
+*.vsix
+
+
 ## --
