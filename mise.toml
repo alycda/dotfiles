@@ -6,6 +6,10 @@
 "~/.config/zsh/dotfiles.zsh" = { source = "tools/zsh/interactive.zsh", mode = "symlink" }
 "~/.zshrc/dotfiles" = { line = "[[ -r ~/.config/zsh/dotfiles.zsh ]] && source ~/.config/zsh/dotfiles.zsh" }
 "~/.config/git/ignore" = { source = "tools/git/ignore", mode = "symlink" }
+# Not a symlink to ~/.config/git/config: with no ~/.gitconfig, git writes
+# `git config --global` there, which would put identity in the tracked file.
+"~/.config/git/dotfiles.gitconfig" = { source = "tools/git/config", mode = "symlink" }
+"~/.gitconfig/dotfiles" = { line = "[include] path = ~/.config/git/dotfiles.gitconfig" }
 
 [tools]
 just = "latest"
