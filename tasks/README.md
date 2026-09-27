@@ -41,7 +41,15 @@ Markdown.
 Markdown.
 
 `just task "Some title"` creates a directory with a fresh HUID and seeds this
-file, retrying once if the second is already taken.
+file, retrying once if the second is already taken. `just task-edit` also opens
+it in `$EDITOR`.
+
+The recipes are global (`just -g task` works in any repo), so a repo that can't
+track HUIDs gets them in `.tasks/` instead, which the global git ignore keeps
+untracked. `TASKS_DIR` overrides where they go.
+
+`scripts/` is the one directory here that isn't a task. It holds the commands
+the recipes call, which mise puts on `PATH`.
 
 Adapted from [tatr](https://github.com/tsoding/tatr#huid) and
 [trask](https://github.com/marcsantiago/trask).

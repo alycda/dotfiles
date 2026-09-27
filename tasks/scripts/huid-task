@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# huid-task TITLE: create a task named with a UTC HUID and seed its TASK.md.
+# Prints the new TASK.md's path on stdout, so other commands can compose it.
+#
+# Writes to tasks/ when the current directory has one. Otherwise to .tasks/,
+# which the global git ignore keeps out of repos that can't track HUIDs.
+# TASKS_DIR overrides both.
+set -euo pipefail
+
+title="${1:?usage: huid-task TITLE}"
+if [ -n "${TASKS_DIR:-}" ]; then
+  dir="$TASKS_DIR"
+elif [ -d tasks ]; then
+  dir=tasks
+else
+  dir=.tasks
+fi
+mkdir -p "$dir"
+
+id="$(date -u +%Y%m%d-%H%M%S)"
+if [ -e "$dir/$id" ]; then
+  # HUIDs are only unique at human speed. The documented remedy for a
+  # collision is to wait one second and generate a new one.
+  sleep 1
+  id="$(date -u +%Y%m%d-%H%M%S)"
+fi
+if [ -e "$dir/$id" ]; then
+  echo "HUID still colliding on $id; use an explicit suffix" >&2
+  exit 1
+fi
+
+mkdir "$dir/$id"
+printf '# %s\n\n- STATUS: OPEN\n- TAGS:\n\n## Description\n\n' "$title" > "$dir/$id/TASK.md"
+printf '%s\n' "$dir/$id/TASK.md"
