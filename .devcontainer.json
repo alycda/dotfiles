@@ -7,7 +7,8 @@
         "ghcr.io/devcontainers/features/nix:1": {
             // equivalent to `nix profile add` for critical
             "packages": [
-                "jujutsu"
+                "jujutsu",
+                "just"
             ]
         }
     },
@@ -31,7 +32,7 @@
                 // disable copilot
                 "chat.disableAIFeatures": true,
                 "editor.rulers": [80],
-                "editor.wordWrap": "on",                
+                "editor.wordWrap": "on",
                 "files.exclude": {
                     "**/.jj": true
                 },

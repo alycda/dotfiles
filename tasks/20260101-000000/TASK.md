@@ -3,9 +3,9 @@
 - STATUS: OPEN
 - TAGS: devcontainer, nix, mise, vscode, docker, bootstrap
 
-# Description
+## Description
 
-Reproducibility and testing Nix (and mise) without rebuilding on the live 
+Reproducibility and testing Nix (and mise) without rebuilding on the live
 account while applications and services are running.
 
 ## Why multiple?
@@ -16,4 +16,4 @@ account while applications and services are running.
 ## Layout
 
 - `.devcontainer.json` (Nix)
-- `.devcontainer/mise/devcontainer.json`, 
+- `.devcontainer/mise/devcontainer.json`,
