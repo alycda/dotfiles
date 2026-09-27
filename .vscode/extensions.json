@@ -2,6 +2,8 @@
     "recommendations": [
         "davidanson.vscode-markdownlint",
         "editorconfig.editorconfig",
+        "jnoortheen.nix-ide",
+        "ms-vscode-remote.remote-containers",
         "skellock.just"
     ]
 }

@@ -25,7 +25,7 @@ task title:
         exit 1
     fi
     mkdir -p "${id}"
-    printf '# %s\n\n- STATUS: OPEN\n- TAGS:\n\n# Description\n\n' {{ quote(title) }} > "${id}/TASK.md"
+    printf '# %s\n\n- STATUS: OPEN\n- TAGS:\n\n## Description\n\n' {{ quote(title) }} > "${id}/TASK.md"
     printf '%s\n' "${id}/TASK.md"
 
 # Package the HUID Tasks VS Code extension and install it into VS Code.
