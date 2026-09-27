@@ -18,6 +18,15 @@ the item's text.
 - `.devcontainer-lock.json`: written by the devcontainer CLI.
 - `tools/jj-stash/`: vendored, kept identical to upstream.
 
+## shellcheck
+
+`shellcheck` (a pinned release, verified by checksum) runs on every shell
+script that `.github/scripts/shell-files` finds: `*.sh` and `*.bats` files,
+and anything whose shebang runs sh, bash, dash, ksh or bats. zsh is left out
+(shellcheck doesn't support it), and so is the vendored `tools/jj-stash/`. The
+shell inside `justfile` recipes isn't a file, so it isn't checked. Run it
+locally with `.github/scripts/shell-files -0 | xargs -0 shellcheck`.
+
 ## reuse
 
 `reuse lint` checks that every file declares its license and copyright.

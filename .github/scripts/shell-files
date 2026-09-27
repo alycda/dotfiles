@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# shell-files: print every shell script shellcheck should check, one per line
+# (-0: NUL-separated). A script is a *.sh or *.bats file, or any file whose
+# shebang runs sh, bash, dash, ksh or bats. zsh is left out, since shellcheck
+# doesn't support it, and so is tools/jj-stash/, which is vendored and kept
+# identical to upstream.
+#
+# Lists what git sees: tracked files plus new ones that aren't ignored, so it
+# gives the same answer locally as in CI.
+set -euo pipefail
+
+if [ "${1:-}" = -0 ]; then sep='\0' sort=(sort -uz); else sep='\n' sort=(sort -u); fi
+
+cd "$(git rev-parse --show-toplevel)"
+git ls-files -z --cached --others --exclude-standard | while IFS= read -r -d '' f; do
+  [ -f "$f" ] || continue
+  case "$f" in
+    tools/jj-stash/*) continue ;;
+    *.sh | *.bats) ;;
+    *) head -n 1 "$f" | grep -Eq '^#!.*[/ ](sh|bash|dash|ksh|bats)([[:space:]]|$)' || continue ;;
+  esac
+  printf "%s$sep" "$f"
+done | "${sort[@]}"
