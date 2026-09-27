@@ -10,13 +10,27 @@ function parseHuid(id) {
   const m = HUID.exec(id);
   if (!m) return undefined;
   const [, y, mo, d, h, mi, s] = m.map(Number);
-  return new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+  const date = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+  // Date.UTC rolls an out-of-range field over (month 13 becomes next year's
+  // January), so a HUID is a real time only if every field survives.
+  const real =
+    date.getUTCFullYear() === y &&
+    date.getUTCMonth() === mo - 1 &&
+    date.getUTCDate() === d &&
+    date.getUTCHours() === h &&
+    date.getUTCMinutes() === mi &&
+    date.getUTCSeconds() === s;
+  return real ? date : undefined;
 }
 
-/** Parse the header of a TASK.md; only the title and STATUS matter here. */
+/**
+ * Parse the header of a TASK.md; only the title and STATUS matter here.
+ * STATUS is returned as written: tasks/README.md allows only OPEN or CLOSED,
+ * so `open` is not OPEN.
+ */
 function parseTask(text) {
   const title = /^#\s+(.+)$/m.exec(text)?.[1].trim();
-  const status = /^-\s*STATUS:\s*(\S+)/m.exec(text)?.[1].toUpperCase();
+  const status = /^-\s*STATUS:\s*(\S+)/m.exec(text)?.[1];
   return { title, status };
 }
 
