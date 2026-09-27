@@ -8,3 +8,4 @@
 
 [tools]
 just = "latest"
+jujutsu = "0.45"
