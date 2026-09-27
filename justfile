@@ -34,13 +34,24 @@ task title:
 #
 # Package the HUID Tasks VS Code extension and install it into VS Code.
 [working-directory: "extensions/vscode-huid-tasks"]
-vscode-tasks-install:
+_vscode-tasks-install:
     #!/usr/bin/env bash
     set -euo pipefail
-    vsce=(npx --yes @vscode/vsce package --no-dependencies --skip-license --allow-missing-repository -o huid-tasks.vsix)
-    if command -v npx >/dev/null; then
-        "${vsce[@]}"
+    stage="$(mktemp -d)"
+    trap 'rm -rf "$stage"' EXIT
+    mkdir "$stage/extension"
+    cp package.json extension.js README.md "$stage/extension/"
+    (cd "$stage" && zip -qr huid-tasks.vsix extension)
+    # `code` works on the desktop and in a VS Code terminal. In a devcontainer
+    # lifecycle command it is the base image's wrapper, which exits 127 because
+    # VS Code only puts its CLI on the terminal's PATH. The server's own CLI
+    # installs into the same extensions dir; take the newest server.
+    if code --version >/dev/null 2>&1; then
+        cli=code
     else
-        nix --extra-experimental-features 'nix-command flakes' shell nixpkgs#nodejs --command "${vsce[@]}"
+        shopt -s nullglob
+        servers=(~/.vscode-server/bin/*/bin/code-server ~/.vscode-server/cli/servers/*/server/bin/code-server)
+        [ ${#servers[@]} -gt 0 ] || { echo "no VS Code CLI: neither code nor a VS Code server found" >&2; exit 127; }
+        cli="$(ls -t "${servers[@]}" | head -1)"
     fi
-    code --install-extension huid-tasks.vsix --force
+    "$cli" --install-extension "$stage/huid-tasks.vsix" --force

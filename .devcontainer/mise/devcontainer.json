@@ -61,5 +61,13 @@
     },
 
     // https://code.visualstudio.com/docs/sourcecontrol/faq#_why-is-vs-code-warning-me-that-the-git-repository-is-potentially-unsafe
-    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+
+    // Install the HUID Tasks extension from this checkout on every attach, so
+    // the container always runs the checked-out version. postAttach, not
+    // postCreate: the recipe installs through the VS Code server's CLI, which
+    // only exists once VS Code has attached. Through `mise exec` because
+    // lifecycle commands run in a plain /bin/sh where mise isn't activated, so
+    // `just` isn't on PATH.
+    "postAttachCommand": "~/.local/bin/mise exec -- just _vscode-tasks-install"
 }
