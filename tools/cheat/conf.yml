@@ -1,0 +1,10 @@
+# cheat config for this repo only: mise.toml points CHEAT_CONFIG_PATH here, and
+# mise sets that only inside the checkout. No cheatpaths of its own: cheat
+# finds .cheat/ by walking up from the current directory.
+---
+editor: hx
+colorize: true
+style: monokai
+formatter: terminal256
+pager: bat --paging=auto
+cheatpaths: []
