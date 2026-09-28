@@ -5,14 +5,23 @@
 # doesn't support it, and so is tools/jj-stash/, which is vendored and kept
 # identical to upstream.
 #
-# Lists what git sees: tracked files plus new ones that aren't ignored, so it
-# gives the same answer locally as in CI.
+# Lists the checkout's files: jj's from a jj workspace, else git's (tracked
+# plus new ones that aren't ignored), so it gives the same answer locally as in
+# CI. jj comes first because a secondary jj workspace has no .git of its own:
+# git would answer for whichever checkout it finds above it.
 set -euo pipefail
 
 if [ "${1:-}" = -0 ]; then sep='\0' sort=(sort -uz); else sep='\n' sort=(sort -u); fi
 
-cd "$(git rev-parse --show-toplevel)"
-git ls-files -z --cached --others --exclude-standard | while IFS= read -r -d '' f; do
+if root="$(jj root 2>/dev/null)"; then
+  cd "$root"
+  list() { jj file list | tr '\n' '\0'; }
+else
+  cd "$(git rev-parse --show-toplevel)"
+  list() { git ls-files -z --cached --others --exclude-standard; }
+fi
+
+list | while IFS= read -r -d '' f; do
   [ -f "$f" ] || continue
   case "$f" in
     tools/jj-stash/*) continue ;;

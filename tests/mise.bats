@@ -12,7 +12,8 @@ setup() {
   # mise also loads every mise.toml in the directories above, so a checkout
   # nested in another (a jj workspace under .claude/worktrees/) would pick up
   # the outer one's [dotfiles]. Stop the search at the repo.
-  export MISE_CEILING_PATHS="$(dirname "$repo")"
+  MISE_CEILING_PATHS="$(dirname "$repo")"
+  export MISE_CEILING_PATHS
   mise trust --quiet "$repo" >/dev/null 2>&1
 }
 
