@@ -15,7 +15,7 @@ Plain CommonJS, no dependencies, no build step.
 - Develop: open this repo in VS Code and run the "Run HUID Tasks extension"
   launch configuration (F5). It opens an Extension Development Host on this
   workspace.
-- Install: `just _vscode-tasks-install` packages a VSIX with `@vscode/vsce` and
-  installs it with `code --install-extension`. Node is needed only for that
-  packaging step; if `npx` is not on `PATH`, the recipe runs it under
-  `nix shell nixpkgs#nodejs` instead.
+- Install: `huid-tasks-vscode` (in `tasks/scripts/`) zips the extension into a
+  VSIX and installs it with `code --install-extension`, or with the VS Code
+  server's CLI in a devcontainer. No Node is needed. It runs after every
+  `mise install`, and on attach in both devcontainers.

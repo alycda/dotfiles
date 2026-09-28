@@ -6,6 +6,12 @@
 .jj/
 
 
+## Tasks
+# HUID tasks in a repo that can't track them: `just task` writes to .tasks/
+# when the repo has no tasks/ directory.
+.tasks/
+
+
 ## macOS
 # https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
 #
