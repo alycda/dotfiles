@@ -50,7 +50,12 @@ in jj and git repositories. `tests/mise.bats` checks the root `mise.toml`: it's
 formatted, its `[dotfiles]` apply to a clean HOME and a second apply changes
 nothing, zsh started there gets the config, and a bad version pin fails an
 install (a dry run only warns, so the job's real `mise install` is the check).
-Run them locally with `bats tests`.
+`tests/import-issue.bats` checks `just import-issue` against a stubbed `gh`:
+the HUID from when the issue was opened, the TASK.md for open and closed
+issues, argument checks, and importing twice or into a taken second. One test
+sends the real query to GitHub. It runs only when `GH_TOKEN` is set, which
+the job sets from its own token. Run them locally with `bats tests`, or
+`GH_TOKEN="$(gh auth token)" bats tests` to include that test.
 
 ## devcontainer
 
