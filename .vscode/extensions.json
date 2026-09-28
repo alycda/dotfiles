@@ -4,6 +4,7 @@
         "davidanson.vscode-markdownlint",
         "editorconfig.editorconfig",
         "foxundermoon.shell-format",
+        "graphql.vscode-graphql-syntax",
         "jnoortheen.nix-ide",
         "ms-vscode-remote.remote-containers",
         "skellock.just",

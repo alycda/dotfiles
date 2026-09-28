@@ -100,6 +100,8 @@ STUB
   shopt -s nullglob
   for dir in "$repo"/tasks/*/; do
     id="$(basename "$dir")"
+    # The README's one exception: tooling, not a task.
+    [ "$id" = scripts ] && continue
     [[ $id =~ ^[0-9]{8}-[0-9]{6}(-[a-zA-Z0-9-]*)?$ ]] || { echo "not a HUID: $id"; return 1; }
     [ -f "$dir/TASK.md" ] || { echo "no TASK.md: $id"; return 1; }
     head -n 1 "$dir/TASK.md" | grep -q '^# ' || { echo "no title: $id"; return 1; }
