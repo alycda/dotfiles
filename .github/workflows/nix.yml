@@ -75,17 +75,14 @@ jobs:
           switch -b backup --flake path:.#vscode@x86_64-linux
       - name: The old ~/.zshrc was moved aside
         run: sudo grep -q oh-my-zsh /home/vscode/.zshrc.backup
-      # compinit refuses completion dirs that are writable by, or owned by,
-      # someone other than root and the user. The runner image has some, and
-      # without a terminal to ask "continue?", compinit aborts. The
-      # devcontainer image has none, so this is the runner's to fix: list
-      # them, then hand them to root.
-      - name: Secure what compaudit flags
-        run: |
-          dirs="$(sudo -u vscode -H zsh -i -c 'autoload -Uz compaudit; compaudit' 2> /dev/null || true)"
-          printf '%s\n' "${dirs:-none}"
-          [ -n "$dirs" ] || exit 0
-          printf '%s\n' "$dirs" | xargs -r -d '\n' sudo chown root:root
-          printf '%s\n' "$dirs" | xargs -r -d '\n' sudo chmod go-w
+      # The runner has completion dirs compaudit rejects (as a Mac with
+      # another account's Homebrew does). The profile's compinit -i skips
+      # them, so zsh must start without compinit saying anything.
       - name: Interactive zsh
-        run: sudo -u vscode -H zsh -i /tmp/dotfiles/.github/scripts/check-hm-zsh
+        run: |
+          sudo -u vscode -H zsh -i /tmp/dotfiles/.github/scripts/check-hm-zsh 2> "$RUNNER_TEMP/stderr"
+          cat "$RUNNER_TEMP/stderr"
+          if grep -q compinit "$RUNNER_TEMP/stderr"; then
+            echo "compinit complained at startup" >&2
+            exit 1
+          fi

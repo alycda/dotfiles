@@ -36,6 +36,15 @@ in
   programs.zsh = {
     enable = true;
     initContent = "source ${../tools/zsh/interactive.zsh}";
+    # -i: skip completion dirs compaudit rejects instead of asking. It rejects
+    # dirs owned by any other user, not just writable ones, so on a Mac another
+    # account's Homebrew or the shared Nix profile would prompt at every login
+    # (and abort with no terminal). See
+    # docs/solutions/runtime-errors/zsh-compinit-prompts-every-non-admin-login.md.
+    completionInit = "autoload -U compinit && compinit -i";
+    # Ubuntu's /etc/zsh/zshrc runs its own compinit, without -i, unless this
+    # is set. Elsewhere nothing reads it.
+    envExtra = "skip_global_compinit=1";
   };
 
   xdg.configFile = {

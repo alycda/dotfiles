@@ -87,8 +87,9 @@ the job sets from its own token. Run them locally with `bats tests`, or
   `.github/scripts/check-hm-zsh` checks an interactive zsh: home-manager's
   defaults (history sharing, compinit, `EDITOR`) and everything
   `tools/zsh/interactive.zsh` sets. It also runs when `tools/zsh/` changes.
-  First it hands to root any completion dirs `compaudit` flags on the runner,
-  since compinit aborts on them when there's no terminal to ask.
+  The runner has completion dirs compinit rejects, so zsh must also start
+  without compinit printing a prompt or warning: the profile's `compinit -i`
+  skips them.
 
 ## extension
 
