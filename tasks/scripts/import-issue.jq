@@ -32,6 +32,6 @@ def pr: "PR #\(.number) \(.url) (\(if .mergedAt then "merged \(.mergedAt | ts)" 
       + (if ($refs | length) > 0 then ["- referenced by PRs:"] + ($refs | map("  - " + pr)) else [] end)
     else [] end)
   + (if $body == "" then []
-     elif .state == "CLOSED" then ["", "## Original issue", "", $body]
-     else ["", $body] end)
+    elif .state == "CLOSED" then ["", "## Original issue", "", $body]
+    else ["", $body] end)
 | join("\n")
