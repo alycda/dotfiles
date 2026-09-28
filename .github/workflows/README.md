@@ -99,7 +99,8 @@ the job sets from its own token. Run them locally with `bats tests`, or
 
 - **unit:** `node --test` runs `test/` on Node 20 and 22: the logic in
   `tasks.js` against `tasks/README.md`, and contract tests against the
-  manifest, the repo's tasks, and a task `just task` really creates.
+  manifest, the repo's tasks, and a task the global `just task` (tools/just)
+  really creates.
 - **types:** `tsc --checkJs` against the typings for the oldest VS Code in
   `engines` (1.74) and its Node (16), to catch an API that VS Code lacks.
   Not strict.

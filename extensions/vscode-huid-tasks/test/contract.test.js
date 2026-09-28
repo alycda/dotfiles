@@ -1,6 +1,6 @@
 // Contract tests: the extension against its manifest, the repo's tasks, and
-// the `just task` recipe that creates them. If any of these drift apart, the
-// view silently shows the wrong thing.
+// the global `just task` recipe (tools/just) that creates them. If any of these
+// drift apart, the view silently shows the wrong thing.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -57,10 +57,22 @@ test("every task in the repo parses", () => {
 const hasJust = spawnSync("just", ["--version"]).status === 0;
 
 test("reads back what `just task` writes", { skip: !hasJust && "just is not installed" }, () => {
+  // As `just -g task` runs it: the global justfile, from a scratch dir, with
+  // tasks/scripts on PATH as mise links them, and a scratch HOME so no
+  // local.just joins in.
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "huid-"));
   fs.mkdirSync(path.join(work, "tasks"));
-  fs.copyFileSync(path.join(repo, "justfile"), path.join(work, "justfile"));
-  const run = spawnSync("just", ["task", "Contract test"], { cwd: work, encoding: "utf8" });
+  const justfile = path.join(repo, "tools", "just", "justfile");
+  const env = {
+    ...process.env,
+    HOME: work,
+    PATH: `${path.join(repo, "tasks", "scripts")}${path.delimiter}${process.env.PATH}`,
+  };
+  const run = spawnSync(
+    "just",
+    ["--justfile", justfile, "--working-directory", work, "task", "Contract test"],
+    { cwd: work, env, encoding: "utf8" },
+  );
   assert.equal(run.status, 0, run.stderr);
   const created = run.stdout.trim();
   const id = path.basename(path.dirname(created));
