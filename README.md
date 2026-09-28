@@ -29,14 +29,17 @@ to it on create, so it matches the mise one. To switch again after an edit, in
 the container (user `vscode`), use the home-manager this flake pins:
 
 ```sh
-USER=$(id -un) nix run .#home-manager -- switch --flake ".#vscode@$(uname -m)-linux"
+USER=$(id -un) nix run .#home-manager -- switch -b backup --flake ".#vscode@$(uname -m)-linux"
 ```
 
 home-manager copies the files into the Nix store instead of linking the
-checkout, so an edit under `tools/` takes effect on the next switch. It adds
-the same lines mise adds to `~/.zshrc` and `~/.gitconfig` rather than owning
-those files. cheat's config is linked globally, since home-manager can't limit
-it to this repo the way mise's `[env]` does.
+checkout, so an edit under `tools/` takes effect on the next switch.
+home-manager owns zsh (`~/.zshrc` and `~/.zshenv`), sourcing the same
+`tools/zsh/interactive.zsh` mise links. On an account mise set up first, or
+with the image's oh-my-zsh `~/.zshrc`, it takes over: `-b backup` keeps the
+old file as `~/.zshrc.backup`. `~/.gitconfig` holds identity, so there it only
+adds the line mise adds. cheat's config is linked globally, since
+home-manager can't limit it to this repo the way mise's `[env]` does.
 
 nixpkgs follows `nixos-unstable`, pinned in `flake.lock`. `nix flake update`
 moves the pin.

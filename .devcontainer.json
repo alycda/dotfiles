@@ -15,7 +15,9 @@
     // Apply this checkout's home-manager profile: tools/ files in place, and
     // every tool mise.toml lists. Lifecycle commands don't set $USER, which the
     // home-manager CLI needs.
-    "postCreateCommand": "USER=$(id -un) nix run .#home-manager -- switch --flake \".#vscode@$(uname -m)-linux\"",
+    // -b backup: home-manager owns zsh, and the image ships its own ~/.zshrc
+    // and ~/.zprofile (oh-my-zsh), which it would otherwise refuse to replace.
+    "postCreateCommand": "USER=$(id -un) nix run .#home-manager -- switch -b backup --flake \".#vscode@$(uname -m)-linux\"",
 
     "remoteEnv": {
         "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
