@@ -75,5 +75,17 @@ jobs:
           switch -b backup --flake path:.#vscode@x86_64-linux
       - name: The old ~/.zshrc was moved aside
         run: sudo grep -q oh-my-zsh /home/vscode/.zshrc.backup
+      # compinit refuses completion dirs that are writable by, or owned by,
+      # someone other than root and the user. The runner image has some, and
+      # without a terminal to ask "continue?", compinit aborts. The
+      # devcontainer image has none, so this is the runner's to fix: list
+      # them, then hand them to root.
+      - name: Secure what compaudit flags
+        run: |
+          dirs="$(sudo -u vscode -H zsh -i -c 'autoload -Uz compaudit; compaudit' 2> /dev/null || true)"
+          printf '%s\n' "${dirs:-none}"
+          [ -n "$dirs" ] || exit 0
+          printf '%s\n' "$dirs" | xargs -r -d '\n' sudo chown root:root
+          printf '%s\n' "$dirs" | xargs -r -d '\n' sudo chmod go-w
       - name: Interactive zsh
         run: sudo -u vscode -H zsh -i /tmp/dotfiles/.github/scripts/check-hm-zsh
