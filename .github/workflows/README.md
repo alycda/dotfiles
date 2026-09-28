@@ -60,7 +60,8 @@ Run them locally with `bats tests`.
   CLI's own parser accepts truncated JSONC), the CLI reads it, and `outdated`
   shows the locked features against their latest releases.
 - **build:** builds with `--experimental-frozen-lockfile`, so a lock that no
-  longer matches the config fails, then checks `jj` and `nix` run inside.
+  longer matches the config fails, then checks `jj` and `nix` run inside. It
+  skips `postAttachCommand`, which needs an attached VS Code.
 - **prebuild:** pushes the image to `ghcr.io/<repo>/devcontainer:nix`. It only
   runs when started by hand from the Actions tab, so nothing is published
   until you choose to.

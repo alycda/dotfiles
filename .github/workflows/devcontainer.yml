@@ -44,8 +44,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No editor attaches here, so skip postAttachCommand: it installs the
+      # HUID Tasks extension through VS Code's CLI, which CI doesn't have.
       - name: Build and start
-        run: npx -y "$DEVCONTAINER_CLI" up --workspace-folder . --experimental-frozen-lockfile
+        run: npx -y "$DEVCONTAINER_CLI" up --workspace-folder . --experimental-frozen-lockfile --skip-post-attach
       - name: Smoke test
         run: npx -y "$DEVCONTAINER_CLI" exec --workspace-folder . sh -c 'jj --version && nix --version'
 
