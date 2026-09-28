@@ -25,8 +25,10 @@ usage() {
 	cat <<'EOF'
 fleet - parallel agents in a background zellij session
 
-  fleet fire TICKET "intent" [-a claude|codex|crush] [-C dir]
-                          start an interactive agent in its own tab
+  fleet fire TICKET ["intent"] [-a claude|codex|crush] [-C dir]
+                          start an interactive agent in its own tab; with
+                          no intent, TICKET must be a HUID task
+                          (tasks/<HUID>/TASK.md) and the agent works that
   fleet status            one line per agent: state, reason, how to resume
   fleet go TICKET         jump to that agent's pane
   fleet sweep [-n]        close tabs whose PR has merged (-n: dry run)
@@ -89,10 +91,27 @@ agent_argv() {
 	esac
 }
 
+# A HUID task (tasks/<HUID>/TASK.md) for this ticket, found the way
+# huid-task writes them: $TASKS_DIR, else ./tasks, else ./.tasks.
+task_file() {
+	local d
+	for d in ${TASKS_DIR:+"$TASKS_DIR"} tasks .tasks; do
+		if [ -f "$d/$1/TASK.md" ]; then
+			echo "$(cd "$d/$1" && pwd)/TASK.md"
+			return 0
+		fi
+	done
+	return 1
+}
+
 cmd_fire() {
-	local ticket="${1:-}" intent="${2:-}" agent="${FLEET_AGENT:-claude}" dir=""
-	[ -n "$ticket" ] && [ -n "$intent" ] || die 'usage: fleet fire TICKET "intent" [-a agent] [-C dir]'
-	shift 2
+	local ticket="${1:-}" intent="" agent="${FLEET_AGENT:-claude}" dir="" task="" title=""
+	[ -n "$ticket" ] || die 'usage: fleet fire TICKET ["intent"] [-a agent] [-C dir]'
+	shift
+	if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+		intent="$1"
+		shift
+	fi
 	while getopts 'a:C:' opt; do
 		case "$opt" in
 		a) agent="$OPTARG" ;;
@@ -101,6 +120,11 @@ cmd_fire() {
 		esac
 	done
 	[[ "$ticket" != *"$SEP"* ]] || die "ticket may not contain '$SEP'"
+	if task="$(task_file "$ticket")"; then
+		title="$(sed -n 's/^# //p' "$task" | head -n1)"
+	fi
+	[ -n "$intent" ] || [ -n "$task" ] ||
+		die "no intent given and no HUID task for $ticket (tasks/$ticket/TASK.md)"
 	if [ -z "$dir" ]; then
 		if [ -d "$ticket" ]; then dir="$PWD/$ticket"; else dir="$PWD"; fi
 	fi
@@ -111,14 +135,19 @@ cmd_fire() {
 		die "$ticket is already in the fleet - fleet go $ticket"
 	fi
 
+	# Point the agent at the task file rather than pasting it: the agent reads
+	# the current text, attachments sit next to it, and it can edit the file.
 	local prompt="$ticket: $intent"
+	[ -z "$task" ] || prompt="Work the task in $task${intent:+ - $intent}"
 	local -a argv
 	mapfile -d '' argv < <(agent_argv "$agent" "$prompt")
 
 	# new-tab's own initial command does not start in a session with no
 	# client attached (zellij 0.45.1); an empty tab plus `run --tab-id` does.
+	# The tab carries the human name (a HUID alone says nothing); the pane
+	# name stays the bare ticket, since that is what status/go/hook key on.
 	local tab pane
-	tab="$(z action new-tab --name "$ticket" --cwd "$dir")"
+	tab="$(z action new-tab --name "${title:-$ticket}" --cwd "$dir")"
 	# env: FLEET_TICKET is how `fleet hook` knows which label to write.
 	pane="$(z run --tab-id "$tab" --name "$ticket" --cwd "$dir" -- \
 		env FLEET_TICKET="$ticket" FLEET_SESSION="$SESSION" "${argv[@]}")"
@@ -137,9 +166,10 @@ cmd_status() {
 		echo "no fleet (session '$SESSION' is not running)"
 		return 0
 	}
-	local done_list="" line title command exited code ticket state reason
+	local done_list="" line title tab command exited code ticket state reason
 	while IFS= read -r line; do
 		title="$(jq -r .title <<<"$line")"
+		tab="$(jq -r .tab_name <<<"$line")"
 		command="$(jq -r .terminal_command <<<"$line")"
 		exited="$(jq -r .exited <<<"$line")"
 		code="$(jq -r '.exit_status // ""' <<<"$line")"
@@ -180,6 +210,8 @@ cmd_status() {
 			fi
 			;;
 		esac
+		# HUID tickets: the tab holds the task title.
+		[ "$tab" = "$ticket" ] || printf '   %s\n' "$tab"
 	done < <(agent_panes)
 	[ -z "$done_list" ] || echo "— exited cleanly: $done_list  → fleet sweep"
 }
