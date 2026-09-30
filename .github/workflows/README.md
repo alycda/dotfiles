@@ -82,7 +82,8 @@ the job sets from its own token. Run them locally with `bats tests`, or
   no longer matches the inputs fails. nixfmt, from the flake's own nixpkgs,
   checks every `*.nix` file.
 - **shell:** builds the dev shell on each system (Linux x86_64 and arm64, and
-  an Apple Silicon Mac) and checks `jj` and `just` run inside.
+  an Apple Silicon Mac) and checks `jj`, `just` and `tb` run inside. `tb` is
+  built from source, so this is also its only build on darwin and arm64.
 - **home:** switches the devcontainer profile for a `vscode` user that already
   has a `~/.zshrc`, like the image's oh-my-zsh one. home-manager must take it
   over, keeping the old one as `~/.zshrc.backup`. Then
