@@ -82,11 +82,19 @@ let
     trap 'rm -f "$tmp" "$md.new"' EXIT
 
     # Strip the previous managed block, plus any bare import line an
-    # append-era generation left behind. Everything else is hand-edited.
+    # append-era generation left behind, plus the container doc that the
+    # Dockerfile and entrypoint used to copy into this file before #122 moved
+    # it to ~/.claude/rules/container-env.md. A claude-home volume keeps that
+    # old body forever otherwise, and it then loads twice per session with one
+    # copy stale. The legacy doc has only ## subsections, so skip from its H1
+    # to the next H1 or EOF. Everything else is hand-edited.
     ${pkgs.gawk}/bin/awk '
       /^<!-- BEGIN managed: agents overlay/ { inblock = 1; next }
       /^<!-- END managed: agents overlay/   { inblock = 0; next }
       inblock { next }
+      /^# Machine: .* via Docker container$/ { legacy = 1; next }
+      legacy && /^# /                        { legacy = 0 }
+      legacy                                 { next }
       $0 == "@includes/agents-entrypoint.md"                      { next }
       $0 == "@includes/agents-company-values.md"                  { next }
       $0 == "@includes/agents-preferred-tooling.md"               { next }

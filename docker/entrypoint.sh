@@ -3,6 +3,15 @@
 # (first start, or a fresh/reset devhome volume) or when the image carries a
 # newer generation than the one the volume was activated with.
 
+# home-manager's activate script records its profile under
+# $XDG_STATE_HOME/nix/profiles only when that directory already exists; it
+# otherwise falls back to /nix/var/nix/profiles/per-user/root. /nix is baked
+# into the image, not a volume, so the fallback link is gone on every --rm and
+# CURRENT never matched BAKED: activation re-ran on every single start, and any
+# in-container `home-manager switch` was silently reverted by the next start.
+# Creating the state dir first makes the profile land in the devhome volume,
+# which is the path probed below.
+mkdir -p /root/.local/state/nix/profiles
 CURRENT=$(readlink -f /root/.local/state/nix/profiles/home-manager 2>/dev/null)
 BAKED=$(readlink -f /opt/hm-activation)
 
