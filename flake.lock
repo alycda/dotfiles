@@ -207,16 +207,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1789756059,
-        "narHash": "sha256-/3LGjypiubcRL3h0rrx+hXvEctNRjGDIiMzog/v6fMw=",
+        "lastModified": 1790746470,
+        "narHash": "sha256-NJakEGSvJbbMxOPw9/6aErkdSZ3lyzYIzxZ6l7PL89Q=",
         "owner": "sudosubin",
-        "repo": "nix-skills",
-        "rev": "3f79cccf12afbd556a7c58111682c6cb6f1905fa",
+        "repo": "agents.nix",
+        "rev": "d78c932d195832c93ad34c46adc70003e0269e13",
         "type": "github"
       },
       "original": {
         "owner": "sudosubin",
-        "repo": "nix-skills",
+        "repo": "agents.nix",
         "type": "github"
       }
     },

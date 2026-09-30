@@ -30,9 +30,10 @@
     };
 
     # Pinned index of skills.sh agent skills; consumed selectively via
-    # lib/skills-sh.nix (see that file for why we don't use its overlay)
+    # lib/skills-sh.nix. Upstream renamed nix-skills to agents.nix in 2026-09;
+    # the input keeps its old name so no call site has to change.
     nix-skills = {
-      url = "github:sudosubin/nix-skills";
+      url = "github:sudosubin/agents.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
