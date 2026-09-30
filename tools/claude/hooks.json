@@ -1,0 +1,15 @@
+{
+    "hooks": {
+        "SessionEnd": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "\"$HOME/.claude/hooks/session-end-taskbook.sh\"",
+                        "timeout": 10
+                    }
+                ]
+            }
+        ]
+    }
+}
