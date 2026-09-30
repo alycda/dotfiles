@@ -13,8 +13,18 @@
 
     // The test. Trust this checkout's mise.toml, apply its [dotfiles], and print
     // the status: both entries should stop reading "missing". No --force, so
-    // a genuine conflict is reported rather than overwritten.
-    "postCreateCommand": "~/.local/bin/mise trust && ~/.local/bin/mise dotfiles apply -y && ~/.local/bin/mise install && ~/.local/bin/mise dotfiles status",
+    // a genuine conflict is reported rather than overwritten. Then the
+    // claude-hooks task, so a Claude session in here leaves its resume pointer
+    // on the taskbook board like one on the host.
+    "postCreateCommand": "~/.local/bin/mise trust && ~/.local/bin/mise dotfiles apply -y && ~/.local/bin/mise install && ~/.local/bin/mise dotfiles status && ~/.local/bin/mise run claude-hooks",
+
+    // The host's taskbook data, so tb in here and tb outside show one board.
+    // tb takes storage.lock around writes, so two sessions ending together
+    // is fine. A bind mount, not a volume: a volume would be a second board
+    // that nothing outside the container reads.
+    "mounts": [
+        "source=${localEnv:HOME}/.taskbook,target=/home/vscode/.taskbook,type=bind"
+    ],
 
     "remoteEnv": {
         "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
