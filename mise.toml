@@ -28,6 +28,11 @@
 "~/.local/bin/huid-tasks-vscode" = { source = "tasks/scripts/huid-tasks-vscode", mode = "symlink" }
 # just itself, globally: the root [tools] only apply inside this repo.
 "~/.config/mise/conf.d/dotfiles.toml" = { source = "tools/mise/global.toml", mode = "symlink" }
+# Claude Code's SessionEnd hook: one resume pointer per session on taskbook's
+# @claude board. Only the script is linked. The hook entry goes into
+# ~/.claude/settings.json by `mise run claude-hooks`, a merge, because Claude
+# writes that file itself (theme, model), so a link would track those too.
+"~/.claude/hooks/session-end-taskbook.sh" = { source = "tools/claude/hooks/session-end-taskbook.sh", mode = "symlink" }
 
 [env]
 EDITOR = "hx"
@@ -48,10 +53,18 @@ helix = "25"
 gh = "latest"
 claude = "latest"
 tmux = "latest"
+# tools/claude/install-hooks merges JSON with it.
+jq = "latest"
 
 # Tasks are one-time setup steps you run by hand (`mise run <task>`), written
 # so that running one again does nothing. Never make them run automatically,
 # e.g. from a hook: a login prompt with no terminal attached just hangs.
+[tasks.claude-hooks]
+description = "Register the SessionEnd taskbook hook in ~/.claude/settings.json, unless it is"
+# The hook itself is in tools/claude/hooks.json; the script it runs is linked
+# by [dotfiles] above, so apply that first. Merging again changes nothing.
+run = "{{config_root}}/tools/claude/install-hooks"
+
 [tasks.ssh-key]
 description = "Create an SSH key for GitHub, unless one exists"
 # gh-login uses SSH, so this runs first. The key gets the default name

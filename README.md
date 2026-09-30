@@ -4,6 +4,26 @@
 
 bare-bones dotfiles (for accounts without Nix or Docker)
 
+### taskbook and Claude Code
+
+`tb` ([taskbook](https://github.com/taskbook-sh/taskbook)) is a global mise
+tool ([tools/mise/global.toml](tools/mise/global.toml)), so it works from any
+directory. `mise run claude-hooks` registers a Claude Code `SessionEnd` hook
+that leaves one task per session on the `@claude` board:
+
+```text
+resume: claude --resume <session id> (in <directory>, <reason>)
+```
+
+The reason is Claude's: `clear`, `resume`, `logout`, `prompt_input_exit` or
+`other`. The root `mise.toml` links the hook script,
+[session-end-taskbook.sh](tools/claude/hooks/session-end-taskbook.sh), into
+`~/.claude/hooks/`. The settings entry is merged in by
+[install-hooks](tools/claude/install-hooks), since Claude writes
+`~/.claude/settings.json` itself. Without `tb` on the machine the hook exits
+quietly. The mise devcontainer runs the same task and bind-mounts the host's
+`~/.taskbook`, so a session inside it lands on the same board.
+
 ## Nix
 
 The flake grows towards the full setup one testable step at a time. So far it

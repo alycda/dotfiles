@@ -1,0 +1,42 @@
+#!/bin/sh
+# install-hooks [SETTINGS]: merge tools/claude/hooks.json into Claude Code's
+# user settings, ~/.claude/settings.json unless a path is given.
+#
+# A merge, not a link: Claude writes that file itself (theme, model, tui), so
+# linking it would put those into the tracked copy, the way ~/.gitconfig would
+# carry identity. Only the hooks come from the repo. An event's list keeps
+# whatever is already in it and gains the entries whose command it lacks, so
+# running this again changes nothing and hand-added hooks survive.
+#
+# Needs jq. The repo's mise.toml installs it, so `mise run claude-hooks` has it.
+set -eu
+
+here=$(cd "$(dirname "$0")" && pwd)
+fragment="$here/hooks.json"
+settings="${1:-$HOME/.claude/settings.json}"
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "install-hooks: jq not found; run it as 'mise run claude-hooks'" >&2
+  exit 1
+fi
+
+mkdir -p "$(dirname "$settings")"
+[ -s "$settings" ] || printf '{}\n' > "$settings"
+
+merged=$(jq --slurpfile add "$fragment" '
+  reduce ($add[0].hooks | to_entries[]) as $event (.;
+    ($event.key) as $name
+    | (.hooks[$name] // []) as $have
+    | [$have[] | .hooks[]?.command] as $commands
+    | .hooks[$name] = $have + [
+        $event.value[]
+        | select(any(.hooks[]?.command; . as $c | $commands | index($c) | not))
+      ])
+' "$settings")
+
+if [ "$merged" = "$(cat "$settings")" ]; then
+  echo "claude: hooks already in $settings"
+else
+  printf '%s\n' "$merged" > "$settings.tmp" && mv "$settings.tmp" "$settings"
+  echo "claude: hooks merged into $settings"
+fi
