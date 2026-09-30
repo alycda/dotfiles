@@ -74,10 +74,39 @@ jobs:
     name: Update inputs and validate
     runs-on: ubuntu-latest
     steps:
+      # This workflow's output is a PR that changes only flake.lock
+      # (add-paths below) and always targets main (base below). Three
+      # things must therefore describe the same tree: the flake.nix the new
+      # lock is resolved from, the .nix sources "Validate updated flake"
+      # evaluates, and the tree the lock is merged into. `ref: main` on the
+      # checkout makes all three main. If the checkout followed the branch
+      # picker, the first two would be a feature branch and the third main:
+      # a lock resolved against the branch's inputs and validated against
+      # its sources, then merged alone into a main that has neither, behind
+      # a "validated before the PR was opened" link that is untrue.
+      #
+      # The cost of that pin is that a dispatch from another branch still
+      # updates and validates main, but the run page shows the branch name.
+      # It fails with main's errors, which reads as the branch being broken
+      # (2026-09-30: a branch that fixed the nix-skills break was
+      # "validated" here and failed with the exact error it fixed). This
+      # step fails before any work instead. To check a branch, use nix.yml
+      # on its PR; that runs the same validation against the branch.
+      # Scheduled runs always fire on the default branch, so the guard only
+      # applies to dispatches.
+      - name: Refuse dispatch from a branch other than main
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        env:
+          DISPATCH_REF: ${{ github.ref_name }}
+        run: |
+          msg="Dispatched from '$DISPATCH_REF', but this workflow always updates and validates main (see the comment on this step). Re-run it from main. To validate a branch, use the Nix workflow (nix.yml) on its PR."
+          echo "::error title=Wrong branch::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
       - uses: actions/checkout@v4
         with:
-          # Always update against main, regardless of which ref the
-          # workflow_dispatch branch picker happened to be on.
+          # Keep this pinned: see the guard step above for why.
           ref: main
 
       - uses: DeterminateSystems/nix-installer-action@main

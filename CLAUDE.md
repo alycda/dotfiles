@@ -771,6 +771,15 @@ exists so lockfile updates can be kicked off and validated from anywhere
 machine happens to be current; the weekly cron exists so they happen even
 when nobody thinks to ask.
 
+**It updates `main`, never the branch you dispatch it from.** The PR it
+opens changes only `flake.lock` and targets `main`, so the `flake.nix` the
+lock is resolved from, the sources it is validated against, and the tree it
+merges into must all be `main`. The checkout is pinned to `main`, and a
+dispatch from any other branch now fails in its first step. Before that
+guard existed, dispatching it to "validate" the nix-skills fix branch
+quietly re-tested `main` and failed with the very error the branch fixed.
+To validate a branch, look at `nix.yml` on its PR.
+
 The schedule is only safe because the validation below already gates PR
 creation: an unattended run cannot produce a PR for a lockfile that doesn't
 evaluate. Two `schedule:` mechanics worth remembering — it fires only for
