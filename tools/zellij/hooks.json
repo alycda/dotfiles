@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v fleet >/dev/null 2>&1 || exit 0; fleet hook running", "timeout": 5 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v fleet >/dev/null 2>&1 || exit 0; fleet hook running", "timeout": 5 }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|elicitation_dialog",
+        "hooks": [
+          { "type": "command", "command": "command -v fleet >/dev/null 2>&1 || exit 0; fleet hook needs-input", "timeout": 5 }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v fleet >/dev/null 2>&1 || exit 0; fleet hook needs-input", "timeout": 5 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "command -v fleet >/dev/null 2>&1 || exit 0; fleet hook idle", "timeout": 5 }
+        ]
+      }
+    ]
+  }
+}

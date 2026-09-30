@@ -77,7 +77,8 @@ thing must keep its contract, not only its signature.
 | JSON | `jq` | — |
 | GitHub | `gh`, `gh-dash` | web / API |
 | Secrets | `rage` / `ragenix` (agenix) | — |
-| Terminal multiplexer | `tmux` | — |
+| Terminal multiplexer | `tmux`; `zellij` on trial | — |
+| Parallel background agents | `fleet` (zellij; `fleet --help`) | `nohup … &` |
 | Tasks / todos | `tb` (taskbook — desktop profiles only) | a plaintext TODO in-repo |
 | Cheatsheets | `cheat` | — |
 | Terminal slides | `presenterm` | — |
