@@ -334,23 +334,41 @@ env var to set), and leave the TTY path alone.
 ### External agent skills (`lib/skills-sh.nix`)
 
 Skills from [skills.sh](https://www.skills.sh/) install declaratively through
-the `nix-skills` flake input ([sudosubin/nix-skills](https://github.com/sudosubin/nix-skills),
-an auto-refreshed index that pins rev+hash for every published skill repo).
+the `nix-skills` flake input ([sudosubin/agents.nix](https://github.com/sudosubin/agents.nix),
+formerly `nix-skills`; an auto-refreshed index that pins rev+hash for every
+published skill repo).
 
-**Do not apply nix-skills' overlay.** Forcing any single `pkgs.skills.*`
-attribute parses all ~48MB of index JSON and materializes a 480k-entry
-attrset — measured at ~65s wall / 3.6GB peak RSS per evaluation (2026-08-04).
-Since agent-skills.nix is in common.nix, that cost would hit every switch and
-every configuration in `nix flake check --all-systems`.
+`lib/skills-sh.nix` calls upstream's **public** `overlays.default` inside
+our own overlay and re-exports only the skills we want as
+`pkgs.skills-sh.<name>`, wired in both `flake.nix` (mkHome) and
+`darwin/configuration.nix` and consumed by
+`home-manager/modules/tools/agent-skills.nix`. Calling the overlay function
+rather than adding it to `nixpkgs.overlays` keeps upstream's `agent-skills`
+tree and its deprecated, warn-on-force `pkgs.skills` alias out of `pkgs`.
 
-Instead, `lib/skills-sh.nix` reads only the per-first-letter data shard for
-each source repo and calls upstream's `buildSkill` directly — byte-identical
-derivations at ~1s eval cost. It's exposed as `pkgs.skills-sh.<name>` via an
-overlay wired in both `flake.nix` (mkHome) and `darwin/configuration.nix`,
-and consumed by `home-manager/modules/tools/agent-skills.nix`.
+**Don't reach into the index's internals again without re-measuring.** Until
+2026-09 this file read nix-skills' per-letter data shards and called
+`nix/build-skill` directly, because the overlay then parsed ~48MB of JSON per
+evaluation (~65s / 3.6GB on 2026-08-04; 18.8s / 2.2GB on 2026-09-21), and
+agent-skills.nix is in common.nix. Upstream then renamed the repo, rewrote
+its history, switched to one JSON file per repo and moved the builder — and
+the scheduled flake update died on `path '.../nix/build-skill' does not
+exist`. The same restructure made the overlay cost ~0.04s over a bare
+`pkgs.hello` eval, so the reason for the internals was already gone. The
+file's header has the measurement command; the header comment in any file
+that depends on internals should say what would make the public route good
+enough, so the next breakage is a prompt to check.
 
-- **Add a skill**: new `mkSkill` entry in `lib/skills-sh.nix` + a
-  `home.file` line in agent-skills.nix
+- **Add a skill**: an entry in `lib/skills-sh.nix`
+  (`github.<owner>.<repo>.<skill>`) + a line in agent-skills.nix'
+  `externalSkills`. Check the installed SKILL.md `name` matches the deploy
+  directory (Crush skips a mismatch silently); if not, `.override { name =
+  "<dir>"; }` makes upstream's builder rewrite it — `asd-ste100-skill` needs
+  this, because a root-path (`.`) skill is named after its repo
+- **The index can drop a live repo.** `supabase/agent-skills` is listed in
+  agents.nix's `sources.json` with no data file, so it is pinned by hand
+  (`fetchFromGitHub` + subdirectory) until it comes back — and does not move
+  with `nix flake update nix-skills` meanwhile
 - **Update pins**: `nix flake update nix-skills` (pins can lag upstream HEAD
   by days-to-weeks — they move when the index re-resolves the repo)
 - **Plugins are not skills**: anything shipped as a Claude Code plugin
@@ -373,8 +391,8 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   did not, so the repo's own skill named a file the install lacked. The
   pinned SKILL.md itself was self-consistent — checking it would have found
   nothing. Before committing a layering skill, check every path it names
-  against the indexed rev (`data/by-name/<initial>/skills.json` in the
-  locked nix-skills, then the file at that rev) or against
+  against the indexed rev (`data/agent-skills/github.com/<owner>/<repo>.json`
+  in the locked input, then the file at that rev) or against
   `~/.agents/skills/<name>/` after a switch, and give the skill a fallback
   for anything that can lag
 
@@ -840,6 +858,7 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
+*Last updated: 2026-09-29 - The scheduled flake update broke on `nix/build-skill` not existing: nix-skills was renamed to agents.nix, history rewritten and restructured. `lib/skills-sh.nix` now goes through upstream's public overlay, which the restructure made cheap (measured), instead of the internals it used to avoid a then-18s eval; supabase-postgres-best-practices is pinned by hand because the index dropped its repo*
 *Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
 *Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*
 *Last updated: 2026-09-16 - Verified inspect against a real binary and found its declared install route could never have worked: the ataraxy-labs/tap formula pins a checksum upstream invalidated by moving the v0.1.1 tag, so the brew fails and would abort activation. Replaced it with `lib/inspect.nix` (release binary, tart-style). Two lessons, both already in the tap write-up and both nearly repeated: a tap's risk is its maintenance, so check the formula's age and hash before declaring it, not after; and a prebuilt binary that runs on *this* machine proves little — this one linked Homebrew's openssl by absolute path, so `otool -L` is part of verifying any fetched macOS binary*
