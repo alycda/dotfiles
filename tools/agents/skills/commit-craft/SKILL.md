@@ -19,6 +19,11 @@ own. Two other skills do the work it would otherwise repeat: sem, from the
 entity-level-git skill, gives the facts (which entities changed), and ste100
 gives the words. This skill gives the order.
 
+**Done when** each logical change is a commit whose message passes
+`check-commit-msg`, and `jj st` (or `git status`) shows none of the task's
+changes left. **Stop when** there is nothing to commit: say so, and do not
+make an empty commit.
+
 ## What is enforced, and where
 
 | Where | What runs |
@@ -59,9 +64,19 @@ Do these steps in order for every commit.
 5. Run `check-commit-msg /path/to/msg.txt`. Fix every problem it prints, and
    run it again until it prints nothing. ste100 can change line lengths, so
    run it after step 4.
-6. Set the message from the file: `jj describe --stdin < /path/to/msg.txt`,
-   or `git commit -F /path/to/msg.txt` with git only.
-7. Push with `jj push`.
+6. Set the message from the file: `jj describe --stdin < /path/to/msg.txt`.
+   With git only, stage the commit's files by name and name them again on
+   the commit:
+
+   ```bash
+   git add path/one path/two
+   git commit -F /path/to/msg.txt -- path/one path/two
+   ```
+
+   Never `git add -A` or `git add .`. A `git commit` without paths takes
+   everything already staged, including changes that are not part of this
+   commit. jj has no staging area, so this step is git only.
+7. Push only when Alyssa asks, and then with `jj push`.
 
 ## Subject line
 
@@ -85,8 +100,15 @@ devcontainer(nix): apply home-manager on create
 
 These rules are yours to apply:
 
-- The summary says what the commit does (`secure the runner dirs ...`) or
-  names what it adds (`global justfile with ...`).
+- The summary names the outcome: what is now possible or fixed. It does not
+  list files. `ci(nix): update nix.yml` says nothing a diff does not;
+  `ci(nix): stop compinit aborting on the runner` says what changed for the
+  reader. A noun phrase is correct when the commit adds one thing
+  (`global justfile with the HUID task recipes`).
+- When the commit implements one unit of a compound-engineering plan and the
+  unit ID is already known, end the subject with it in parentheses:
+  `hm(zsh): add the history options (U3)`. Do not look for a plan to find
+  one. Leave it out when the commit spans units.
 - The area is the part of the repository or the tool the change belongs to:
   `hm` (home-manager), `ci` (`.github/`), `mise`, `nix`, `devcontainer`,
   `just`, `agent(skills)`, `docs`. Reuse an existing area. Make a new one
@@ -200,6 +222,26 @@ Updated agent skills.
 ```text
 docs(agents): Instructions for Claude
 ```
+
+## With compound-engineering's ce-commit
+
+The compound-engineering plugin is enabled here, and its `ce-commit` skill
+also triggers on "commit this". Its step 3 follows "project commit
+conventions already in context". In a repository that uses this skill, that
+convention is this skill. When ce-commit or another compound-engineering
+skill makes the commit:
+
+- The subject format, the required body and the ste100 wording apply.
+  ce-commit says to add a body only when the reason is not obvious. Here the
+  body is always required, and the hook and `jj push` refuse a commit
+  without one.
+- Run `check-commit-msg` on the message file that ce-commit writes, before
+  `git commit -F`.
+- In a jj repository, use the jujutsu skill's commands for ce-commit's git
+  steps. Do not run `git checkout -b` or stage files: jj has no staging
+  area, and a bookmark is made only when you push.
+- ce-commit's done and stop rules, and its rule to name paths on
+  `git commit`, are the same as this skill's.
 
 ## Rewording existing commits
 
