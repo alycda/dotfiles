@@ -22,6 +22,12 @@
 # Keep this list short. A tool belongs here only if this account really uses
 # it. Anything the containers also need goes in lib/core-packages.nix.
 
+# The commit message checks, on PATH for jj's `jj push` alias (jj config
+# from tools/jujutsu, which bootstrap.sh links). The checkout is where
+# bootstrap.sh puts it by default.
+[env]
+_.path = ["{{env.HOME}}/dotfiles/tools/commit"]
+
 [tools]
 claude = "latest" # aqua:anthropics/claude-code
 helix = "latest"  # aqua:helix-editor/helix

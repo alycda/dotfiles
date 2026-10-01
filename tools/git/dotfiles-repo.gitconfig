@@ -1,0 +1,8 @@
+# Git settings for the dotfiles checkouts only. tools/git/config includes this
+# file for them on the account without Nix; home-manager/modules/git.nix does
+# for the others.
+
+# A relative hooksPath is relative to the top of the working tree. It replaces
+# .git/hooks for the whole repo, which is why it is not set for every repo.
+[core]
+	hooksPath = tools/git/hooks

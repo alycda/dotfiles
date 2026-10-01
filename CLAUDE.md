@@ -87,22 +87,30 @@ jj log -r '<change-id>::' --limit 10
 
 ### Commit Message Format
 
-```
-Short imperative summary (50 chars or less)
+Every commit message follows the **commit-craft** skill
+(`tools/agents/skills/commit-craft/SKILL.md`, installed at
+`~/.agents/skills/commit-craft`). Read it before writing or changing any
+message, in any harness, even when skills are not loaded for you
+automatically. It defines the format, `<area>(<scope>): <summary>` plus a
+body in a fixed order, and gives the body's wording to the ste100 skill. The
+shape is enforced outside the skill, by the scripts in `tools/commit/`: run
+`check-commit-msg` on a message before you set it, and push with `jj push`,
+which checks the stack first (`tools/jujutsu/config`). A `git commit` in this
+checkout runs the same check as a hook, and CI checks every commit on a pull
+request. The jujutsu skill covers only the commands that set the message.
+The same applies when compound-engineering's `ce-commit` makes the commit:
+commit-craft is the project convention its step 3 defers to, so the body is
+required even where ce-commit would leave it out.
 
-Longer explanation of the change and why it was made. Focus on:
-- What problem does this solve?
-- What alternatives were considered?
-- What did you learn?
-- What tradeoffs were made?
+Two additions for this repository:
 
-Specific changes:
-- Bullet points for key modifications
-- File paths and what changed
-- Configuration decisions
-
-[Optional: Link to resources or documentation]
-```
+- When a change came out of a mistake or a dead end, the body's "what and
+  how" paragraph also says what was learned. That is the story the history
+  is meant to tell.
+- PRs here are squash-merged, so the PR title becomes the commit subject on
+  `main`. Write the title in the same subject format; GitHub appends ` (#N)`.
+  The squash body is every branch commit's message in turn (each subject as a
+  `* ` line), so branch commits follow the format too.
 
 ## Repository Structure
 
@@ -867,6 +875,7 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
+*Last updated: 2026-10-01 - Replaced the inline commit message format with a pointer to the commit-craft skill, and moved the enforcement out of the skill into configuration (a jj draft template and `jj push` alias, a git hook for this checkout, a CI job), because a skill only works when an agent loads it and the format must hold for every commit; the skill keeps what no check can judge and gives the body's wording to ste100*
 *Last updated: 2026-09-29 - The scheduled flake update broke on `nix/build-skill` not existing: nix-skills was renamed to agents.nix, history rewritten and restructured. `lib/skills-sh.nix` now goes through upstream's public overlay, which the restructure made cheap (measured), instead of the internals it used to avoid a then-18s eval; supabase-postgres-best-practices is pinned by hand because the index dropped its repo*
 *Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
 *Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*

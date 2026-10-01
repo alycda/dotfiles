@@ -37,3 +37,13 @@
 	l = log --color --graph --format='%C(magenta)%h%Creset %s %C(cyan)<%an>%Creset' -n 20 --abbrev-commit
 	# Short SHA, refs, subject, relative commit time, author
 	lg = log --color --graph --format='%C(magenta)%h%Creset -%C(green)%d%Creset %s %C(yellow)(%cr) %C(cyan)<%an>%Creset' --abbrev-commit --
+
+# The commit-msg hook (tools/git/hooks), in the dotfiles checkouts only. For
+# the account without Nix, ~/.gitconfig includes this file from the checkout,
+# so the relative path finds dotfiles-repo.gitconfig next to it. home-manager
+# copies this file into the store alone, where git skips the missing file;
+# git.nix adds the same conditional include for those accounts.
+[includeIf "gitdir:~/dotfiles/"]
+	path = dotfiles-repo.gitconfig
+[includeIf "gitdir:/workspaces/dotfiles/"]
+	path = dotfiles-repo.gitconfig

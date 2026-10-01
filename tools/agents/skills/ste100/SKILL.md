@@ -92,10 +92,11 @@ This skill runs after the skills that own structure, never instead of them.
 - **communication-bridge** owns audience and format. Run it first, then run
   ste100 on its output only when the target surface is in the strict or
   STE-flavored rows above. Never on `--format=pushback` output.
-- **commit-craft** owns the seven rules (subject line, wrap, what-and-why).
+- **commit-craft** owns the message format (subject line, body order, wrap).
   ste100 is a sentence-level pass on the body afterward, in STE-flavored
-  mode. It does not touch the subject line. The 50-character limit already
-  forces one reading.
+  mode. It does not touch the subject line. Its length limit already forces
+  one reading. Run `check-commit-msg` again after the pass, since rewording
+  can change the wrap.
 - **brag-doc** and **failure-doc** produce records in Alyssa's voice. Do not
   run ste100 on their output. If she asks, say why and offer a strict pass on
   any quoted command or symptom inside the entry instead.

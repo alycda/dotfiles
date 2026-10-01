@@ -44,7 +44,17 @@
     # Settings that work without Nix (defaultBranch, pull/push behaviour,
     # aliases) live in tools/git/config, which the mise account includes
     # from ~/.gitconfig. Only what needs Nix or a secret stays below.
-    includes = [ { path = ../../tools/git/config; } ];
+    includes = [
+      { path = ../../tools/git/config; }
+    ]
+    # The commit-msg hook, in the dotfiles checkouts only (core.hooksPath
+    # replaces .git/hooks for the whole repo). tools/git/config has the same
+    # includeIf for the account without Nix, but its relative path finds
+    # nothing in the store copy, so the include is repeated here.
+    ++ map (dir: {
+      path = ../../tools/git/dotfiles-repo.gitconfig;
+      condition = "gitdir:${dir}";
+    }) [ "~/dotfiles/" "/workspaces/dotfiles/" ];
 
     settings = {
       include.path = "${config.home.homeDirectory}/.local/share/agenix/git-config";
