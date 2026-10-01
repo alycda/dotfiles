@@ -7,6 +7,6 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 
 Each heading is `## <version> (<effort>) - <date>`.
 
-## 0.0.1 (micro) - 2026-10-01
+## 0.0.2 (micro) - 2026-10-01
 
 Start versioning with EffVer: `VERSION`, this changelog and MIT license

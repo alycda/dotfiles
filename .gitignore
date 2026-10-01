@@ -1,0 +1,9 @@
+## VCS
+.jj/
+
+
+## OSX & Linux
+.DS_Store
+
+# Thumbnails
+._*
