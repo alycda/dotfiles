@@ -52,3 +52,12 @@ you're on the commit you expect - always verify with `jj status` first.
   in the next
    - Example: ❌ Add packages to `shesfast.nix` → Move packages to module
    - Example: ✅ Create module and import it where needed
+
+### Commit messages
+
+Every commit message follows the **commit-craft** skill
+(`.claude/skills/commit-craft/SKILL.md`, linked from `.agents/skills/`). Read
+it before writing or changing any message, in any harness, even when skills
+are not loaded for you automatically. It defines the format and has a checker,
+`scripts/check-message`, that each message must pass before it is set. The
+jujutsu skill covers only the commands that set the message.
