@@ -2,6 +2,10 @@
 .jj/
 
 
+## VSCode
+*.code-workspace
+
+
 ## OSX & Linux
 .DS_Store
 

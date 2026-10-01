@@ -1,0 +1,9 @@
+*
+!settings.json
+!tasks.json
+!launch.json
+!extensions.json
+!*.code-snippets
+
+# Built Visual Studio Code Extensions
+*.vsix
