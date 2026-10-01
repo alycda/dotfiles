@@ -92,9 +92,12 @@ Every commit message follows the **commit-craft** skill
 `~/.agents/skills/commit-craft`). Read it before writing or changing any
 message, in any harness, even when skills are not loaded for you
 automatically. It defines the format, `<area>(<scope>): <summary>` plus a
-body in a fixed order, and has a checker, `scripts/check-message`, that each
-message must pass before it is set. The jujutsu skill covers only the
-commands that set the message.
+body in a fixed order, and gives the body's wording to the ste100 skill. The
+shape is enforced outside the skill, by the scripts in `tools/commit/`: run
+`check-commit-msg` on a message before you set it, and push with `jj push`,
+which checks the stack first (`tools/jujutsu/config`). A `git commit` in this
+checkout runs the same check as a hook, and CI checks every commit on a pull
+request. The jujutsu skill covers only the commands that set the message.
 
 Two additions for this repository:
 
@@ -869,7 +872,7 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
-*Last updated: 2026-10-01 - Replaced the inline commit message format with a pointer to the commit-craft skill, rewritten for agents rather than people, with a checker script, so Claude Code, Crush and Codex produce the same shape; the jujutsu skill no longer carries its own (conflicting) format*
+*Last updated: 2026-10-01 - Replaced the inline commit message format with a pointer to the commit-craft skill, and moved the enforcement out of the skill into configuration (a jj draft template and `jj push` alias, a git hook for this checkout, a CI job), because a skill only works when an agent loads it and the format must hold for every commit; the skill keeps what no check can judge and gives the body's wording to ste100*
 *Last updated: 2026-09-29 - The scheduled flake update broke on `nix/build-skill` not existing: nix-skills was renamed to agents.nix, history rewritten and restructured. `lib/skills-sh.nix` now goes through upstream's public overlay, which the restructure made cheap (measured), instead of the internals it used to avoid a then-18s eval; supabase-postgres-best-practices is pinned by hand because the index dropped its repo*
 *Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
 *Last updated: 2026-09-21 - Added "prebuilt binaries in a persisted `$HOME` are image-scoped state" to Tools Nix Can't Fully Manage, after a rustup toolchain in the devhome volume survived an image rebuild and left `cargo` erroring ENOENT for a loader that no longer existed — with the corollary that an activation step guarded on "is it installed" can never repair state that went bad in place (#80)*

@@ -35,8 +35,8 @@
 # Repo skills:
 #   brag-doc              - promo-packet impact entries from raw work notes
 #   cf-now                - private file sharing from Cloudflare R2 (pre-signed URLs)
-#   commit-craft          - the commit message format, with a checker script
-#                           (scripts/check-message) every message must pass
+#   commit-craft          - what a commit message says; the shape is checked
+#                           by tools/commit (jj push, git hook, CI)
 #   entity-level-git      - Ataraxy Labs stack: sem (entity diff/blame/impact),
 #                           weave (semantic merge driver), inspect (review triage)
 #   failure-doc           - failures as deliberate-learning records
