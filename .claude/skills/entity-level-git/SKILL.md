@@ -31,16 +31,17 @@ instead of reading the file to reconstruct that yourself.
 
 ## Availability
 
-- sem comes from mise in this repo (`mise.toml`). Check with `sem --version`
-  where mise is active, or prefix `mise exec --`.
+- sem, weave and inspect come from mise in this repo (`mise.toml`), or from
+  home-manager on a Nix account (`lib/packages/`), at the same versions.
+  Check with `sem --version`; under mise, where it is active, or prefix
+  `mise exec --`.
+- weave is two tools: `weave` (the CLI) and `weave-driver` (what jj and git
+  invoke to merge).
 - **Other packages named sem are different programs**: mise's registry has no
   sem (so `mise.toml` names the GitHub repo), and `nixpkgs#sem` is the
   Semaphore CI CLI. Its errors won't say so.
-- Don't run `sem update`: mise manages the binary, and a self-update fights
-  it.
-- weave comes from mise too, as two tools: `weave` (the CLI) and
-  `weave-driver` (what jj and git invoke to merge).
-- inspect comes from mise too.
+- Don't run `sem update`: mise or Nix manages the binary, and a self-update
+  fights it.
 
 ## In this repo: sem on jj
 

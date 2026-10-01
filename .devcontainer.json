@@ -6,16 +6,20 @@
     "features": {
         // enable nix
         "ghcr.io/devcontainers/features/nix:1": {
-            // equivalent to `nix profile add` for critical. direnv loads the
-            // flake's dev shell (.envrc); nix-direnv caches it.
-            "packages": ["direnv", "nix-direnv"],
+            // equivalent to `nix profile add` for critical. Nothing yet:
+            // home-manager installs the tools, direnv included.
+            "packages": [],
             "extraNixConfig": "experimental-features = nix-command flakes"
         }
     },
 
-    // Hook direnv into bash and zsh, load nix-direnv, allow this checkout's
-    // .envrc, and build the dev shell once so the first terminal doesn't wait.
-    "postCreateCommand": "echo 'eval \"$(direnv hook bash)\"' >> ~/.bashrc && echo 'eval \"$(direnv hook zsh)\"' >> ~/.zshrc && mkdir -p ~/.config/direnv && echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > ~/.config/direnv/direnvrc && direnv allow && direnv exec . true",
+    // Mark the checkout safe first: git, and Nix's git fetcher, refuse a
+    // repository owned by another user. Then apply this flake's home-manager
+    // configuration for the container's architecture (-b moves the image's
+    // ~/.zshrc aside), allow this checkout's .envrc, and build the dev shell
+    // once so the first terminal doesn't wait. home-manager hooks direnv into
+    // zsh and sets up nix-direnv.
+    "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && nix run .#home-manager -- switch -b backup --flake .#vscode@$(uname -m)-linux && ~/.nix-profile/bin/direnv allow && ~/.nix-profile/bin/direnv exec . true",
 
     "remoteEnv": {
         "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
@@ -39,6 +43,9 @@
                 "visualjj.visualjj"
             ],
             "settings": {
+                // zsh: home-manager configures it, and hooks direnv into it.
+                "terminal.integrated.defaultProfile.linux": "zsh",
+
                 // disable copilot
                 "chat.agent.enabled": false,
                 "chat.disableAIFeatures": true,
