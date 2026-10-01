@@ -108,7 +108,7 @@ The implication is in the next section.
 
 ## Agent Environment Rules
 
-### Always use `-m` for messages
+### Always pass the message: `-m` or `--stdin`
 
 Editor prompts hang in non-interactive environments. Every command that accepts
 `-m` must get one inline:
@@ -120,6 +120,14 @@ jj commit -m "message"        # NOT: jj commit
 jj squash -m "message"        # NOT: jj squash (opens editor for combined description)
 ```
 
+A finished commit's message has a body, which is awkward in `-m`. Write it to a
+file outside the working copy, check it, and pass it on stdin, as the
+**commit-craft** skill describes:
+
+```text
+jj describe --stdin < /path/to/msg.txt
+```
+
 ### Avoid interactive commands
 
 These open TUIs and hang. Use alternatives:
@@ -129,7 +137,7 @@ These open TUIs and hang. Use alternatives:
 | `jj split` (no args) | `jj split <path>...` with explicit fileset, or `jj squash`/`jj restore` patterns |
 | `jj squash -i` | `jj squash <path>...` with explicit fileset |
 | `jj resolve` | Edit conflict markers directly in the affected files, then `jj st` to verify |
-| `jj describe` (no `-m`) | `jj describe -m "..."` |
+| `jj describe` (no `-m`) | `jj describe -m "..."` or `jj describe --stdin < file` |
 
 ### Verify after mutation
 
@@ -174,7 +182,9 @@ jj new -m "What I'm about to do"
 ```
 
 This pattern surfaces intent before code exists. If Alyssa hasn't told Claude what
-to commit message-wise, ask once and then proceed.
+to commit message-wise, ask once and then proceed. The intent message is only a
+subject line, in commit-craft's subject format. Replace it with the full message
+(commit-craft) when the change is done, before it is pushed.
 
 ### Atomic commits
 
@@ -182,11 +192,9 @@ One logical change per commit. If a commit description starts to need "and" to
 cover everything, that's the signal to split. Use the squash/restore patterns to
 peel out unrelated changes rather than mashing them in.
 
-Commit message format (Alyssa's convention, matches the team's):
-
-- Imperative verb, sentence case, no trailing period
-- `feat:` / `fix:` / `refactor:` / `docs:` / `chore:` prefixes when conventional
-  commits are in use in the repo
+What the message says (subject format, body, trailers) is the **commit-craft**
+skill's, not this one's. Load it before writing any message. This skill covers
+only the commands that set it.
 
 ### Viewing history
 
@@ -565,12 +573,18 @@ jj git push --change @-                       # same, for parent (common when @ 
 
 `jj git push` uses force-with-lease semantics by default. Safe in normal use.
 
+In a repo that uses the commit-craft format, push with `jj push` instead. It is an
+alias from the dotfiles' jj config: it runs `check-commits --jj` on the stack that is
+not on trunk yet, and runs `jj git push` with the same arguments only when every
+message passes. jj runs no git hooks, so this is the check before a push.
+
 ### Before pushing
 
 1. `jj log -r 'trunk()..@'` — confirm what's in the stack
 2. `jj bookmark list` — confirm the bookmark points where intended
 3. `jj diff --git -r <bookmark>` — review final content
-4. `jj git push -b <bookmark>` — push only after Alyssa explicitly says so
+4. `jj push -b <bookmark>` (or `jj git push -b <bookmark>` in a repo with its own
+   commit format) — push only after Alyssa explicitly says so
 
 **Never push unprompted.** Pushing is an Alyssa-only decision.
 

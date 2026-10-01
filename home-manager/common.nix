@@ -22,7 +22,14 @@ let
   '';
 in
 {
-  home.packages = import ../lib/packages.nix { inherit pkgs; };
+  home.packages = import ../lib/packages.nix { inherit pkgs; } ++ [
+    # The commit message checks (tools/commit), on PATH for jj's `jj push`
+    # alias. mise links them into ~/.local/bin instead.
+    (pkgs.runCommandLocal "commit-checks" { } ''
+      mkdir -p $out/bin
+      cp ${../tools/commit}/* $out/bin/
+    '')
+  ];
 
   # mise sets EDITOR in [env]; here it reaches zsh through ~/.zshenv, which
   # sources hm-session-vars.sh.
@@ -53,6 +60,7 @@ in
     # Not ~/.config/git/config: with no ~/.gitconfig, git writes
     # `git config --global` there, which would put identity in the tracked file.
     "git/dotfiles.gitconfig".source = ../tools/git/config;
+    "git/dotfiles-repo.gitconfig".source = ../tools/git/dotfiles-repo.gitconfig;
     # conf.d, not ~/.config/jj/config.toml, which `jj config set --user` writes.
     "jj/conf.d/dotfiles.toml".source = ../tools/jujutsu/config;
     # mise points CHEAT_CONFIG_PATH here only inside the checkout, which

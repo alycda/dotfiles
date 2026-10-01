@@ -52,3 +52,18 @@ you're on the commit you expect - always verify with `jj status` first.
   in the next
    - Example: ❌ Add packages to `shesfast.nix` → Move packages to module
    - Example: ✅ Create module and import it where needed
+
+### Commit messages
+
+Every commit message follows the **commit-craft** skill
+(`.claude/skills/commit-craft/SKILL.md`, linked from `.agents/skills/`). Read
+it before writing or changing any message, in any harness, even when skills
+are not loaded for you automatically. The body's wording follows the ste100
+skill. The shape is enforced outside the skill, by the scripts in
+`tools/commit/`: run `check-commit-msg` on a message before you set it, and
+push with `jj push`, which checks the stack first. A `git commit` in this
+checkout runs the same check as a hook, and CI checks every commit on a pull
+request. The jujutsu skill covers only the commands that set the message.
+The same applies when compound-engineering's `ce-commit` makes the commit:
+commit-craft is the project convention its step 3 defers to, so the body is
+required even where ce-commit would leave it out.

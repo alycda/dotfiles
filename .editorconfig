@@ -25,5 +25,5 @@ indent_style = unset
 indent_size = unset
 
 # Tabs, as git writes them.
-[tools/git/config]
+[tools/git/{config,*.gitconfig}]
 indent_style = tab

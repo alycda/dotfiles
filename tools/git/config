@@ -27,3 +27,11 @@
 	l = log --color --graph --format='%C(magenta)%h%Creset %s %C(cyan)<%an>%Creset' -n 20 --abbrev-commit
 	# Short SHA, refs, subject, relative commit time, author
 	lg = log --color --graph --format='%C(magenta)%h%Creset -%C(green)%d%Creset %s %C(yellow)(%cr) %C(cyan)<%an>%Creset' --abbrev-commit --
+
+# The commit-msg hook (tools/git/hooks), in the dotfiles checkouts only: the
+# host's and the devcontainer's, the same paths as jj's scope. The path is
+# relative to this file, and dotfiles-repo.gitconfig is linked next to it.
+[includeIf "gitdir:~/dotfiles/"]
+	path = dotfiles-repo.gitconfig
+[includeIf "gitdir:/workspaces/dotfiles/"]
+	path = dotfiles-repo.gitconfig

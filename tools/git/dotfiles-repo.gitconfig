@@ -1,0 +1,7 @@
+# Git settings for the dotfiles checkouts only. tools/git/config includes this
+# file for them; mise.toml and home-manager link it next to that file.
+
+# A relative hooksPath is relative to the top of the working tree. It replaces
+# .git/hooks for the whole repo, which is why it is not set for every repo.
+[core]
+	hooksPath = tools/git/hooks

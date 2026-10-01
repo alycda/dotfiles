@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# commit-msg: refuse a commit whose message fails check-commit-msg (the format
+# in the commit-craft skill). Git runs it in this checkout only:
+# dotfiles-repo.gitconfig sets core.hooksPath to this directory, and
+# tools/git/config includes that file for the dotfiles checkouts. jj runs no
+# git hooks; for jj, `jj push` does the same check.
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+# Git has not removed the comment lines yet when an editor wrote the file.
+if ! out="$(git stripspace --strip-comments <"$1" | "$root/tools/commit/check-commit-msg")"; then
+  printf '%s\n' "$out" >&2
+  echo "commit-msg: the message does not follow the commit-craft format" >&2
+  exit 1
+fi
