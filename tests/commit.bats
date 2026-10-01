@@ -20,6 +20,12 @@ check_msg() {
   run "$check" <<<"$1"
 }
 
+# The Nth ```text block of the skill.
+block() {
+  awk -v want="$1" '/^```text$/ { n++; on = (n == want); next } /^```$/ { on = 0 } on' \
+    "$repo/.claude/skills/commit-craft/SKILL.md"
+}
+
 git_repo() {
   cd "$BATS_TEST_TMPDIR" && git init -q r && cd r || return
 }
@@ -27,6 +33,15 @@ git_repo() {
 jj_repo() {
   command -v jj >/dev/null || skip "no jj"
   cd "$BATS_TEST_TMPDIR" && jj git init r >/dev/null 2>&1 && cd r || return
+}
+
+@test "the skill's example passes and its bad subjects fail" {
+  run "$check" < <(block 2)
+  [ "$status" -eq 0 ]
+  for n in 3 4; do
+    run "$check" < <(block "$n")
+    [ "$status" -eq 1 ]
+  done
 }
 
 @test "a subject with a scope, a body and trailers passes" {

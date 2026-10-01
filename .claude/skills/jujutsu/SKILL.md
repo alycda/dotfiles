@@ -573,12 +573,18 @@ jj git push --change @-                       # same, for parent (common when @ 
 
 `jj git push` uses force-with-lease semantics by default. Safe in normal use.
 
+In a repo that uses the commit-craft format, push with `jj push` instead. It is an
+alias from the dotfiles' jj config: it runs `check-commits --jj` on the stack that is
+not on trunk yet, and runs `jj git push` with the same arguments only when every
+message passes. jj runs no git hooks, so this is the check before a push.
+
 ### Before pushing
 
 1. `jj log -r 'trunk()..@'` — confirm what's in the stack
 2. `jj bookmark list` — confirm the bookmark points where intended
 3. `jj diff --git -r <bookmark>` — review final content
-4. `jj git push -b <bookmark>` — push only after Alyssa explicitly says so
+4. `jj push -b <bookmark>` (or `jj git push -b <bookmark>` in a repo with its own
+   commit format) — push only after Alyssa explicitly says so
 
 **Never push unprompted.** Pushing is an Alyssa-only decision.
 

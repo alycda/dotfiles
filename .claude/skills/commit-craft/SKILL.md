@@ -5,67 +5,67 @@ description: >
   write or change a commit message: before `jj describe`, `jj new -m`,
   `jj commit`, `jj squash -m`, `git commit` or `git commit --amend`, when
   asked to "commit this", and when reviewing or rewording existing messages.
-  Applies in any harness (Claude Code, Crush, Codex). Has a checker script
-  that every message must pass before it is set. The jujutsu skill covers
-  the VCS commands; this skill covers what the message says.
+  Applies in any harness (Claude Code, Crush, Codex). The shape is checked by
+  check-commit-msg, the jj push alias, a git hook and CI; this skill covers
+  what those checks cannot judge. The wording follows the ste100 skill.
 ---
 
 # Commit Craft
 
-This skill defines one commit message format. Follow it exactly. The goal is
-that every commit reads the same no matter which agent or model wrote it.
+The commit path enforces the shape of a message. This skill covers the part
+no check can judge: what the message says. It adds no language rules of its
+own. The body's wording comes from the ste100 skill.
+
+## What is enforced, and where
+
+| Where | What runs |
+| --- | --- |
+| `check-commit-msg FILE` (or stdin) | The shape rules below. Run it yourself before you set a message. |
+| `jj describe` with an editor | The editor opens with the format as `JJ:` lines. |
+| `jj push` (alias) | `check-commits --jj` on the stack that is not on trunk yet, then `jj git push` with the same arguments. |
+| `git commit` in the dotfiles checkouts | The `commit-msg` hook in `tools/git/hooks`. |
+| A pull request on the dotfiles repo | CI runs `check-commits` on the PR's commits. |
+
+The scripts are in `tools/commit/` in the dotfiles repo, and on PATH through
+mise or home-manager. jj runs no git hooks, so in a jj repo push with
+`jj push`, not `jj git push`.
 
 ## Which convention wins
 
 1. A convention the repository documents (CONTRIBUTING, CLAUDE.md, AGENTS.md,
-   a commitlint config) wins.
-2. If there is none, but `git log --format=%s -30` shows a different consistent
-   style, follow that history.
-3. Otherwise, and always in the dotfiles repository, use this skill.
+   a commitlint config) wins. Push with `jj git push` there, because
+   `jj push` checks this skill's format.
+2. Otherwise, use this skill. Do not copy the style of the repository's
+   history.
 
 ## Procedure
 
 Do these steps in order for every commit.
 
-1. Read the full change: `jj diff --git` (or `git diff --staged`). Read the
-   task or conversation that caused it. You need to know *why*, not only
-   *what*.
+1. Read the full change (`jj diff --git` or `git diff --staged`) and the task
+   that caused it. You must know why the change exists, not only what it is.
 2. If the change does two unrelated things, split it first (see the jujutsu
    skill). A subject that needs "and" is a sign of two commits.
-3. Pick the area and scope (below).
-4. Write the message to a file outside the repository (your scratchpad, or
-   `$TMPDIR`). Never write it inside the working copy: jj snapshots it.
-5. Run the checker on the file and fix every problem it prints. Repeat until
-   it prints nothing:
-
-   ```bash
-   <skill-dir>/scripts/check-message /path/to/msg.txt
-   ```
-
-   `<skill-dir>` is the directory that holds this SKILL.md. In the dotfiles
-   repository it is `.claude/skills/commit-craft`.
-6. Set the message from the file:
-
-   ```bash
-   jj describe --stdin < /path/to/msg.txt        # jj
-   git commit -F /path/to/msg.txt                 # git only
-   ```
-
-7. Check what was stored:
-   `jj log -r @ --no-graph -T description | <skill-dir>/scripts/check-message`.
+3. Write the message to a file outside the working copy (your scratchpad, or
+   `$TMPDIR`). jj snapshots every file in the working copy.
+4. Apply the ste100 skill to the body (see Language).
+5. Run `check-commit-msg /path/to/msg.txt`. Fix every problem it prints, and
+   run it again until it prints nothing. ste100 can change line lengths, so
+   run it after step 4.
+6. Set the message from the file: `jj describe --stdin < /path/to/msg.txt`,
+   or `git commit -F /path/to/msg.txt` with git only.
+7. Push with `jj push`.
 
 ## Subject line
 
 Format: `<area>(<scope>): <summary>`. The `(<scope>)` part is optional.
 
 ```text
-hm(zsh): compinit -i, instead of re-owning dirs in CI
 ci(nix): secure the runner dirs compaudit flags
-just: global justfile with the HUID task recipes
 devcontainer(nix): apply home-manager on create
 ```
 
-Hard rules (the checker enforces them):
+`check-commit-msg` enforces these rules:
 
 - `area` is lowercase: letters, digits and `-`.
 - One space after the colon. The summary starts with a lowercase letter,
@@ -73,67 +73,58 @@ Hard rules (the checker enforces them):
   (`HUID`, `README`).
 - 72 characters at most. Aim for 50 to 60.
 - No period at the end.
-- The summary says what the commit does or adds. Use an imperative verb
-  (`secure the runner dirs ...`) or a noun phrase for the thing added
-  (`global justfile with ...`). Do not use past tense (`fixed`, `added`), the
-  third person (`fixes`, `adds`), or "this commit".
+- The first word of the summary is not past tense (`fixed`, `added`), third
+  person (`fixes`, `adds`) or "this".
 
-Choosing the area and scope:
+These rules are yours to apply:
 
-- Reuse an area that already exists. List them with:
-
-  ```bash
-  git log --no-merges --format=%s |
-    sed -nE 's/^([a-z0-9-]+(\([^)]*\))?):.*/\1/p' | sort | uniq -c | sort -rn
-  ```
-
-- The area is the part of the repository or the tool the change belongs to.
-  Examples from the dotfiles: `hm` (home-manager), `ci` (`.github/`), `mise`,
-  `nix`, `devcontainer`, `just`, `agent(skills)`, `docs`.
-- The scope narrows the area: `ci(nix)` is the Nix workflow, `hm(zsh)` is
-  home-manager's zsh. Leave it out when the area is already narrow enough.
-- Make a new area only for something new at the top level of the repository.
+- The summary says what the commit does (`secure the runner dirs ...`) or
+  names what it adds (`global justfile with ...`).
+- The area is the part of the repository or the tool the change belongs to:
+  `hm` (home-manager), `ci` (`.github/`), `mise`, `nix`, `devcontainer`,
+  `just`, `agent(skills)`, `docs`. Reuse an existing area. Make a new one
+  only for something new at the top level of the repository.
+- The scope narrows the area: `ci(nix)` is the Nix workflow. Leave it out
+  when the area is narrow enough.
 
 ## Body
 
-A body is required. Wrap it at 72 characters. Indented lines (pasted output,
-code) and lines that contain a URL can be longer.
+A body is required. Wrap it at 72 characters. Indented lines and lines with a
+URL can be longer. Write these paragraphs in this order. Leave one out only
+when it has nothing to say.
 
-Write the paragraphs in this order. Skip a paragraph only when it has nothing
-to say.
-
-1. **Why.** The problem or the need. Give the evidence: the error text, the CI
-   run, the task or issue. Say what was wrong before this commit, not what
-   you did about it.
-2. **What and how.** What the commit changes, in terms of behavior. Say why
-   it is done this way when there was another choice, and name the choice you
-   did not take. Name files and settings when that helps a reader find them.
-   Do not walk through the diff line by line.
-3. **Verification.** Start with "Tested in ..." or "Verified in ..." and name
-   the environment. Say what you ran and what you saw. Then list the checks
-   that pass (`shellcheck`, `nix flake check`, the bats suites). Also say what
-   you did *not* run, and why. Never claim a check you did not run.
+1. **Why.** The problem or the need, with the evidence: the error text, the
+   CI run, the task or issue. Say what was wrong before this commit.
+2. **What and how.** What the change does to behavior. When there was
+   another option, name it and say why it was not used. Do not walk through
+   the diff line by line.
+3. **Verification.** Name the environment. Say what you ran and what you
+   saw, then which checks pass. Say what you did not run, and why. Never
+   claim a check you did not run.
 4. **What is left.** Follow-up work, known limits, and the task or issue that
    tracks them.
 
-Language:
+## Language
 
-- Plain words and short sentences. One idea per sentence.
-- Past tense for what was wrong before. Present tense for what the code does
-  now.
-- Write as the author. The commit is Alyssa's even when an AI trailer is
-  on it, so do not address her or the reviewer ("as you choose", "you can
-  squash this"). Put notes for the reviewer in the PR body.
-- Refer to another commit by its subject line, in quotes. A subject
-  survives a rebase, a squash and the move to GitHub, and
-  `git log --grep` finds it. Never use a jj change ID: GitHub cannot
-  resolve it. Use a git hash only for a commit already on the default
-  branch, which is not rewritten. For merged work, prefer the PR number
-  (`#N`), which GitHub links.
+The body is a "commit body" surface in the ste100 skill: use its
+STE-flavored mode. Do not apply ste100 to the subject line. Read
+`~/.agents/skills/ste100/SKILL.md` before you write the body. If it is not
+installed, say so in your reply. Do not reconstruct its rules from memory.
+
+These rules are about the commit, not the language, so they apply either
+way:
+
+- Write as the author. The commit is Alyssa's, also when an AI trailer is on
+  it. Do not address her or the reviewer ("as you choose", "you can squash
+  this"). Put notes for the reviewer in the PR body.
+- Refer to another commit by its subject line, in quotes. A subject stays
+  correct after a rebase, a squash and a push to GitHub, and
+  `git log --grep` finds it. Do not use a jj change ID: GitHub cannot
+  resolve it. Use a git hash only for a commit on the default branch, which
+  is not rewritten. For merged work, use the PR number (`#N`), which GitHub
+  links.
 - Use backticks for commands, file names and identifiers. Use a hyphen list
   for parallel items. Do not use headings, bold or emoji.
-- Do not write filler: "This commit", "comprehensive", "robust",
-  "seamlessly", "Additionally", "In order to". Do not praise the change.
 
 ## Trailers
 
@@ -141,42 +132,48 @@ Trailers go in the last paragraph, one `Key: value` per line, after a blank
 line.
 
 - Keep the attribution trailers your harness tells you to add (for example
-  `Co-Authored-By:` and `Claude-Session:`). Do not invent others.
-- Put attribution only in trailers. Never put a "Generated with ..." line or
-  an emoji banner in the body.
-- `Closes #N` or `Refs #N` goes in the body's last paragraph, not in the
-  trailers, unless the repository uses a different convention.
+  `Co-Authored-By:`). Do not invent others.
+- Put attribution only in trailers. Never put a "Generated with ..." line in
+  the body.
 
 ## Example
 
-A real commit from the dotfiles, wrapped at 72:
+This example shows the shape. ste100 decides the wording.
 
 ```text
 ci(nix): secure the runner dirs compaudit flags
 
-nix.yml's home job failed in run 36364995815: in the interactive zsh,
-compinit found completion dirs it considers insecure (owned by, or
-writable by, someone other than root and the user). With no terminal to
-answer its "continue?" prompt it aborted, so the compinit check failed.
-The devcontainer image has no such dirs, which is why the local run
-passed.
+The home job in nix.yml failed in run 36364995815. In the interactive
+zsh, compinit found completion dirs that it thinks are not secure: dirs
+that a user other than root or the owner owns or can write to. No
+terminal was available to answer its "continue?" prompt, so compinit
+stopped and the compinit check failed. The devcontainer image has no
+such dirs, so the local run passed.
 
-A step before the check now lists what compaudit flags and hands it to
-root (chown root:root, chmod go-w), printing the list so the log shows
-which of the runner's dirs they were.
+A new step runs before the check. It lists the dirs that compaudit
+flags, and makes root their owner (chown root:root, chmod go-w). The
+step prints the list, so the log shows which runner dirs they were.
 
-Reproduced in the devcontainer base image by giving another user
-/usr/local/share/zsh: compinit aborted and the check failed as in CI;
-after the step, all ten checks pass.
+Reproduced in the devcontainer base image: another user got
+/usr/local/share/zsh, compinit stopped, and the check failed as in CI.
+After the step, all ten checks pass.
 
 Co-Authored-By: <the agent your harness names>
 ```
 
-More examples, with what each one does well: `references/examples.md`.
+These subjects fail `check-commit-msg`:
+
+```text
+Updated agent skills.
+```
+
+```text
+docs(agents): Instructions for Claude
+```
 
 ## Rewording existing commits
 
-To fix a message on another commit, use
-`jj describe -r <change-id> --stdin < msg.txt`. Run the checker on it first.
-Do not reword commits that are already on a remote branch someone else uses
+To change the message of another commit, run
+`jj describe -r <change-id> --stdin < msg.txt`. Run `check-commit-msg` on the
+file first. Do not reword commits on a remote branch that other people use,
 unless you are asked to.

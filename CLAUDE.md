@@ -58,6 +58,9 @@ you're on the commit you expect - always verify with `jj status` first.
 Every commit message follows the **commit-craft** skill
 (`.claude/skills/commit-craft/SKILL.md`, linked from `.agents/skills/`). Read
 it before writing or changing any message, in any harness, even when skills
-are not loaded for you automatically. It defines the format and has a checker,
-`scripts/check-message`, that each message must pass before it is set. The
-jujutsu skill covers only the commands that set the message.
+are not loaded for you automatically. The body's wording follows the ste100
+skill. The shape is enforced outside the skill, by the scripts in
+`tools/commit/`: run `check-commit-msg` on a message before you set it, and
+push with `jj push`, which checks the stack first. A `git commit` in this
+checkout runs the same check as a hook, and CI checks every commit on a pull
+request. The jujutsu skill covers only the commands that set the message.
