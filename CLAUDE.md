@@ -64,3 +64,6 @@ skill. The shape is enforced outside the skill, by the scripts in
 push with `jj push`, which checks the stack first. A `git commit` in this
 checkout runs the same check as a hook, and CI checks every commit on a pull
 request. The jujutsu skill covers only the commands that set the message.
+The same applies when compound-engineering's `ce-commit` makes the commit:
+commit-craft is the project convention its step 3 defers to, so the body is
+required even where ce-commit would leave it out.

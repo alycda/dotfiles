@@ -50,6 +50,11 @@ jj_repo() {
   [ -z "$output" ]
 }
 
+@test "a compound-engineering plan unit can end the subject" {
+  check_msg "$(printf 'hm(zsh): add the history options (U3)\n\nWhy.')"
+  [ "$status" -eq 0 ]
+}
+
 @test "the subject needs an area" {
   check_msg "$(printf 'add the history options\n\nWhy.')"
   [ "$status" -eq 1 ]
