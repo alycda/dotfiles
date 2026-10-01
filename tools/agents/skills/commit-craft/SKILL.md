@@ -1,336 +1,178 @@
 ---
 name: commit-craft
-description: Write high-quality git commit messages following established conventions. Use when the user asks to write, review, improve, or critique commit messages, wants to prepare commits for pushing to git from jujutsu, or needs guidance on commit message structure and content. Also use when asked about commit message best practices or the seven rules.
+description: >
+  The commit message format for Alyssa's repositories. Use every time you
+  write or change a commit message: before `jj describe`, `jj new -m`,
+  `jj commit`, `jj squash -m`, `git commit` or `git commit --amend`, when
+  asked to "commit this", and when reviewing or rewording existing messages.
+  Applies in any harness (Claude Code, Crush, Codex). Has a checker script
+  that every message must pass before it is set. The jujutsu skill covers
+  the VCS commands; this skill covers what the message says.
 ---
 
 # Commit Craft
 
-Write clear, professional commit messages that follow established conventions from Chris Beams' "How to Write a Git Commit Message."
+This skill defines one commit message format. Follow it exactly. The goal is
+that every commit reads the same no matter which agent or model wrote it.
 
-## The Seven Rules
+## Which convention wins
 
-### 1. Separate subject from body with a blank line
+1. A convention the repository documents (CONTRIBUTING, CLAUDE.md, AGENTS.md,
+   a commitlint config) wins.
+2. If there is none, but `git log --format=%s -30` shows a different consistent
+   style, follow that history.
+3. Otherwise, and always in the dotfiles repository, use this skill.
 
-If your commit needs explanation beyond the subject line, add a blank line after the subject, then write the body.
+## Procedure
 
-**Why:** Many git tools expect this format. `git log --oneline`, `git shortlog`, and email-based workflows all rely on this separation.
+Do these steps in order for every commit.
 
-```
-Add caching layer to user authentication
+1. Read the full change: `jj diff --git` (or `git diff --staged`). Read the
+   task or conversation that caused it. You need to know *why*, not only
+   *what*.
+2. If the change does two unrelated things, split it first (see the jujutsu
+   skill). A subject that needs "and" is a sign of two commits.
+3. Pick the area and scope (below).
+4. Write the message to a file outside the repository (your scratchpad, or
+   `$TMPDIR`). Never write it inside the working copy: jj snapshots it.
+5. Run the checker on the file and fix every problem it prints. Repeat until
+   it prints nothing:
 
-The previous implementation made a database call on every
-request to verify user credentials. This change introduces
-a Redis-backed cache with a 5-minute TTL to reduce database
-load during high-traffic periods.
-```
-
-**When to skip the body:** Simple, self-explanatory changes don't need additional context.
-
-```
-Fix typo in README
-```
-
----
-
-### 2. Limit the subject line to 50 characters
-
-Keep subjects concise. Aim for 50 characters; treat 72 as a hard limit.
-
-**Why:** GitHub truncates subjects longer than 72 characters. The 50-character guideline ensures readability in all contexts.
-
-**How to achieve this:**
-- Focus on the essential action and target
-- Remove unnecessary words ("this commit," "I have")
-- Use abbreviations where standard (HTTP, API, DB)
-
-**Too long:**
-```
-Update the user authentication module to use bcrypt instead of the old MD5 hashing algorithm
-```
-
-**Better:**
-```
-Replace MD5 with bcrypt for password hashing
-```
-
----
-
-### 3. Capitalize the subject line
-
-Start the subject with a capital letter.
-
-**Why:** Basic grammar convention that maintains consistency across the project.
-
-**Wrong:**
-```
-fix authentication bug in login handler
-```
-
-**Right:**
-```
-Fix authentication bug in login handler
-```
-
----
-
-### 4. Do not end the subject line with a period
-
-Omit trailing punctuation from the subject.
-
-**Why:** Subject lines are titles, not sentences. The period wastes precious character space.
-
-**Wrong:**
-```
-Add rate limiting to API endpoints.
-```
-
-**Right:**
-```
-Add rate limiting to API endpoints
-```
-
----
-
-### 5. Use the imperative mood in the subject line
-
-Write subjects as commands: "Fix bug" not "Fixed bug" or "Fixes bug."
-
-**Why:** Git itself uses imperative mood (e.g., "Merge branch" not "Merged branch"). This convention reads as "If applied, this commit will [your subject line]."
-
-**Test:** Your subject should complete the sentence: "If applied, this commit will..."
-
-**Wrong:**
-```
-Fixed the authentication timeout issue
-Added support for OAuth2
-Updating dependencies to latest versions
-```
-
-**Right:**
-```
-Fix authentication timeout issue
-Add support for OAuth2
-Update dependencies to latest versions
-```
-
-**Common imperative verbs:**
-- Add, Remove, Fix, Update, Refactor
-- Implement, Extract, Merge, Revert
-- Optimize, Document, Deprecate
-
----
-
-### 6. Wrap the body at 72 characters
-
-Hard-wrap body text at 72 characters.
-
-**Why:** Git never wraps text automatically. The 72-character limit ensures proper display in terminals and UI tools with padding.
-
-**How:** Configure your editor to wrap at 72 characters, or manually add line breaks.
-
----
-
-### 7. Use the body to explain what and why, not how
-
-The body should explain:
-- **What** changed (if not obvious from the diff)
-- **Why** the change was necessary
-- **What** problem it solves or requirement it fulfills
-
-The body should NOT explain:
-- **How** you implemented the change (the diff shows this)
-
-**Example:**
-
-```
-Refactor user session management to use Redis
-
-Previous implementation stored sessions in PostgreSQL, causing
-performance degradation when session count exceeded 10k. Under
-load testing, login response times increased from 200ms to 3s.
-
-Redis provides O(1) lookups and automatic expiration, resolving
-the performance issue. Load tests now show consistent 150ms
-response times regardless of session count.
-
-This change maintains backward compatibility by preserving the
-session schema. The migration script handles existing sessions.
-```
-
-**What makes this good:**
-- Explains the problem (performance degradation)
-- Provides context (specific metrics)
-- Justifies the solution (Redis benefits)
-- Notes important details (backward compatibility)
-
----
-
-## Workflow Integration
-
-### For jujutsu users preparing to push to git
-
-When you've completed work in jujutsu and are ready to create permanent git commits:
-
-1. **Review your jujutsu changes:**
    ```bash
-   jj log
-   jj diff
+   <skill-dir>/scripts/check-message /path/to/msg.txt
    ```
 
-2. **Craft your commit message:**
-   - Write subject line (imperative, <50 chars)
-   - Add body if needed (what and why)
-   - Use `jj describe` to set the message:
-   ```bash
-   jj describe -m "Add user profile caching
+   `<skill-dir>` is the directory that holds this SKILL.md. Installed, it is
+   `~/.agents/skills/commit-craft`; in the dotfiles checkout it is
+   `tools/agents/skills/commit-craft`.
+6. Set the message from the file:
 
-   Reduces database queries by 60% during profile page
-   loads. Cache TTL set to 10 minutes based on analytics
-   showing most users refresh profiles within this window."
+   ```bash
+   jj describe --stdin < /path/to/msg.txt        # jj
+   git commit -F /path/to/msg.txt                 # git only
    ```
 
-3. **Verify before pushing:**
-   ```bash
-   jj log  # Check your commit message
-   jj bookmark set main  # Point bookmark at commit
-   jj git push
-   ```
+7. Check what was stored:
+   `jj log -r @ --no-graph -T description | <skill-dir>/scripts/check-message`.
 
----
+## Subject line
 
-## Quick Reference
+Format: `<area>(<scope>): <summary>`. The `(<scope>)` part is optional.
 
-**Subject line checklist:**
-- [ ] Imperative mood ("Add feature" not "Added feature")
-- [ ] Capitalized first letter
-- [ ] Under 50 characters (72 hard limit)
-- [ ] No period at the end
-- [ ] Completes: "If applied, this commit will..."
-
-**Body checklist (when needed):**
-- [ ] Blank line after subject
-- [ ] Wrapped at 72 characters
-- [ ] Explains what and why, not how
-- [ ] Provides context for the change
-- [ ] Notes any important side effects or considerations
-
----
-
-## Common Patterns
-
-### Bug fixes
-```
-Fix race condition in payment processing
-
-Under high load, concurrent requests could process the same
-payment twice. Added transaction-level locking to ensure
-payment atomicity.
+```text
+hm(zsh): compinit -i, instead of re-owning dirs in CI
+ci(nix): secure the runner dirs compaudit flags
+just: global justfile with the HUID task recipes
+devcontainer(nix): apply home-manager on create
 ```
 
-### New features
+Hard rules (the checker enforces them):
+
+- `area` is lowercase: letters, digits and `-`.
+- One space after the colon. The summary starts with a lowercase letter,
+  unless its first word is a name that is always written in capitals
+  (`HUID`, `README`).
+- 72 characters at most. Aim for 50 to 60.
+- No period at the end.
+- The summary says what the commit does or adds. Use an imperative verb
+  (`secure the runner dirs ...`) or a noun phrase for the thing added
+  (`global justfile with ...`). Do not use past tense (`fixed`, `added`), the
+  third person (`fixes`, `adds`), or "this commit".
+
+Choosing the area and scope:
+
+- Reuse an area that already exists. List them with:
+
+  ```bash
+  git log --no-merges --format=%s |
+    sed -nE 's/^([a-z0-9-]+(\([^)]*\))?):.*/\1/p' | sort | uniq -c | sort -rn
+  ```
+
+- The area is the part of the repository or the tool the change belongs to.
+  Examples from the dotfiles: `hm` (home-manager), `ci` (`.github/`), `mise`,
+  `nix`, `devcontainer`, `just`, `agent(skills)`, `docs`.
+- The scope narrows the area: `ci(nix)` is the Nix workflow, `hm(zsh)` is
+  home-manager's zsh. Leave it out when the area is already narrow enough.
+- Make a new area only for something new at the top level of the repository.
+
+## Body
+
+A body is required. Wrap it at 72 characters. Indented lines (pasted output,
+code) and lines that contain a URL can be longer.
+
+Write the paragraphs in this order. Skip a paragraph only when it has nothing
+to say.
+
+1. **Why.** The problem or the need. Give the evidence: the error text, the CI
+   run, the task or issue. Say what was wrong before this commit, not what
+   you did about it.
+2. **What and how.** What the commit changes, in terms of behavior. Say why
+   it is done this way when there was another choice, and name the choice you
+   did not take. Name files and settings when that helps a reader find them.
+   Do not walk through the diff line by line.
+3. **Verification.** Start with "Tested in ..." or "Verified in ..." and name
+   the environment. Say what you ran and what you saw. Then list the checks
+   that pass (`shellcheck`, `nix flake check`, the bats suites). Also say what
+   you did *not* run, and why. Never claim a check you did not run.
+4. **What is left.** Follow-up work, known limits, a task that tracks them, or
+   an instruction for the person who merges ("a fix for vmp, to squash or
+   rebase as you choose").
+
+Language:
+
+- Plain words and short sentences. One idea per sentence.
+- Past tense for what was wrong before. Present tense for what the code does
+  now.
+- Refer to other commits by their jj change ID (the short prefix `jj log`
+  shows, for example `vmp`), because it survives rewrites. Use the git hash
+  only in a repository without jj.
+- Use backticks for commands, file names and identifiers. Use a hyphen list
+  for parallel items. Do not use headings, bold or emoji.
+- Do not write filler: "This commit", "comprehensive", "robust",
+  "seamlessly", "Additionally", "In order to". Do not praise the change.
+
+## Trailers
+
+Trailers go in the last paragraph, one `Key: value` per line, after a blank
+line.
+
+- Keep the attribution trailers your harness tells you to add (for example
+  `Co-Authored-By:` and `Claude-Session:`). Do not invent others.
+- Put attribution only in trailers. Never put a "Generated with ..." line or
+  an emoji banner in the body.
+- `Closes #N` or `Refs #N` goes in the body's last paragraph, not in the
+  trailers, unless the repository uses a different convention.
+
+## Example
+
+A real commit from the dotfiles, wrapped at 72:
+
+```text
+ci(nix): secure the runner dirs compaudit flags
+
+nix.yml's home job failed in run 36364995815: in the interactive zsh,
+compinit found completion dirs it considers insecure (owned by, or
+writable by, someone other than root and the user). With no terminal to
+answer its "continue?" prompt it aborted, so the compinit check failed.
+The devcontainer image has no such dirs, which is why the local run
+passed.
+
+A step before the check now lists what compaudit flags and hands it to
+root (chown root:root, chmod go-w), printing the list so the log shows
+which of the runner's dirs they were.
+
+Reproduced in the devcontainer base image by giving another user
+/usr/local/share/zsh: compinit aborted and the check failed as in CI;
+after the step, all ten checks pass.
+
+Co-Authored-By: <the agent your harness names>
 ```
-Add export functionality to reports dashboard
 
-Users can now export reports as CSV or PDF. Export happens
-asynchronously with email notification upon completion to
-handle large datasets without blocking the UI.
-```
+More examples, with what each one does well: `references/examples.md`.
 
-### Refactoring
-```
-Extract authentication logic into middleware
+## Rewording existing commits
 
-Authentication was duplicated across 15 route handlers.
-Consolidating into middleware reduces code by 200 lines
-and ensures consistent auth checks across all routes.
-```
-
-### Performance improvements
-```
-Optimize database queries in user listing
-
-Replaced N+1 query pattern with eager loading. Page load
-time reduced from 2.5s to 400ms for listings with 100+ users.
-```
-
-### Breaking changes
-```
-Remove deprecated OAuth1 support
-
-OAuth1 has been deprecated since v2.0 (2023-06). All clients
-have migrated to OAuth2. Removing legacy code reduces
-maintenance burden and attack surface.
-
-BREAKING CHANGE: OAuth1 endpoints no longer available.
-```
-
----
-
-## Additional Guidelines
-
-### Atomic commits
-
-Each commit should represent one logical change. If you're tempted to use "and" in your subject, you probably need multiple commits.
-
-**Too broad:**
-```
-Add user profiles and fix login bug and update dependencies
-```
-
-**Better as separate commits:**
-```
-Add user profile pages
-Fix login redirect after password reset
-Update authentication dependencies
-```
-
-### References
-
-Link to issue trackers, pull requests, or documentation when relevant:
-
-```
-Fix memory leak in background job processor
-
-Jobs weren't properly releasing database connections after
-completion, causing connection pool exhaustion after ~6 hours
-of operation.
-
-Fixes #1234
-See: docs/architecture/background-jobs.md
-```
-
-### Conventional Commits (optional extension)
-
-Some projects use conventional commits format:
-
-```
-<type>(<scope>): <subject>
-
-<body>
-```
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-```
-feat(auth): add two-factor authentication support
-
-Users can now enable 2FA using TOTP apps like Google
-Authenticator. Recovery codes are generated and encrypted
-at rest.
-```
-
-Only use this format if the project requires it.
-
----
-
-## When to Use This Skill
-
-Use this skill when:
-- Writing new commit messages
-- Reviewing/improving existing commit messages
-- Preparing jujutsu changes for git push
-- Squashing commits and need consolidated message
-- Creating pull request with clean commit history
-- Getting feedback on commit message quality
-
-The goal is professional, maintainable commit history that helps future developers (including yourself) understand the evolution of the codebase.
+To fix a message on another commit, use
+`jj describe -r <change-id> --stdin < msg.txt`. Run the checker on it first.
+Do not reword commits that are already on a remote branch someone else uses
+unless you are asked to.
