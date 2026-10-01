@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# check-message: check a commit message against the mechanical rules in
-# commit-craft's SKILL.md. Reads FILE, or stdin when there is no argument.
-# Prints one line per problem and exits 1; prints nothing and exits 0 when the
-# message passes. It can't judge whether the body says the right things: that
-# part is the skill's, not this script's.
+# check-commit-msg: check one commit message against the format in the
+# commit-craft skill. Reads FILE, or stdin when there is no argument. Prints
+# one line per problem and exits 1; prints nothing and exits 0 when the
+# message passes. It checks the shape only. Whether the body says the right
+# things is the skill's job.
 #
-#   check-message msg.txt
-#   jj log -r @ --no-graph -T description | check-message
-#   git log -1 --format=%B | check-message
+#   check-commit-msg msg.txt
+#   jj log -r @ --no-graph -T description | check-commit-msg
+#   git log -1 --format=%B | check-commit-msg
+#
+# check-commits runs it over a range of commits; tools/git/hooks/commit-msg
+# runs it on every `git commit` in this checkout.
 set -euo pipefail
 
 max=72

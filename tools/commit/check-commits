@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# check-commits: run check-commit-msg on every commit in a range, and print
+# the problems under each commit that fails. Exits 1 if any commit fails.
+# Merge commits are skipped: their subject is the tool's, not the author's.
+#
+#   check-commits --jj [REVSET]   jj commits. The default is the stack under
+#                                 @ that is not on trunk yet, without an empty
+#                                 undescribed @. The `jj push` alias uses it.
+#   check-commits RANGE           git commits, e.g. origin/main..HEAD. CI
+#                                 uses this form.
+set -euo pipefail
+
+# check-commit-msg sits next to this script in the checkout. home-manager
+# copies each file into the store on its own, so fall back to PATH.
+check="$(dirname "$(readlink -f "$0")")/check-commit-msg"
+[ -x "$check" ] || check="check-commit-msg"
+
+stack='(trunk()..@) ~ merges() ~ (empty() & description(exact:""))'
+failed=0
+
+report() { # id subject message
+  local out
+  if ! out="$("$check" <<<"$3")"; then
+    printf '%s %s\n' "$1" "$2"
+    printf '%s\n' "$out" | sed 's/^/  /'
+    failed=1
+  fi
+}
+
+if [ "${1:-}" = --jj ]; then
+  # Assigned first, so a bad revset or a missing repo stops the script.
+  ids="$(jj log --no-graph --reversed -r "${2:-$stack}" -T 'commit_id.short() ++ "\n"')"
+  for id in $ids; do
+    report "$id" "$(jj log --no-graph -r "$id" -T 'description.first_line()')" \
+      "$(jj log --no-graph -r "$id" -T description)"
+  done
+elif [ $# -eq 1 ]; then
+  ids="$(git rev-list --no-merges --reverse "$1")"
+  for id in $ids; do
+    report "$(git rev-parse --short "$id")" "$(git log -1 --format=%s "$id")" \
+      "$(git log -1 --format=%B "$id")"
+  done
+else
+  echo "usage: check-commits --jj [REVSET] | check-commits <git range>" >&2
+  exit 2
+fi
+
+exit "$failed"

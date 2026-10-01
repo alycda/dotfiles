@@ -83,6 +83,9 @@ fi
 # 3. Config shared with the Nix accounts, used in place from the checkout.
 link "$HOME/.config/mise" "$DOTFILES/tools/mise"
 link "$HOME/.config/helix" "$DOTFILES/tools/helix"
+# The commit message draft template and the `jj push` alias. conf.d, not
+# config.toml, which `jj config set --user` (the identity task) writes.
+link "$HOME/.config/jj/conf.d/dotfiles.toml" "$DOTFILES/tools/jujutsu/config"
 
 gitconfig="$DOTFILES/tools/git/config"
 if git config --global --get-all include.path 2>/dev/null | grep -qxF "$gitconfig"; then

@@ -4,6 +4,14 @@ let
   # Core packages shared with devShells (defined in lib/core-packages.nix)
   # docker on OSX is installed by homebrew (Docker Desktop/Orbstack)
   corePackages = import ../../lib/core-packages.nix pkgs;
+
+  # The commit message checks (tools/commit), on PATH for jj's `jj push`
+  # alias. One package, because check-commits looks for check-commit-msg
+  # next to itself.
+  commitChecks = pkgs.runCommandLocal "commit-checks" { } ''
+    mkdir -p $out/bin
+    cp ${../../tools/commit}/* $out/bin/
+  '';
 in
 {
   imports = [
@@ -39,7 +47,7 @@ in
     # Core packages across all profiles
     # Note: helix is configured via ./tools/helix.nix (programs.helix)
     # Note: claude-code CLI installed here (binary only; global rules managed by ./tools/claude-code.nix)
-    packages = corePackages ++ [ pkgs.claude-code pkgs.presenterm ];
+    packages = corePackages ++ [ pkgs.claude-code pkgs.presenterm commitChecks ];
 
     # Set helix as default editor
     sessionVariables = {
@@ -75,14 +83,21 @@ in
     };
   };
 
-  # Invocable cheatsheets as just's GLOBAL justfile: `just -g <recipe>` from
-  # anywhere (verified on just 1.58: -g recipes run with the invocation
-  # directory as cwd). The shim imports the store copy by absolute path, and
-  # `import?` leaves an optional hook so a profile or machine can layer its
-  # own recipes (e.g. the work profile's ditto-worktree recipes) by writing
-  # ~/.config/just/local.just instead of fighting over this file.
-  xdg.configFile."just/justfile".text = ''
-    import '${../../tools/just}/global.justfile'
-    import? '~/.config/just/local.just'
-  '';
+  xdg.configFile = {
+    # Invocable cheatsheets as just's GLOBAL justfile: `just -g <recipe>` from
+    # anywhere (verified on just 1.58: -g recipes run with the invocation
+    # directory as cwd). The shim imports the store copy by absolute path, and
+    # `import?` leaves an optional hook so a profile or machine can layer its
+    # own recipes (e.g. the work profile's ditto-worktree recipes) by writing
+    # ~/.config/just/local.just instead of fighting over this file.
+    "just/justfile".text = ''
+      import '${../../tools/just}/global.justfile'
+      import? '~/.config/just/local.just'
+    '';
+
+    # jj settings shared with the account without Nix: the commit message
+    # draft template and the `jj push` alias. conf.d, not config.toml, which
+    # `jj config set --user` writes.
+    "jj/conf.d/dotfiles.toml".source = ../../tools/jujutsu/config;
+  };
 }
