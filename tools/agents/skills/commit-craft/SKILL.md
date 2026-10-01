@@ -7,14 +7,17 @@ description: >
   asked to "commit this", and when reviewing or rewording existing messages.
   Applies in any harness (Claude Code, Crush, Codex). The shape is checked by
   check-commit-msg, the jj push alias, a git hook and CI; this skill covers
-  what those checks cannot judge. The wording follows the ste100 skill.
+  what those checks cannot judge. The facts come from sem (entity-level-git)
+  and the wording from the ste100 skill.
 ---
 
 # Commit Craft
 
 The commit path enforces the shape of a message. This skill covers the part
 no check can judge: what the message says. It adds no language rules of its
-own. The body's wording comes from the ste100 skill.
+own. Two other skills do the work it would otherwise repeat: sem, from the
+entity-level-git skill, gives the facts (which entities changed), and ste100
+gives the words. This skill gives the order.
 
 ## What is enforced, and where
 
@@ -42,10 +45,14 @@ mise or home-manager. jj runs no git hooks, so in a jj repo push with
 
 Do these steps in order for every commit.
 
-1. Read the full change (`jj diff --git` or `git diff --staged`) and the task
-   that caused it. You must know why the change exists, not only what it is.
+1. Read the full change and the task that caused it. You must know why the
+   change exists, not only what it is. If `sem` is installed, start with
+   `sem diff --no-cosmetics` (see Facts). Then read `jj diff --git` (or
+   `git diff --staged`) for the detail.
 2. If the change does two unrelated things, split it first (see the jujutsu
-   skill). A subject that needs "and" is a sign of two commits.
+   skill). Signs of two commits: a subject that needs "and", two groups of
+   entities in `sem diff` with no relation, or formatting-only edits (sem
+   marks them `[cosmetic]`) next to real ones.
 3. Write the message to a file outside the working copy (your scratchpad, or
    `$TMPDIR`). jj snapshots every file in the working copy.
 4. Apply the ste100 skill to the body (see Language).
@@ -103,6 +110,29 @@ when it has nothing to say.
    claim a check you did not run.
 4. **What is left.** Follow-up work, known limits, and the task or issue that
    tracks them.
+
+## Facts
+
+Where `sem` is installed (the entity-level-git skill says where), it lists
+the entities a change touches by name: functions, classes, Nix bindings such
+as `home.packages`. Use it for the facts in the body.
+
+- `sem diff --no-cosmetics` in a colocated jj repo shows `@` against `@-`.
+  For another commit, run `sem diff <commit>^ <commit>` with its git commit
+  ID (`jj log -r <rev> --no-graph -T commit_id`).
+- The "what and how" paragraph covers the entities that list shows. If the
+  commit also has formatting-only edits, say so in one sentence.
+- Name each entity as sem names it, in backticks. ste100 treats a technical
+  name as one word with one spelling, so do not paraphrase it.
+- For the verification paragraph, `sem impact <entity> --tests` lists the
+  tests that depend on a changed entity. Run them and name them. A
+  dependent that no test covers goes in "what is left".
+- sem's language coverage is uneven. When it returns `chunk` entities or an
+  empty dependency graph (Dart, for one), use `jj diff` and do not cite
+  `sem impact`. The entity-level-git skill lists the known gaps.
+- Without sem (most sandboxes and devcontainers), use `jj diff`, and say in
+  your reply that sem was not available. Do not install it to write a
+  commit message.
 
 ## Language
 
