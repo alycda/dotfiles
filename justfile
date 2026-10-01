@@ -138,3 +138,23 @@ docker-run: docker-daemon
 [group('secrets')]
 edit-secret name:
     tools/secrets/edit-secret {{ quote(name) }}
+
+# The commit message format is the commit-craft skill's, checked by the
+# scripts in tools/commit (from alycda/dotfiles#197). jj runs no git hooks,
+# so these recipes are where the format is enforced. CI comes later.
+
+# Check one commit message, from FILE or stdin
+check-msg file='':
+    tools/commit/check-commit-msg {{ file }}
+
+# Check every commit in REVSET (default: the stack not on trunk yet)
+check-commits revset='':
+    tools/commit/check-commits --jj {{ quote(revset) }}
+
+# Check the stack, then `jj git push` with the same arguments
+push *args: check-commits
+    jj git push {{ args }}
+
+# Run the tests for the commit checks
+test:
+    bats tests
