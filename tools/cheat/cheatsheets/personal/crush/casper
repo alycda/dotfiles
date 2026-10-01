@@ -10,7 +10,18 @@
 #   model add casper/<model-id> \
 #     --name "<display name>" \
 #     --context-window <tokens> \
-#     --default-max-tokens <tokens>
+#     --default-max-tokens <tokens> \
+#     --price-input <$/1M input> \
+#     --price-output <$/1M output> \
+#     --price-cache-create <$/1M cache write> \
+#     --price-cache-hit <$/1M cache read>
+#
+# Prices drive the sidebar's $ figure; omitted, it reads $0.00. They stay
+# in the local crushrc only - never in this repo, plaintext or agenix, if
+# they are casper's internal rates rather than the vendor's list price.
+# Mind the JSON names these write: --price-cache-create sets
+# cost_per_1m_in_cached and --price-cache-hit sets cost_per_1m_out_cached;
+# the "out" there means cache *reads*, not output tokens.
 
 # To see which model ids casper offers (GPT-class models only if the
 # roster proxies them - check here first):
