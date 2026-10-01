@@ -54,9 +54,12 @@ gets the config, and a bad version pin fails an install (a dry run only warns,
 so the job's real `mise install` is the check).
 `tests/import-issue.bats` checks `just import-issue` against a stubbed `gh`:
 the HUID from when the issue was opened, the TASK.md for open and closed
-issues, argument checks, and importing twice or into a taken second. One test
-sends the real query to GitHub. It runs only when `GH_TOKEN` is set, which
-the job sets from its own token. Run them locally with `bats tests`, or
+issues, argument checks, and importing twice or into a taken second.
+`tests/commit-craft.bats` checks the commit-craft skill's `check-message`:
+each mechanical rule reports its problem, and the skill's own good and bad
+examples pass and fail. One test in `import-issue.bats` sends the real query
+to GitHub. It runs only when `GH_TOKEN` is set, which the job sets from its
+own token. Run them locally with `bats tests`, or
 `GH_TOKEN="$(gh auth token)" bats tests` to include that test.
 
 ## devcontainer

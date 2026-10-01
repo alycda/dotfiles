@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# check-message: check a commit message against the mechanical rules in
+# commit-craft's SKILL.md. Reads FILE, or stdin when there is no argument.
+# Prints one line per problem and exits 1; prints nothing and exits 0 when the
+# message passes. It can't judge whether the body says the right things: that
+# part is the skill's, not this script's.
+#
+#   check-message msg.txt
+#   jj log -r @ --no-graph -T description | check-message
+#   git log -1 --format=%B | check-message
+set -euo pipefail
+
+max=72
+# A first word that reports the past instead of saying what the commit does.
+past='^(added|adds|fixed|fixes|updated|updates|removed|removes|changed|changes|moved|moves|renamed|refactored|implemented|created|deleted|this)$'
+subject_re='^([a-z0-9][a-z0-9-]*)(\([^()]+\))?: (.+)$'
+trailer_re='^[A-Za-z][A-Za-z0-9-]*: '
+
+mapfile -t lines < <(cat -- "${1:-/dev/stdin}")
+problems=()
+problem() { problems+=("line $1: $2"); }
+
+# Drop trailing blank lines, which jj and git both add.
+n=${#lines[@]}
+while [ "$n" -gt 0 ] && [ -z "${lines[n - 1]//[[:space:]]/}" ]; do n=$((n - 1)); done
+
+if [ "$n" -eq 0 ]; then
+  echo "line 1: the message is empty"
+  exit 1
+fi
+
+subject="${lines[0]}"
+if [[ $subject =~ $subject_re ]]; then
+  summary="${BASH_REMATCH[3]}"
+  first="${summary%% *}"
+  # "Add ..." is a capitalised word; "HUID ..." or "README ..." is a name.
+  [[ $first =~ ^[A-Z][a-z] ]] && problem 1 "the summary starts lowercase (\"${first,}\", not \"$first\")"
+  [[ ${first,,} =~ $past ]] && problem 1 "\"$first\": say what the commit does, not what happened"
+else
+  problem 1 "the subject is <area>(<scope>): <summary>, with a lowercase area and the scope optional"
+fi
+[ "${#subject}" -gt "$max" ] && problem 1 "the subject is ${#subject} characters, more than $max"
+[[ $subject == *. ]] && problem 1 "the subject ends with a period"
+
+# The trailers are the last paragraph, when every line in it is Key: value.
+end=$n
+start=$n
+while [ "$start" -gt 1 ] && [ -n "${lines[start - 1]}" ]; do start=$((start - 1)); done
+if [ "$start" -gt 1 ]; then
+  all=1
+  for ((i = start; i < n; i++)); do [[ ${lines[i]} =~ $trailer_re ]] || all=0; done
+  [ "$all" -eq 1 ] && end=$((start - 1))
+fi
+
+if [ "$n" -gt 1 ] && [ -n "${lines[1]}" ]; then
+  problem 2 "a blank line separates the subject from the body"
+fi
+
+body=0
+for ((i = 1; i < end; i++)); do
+  line="${lines[i]}"
+  [ -n "$line" ] && body=1
+  # Indented lines (pasted output, code) and URLs keep their length.
+  [[ $line == [[:space:]]* || $line == *://* ]] && continue
+  [ "${#line}" -gt "$max" ] && problem $((i + 1)) "${#line} characters, more than $max: wrap the body at $max"
+done
+[ "$body" -eq 0 ] && problem 2 "there is no body: say why, and how it was verified"
+
+[ "${#problems[@]}" -eq 0 ] && exit 0
+printf '%s\n' "${problems[@]}"
+exit 1

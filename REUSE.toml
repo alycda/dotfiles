@@ -23,6 +23,7 @@ path = [
   "**/*.just",
   "tasks/scripts/**",
   ".github/scripts/**",
+  ".claude/skills/*/scripts/**",
   "tools/jj-stash/jj-stash",
   "extensions/**",
   "docker/**",
