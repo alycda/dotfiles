@@ -2,7 +2,10 @@
     "recommendations": [
         "davidanson.vscode-markdownlint",
         "editorconfig.editorconfig",
+        "foxundermoon.shell-format",
         "hverlin.mise-vscode",
-        "tamasfe.even-better-toml"
+        "skellock.just",
+        "tamasfe.even-better-toml",
+        "timonwong.shellcheck"
     ]
 }
