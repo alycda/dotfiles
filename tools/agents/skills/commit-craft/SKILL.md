@@ -114,18 +114,23 @@ to say.
    the environment. Say what you ran and what you saw. Then list the checks
    that pass (`shellcheck`, `nix flake check`, the bats suites). Also say what
    you did *not* run, and why. Never claim a check you did not run.
-4. **What is left.** Follow-up work, known limits, a task that tracks them, or
-   an instruction for the person who merges ("a fix for vmp, to squash or
-   rebase as you choose").
+4. **What is left.** Follow-up work, known limits, and the task or issue that
+   tracks them.
 
 Language:
 
 - Plain words and short sentences. One idea per sentence.
 - Past tense for what was wrong before. Present tense for what the code does
   now.
-- Refer to other commits by their jj change ID (the short prefix `jj log`
-  shows, for example `vmp`), because it survives rewrites. Use the git hash
-  only in a repository without jj.
+- Write as the author. The commit is Alyssa's even when an AI trailer is
+  on it, so do not address her or the reviewer ("as you choose", "you can
+  squash this"). Put notes for the reviewer in the PR body.
+- Refer to another commit by its subject line, in quotes. A subject
+  survives a rebase, a squash and the move to GitHub, and
+  `git log --grep` finds it. Never use a jj change ID: GitHub cannot
+  resolve it. Use a git hash only for a commit already on the default
+  branch, which is not rewritten. For merged work, prefer the PR number
+  (`#N`), which GitHub links.
 - Use backticks for commands, file names and identifiers. Use a hyphen list
   for parallel items. Do not use headings, bold or emoji.
 - Do not write filler: "This commit", "comprehensive", "robust",
