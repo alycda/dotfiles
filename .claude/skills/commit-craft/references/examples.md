@@ -3,29 +3,34 @@
 Real commits from the dotfiles repository, rewrapped at 72 characters and
 with their trailers removed. Each one has a note on what to copy from it.
 
-## A fix to another change, with a note for the person who merges
+## A fix to another change, named by its subject
 
 ```text
 ci(tasks): test the global HUID task recipes
 
-vmp moved `task` and `task-edit` out of the repo justfile into the
-global one (tools/just) and their logic into tasks/scripts, but
-huid-tasks.bats still copied the repo justfile and ran `just task`: 7
-of its 8 tests failed with no such recipe.
+"just: global justfile with the HUID task recipes" moved `task` and
+`task-edit` out of the repo justfile into the global one (tools/just)
+and their logic into tasks/scripts, but huid-tasks.bats still copied
+the repo justfile and ran `just task`: 7 of its 8 tests failed with no
+such recipe.
 
 The suite now runs tools/just/justfile the way `just -g` does (from the
 test's temp dir), with tasks/scripts on PATH as mise links them and
-HOME in a temp dir so no local.just joins in. Two tests cover what vmp
-added: without a tasks/ dir a task goes to .tasks/, and TASKS_DIR
-overrides both.
+HOME in a temp dir so no local.just joins in. Two tests cover what that
+commit added: without a tasks/ dir a task goes to .tasks/, and
+TASKS_DIR overrides both.
 
-A dangling fix for vmolorpo, to squash or rebase as you choose. All
-bats suites (26) pass; shellcheck and editorconfig-checker too.
+All bats suites (26) pass; shellcheck and editorconfig-checker too.
 ```
 
-Copy: the first paragraph names the change that caused the problem by its
-jj change ID (`vmp`) and gives the exact failure ("7 of its 8 tests
-failed"). The last paragraph tells the reader what to do with the commit.
+Copy: the first paragraph names the commit that caused the problem by its
+subject line, which survives a rebase, a squash and the move to GitHub, and
+it gives the exact failure ("7 of its 8 tests failed").
+
+The original named that commit by its jj change ID and ended with "a
+dangling fix for vmolorpo, to squash or rebase as you choose". Both are
+removed here. GitHub cannot resolve a change ID, and the commit is the
+author's, so it does not give the author instructions.
 
 ## A noun-phrase subject, and an honest list of what was not run
 
