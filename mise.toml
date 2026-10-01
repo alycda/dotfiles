@@ -3,5 +3,6 @@ EDITOR = "hx"
 
 [tools]
 helix = "latest"
+jujutsu = "latest"
 just = "latest"
 "github:taskbook-sh/taskbook" = "latest"
