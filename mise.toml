@@ -11,6 +11,8 @@
 # `git config --global` there, which would put identity in the tracked file.
 "~/.config/git/dotfiles.gitconfig" = { source = "tools/git/config", mode = "symlink" }
 "~/.gitconfig/dotfiles" = { line = "[include] path = ~/.config/git/dotfiles.gitconfig" }
+# Next to dotfiles.gitconfig, which includes it for the dotfiles checkouts.
+"~/.config/git/dotfiles-repo.gitconfig" = { source = "tools/git/dotfiles-repo.gitconfig", mode = "symlink" }
 # conf.d, not ~/.config/jj/config.toml: `jj config set --user` writes that file,
 # so identity would land in the tracked config. conf.d is merged over it, so
 # this file must never carry a [user] block.
@@ -26,6 +28,9 @@
 "~/.local/bin/huid-task" = { source = "tasks/scripts/huid-task", mode = "symlink" }
 "~/.local/bin/huid-task-edit" = { source = "tasks/scripts/huid-task-edit", mode = "symlink" }
 "~/.local/bin/huid-tasks-vscode" = { source = "tasks/scripts/huid-tasks-vscode", mode = "symlink" }
+# The commit message checks. jj's `jj push` alias calls check-commits.
+"~/.local/bin/check-commit-msg" = { source = "tools/commit/check-commit-msg", mode = "symlink" }
+"~/.local/bin/check-commits" = { source = "tools/commit/check-commits", mode = "symlink" }
 # just itself, globally: the root [tools] only apply inside this repo.
 "~/.config/mise/conf.d/dotfiles.toml" = { source = "tools/mise/global.toml", mode = "symlink" }
 

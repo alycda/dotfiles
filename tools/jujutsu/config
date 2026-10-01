@@ -5,6 +5,37 @@
 # This file is user-level config for every repo on the machine. Anything that
 # should only apply to the dotfiles goes in the scope below. The paths are the
 # host checkout and the devcontainer's.
+
+# The commit message format (the commit-craft skill) for every repo. A new
+# description opens with the format as JJ: lines, which jj drops on save.
+[template-aliases]
+default_commit_description = '''
+"\n\n" ++
+"JJ: Subject: <area>(<scope>): <summary>. Lowercase summary, no period,\n" ++
+"JJ: 72 characters at most. Then a blank line, then the body, wrapped at 72.\n" ++
+"JJ: Body, in this order:\n" ++
+"JJ:   1. Why: the problem or need, with the evidence.\n" ++
+"JJ:   2. What and how: what changes, and why this way.\n" ++
+"JJ:   3. Verification: what you ran and saw, and what you did not run.\n" ++
+"JJ:   4. What is left: follow-up work and known limits.\n"
+'''
+
+# `jj push`: check the messages of the stack that is not on trunk yet, then
+# `jj git push` with the same arguments. jj runs no git hooks, so this is
+# where the format is enforced. check-commits is on PATH through mise.toml
+# or home-manager. `jj git push` still works when a repo has its own format.
+[aliases]
+push = [
+  "util",
+  "exec",
+  "--",
+  "sh",
+  "-c",
+  "check-commits --jj && exec jj git push \"$@\"",
+  "jj-push",
+]
+
+# Only in the dotfiles checkouts:
 [[--scope]]
 --when.repositories = ["~/dotfiles", "/workspaces/dotfiles"]
 

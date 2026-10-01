@@ -55,12 +55,20 @@ so the job's real `mise install` is the check).
 `tests/import-issue.bats` checks `just import-issue` against a stubbed `gh`:
 the HUID from when the issue was opened, the TASK.md for open and closed
 issues, argument checks, and importing twice or into a taken second.
-`tests/commit-craft.bats` checks the commit-craft skill's `check-message`:
-each mechanical rule reports its problem, and the skill's own good and bad
-examples pass and fail. One test in `import-issue.bats` sends the real query
-to GitHub. It runs only when `GH_TOKEN` is set, which the job sets from its
-own token. Run them locally with `bats tests`, or
-`GH_TOKEN="$(gh auth token)" bats tests` to include that test.
+`tests/commit.bats` checks the commit message tools in `tools/commit/`: each
+rule in `check-commit-msg`, `check-commits` over git and jj ranges, jj's draft
+template and `jj push` alias, and the git `commit-msg` hook. One test in
+`import-issue.bats` sends the real query to GitHub. It runs only when
+`GH_TOKEN` is set, which the job sets from its own token. Run them locally
+with `bats tests`, or `GH_TOKEN="$(gh auth token)" bats tests` to include that
+test.
+
+## commit-messages
+
+On a pull request, `tools/commit/check-commits` runs on every commit between
+the base and the head, merges skipped. Each commit must follow the commit-craft
+format. The job does not run on a push: a direct push can carry commits from
+before the format existed.
 
 ## devcontainer
 
