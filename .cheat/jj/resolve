@@ -1,0 +1,25 @@
+# Find conflicts
+jj log -r 'conflicts()'
+jj resolve --list -r REV
+
+# How many sides, and what each side is (when the file looks normal on disk)
+# e.g. Conflicted([Some(empty), None, Some(content)]) = add/add conflict:
+#      both sides added the file from nothing. An empty side has no lines,
+#      so no markers are written and the editor shows a "clean" file.
+jj debug tree -r REV | grep PATH
+
+# Take one side whole (:ours = 1st side, :theirs = 2nd side).
+# Fixing REV rebases its descendants, which often clears their conflicts too.
+jj resolve -r REV --tool :theirs PATH
+
+# Resolve by hand in a revision that is NOT @
+jj new REV           # child of the conflicted commit; markers appear on disk
+$EDITOR PATH         # remove the markers
+jj squash            # move the fix into REV
+jj edit BACK         # return; the empty child is dropped automatically
+
+# Reading markers:
+#   +++++++ side    = that side's full text
+#   %%%%%%% diff    = the OTHER side's change, as a diff;
+#                     apply it on top of the +++++++ text
+#   >>>>>>> ... ends

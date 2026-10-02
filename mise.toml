@@ -1,7 +1,9 @@
 [env]
 EDITOR = "hx"
+CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
 
 [tools]
+cheat = "5.1"
 helix = "latest"
 jujutsu = "latest"
 just = "latest"
