@@ -1,0 +1,6 @@
+# Dotfiles
+
+
+## License
+
+[MIT](LICENSE)
