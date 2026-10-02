@@ -1,2 +1,6 @@
+[env]
+EDITOR = "hx"
+
 [tools]
+helix = "latest"
 just = "latest"
