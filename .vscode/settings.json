@@ -1,4 +1,9 @@
 {
+    // disable copilot
+    "chat.agent.enabled": false,
+    "chat.disableAIFeatures": true,
     "editor.rulers": [80],
-    "editor.wordWrap": "on"
+    "editor.wordWrap": "on",
+    // hide copilot
+    "workbench.secondarySideBar.defaultVisibility": "hidden"
 }
