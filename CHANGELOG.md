@@ -8,6 +8,16 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
 adds one, and `just check-effver` checks it against `VERSION`.
 
+## 0.1.3 (micro) - 2026-10-03
+
+- Two devcontainers, both on Debian bookworm. The default has jj and just
+  from the Nix feature. `.devcontainer/mise/` has only mise: it installs the
+  tools before VS Code attaches, then applies `[dotfiles]`. VS Code
+  recommends the Dev Containers extension.
+- Outside the devcontainers, VS Code keeps git source control again, next
+  to VisualJJ. To turn git off where VisualJJ or JJK is installed, the two
+  lines to copy are commented in `.vscode/settings.json`.
+
 ## 0.1.2 (meso) - 2026-10-03
 
 - gh, Claude Code and tmux from mise. Claude Code is exempt from mise's

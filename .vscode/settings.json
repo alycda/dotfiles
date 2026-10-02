@@ -10,9 +10,10 @@
     "files.exclude": {
         "**/.jj": true // at this level (above jj workspaces), don't ignore .jj folders
     },
-    "git.confirmSync": false,
-    // disable git for jj
-    "git.enabled": false,
+    // put the following two lines in .vscode/settings.local.json if VisualJJ/JJK
+    //   are installed outside of the devcontainers
+    // "git.confirmSync": false,
+    // "git.enabled": false, // disable git for jj
     "search.exclude": {
         "**/.jj": true
     },
