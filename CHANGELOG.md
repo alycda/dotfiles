@@ -8,6 +8,25 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
 adds one, and `just check-effver` checks it against `VERSION`.
 
+## 0.1.6 (micro) - 2026-10-04
+
+- Secrets with agenix: home-manager installs every `.age` file under
+  `secrets/` into `~/.local/share/agenix/`, decrypted with the age key at
+  `~/.age/personal-key.txt`. Without the key it warns and goes on.
+- `just edit-secret NAME` creates or edits `secrets/NAME.age`, encrypted to
+  the keys in `secrets/recipients.txt`. It needs the dev shell, which now
+  has rage and ragenix.
+- The Nix devcontainer mounts the host's `~/.age` read-only, and creates
+  the directory on the host first if it is missing.
+- The Docker image installs the secrets when the container starts, if
+  `~/.age` is mounted; `just docker-run` mounts it when the host has one.
+- On macOS, the dev shell and `edit-secret` work. Installing secrets there
+  waits for nix-darwin.
+
+To use secrets: put an age key at `~/.age/personal-key.txt` (mode 600,
+ending in a newline), add its public key to `secrets/recipients.txt`, then
+`just edit-secret NAME` in the dev shell.
+
 ## 0.1.5 (meso) - 2026-10-03
 
 - home-manager: the configs in `tools/` and the tools from mise, for a Nix
