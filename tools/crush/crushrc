@@ -1,0 +1,27 @@
+# crush shell config. Linked to ~/.config/crush/crushrc by
+# home-manager/modules/tools/crush.nix, which also owns crush.json beside it.
+# Keep hooks, global_context_paths, and permissions.allowed_tools out of this
+# file: crushrc wins on key conflicts, so setting one here would replace the
+# module's value.
+#
+# crush runs this with its embedded shell at every startup; a non-zero exit
+# (e.g. 127 for a missing command) aborts config loading entirely. So nothing
+# here may assume a binary exists - crush.nix reaches the Linux devcontainer
+# too, which has no envchain.
+
+# Venice is a built-in provider (catwalk's venice.json, generated from
+# Venice's /models): base URL, the full model catalog (kimi-k3,
+# openai-gpt-6-astra, ...), context windows, and prices all ship with crush,
+# and it reads $VENICE_API_KEY on its own. The only gap is that the key lives
+# in the macOS keychain, not the environment, so this supplies it from
+# envchain. `printenv` yields the bare value; `env | grep` would yield
+# VENICE_API_KEY=<key>. Where envchain is absent, an exported
+# VENICE_API_KEY still works with no help from this file.
+# An empty result (envchain present, no venice namespace) is skipped rather
+# than passed on, since --api-key "" would override that env fallback.
+if command -v envchain >/dev/null 2>&1; then
+  venice_key="$(envchain venice printenv VENICE_API_KEY 2>/dev/null)"
+  if [ -n "$venice_key" ]; then
+    provider add venice --api-key "$venice_key"
+  fi
+fi

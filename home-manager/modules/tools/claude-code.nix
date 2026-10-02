@@ -42,6 +42,20 @@
       #    Claude Code fetches declared marketplaces and installs enabled
       #    plugins itself on next startup.
       #
+      # The slice's env.CROSS_MODEL_PEERS=claude narrows compound-engineering's
+      # cross-model review (ce-code-review / ce-doc-review) to Claude. The
+      # plugin auto-picks the first *installed* peer in codex -> claude ->
+      # grok -> composer, and on this machine `codex` and `grok` resolve to
+      # cmux-bundled binaries with no subscription behind them, so the pass
+      # started and then failed. It has no crush or Venice route (its worker
+      # accepts only a fixed route list), and the Claude peer is excluded as
+      # same-family under a Claude host - so this makes the pass skip cleanly
+      # and the in-process adversarial reviewer run instead. An empty value
+      # would mean no restriction at all; `claude` also stays meaningful
+      # under a Codex host, where Claude is a valid peer. Set in
+      # settings.json rather than sessionVariables so it reaches Claude
+      # Code's tool shells regardless of what launched the app.
+      #
       # jq's `*` merges objects recursively but *replaces* every non-object,
       # arrays included. So a hook event named in tools/claude/settings.json
       # owns that event outright: anything under the same key in the live file

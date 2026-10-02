@@ -13,5 +13,8 @@
         ]
       }
     ]
+  },
+  "env": {
+    "CROSS_MODEL_PEERS": "claude"
   }
 }
