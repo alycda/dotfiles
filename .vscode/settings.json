@@ -4,6 +4,15 @@
     "chat.disableAIFeatures": true,
     "editor.rulers": [80],
     "editor.wordWrap": "on",
+    "files.exclude": {
+        "**/.jj": true // at this level (above jj workspaces), don't ignore .jj folders
+    },
+    "git.confirmSync": false,
+    // disable git for jj
+    "git.enabled": false,
+    "search.exclude": {
+        "**/.jj": true
+    },
     // hide copilot
     "workbench.secondarySideBar.defaultVisibility": "hidden"
 }
