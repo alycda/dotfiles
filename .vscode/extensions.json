@@ -1,0 +1,11 @@
+{
+    "recommendations": [
+        "davidanson.vscode-markdownlint",
+        "editorconfig.editorconfig",
+        "foxundermoon.shell-format",
+        "hverlin.mise-vscode",
+        "skellock.just",
+        "tamasfe.even-better-toml",
+        "timonwong.shellcheck"
+    ]
+}
