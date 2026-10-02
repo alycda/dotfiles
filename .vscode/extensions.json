@@ -1,3 +1,8 @@
 {
-    "recommendations": ["davidanson.vscode-markdownlint", "editorconfig.editorconfig"]
+    "recommendations": [
+        "davidanson.vscode-markdownlint",
+        "editorconfig.editorconfig",
+        "hverlin.mise-vscode",
+        "tamasfe.even-better-toml"
+    ]
 }
