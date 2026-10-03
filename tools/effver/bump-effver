@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# bump-effver: write the next EffVer version to VERSION, and an empty
+# heading for it at the top of CHANGELOG.md. check-effver fails until the
+# section under the heading says what changed and what it takes to adopt.
+#
+#   bump-effver macro|meso|micro [YYYY-MM-DD]
+#
+# macro: a large effort to adopt. meso: some effort. micro: no effort.
+# In 0.x the format is 0.MACRO.MICRO: macro bumps the middle number, meso
+# and micro the last.
+set -euo pipefail
+
+effort="${1:-}"
+date="${2:-$(date +%F)}"
+case "$effort" in
+  macro | meso | micro) ;;
+  *)
+    echo "usage: bump-effver macro|meso|micro [YYYY-MM-DD]" >&2
+    exit 2
+    ;;
+esac
+
+root="$(jj root 2>/dev/null || git rev-parse --show-toplevel)"
+cd "$root"
+[ -f VERSION ] || {
+  echo "bump-effver: there is no VERSION in $root" >&2
+  exit 1
+}
+
+old="$(cat VERSION)"
+IFS=. read -r x y z <<<"$old"
+case "$x:$effort" in
+  0:macro) new="0.$((y + 1)).0" ;;
+  0:*) new="0.$y.$((z + 1))" ;;
+  *:macro) new="$((x + 1)).0.0" ;;
+  *:meso) new="$x.$((y + 1)).0" ;;
+  *:micro) new="$x.$y.$((z + 1))" ;;
+esac
+
+echo "$new" >VERSION
+# The new heading goes before the first version heading, or at the end.
+awk -v h="## $new ($effort) - $date" '
+  !done && /^## / { print h; print ""; done = 1 }
+  { print }
+  END { if (!done) { print ""; print h } }
+' CHANGELOG.md >CHANGELOG.md.tmp
+mv CHANGELOG.md.tmp CHANGELOG.md
+
+echo "VERSION $old -> $new ($effort). Write the $new section in CHANGELOG.md."
