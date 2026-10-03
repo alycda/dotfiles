@@ -1,0 +1,17 @@
+# restore copies a SNAPSHOT (one revision's full tree), not a range, not a diff.
+# Every commit stores every file. X's tree already contains all of ::X,
+# merges included. There is no "shared base" involved.
+
+# Make Y's files identical to X's (all paths, or only the paths given).
+# Y's diff is then computed against Y's OWN parent. X is not touched.
+jj restore --from X --into Y [paths]
+
+# Undo working-copy changes: reset @ (or paths) to @'s parent
+jj restore [paths]
+
+# Prove two revisions have the same tree (empty output = identical)
+jj diff --from X --to Y --stat
+
+# Contrast: squash moves X's DIFF (X vs X's parent) into Y, and REWRITES X
+# (X loses that change; X is abandoned if it becomes empty).
+jj squash --from X --into Y
