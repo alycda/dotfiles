@@ -8,6 +8,20 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
 adds one, and `just check-effver` checks it against `VERSION`.
 
+## 0.1.5 (meso) - 2026-10-03
+
+- home-manager: the configs in `tools/` and the tools from mise, for a Nix
+  account. It takes over zsh and direnv. sem, weave, inspect and taskbook's
+  Rust port are the same release binaries as mise's, patched to run from
+  the Nix store.
+- The Nix devcontainer applies it when the container is created, and gets
+  direnv from it.
+- A Dockerfile: an image with the home-manager generation built in, for
+  `docker run` on a machine without Nix. `just docker-build` and
+  `just docker-run`.
+
+TO ADOPT: ...
+
 ## 0.1.4 (meso) - 2026-10-03
 
 - A Nix flake with a dev shell (`nix develop`), for macOS on Apple silicon
