@@ -1,5 +1,6 @@
 {
     "recommendations": [
+        "anthropic.claude-code",
         "davidanson.vscode-markdownlint",
         "editorconfig.editorconfig",
         "foxundermoon.shell-format",

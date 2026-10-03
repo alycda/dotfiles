@@ -8,3 +8,9 @@ helix = "latest"
 jujutsu = "0.45.1"
 just = "latest"
 "github:taskbook-sh/taskbook" = "latest"
+gh = "latest"
+claude = "latest"
+tmux = "latest"
+
+[settings]
+minimum_release_age_excludes = ["claude"]
