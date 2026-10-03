@@ -133,8 +133,10 @@ The quoted heredoc also removes one level of quoting.
 A solutions doc is read only when someone searches for it, and no one searches
 before typing `X="cmd --flag"`. Two earlier texts did not stop the failure for
 that reason. The rule has to be in instructions that every session loads: the
-user-level agent instructions and each repository's `CLAUDE.md`. That is not
-done in this repository yet. Until it is, expect the failure to come back.
+user-level agent instructions and each repository's `CLAUDE.md`. This
+repository's `CLAUDE.md` has it, under "Shell: zsh". The user-level
+instructions do not have it yet, so expect the failure to come back in
+sessions that start outside this repository.
 
 ## Why This Matters
 
