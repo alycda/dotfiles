@@ -13,7 +13,8 @@ description: >
 # Read-only subcommands only. Deliberately NOT `Bash(sem *)`: a wildcard would
 # pre-approve sem setup/login/cloud/update/telemetry, which the body says
 # never to run unprompted - the permission prompt is the backstop for those.
-allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem graph *), Bash(sem context *), Bash(jj log *), Bash(jj diff *)
+# Same for weave: setup/unsetup change config, and apply writes files.
+allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem graph *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(weave explain *), Bash(weave check *), Bash(jj log *), Bash(jj diff *)
 ---
 
 # Entity-Level History (sem)
@@ -33,8 +34,10 @@ instead of reading the file to reconstruct that yourself.
   Semaphore CI CLI. Its errors won't say so.
 - Don't run `sem update`: mise manages the binary, and a self-update fights
   it.
-- weave and inspect are not installed here. If they are named, see the
-  siblings section below, and don't install them without asking.
+- weave comes from mise too, as two tools: `weave` (the CLI) and
+  `weave-driver` (what jj and git invoke to merge).
+- inspect is not installed here. If it is named, see its section below, and
+  don't install it without asking.
 
 ## In this repo: sem on jj
 
@@ -97,15 +100,41 @@ rejected by `callers`.
 - `sem mcp` serves these commands as MCP tools. If a sem MCP server is
   already registered in the session, prefer its tools to shelling out.
 
-## The siblings: weave and inspect
+## weave: entity-level merges
 
-Neither is installed here; these notes are for when one is named.
+Line merges invent conflicts when two changes touch nearby lines, which is
+what happens when Lanes or parallel agents edit one file. weave merges at
+entity granularity instead; file types it can't parse fall back to a line
+merge, silently.
 
-- **weave** is a merge driver that merges at entity granularity, dissolving
-  the false conflicts line merges invent when two changes touch nearby lines.
-  `weave preview <branch>` is a read-only dry run. `weave setup` changes repo
-  or global config: propose it, never run it. It can be registered as a jj
-  merge tool, and `jj resolve --tool weave` then runs non-interactively.
+```bash
+weave preview <branch>          # dry-run merging <branch> into HEAD; read-only
+weave preview <branch> --file f # ...for one file
+weave explain <file>            # read-only: why this file conflicted, and the
+                                #   hunks both sides wrote in
+weave check                     # read-only: verify a resolution (markers left,
+                                #   lines dropped, references that no longer
+                                #   resolve); exits 1 on findings
+weave summary <file>            # structured summary of weave conflict markers
+```
+
+- `weave preview`, `explain`, `check` and `summary` change nothing: run them
+  unprompted. `check` exiting 1 is a finding, not a failure.
+- `weave preview` takes git refs. In jj, pass commit IDs, and check that the
+  file exists at the merge base (`jj log -r 'heads(::A & ::B)'`) before
+  concluding anything: an add/add has no base to merge from, so every file
+  shows as a line-level conflict.
+- `weave setup` writes `.gitattributes` and merge-driver config, and
+  `--global` does it for every repo on the machine. Propose it with the
+  `--local` variant first; never run it unprompted.
+- `weave apply` and `weave patch apply` write to working files. They are
+  edits, not a way to have a look.
+- For resolving jj conflicts with weave, see the jujutsu skill.
+
+## inspect
+
+Not installed here; these notes are for when it is named.
+
 - **inspect** triages a diff by structural risk (`inspect diff <range>`), so
   review starts with what matters. Triage is local. `inspect review` sends
   code to an LLM provider and `inspect comment` posts to GitHub: never run
