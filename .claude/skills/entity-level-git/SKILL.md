@@ -2,19 +2,23 @@
 name: entity-level-git
 description: >
   Entity-level history tooling from Ataraxy Labs: sem (entity diffs, blame,
-  impact analysis, per-function history), with notes on its siblings weave
-  (semantic merge driver) and inspect (structural-risk review triage). Consult
+  impact analysis, per-function history), weave (semantic merge driver) and
+  inspect (structural-risk review triage). Consult
   this skill FIRST, before reading a whole diff, running blame, or grepping
   for callers, when a task looks like: what changed in this change, in terms
   of functions, sections and keys rather than lines (including to write its
   commit message or to split it by concern); what depends on or breaks if I
   change this function; who last touched this function; formatter churn
-  drowning the real diff. Also use whenever sem, weave, or inspect is named.
+  drowning the real diff; merge conflicts, above all false ones where two
+  sides edited different functions of one file; where review attention
+  should go in a big diff. Also use whenever sem, weave, or inspect is named.
 # Read-only subcommands only. Deliberately NOT `Bash(sem *)`: a wildcard would
 # pre-approve sem setup/login/cloud/update/telemetry, which the body says
 # never to run unprompted - the permission prompt is the backstop for those.
-# Same for weave: setup/unsetup change config, and apply writes files.
-allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem graph *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(weave explain *), Bash(weave check *), Bash(jj log *), Bash(jj diff *)
+# Same for weave: setup/unsetup change config, and apply writes files. And
+# for inspect: review sends code to an LLM API, comment posts to GitHub, and
+# pr calls gh.
+allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem graph *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(weave explain *), Bash(weave check *), Bash(inspect diff *), Bash(inspect predict *), Bash(inspect file *), Bash(jj log *), Bash(jj diff *)
 ---
 
 # Entity-Level History (sem)
@@ -36,8 +40,7 @@ instead of reading the file to reconstruct that yourself.
   it.
 - weave comes from mise too, as two tools: `weave` (the CLI) and
   `weave-driver` (what jj and git invoke to merge).
-- inspect is not installed here. If it is named, see its section below, and
-  don't install it without asking.
+- inspect comes from mise too.
 
 ## In this repo: sem on jj
 
@@ -131,12 +134,27 @@ weave summary <file>            # structured summary of weave conflict markers
   edits, not a way to have a look.
 - For resolving jj conflicts with weave, see the jujutsu skill.
 
-## inspect
+## inspect: review triage by structural risk
 
-Not installed here; these notes are for when it is named.
+Reach for inspect when facing a large diff and the question is where review
+attention should go.
 
-- **inspect** triages a diff by structural risk (`inspect diff <range>`), so
-  review starts with what matters. Triage is local. `inspect review` sends
-  code to an LLM provider and `inspect comment` posts to GitHub: never run
-  either unprompted. It does not parse Nix, so a mostly-Nix diff comes back
-  as line chunks with meaningless scores.
+```bash
+inspect diff <range>                # triage a commit or range (A..B, a commit ID)
+inspect diff <range> --min-risk high # critical | high | medium | low
+inspect diff <range> --context      # add dependency context
+inspect diff <range> --format json  # terminal (default) | json | markdown
+inspect predict <range>             # UNCHANGED entities at risk of breaking
+inspect file <path>                 # uncommitted changes in one file
+```
+
+- In jj, pass commit IDs: `inspect diff $(jj log --no-graph -r <change> -T
+  commit_id)`.
+- Triage is local and needs no API key. Order review by its risk level:
+  functional and high-risk first, text-only last.
+- **Check the entity types before trusting the scores.** inspect does not
+  parse Nix or Dart: a file it can't parse is cut into line chunks with no
+  dependency graph, and their scores only say how many lines changed.
+- `inspect review` sends code to an LLM provider, and `inspect comment` posts
+  review comments to GitHub. Never run either unprompted, and never pass an
+  API key on the command line.
