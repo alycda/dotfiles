@@ -4,7 +4,7 @@ CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
 
 [tools]
 cheat = "5.1"
-helix = "latest"
+helix = "25"
 jujutsu = "0.45.1"
 just = "latest"
 "github:taskbook-sh/taskbook" = "latest"
