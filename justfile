@@ -55,3 +55,8 @@ docker-build: docker-daemon
 [group('docker')]
 docker-run: docker-daemon
     docker run -it --rm -e TERM="$TERM" -v {{ quote(invocation_directory()) }}:/work dotfiles
+
+# Create or edit an agenix secret, secrets/NAME.age (needs the dev shell)
+[group('secrets')]
+edit-secret name:
+    tools/secrets/edit-secret {{ quote(name) }}
