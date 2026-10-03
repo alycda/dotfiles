@@ -11,6 +11,7 @@
         "visualjj.visualjj"
     ],
     "unwantedRecommendations": [
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "vscodevim.vim"
     ]
 }
