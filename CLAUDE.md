@@ -1,5 +1,18 @@
 # Instructions for Agents
 
+## Tools: mise
+
+[mise](https://mise.jdx.dev/) provides the tools, as listed in `mise.toml`.
+
+- If a tool is missing, run `mise install`; it installs only what `mise.toml`
+  lists. Run commands where mise is active, or prefix them with `mise exec --`.
+- Get tools from mise, not from brew, `npm -g`, curl scripts or `mise use -g`.
+  The repo has to work from its own `mise.toml`.
+- `mise.toml` is kept minimal on purpose: ask before adding a tool, and add it
+  with `mise use <tool>` so `mise.toml` stays the record.
+- A tool that nothing requires is a micro change. Once a script or recipe
+  depends on it, adopting means running `mise install`, which makes it meso.
+
 ## Versioning: EffVer
 
 This repo is versioned with [EffVer](https://jacobtomlinson.dev/effver/).
