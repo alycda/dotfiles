@@ -258,7 +258,8 @@ To inspect state without snapshotting (rare), use `jj --ignore-working-copy st`
 ### Message via stdin
 
 `jj describe --stdin` reads the description from stdin. Available on the message-taking
-commands; not usually relevant for agent use, which passes `-m`.
+commands. Agents use it for messages with a body: write the message to a file, then
+`jj describe --stdin < file`.
 
 ---
 
