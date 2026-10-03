@@ -6,11 +6,16 @@
     "features": {
         // enable nix
         "ghcr.io/devcontainers/features/nix:1": {
-            // equivalent to `nix profile add` for critical
-            "packages": [],
+            // equivalent to `nix profile add` for critical. direnv loads the
+            // flake's dev shell (.envrc); nix-direnv caches it.
+            "packages": ["direnv", "nix-direnv"],
             "extraNixConfig": "experimental-features = nix-command flakes"
         }
     },
+
+    // Hook direnv into bash and zsh, load nix-direnv, allow this checkout's
+    // .envrc, and build the dev shell once so the first terminal doesn't wait.
+    "postCreateCommand": "echo 'eval \"$(direnv hook bash)\"' >> ~/.bashrc && echo 'eval \"$(direnv hook zsh)\"' >> ~/.zshrc && mkdir -p ~/.config/direnv && echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > ~/.config/direnv/direnvrc && direnv allow && direnv exec . true",
 
     "remoteEnv": {
         // "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
@@ -26,6 +31,8 @@
                 "editorconfig.editorconfig",
                 "jjk.jjk",
                 "jnoortheen.nix-ide",
+                // loads .envrc, so extensions see the dev shell's tools too
+                "mkhl.direnv",
                 "skellock.just",
                 "tamasfe.even-better-toml",
                 // replaces git as Source Control
