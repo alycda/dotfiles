@@ -13,6 +13,9 @@ The quickest way to a working setup: `mise install` gets `just` (and `hx`, `tb`)
 
 - `curl https://mise.run | sh` (bash) or `curl https://mise.run/zsh | sh` (see [docs](https://mise.jdx.dev/installing-mise.html#shell-specific-installation-activation))
 - `mise install`
+- `mise exec -- just identity`: creates an SSH key, logs `gh` in, and sets
+  git and jj identity from the GitHub account. Each step skips what is
+  already done. Once mise is active in your shell, plain `just identity`.
 
 ## Tasks
 
