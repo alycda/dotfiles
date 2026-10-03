@@ -38,3 +38,7 @@ task title:
 # MACRO.MESO.MICRO
 bump effort:
     tools/effver/bump-effver {{ effort }}
+
+# Check VERSION and CHANGELOG.md in every commit of REVSET (default: the stack not on trunk yet)
+check-effver revset='':
+    tools/effver/check-effver --jj {{ quote(revset) }}

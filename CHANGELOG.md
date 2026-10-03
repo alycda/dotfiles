@@ -6,7 +6,7 @@ takes to adopt the change. Macro: a large effort. Meso: some effort. Micro:
 no effort. In `0.x` the format is `0.MACRO.MICRO`.
 
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
-adds one.
+adds one, and `just check-effver` checks it against `VERSION`.
 
 ## 0.1.0 (macro) - 2026-10-01
 

@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# check-effver: check VERSION and CHANGELOG.md against EffVer
+# (https://jacobtomlinson.dev/effver/) in every commit of a range. It reads
+# trees only, so a commit made with `jj restore --from` gets the same answer
+# as the micro-commits it was copied from. Exits 1 if any commit fails.
+#
+#   check-effver --jj [REVSET]          jj commits. The default is the stack
+#                                       under @ that is not on trunk yet.
+#   check-effver RANGE                  git commits, e.g. origin/main..HEAD.
+#   check-effver --require-bump ...     every commit must bump VERSION
+#                                       (for a publish chain like develop).
+#
+# The rules, per commit:
+# - VERSION is MACRO.MESO.MICRO. A commit before VERSION exists is skipped;
+#   a commit that removes it fails.
+# - The first "## " heading of CHANGELOG.md is
+#   "## <VERSION> (<macro|meso|micro>) - YYYY-MM-DD", and the section under
+#   it is not empty.
+# - When VERSION changes, it is the bump that the heading's effort calls
+#   for, from the highest parent version. In 0.x the format is
+#   0.MACRO.MICRO: macro bumps the middle number, meso and micro the last.
+set -euo pipefail
+
+heading_re='^## ([0-9]+\.[0-9]+\.[0-9]+) \((macro|meso|micro)\) - [0-9]{4}-[0-9]{2}-[0-9]{2}$'
+version_re='^[0-9]+\.[0-9]+\.[0-9]+$'
+stack='(trunk()..@) ~ (empty() & description(exact:""))'
+
+require_bump=0
+if [ "${1:-}" = --require-bump ]; then
+  require_bump=1
+  shift
+fi
+
+# show REV PATH: the file's content, or exit 1 when REV has no such file.
+if [ "${1:-}" = --jj ]; then
+  show() { jj file show -r "$1" "$2" 2>/dev/null; }
+  parents() { jj log --no-graph -r "parents($1)" -T 'commit_id ++ "\n"'; }
+  subject() { jj log --no-graph -r "$1" -T 'description.first_line()'; }
+  # Assigned first, so a bad revset or a missing repo stops the script.
+  ids="$(jj log --no-graph --reversed -r "${2:-$stack}" -T 'commit_id ++ "\n"')"
+elif [ $# -eq 1 ]; then
+  show() { git cat-file -e "$1:$2" 2>/dev/null && git show "$1:$2"; }
+  parents() { git rev-list --parents -n 1 "$1" | cut -s -d' ' -f2- | tr ' ' '\n'; }
+  subject() { git log -1 --format=%s "$1"; }
+  ids="$(git rev-list --reverse "$1")"
+else
+  echo "usage: check-effver [--require-bump] --jj [REVSET] | check-effver [--require-bump] <git range>" >&2
+  exit 2
+fi
+
+# bump VERSION EFFORT: the version after an EFFORT bump.
+bump() {
+  local x y z
+  IFS=. read -r x y z <<<"$1"
+  case "$x:$2" in
+    0:macro) echo "0.$((y + 1)).0" ;;
+    0:*) echo "0.$y.$((z + 1))" ;;
+    *:macro) echo "$((x + 1)).0.0" ;;
+    *:meso) echo "$x.$((y + 1)).0" ;;
+    *:micro) echo "$x.$y.$((z + 1))" ;;
+  esac
+}
+
+failed=0
+for id in $ids; do
+  problems=()
+  version=""
+  had=0
+  old=""
+  same=0
+  for p in $(parents "$id"); do
+    if pv="$(show "$p" VERSION)"; then
+      had=1
+      [ "$pv" = "$(show "$id" VERSION 2>/dev/null || true)" ] && same=1
+      old="$(printf '%s\n%s\n' "$old" "$pv" | sed '/^$/d' | sort -V | tail -n 1)"
+    fi
+  done
+
+  if ! version="$(show "$id" VERSION)"; then
+    [ "$had" -eq 1 ] && problems+=("VERSION is removed")
+  else
+    changelog="$(show "$id" CHANGELOG.md || true)"
+    heading="$(grep -m 1 '^## ' <<<"$changelog" || true)"
+    effort=""
+    if ! [[ $version =~ $version_re ]]; then
+      problems+=("VERSION is \"$version\", not MACRO.MESO.MICRO")
+    elif [ -z "$changelog" ]; then
+      problems+=("there is no CHANGELOG.md")
+    elif ! [[ $heading =~ $heading_re ]]; then
+      problems+=("the first CHANGELOG.md heading is \"$heading\", not \"## $version (macro|meso|micro) - YYYY-MM-DD\"")
+    elif [ "${BASH_REMATCH[1]}" != "$version" ]; then
+      problems+=("the first CHANGELOG.md heading is ${BASH_REMATCH[1]}, but VERSION is $version")
+    else
+      effort="${BASH_REMATCH[2]}"
+      # The section: the lines after the heading, up to the next heading.
+      section="$(awk '/^## /{n++; next} n==1' <<<"$changelog" | tr -d '[:space:]')"
+      [ -z "$section" ] && problems+=("the $version section of CHANGELOG.md is empty: say what changed and what it takes to adopt")
+    fi
+
+    if [ "$same" -eq 1 ]; then
+      [ "$require_bump" -eq 1 ] && problems+=("VERSION is still $version: bump it with bump-effver")
+    elif [ "$had" -eq 1 ] && [ -n "$effort" ]; then
+      want="$(bump "$old" "$effort")"
+      [ "$version" != "$want" ] &&
+        problems+=("VERSION is $version, but a $effort bump of $old is $want")
+    fi
+  fi
+
+  if [ "${#problems[@]}" -gt 0 ]; then
+    short="${id:0:12}"
+    printf '%s %s\n' "$short" "$(subject "$id")"
+    printf '  %s\n' "${problems[@]}"
+    failed=1
+  fi
+done
+
+exit "$failed"
