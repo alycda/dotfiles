@@ -66,10 +66,10 @@ changes. Translate as follows:
 Don't use `sem diff --staged`: jj has no staging area, so it shows nothing
 useful.
 
-**For commit messages** (see the Commits section of CLAUDE.md): run `sem diff`
-on the change before describing it. The changed entities say what the change
-is about, which is what the subject should name, and entities with nothing in
-common are the signal to `jj split` by concern.
+**For commit messages** (the commit-craft skill): run `sem diff
+--no-cosmetics` on the change before describing it. The changed entities say
+what the change is about, which is what the subject should name, and
+entities with nothing in common are the signal to `jj split` by concern.
 
 ## sem commands
 
