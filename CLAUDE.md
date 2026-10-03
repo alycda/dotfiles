@@ -7,7 +7,10 @@ working here; these instructions don't repeat the definitions.
 
 Write commit messages by the compound-engineering `ce-commit` skill: one
 logical change per commit, and a subject that names the outcome, not the files.
-Match the recent log's `area(scope): summary` style.
+Match the recent log's `area(scope): summary` style. Before describing a
+change, run `sem diff` on it (the `entity-level-git` skill has the jj
+forms): the entities it changed are what the subject should name, and
+entities with nothing in common mean the change should be split.
 
 This is a **colocated repository** worked with jj, so do not follow ce-commit's
 git steps:
