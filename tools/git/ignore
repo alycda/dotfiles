@@ -1,0 +1,79 @@
+# Global git ignore - also honoured by jj, which reads core.excludesFile.
+# Git reads ~/.config/git/ignore by default, so link this file there.
+
+
+## VCS
+.jj/
+
+
+## Tasks
+# HUID tasks in a repo that can't track them: `just task` writes to .tasks/
+# when the repo has no tasks/ directory.
+.tasks/
+
+
+## macOS
+# https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
+#
+# Upstream matches `Icon\r` with a literal carriage return, which editors and
+# line-ending normalisation silently strip. `[! -~]` matches any single byte
+# that is not printable ASCII instead, so this file stays plain text. It still
+# matches `Icon\r` but not `Icon`, `Icons` or `Icon1`.
+
+# General
+.DS_Store
+.localized
+__MACOSX/
+.AppleDouble
+.LSOverride
+Icon[! -~]
+
+# Resource forks
+._*
+
+# Files and directories that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.com.apple.timemachine.supported
+.PKInstallSandboxManager
+.PKInstallSandboxManager-SystemSoftware
+.hotfiles.btree
+.vol
+.file
+.disk_label*
+lost+found
+.HFS+ Private Directory Data[! -~]
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Mac OS 6 to 9
+Desktop DB
+Desktop DF
+TheFindByContentFolder
+TheVolumeSettingsFolder
+.FBCIndex
+.FBCSemaphoreFile
+.FBCLockFolder
+
+# Quota system
+.quota.group
+.quota.user
+.quota.ops.group
+.quota.ops.user
+
+# TimeMachine
+Backups.backupdb
+.MobileBackups
+.MobileBackups.trash
+MobileBackups.trash
+tmbootpicker.efi

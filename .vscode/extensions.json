@@ -11,6 +11,8 @@
         "visualjj.visualjj"
     ],
     "unwantedRecommendations": [
-        "eamodio.gitlens"
+        "donjayamanne.githistory",
+        "eamodio.gitlens",
+        "vscodevim.vim"
     ]
 }

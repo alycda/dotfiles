@@ -1,3 +1,28 @@
+# `mise dotfiles apply` from this directory links the plain-file configs into
+# $HOME. This is the path for an account without Nix; home-manager sources
+# the same files once it exists. `mise dotfiles apply --dry-run` shows what it
+# would change, and it leaves an existing file alone unless given --force.
+[dotfiles]
+"~/.config/zsh/dotfiles.zsh" = { source = "tools/zsh/interactive.zsh", mode = "symlink" }
+"~/.zshrc/dotfiles" = { line = "[[ -r ~/.config/zsh/dotfiles.zsh ]] && source ~/.config/zsh/dotfiles.zsh" }
+"~/.config/helix" = { source = "tools/helix", mode = "symlink" }
+"~/.config/git/ignore" = { source = "tools/git/ignore", mode = "symlink" }
+# Not a symlink to ~/.config/git/config: with no ~/.gitconfig, git writes
+# `git config --global` there, which would put identity in the tracked file.
+"~/.config/git/dotfiles.gitconfig" = { source = "tools/git/config", mode = "symlink" }
+"~/.gitconfig/dotfiles" = { line = "[include] path = ~/.config/git/dotfiles.gitconfig" }
+# conf.d, not ~/.config/jj/config.toml: `jj config set --user` writes that file,
+# so identity would land in the tracked config. conf.d is merged over it, so
+# this file must never carry a [user] block.
+"~/.config/jj/conf.d/dotfiles.toml" = { source = "tools/jujutsu/config", mode = "symlink" }
+# The directory, not the justfile: just resolves imports relative to where it
+# finds the justfile. `just -g <recipe>` then works from anywhere.
+"~/.config/just" = { source = "tools/just", mode = "symlink" }
+# The commands the global recipes call. ~/.local/bin is on PATH in zsh on the
+# Mac and in the devcontainers.
+"~/.local/bin/huid-task" = { source = "tasks/scripts/huid-task", mode = "symlink" }
+"~/.local/bin/huid-task-edit" = { source = "tasks/scripts/huid-task-edit", mode = "symlink" }
+
 [env]
 EDITOR = "hx"
 CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
@@ -6,7 +31,7 @@ _.path = ["{{config_root}}/tasks/scripts"]
 
 [tools]
 cheat = "5.1"
-helix = "latest"
+helix = "25"
 jujutsu = "0.45.1"
 just = "1.58"
 "github:taskbook-sh/taskbook" = "latest"
