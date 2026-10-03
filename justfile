@@ -1,15 +1,12 @@
+# This repo's recipes. The HUID task recipes are global (tools/just, linked to
+# ~/.config/just by mise), imported here so `just task` works without -g.
+# Import this checkout's copy only: ~/.config/just is the same directory once
+# linked, and importing both defines every recipe twice, which just rejects.
+import './tools/just/justfile'
+
+[private]
 _default:
     @just --list
-
-# Create a task directory named with a UTC HUID and seed its TASK.md
-[group('huid')]
-task title:
-    tasks/scripts/huid-task {{ quote(title) }}
-
-# Create a task and open it in $EDITOR (helix by default)
-[group('huid')]
-task-edit title:
-    tasks/scripts/huid-task-edit {{ quote(title) }}
 
 # MACRO.MESO.MICRO
 bump effort:
