@@ -11,3 +11,4 @@ Each heading is `## <version> (<effort>) - <date>`.
 
 - Start versioning with EffVer: `VERSION`, this changelog and MIT license
 - mise-en-place for minimal / initial setup
+- [taskbook](https://github.com/taskbook-sh/taskbook) (rust port)
