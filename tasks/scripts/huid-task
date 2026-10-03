@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# huid-task: create a task directory named with a UTC HUID and seed its
+# TASK.md. Prints the new file's path, relative to the repository root.
+#
+#   huid-task "Some title"
+#
+# The format, and why a HUID, are in tasks/README.md.
+set -euo pipefail
+
+title="${1:?usage: huid-task \"Some title\"}"
+cd "$(dirname "$0")/.."
+
+id="$(date -u +%Y%m%d-%H%M%S)"
+if [ -e "${id}" ]; then
+  # HUIDs are only unique at human speed. The documented remedy for a
+  # collision is to wait one second and generate a new one.
+  sleep 1
+  id="$(date -u +%Y%m%d-%H%M%S)"
+fi
+if [ -e "${id}" ]; then
+  echo "HUID still colliding on ${id}; use an explicit suffix" >&2
+  exit 1
+fi
+mkdir -p "${id}"
+printf '# %s\n\n- STATUS: OPEN\n- TAGS:\n\n## Description\n\n' "$title" >"${id}/TASK.md"
+printf 'tasks/%s\n' "${id}/TASK.md"
