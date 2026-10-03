@@ -7,10 +7,23 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # taskbook's Rust port. nixpkgs' taskbook is the original Node.js CLI.
+    # Its overlay fetches the release binaries. Not the v1.5.0 tag: that
+    # tag's overlay has a wrong aarch64-linux hash, fixed on main afterwards.
+    # flake.lock pins the commit; keep its version the one mise installs.
+    taskbook = {
+      url = "github:taskbook-sh/taskbook";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    { nixpkgs, home-manager, ... }:
+    {
+      nixpkgs,
+      home-manager,
+      taskbook,
+      ...
+    }:
     let
       # Apple Silicon Macs, and the devcontainers on either kind of host.
       systems = [
@@ -19,11 +32,13 @@
         "x86_64-linux"
       ];
       # claude-code is the one unfree package, and the only one allowed.
+      # taskbook's overlay replaces pkgs.taskbook with the Rust port.
       pkgsFor =
         system:
         import nixpkgs {
           inherit system;
           config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "claude-code";
+          overlays = [ taskbook.overlays.default ];
         };
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (pkgsFor system));
 
