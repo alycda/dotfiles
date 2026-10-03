@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# huid-task-edit: create a task and open its TASK.md in $EDITOR (helix by
+# default).
+#
+#   huid-task-edit "Some title"
+#
+# Composes huid-task rather than repeating its HUID and collision logic: it
+# reads the path that script prints, which is relative to the repository
+# root, so it opens the file from there.
+set -euo pipefail
+
+here="$(dirname "$0")"
+file="$("$here/huid-task" "${1:?usage: huid-task-edit \"Some title\"}")"
+cd "$here/../.."
+exec "${EDITOR:-hx}" "$file"
