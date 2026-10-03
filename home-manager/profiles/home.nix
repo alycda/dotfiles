@@ -23,6 +23,12 @@
 
     packages = with pkgs; [
       taskbook # interim CLI task manager; desktop-only (Node closure, not for containers)
+      # TUI file manager. Package only: it writes its own config and state at
+      # runtime, so no module and nothing under xdg.configFile. Its
+      # `auto_check_update` defaults to true (a network call on exit, once a
+      # day), which is meaningless for a nix-managed binary; turn it off in
+      # config.toml by hand if the call matters.
+      superfile
       # VM management, for verifying a switch on a clean macOS image. Was a
       # cirruslabs/cli brew until that tap's formula stopped loading under
       # Homebrew 6.0 and took activation down with it; pinned below current
