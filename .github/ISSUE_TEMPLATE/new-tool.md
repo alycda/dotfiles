@@ -9,6 +9,8 @@ labels: ["new-tool"]
 
 <!--
 Name, one-line description, upstream URL, and the version/rev you'd pin.
+The binary name(s) it puts on PATH, if they differ from the project name
+(`verify` needs the real one, and upstream docs sometimes use another).
 Say what kind of thing it is: CLI, GUI app, agent skill, plugin, language
 toolchain.
 -->
@@ -31,13 +33,17 @@ Placement, in order of preference (CLAUDE.md "Adding a New Development Tool"):
   darwin homebrew cask   macOS apps; required for dock-pinned apps
 
 Source, checked rather than assumed:
-  nixpkgs attr + version at the pinned rev, and master if stale (or "not in nixpkgs")
+  nixpkgs attr + version at three points: the locked rev, nixos-unstable head, master
+    (or "not in nixpkgs"). The comparison picks the fix:
+      locked behind, unstable/master current -> stale lock; `nix flake update`, no pin-forward
+      unstable and master behind too         -> nixpkgs is the laggard; vendor input or pin-forward
   fallback: vendor flake input / homebrew / npm importNpmLock / installer script
 
 Constraints to confirm:
   [ ] headless-safe: no GUI closure, no `mkOutOfStoreSymlink` to ~/dotfiles, no credential prompt reachable without a TTY (common.nix and core-packages reach the devcontainer)
   [ ] runtime-mutable state stays unmanaged
   [ ] collision risk with the nixos/nix base image profile
+  [ ] network calls at startup or exit (update checks, telemetry): default state, and how to turn them off
 -->
 
 ## verify
@@ -47,7 +53,7 @@ Runnable commands that prove the end state, one per line. "switch exited 0"
 is not evidence: it doesn't show a binary landed or is on the login PATH.
 
 Baseline for an installed binary:
-  zsh -lc 'command -v <tool> && <tool> --version'
+  zsh -lc 'command -v <binary> && <binary> --version'
   just ci
 
 Add tool-specific checks where they exist, e.g. a behavioral smoke test of
