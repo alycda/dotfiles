@@ -1,0 +1,48 @@
+# The build context for the Dockerfile. `COPY . /opt/dotfiles` sits above the
+# home-manager build, so every file here is a cache key: change one and the
+# whole generation rebuilds. The flake reads flake.nix, flake.lock,
+# home-manager/, lib/, tasks/scripts/ and tools/; the rest stays out.
+#
+# If a module starts reading one of these paths, delete its line here, or the
+# build fails on a file that is plainly in your checkout.
+
+# VCS state: unread (the build uses `path:`), and rewritten by every jj
+# command, which would bust the cache.
+.git
+.jj
+
+# Host build outputs: symlinks into the host's /nix/store.
+**/result
+**/result-*
+**/.direnv
+
+# Docs, agent, editor and container config, and the tasks themselves. Root
+# files only: a pattern without a slash matches from the context root, so
+# `justfile` leaves tools/just/justfile in, which home-manager reads.
+*.md
+LICENSE
+VERSION
+justfile
+mise.toml
+.editorconfig
+.gitignore
+.ignore
+.claude/
+.agents/
+.vscode/
+.helix/
+.devcontainer.json
+.devcontainer-lock.json
+.devcontainer/
+.envrc
+.cheat/
+tasks/[0-9]*
+
+# Docker reads these itself; in the context, an edit to them would rebuild
+# the generation.
+Dockerfile
+.dockerignore
+
+# macOS
+**/.DS_Store
+**/._*

@@ -68,10 +68,13 @@
         home-manager = home-manager.packages.${pkgs.stdenv.hostPlatform.system}.default;
       });
 
-      # The Nix devcontainer's user, on either kind of host.
+      # The Nix devcontainer's user, and the Dockerfile image's, on either
+      # kind of host.
       homeConfigurations = {
         "vscode@aarch64-linux" = mkHome "aarch64-linux" "vscode" "/home/vscode";
         "vscode@x86_64-linux" = mkHome "x86_64-linux" "vscode" "/home/vscode";
+        "root@aarch64-linux" = mkHome "aarch64-linux" "root" "/root";
+        "root@x86_64-linux" = mkHome "x86_64-linux" "root" "/root";
       };
     };
 }

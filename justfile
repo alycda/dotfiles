@@ -40,3 +40,13 @@ gh-login: ssh-key
 [group('setup')]
 identity: gh-login
     @tools/setup/identity
+
+# Build the image with this checkout's home-manager generation (see Dockerfile)
+[group('docker')]
+docker-build:
+    docker build -t dotfiles .
+
+# Run that image, with the current directory at /work
+[group('docker')]
+docker-run:
+    docker run -it --rm -e TERM="$TERM" -v {{ quote(invocation_directory()) }}:/work dotfiles
