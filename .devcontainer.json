@@ -21,6 +21,16 @@
     // zsh and sets up nix-direnv.
     "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && nix run .#home-manager -- switch -b backup --flake .#vscode@$(uname -m)-linux && ~/.nix-profile/bin/direnv allow && ~/.nix-profile/bin/direnv exec . true",
 
+    // The host's age identity, read-only, so that switch can decrypt the
+    // agenix secrets (home-manager/agenix.nix). Without a key it warns and
+    // the container works as before. A bind mount whose source is missing
+    // stops the container from starting, so initializeCommand, which runs on
+    // the host first, makes sure ~/.age exists.
+    "initializeCommand": "mkdir -p \"$HOME/.age\"",
+    "mounts": [
+        "source=${localEnv:HOME}/.age,target=/home/vscode/.age,type=bind,readonly"
+    ],
+
     "remoteEnv": {
         "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
         "JJ_USER": "${localEnv:JJ_USER}",
