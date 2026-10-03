@@ -13,6 +13,24 @@
 - A tool that nothing requires is a micro change. Once a script or recipe
   depends on it, adopting means running `mise install`, which makes it meso.
 
+## Tasks: HUID
+
+Work is tracked in `tasks/<HUID>/TASK.md`; the format is in
+[tasks/README.md](tasks/README.md). A task is the brief for the work and its
+record afterwards.
+
+- When given a HUID, read its `TASK.md` before anything else.
+- Write back to the same file as you go, so the task keeps the provenance:
+  - `## Open questions`: what you need decided, and what you assumed
+    meanwhile.
+  - `## Verification`: how you checked the work, with the commands, and what
+    you could not check.
+- Set `STATUS: CLOSED` only when everything under `## Verification` passed.
+  Otherwise leave it `OPEN` and say what is left under `## Open questions`.
+- Create a task with `just task "Title"`, never by writing a HUID by hand: the
+  recipe handles collisions. Don't rename task directories; the HUID is the ID.
+- Repo work goes in `tasks/`, not in taskbook (`tb`) or other trackers.
+
 ## Versioning: EffVer
 
 This repo is versioned with [EffVer](https://jacobtomlinson.dev/effver/).
