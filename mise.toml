@@ -1,12 +1,14 @@
 [env]
 EDITOR = "hx"
 CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
+# huid-task and huid-task-edit, which the task recipes call.
+_.path = ["{{config_root}}/tasks/scripts"]
 
 [tools]
 cheat = "5.1"
 helix = "latest"
 jujutsu = "0.45.1"
-just = "latest"
+just = "1.58"
 "github:taskbook-sh/taskbook" = "latest"
 gh = "latest"
 claude = "latest"
