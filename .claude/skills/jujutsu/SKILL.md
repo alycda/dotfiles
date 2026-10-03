@@ -121,7 +121,7 @@ jj squash -m "message"        # NOT: jj squash (opens editor for combined descri
 ```
 
 A message with a body is awkward in `-m`. Write it to a file outside the working
-copy and pass it on stdin:
+copy, check it with `check-commit-msg` (commit-craft), and pass it on stdin:
 
 ```text
 jj describe --stdin < /path/to/msg.txt
@@ -184,7 +184,9 @@ jj new -m "What I'm about to do"
 ```
 
 This pattern surfaces intent before code exists. If Alyssa hasn't told Claude what
-to commit message-wise, ask once and then proceed.
+to commit message-wise, ask once and then proceed. The intent message is only a
+subject line, in commit-craft's subject format. Replace it with the full message
+(commit-craft) when the change is done.
 
 ### Atomic commits
 
@@ -192,11 +194,9 @@ One logical change per commit. If a commit description starts to need "and" to
 cover everything, that's the signal to split. Use the squash/restore patterns to
 peel out unrelated changes rather than mashing them in.
 
-Commit message format (Alyssa's convention, matches the team's):
-
-- Imperative verb, sentence case, no trailing period
-- `feat:` / `fix:` / `refactor:` / `docs:` / `chore:` prefixes when conventional
-  commits are in use in the repo
+What the message says (subject format, body, trailers) is the **commit-craft**
+skill's, not this one's. Load it before writing any message. This skill covers
+only the commands that set it.
 
 ### Viewing history
 
