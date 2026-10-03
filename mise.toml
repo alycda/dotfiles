@@ -38,8 +38,9 @@
 [env]
 EDITOR = "hx"
 CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
-# huid-task and huid-task-edit, which the task recipes call.
-_.path = ["{{config_root}}/tasks/scripts"]
+# huid-task and huid-task-edit, which the task recipes call; check-commit-msg
+# and check-commits, the commit message checks.
+_.path = ["{{config_root}}/tasks/scripts", "{{config_root}}/tools/commit"]
 
 [tool_alias]
 # weave ships its CLI and its merge driver as separate release assets.
