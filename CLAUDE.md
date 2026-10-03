@@ -33,6 +33,27 @@ git steps if a .jj folder exists:
 - Ask before adding a tool, and add it with `mise use <tool>` so `mise.toml`
   stays the record. Heavier tooling waits for the **full toolset** (Nix).
 
+## Shell: zsh
+
+Commands sent through the Bash tool run in the login shell, which is zsh on
+these machines. Write them for zsh, not bash. A script with a shebang runs in
+the shell it names, so this is only about commands you type.
+
+- An unquoted `$VAR` is one word. Don't keep a command in a string
+  (`J="jj --no-pager"; $J log`). Write a function
+  (`j() { jj --no-pager "$@"; }`) or an array
+  (`j=(jj --no-pager); "${j[@]}" log`).
+- `for x in $str` and `set -- $str` don't split either, and raise no error.
+  Loop over an array or over `$(command)`.
+- A glob that matches nothing is an error, and the command does not run. Quote
+  every argument with `?`, `*` or `[` that the shell should not expand.
+- Write `"${VAR}:path"`, not `$VAR:path`. A colon after the name starts a
+  modifier.
+- For anything that needs bash, use `bash <<'EOF' ... EOF`.
+
+The reasons and examples are in the
+[solution doc](docs/solutions/developer-experience/zsh-does-not-word-split-command-in-a-string.md).
+
 ## Tasks: HUID
 
 Each **task** is `tasks/<HUID>/TASK.md`; the file format is in
