@@ -16,7 +16,10 @@
 # jj note: `jj config set --user` writes ~/.config/jj/config.toml, and jj
 # merges ~/.config/jj/conf.d/*.toml OVER that file. Nothing here puts a
 # [user] block in conf.d for exactly that reason - it would silently win
-# over every later `jj config set`. Verified on jj 0.45.1.
+# over every later `jj config set`. But when config.toml does not exist yet
+# (a new machine), jj 0.45.1 writes to the only user config file it finds:
+# conf.d/dotfiles.toml, the symlink to the tracked tools/jujutsu/config. So
+# config.toml is created first, at the path jj reports.
 set -eu
 if ! gh auth status >/dev/null 2>&1; then
   echo "identity: gh is not logged in; run 'just gh-login' first" >&2
@@ -50,6 +53,15 @@ if ! command -v jj >/dev/null 2>&1; then
 elif [ -n "$(jj config get user.name 2>/dev/null)" ] && [ -n "$(jj config get user.email 2>/dev/null)" ]; then
   echo "jj:   already configured as $(jj config get user.name) <$(jj config get user.email)>"
 else
+  # The first path `jj config path --user` prints is config.toml; conf.d
+  # follows.
+  user_config=$(jj config path --user | head -n 1)
+  case "$user_config" in
+    *.toml)
+      mkdir -p "$(dirname "$user_config")"
+      [ -e "$user_config" ] || : >"$user_config"
+      ;;
+  esac
   jj config set --user user.name "$name"
   jj config set --user user.email "$email"
   echo "jj:   set user.name/user.email to $name <$email>"
