@@ -2,6 +2,10 @@
 EDITOR = "hx"
 CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
 
+[tool_alias]
+# weave ships its CLI and its merge driver as separate release assets.
+weave-driver = "github:Ataraxy-Labs/weave"
+
 [tools]
 cheat = "5.1"
 helix = "latest"
@@ -9,6 +13,8 @@ jujutsu = "0.45.1"
 just = "latest"
 "github:taskbook-sh/taskbook" = "latest"
 "github:Ataraxy-Labs/sem" = "latest"
+"github:Ataraxy-Labs/weave" = { version = "latest", asset_pattern = 'weave-cli-{{ arch(x64="x86_64", arm64="aarch64") }}-{{ os(macos="apple-darwin", linux="unknown-linux-gnu") }}.tar.gz' }
+weave-driver = { version = "latest", asset_pattern = 'weave-driver-{{ arch(x64="x86_64", arm64="aarch64") }}-{{ os(macos="apple-darwin", linux="unknown-linux-gnu") }}.tar.gz' }
 gh = "latest"
 claude = "latest"
 tmux = "latest"
