@@ -1,0 +1,81 @@
+allow	git status
+allow	git log --oneline -5
+allow	git -C . diff --stat
+allow	git ls-remote origin
+allow	git branch --show-current
+allow	git config --get user.email
+allow	git config user.name
+allow	git status 2>&1 | head
+allow	echo "git commit -m x"
+allow	cat > /tmp/x <<'EOF'\nUse jj, not:\ngit commit -m x\nEOF
+allow	cat <<-EOF > m.txt\n\tjj describe\n\tEOF\njj describe --stdin < m.txt
+allow	jj log -r @
+allow	jj --no-pager st
+allow	jj diff --git
+allow	jj new mons -m wip
+allow	jj new A B C -m merge
+allow	jj describe -m "x"
+allow	jj describe -r xtm --stdin < msg.txt
+allow	jj desc -mfoo
+allow	jj commit -m x
+allow	jj squash --into nkks -u
+allow	jj squash --from smqy --into rtwz --use-destination-message .cheat/jj/fix
+allow	jj squash -m "merged"
+allow	jj split -m first a.txt b.txt
+allow	jj resolve --list
+allow	jj resolve -r yxu --tool :theirs justfile
+allow	jj restore --from yxup --into worr VERSION
+allow	jj restore justfile
+allow	jj edit rwwp
+allow	jj rebase -s yxup -o mxky -o vwtx
+allow	jj abandon rxvn
+allow	jj bookmark create develop -r mtq
+allow	jj bookmark list --all
+allow	jj workspace list
+allow	jj workspace update-stale
+allow	jj --ignore-working-copy op log
+allow	jj op log
+allow	jj config get user.name
+allow	jj config set --repo user.name t
+allow	jj git remote list
+allow	mise exec -- jj log
+block	git add .
+block	git commit -m x
+block	cd x && git reset --hard
+block	jj new m -m wip >/dev/null 2>&1 && git rm -q --cached lib/a.nix
+block	mise exec -- git commit -am x
+block	git branch -D foo
+block	ls; git pull
+block	jj diff --git; jj restore && jj st
+block	jj restore -i
+block	jj describe
+block	jj describe -r xtm
+block	jj describe -m x --edit
+block	jj commit
+block	jj commit -i -m x
+block	jj split
+block	jj split a.txt
+block	jj squash --into nkks
+block	jj squash -i --into x -u
+block	jj resolve
+block	jj resolve -r yxu justfile
+block	jj diffedit -r @-
+block	jj config edit --user
+block	jj git push -b x; git add .
+ask	jj git push --remote origin -b effver
+ask	jj git fetch
+ask	jj git import
+ask	jj git export
+ask	cd $S && jj git init
+ask	jj undo
+ask	jj op restore 4c7a7505d87d
+ask	jj op abandon ..@-
+ask	jj bookmark delete develop
+ask	jj b move develop --to @
+ask	jj bookmark set v0.1.0 -r yxu
+ask	jj bookmark track main@origin
+ask	jj workspace add ../validate-mtq -r mtq
+ask	jj workspace forget validate-mtq
+ask	jj config set --user ui.editor hx
+ask	jj log; jj git push --all
+ask	jj -R ../other git push
