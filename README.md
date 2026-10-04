@@ -1,5 +1,10 @@
 # Dotfiles
 
+These are my NIX dotfiles (so why is mise here? for machines that can't/won't install
+Nix, and a supporting path to Nix when secrets/passwords are needed during setup).
+
+If you are following along, you DON'T need to install BOTH mise and Nix, jump [ahead](#nix).
+
 ## [Jujutsu](https://www.jj-vcs.dev/latest/)
 
 `mise install` gets `jj` too. The repo _may_ be [colocated](https://docs.jj-vcs.dev/latest/git-compatibility/#colocated-jujutsugit-repos) (`.jj/` next to `.git/`),
@@ -8,7 +13,7 @@ up.
 
 ## [mise-en-place](https://mise.jdx.dev/)
 
-The quickest way to a working setup: `mise install` gets a few tools, then `just`
+The quickest way to a MINIMAL working setup: `mise install` gets a few tools, then `just`
 lists the recipes.
 
 - `curl https://mise.run | sh` (bash) or `curl https://mise.run/zsh | sh` (see [docs](https://mise.jdx.dev/installing-mise.html#shell-specific-installation-activation))
@@ -32,6 +37,37 @@ nix --extra-experimental-features 'nix-command flakes' \
 ```
 
 Flakes are still experimental in Nix, so the flag enables them for this command only.
+
+### direnv
+
+`.envrc` loads the dev shell on entering the checkout, through direnv and
+nix-direnv (which caches it):
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' \
+  profile add nixpkgs#direnv nixpkgs#nix-direnv
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+mkdir -p ~/.config/direnv
+echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' \
+  > ~/.config/direnv/direnvrc
+# Open a new terminal, then in the checkout:
+direnv allow
+```
+
+### Coming from mise
+
+mise and the dev shell both put `jj` and `just` on `PATH`. Keep one: to drop
+mise,
+
+```sh
+mise implode --dry-run   # lists what it removes
+mise implode             # the mise binary, its tools and caches
+sed -i '' '/mise activate/d' ~/.zshrc   # the line mise's installer added
+```
+
+`mise implode` keeps `~/.config/mise` (add `--config` to remove it), and the
+links `mise dotfiles apply` made into `tools/` keep working. `jj` and `just`
+then come from the dev shell, so only inside the checkout.
 
 ## Global just recipes
 
