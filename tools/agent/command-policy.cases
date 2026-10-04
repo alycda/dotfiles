@@ -120,3 +120,28 @@ ask	cd /tmp && cd @ROOT@/tools && jj git push
 block	cd /tmp && cd - && git commit -m x
 block	cd -P /tmp && cd @ROOT@ && git add .
 block	popd; git add .
+block	git branch -a -D foo
+block	git branch -v -m old new
+block	git branch foo
+block	git branch --list -d foo
+block	git tag -l -d v1
+block	git tag -a v1 -m x
+block	git remote -v add x url
+block	git remote add origin url
+block	git config --get --unset user.name
+block	git config user.name me
+block	git config set user.name me
+block	git stash drop
+block	git worktree add ../x
+allow	git branch -a
+allow	git branch -v --contains abc
+allow	git branch --list "feat/*"
+allow	git branch --sort=-committerdate
+allow	git tag -n5 -l "v*"
+allow	git remote
+allow	git remote get-url origin
+allow	git config --global --get user.email
+allow	git config --show-origin -l
+allow	git config get user.name
+allow	git stash list
+allow	git worktree list

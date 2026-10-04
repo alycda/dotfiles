@@ -38,14 +38,29 @@ GIT_READ = {
     "merge-base", "name-rev", "rev-list", "rev-parse", "shortlog", "show",
     "show-ref", "status", "var", "version", "whatchanged",
 }
-# git: subcommands that only read when their first argument is one of these.
-GIT_READ_WHEN = {
-    "branch": {None, "-l", "--list", "-a", "-r", "-v", "-vv", "--show-current"},
-    "config": {"--get", "--get-all", "--get-regexp", "-l", "--list"},
-    "remote": {None, "-v", "get-url", "show"},
-    "stash": {"list", "show"},
-    "tag": {None, "-l", "--list"},
-    "worktree": {"list"},
+# git: subcommands that read only when every option is one of these. Each
+# maps to (options that read, the ones among them that take a value). Bare
+# names are checked in git_reads: patterns with --list, a key for config.
+GIT_LISTING = {
+    "branch": ({"-l", "--list", "-a", "--all", "-r", "--remotes", "-v", "-vv",
+                "--verbose", "--show-current", "--contains", "--no-contains",
+                "--merged", "--no-merged", "--points-at", "--sort", "--format",
+                "--color", "--no-color", "--column", "--no-column", "-i",
+                "--ignore-case", "--omit-empty"},
+               {"--contains", "--no-contains", "--merged", "--no-merged",
+                "--points-at", "--sort", "--format"}),
+    "tag": ({"-l", "--list", "-n", "--contains", "--no-contains", "--merged",
+             "--no-merged", "--points-at", "--sort", "--format", "--color",
+             "--no-color", "--column", "--no-column", "-i", "--ignore-case",
+             "--omit-empty"},
+            {"--contains", "--no-contains", "--merged", "--no-merged",
+             "--points-at", "--sort", "--format"}),
+    "config": ({"--get", "--get-all", "--get-regexp", "--get-urlmatch", "-l",
+                "--list", "--global", "--system", "--local", "--worktree",
+                "-f", "--file", "--blob", "--show-origin", "--show-scope",
+                "-z", "--null", "--name-only", "--type", "--bool", "--int",
+                "--path", "--default", "--includes", "--no-includes"},
+               {"-f", "--file", "--blob", "--type", "--default"}),
 }
 GIT_GLOBAL_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 
@@ -191,19 +206,46 @@ def skip_globals(args, with_value):
     return args[i:]
 
 
+def git_reads(sub, rest):
+    """Whether `git SUB REST...` only reads."""
+    if sub in GIT_READ:
+        return True
+    words = positionals(rest)
+    if sub == "remote":
+        return all(a in ("-v", "--verbose") for a in rest) \
+            or (words[:1] in (["get-url"], ["show"]))
+    if sub == "stash":
+        return words[:1] in (["list"], ["show"])
+    if sub == "worktree":
+        return words[:1] == ["list"]
+    if sub not in GIT_LISTING:
+        return False
+    reads, with_value = GIT_LISTING[sub]
+    skip = False
+    for a in rest:
+        if skip:
+            skip = False
+        elif a.startswith("-"):
+            name = a.split("=", 1)[0]
+            if name not in reads and not (name.startswith("-n") and sub == "tag"):
+                return False
+            skip = a in with_value
+    names = positionals(rest, with_value)
+    if sub == "config":
+        if names[:1] in (["get"], ["list"]):
+            return True  # git 2.46: `git config get KEY`
+        listing = has(rest, "--get", "--get-all", "--get-regexp",
+                      "--get-urlmatch", "-l", "--list")
+        return len(names) <= (2 if listing else 1)
+    # branch and tag: a bare name creates one; with --list it is a pattern.
+    return not names or has(rest, "-l", "--list")
+
+
 def check_git(args):
     args = skip_globals(args, GIT_GLOBAL_WITH_VALUE)
-    if not args:
+    if not args or git_reads(args[0], args[1:]):
         return ALLOW, ""
-    sub, rest = args[0], args[1:]
-    first = rest[0] if rest else None
-    if sub in GIT_READ:
-        return ALLOW, ""
-    if sub in GIT_READ_WHEN and first in GIT_READ_WHEN[sub]:
-        return ALLOW, ""
-    if sub == "config" and len(rest) == 1 and not first.startswith("-"):
-        return ALLOW, ""  # `git config user.name` reads
-    return BLOCK, GIT_MESSAGE.format(sub=sub)
+    return BLOCK, GIT_MESSAGE.format(sub=args[0])
 
 
 def has(args, *flags):
