@@ -1,0 +1,280 @@
+#!/usr/bin/env python3
+# command-policy: decide whether an agent may run a shell command line in a
+# jj repository. One policy for every harness; each harness gets a thin
+# adapter (Claude Code: .claude/hooks/command-policy).
+#
+#   command-policy [--cwd DIR] COMMAND...   (or the command line on stdin)
+#
+# Prints nothing and exits 0 to allow. Prints the reason on stderr and exits
+# 2 to block, or 3 to ask the user first.
+#
+# - block: git writes (jj owns the repository), a bare `jj restore` (it
+#   discards the working copy), and jj commands that open an editor or a
+#   diff editor (an agent cannot answer them, so they hang).
+# - ask: jj commands that reach outside the repository or are hard to undo:
+#   git push/fetch/import/export, undo and op restore, bookmark and
+#   workspace changes, user config.
+# - allow: everything else, including the history rewrites that curating a
+#   jj stack needs (new, describe -m, squash -u, edit, rebase, abandon).
+#
+# A guardrail, not a sandbox: it reads the command line, so commands run
+# from a script, `bash -c "..."`, `eval` or `$(...)` are not seen.
+# Heredoc bodies are data and are skipped. Outside a jj repository every
+# command is allowed.
+import os
+import re
+import shlex
+import sys
+
+ALLOW, BLOCK, ASK = 0, 2, 3
+
+# Words that run the rest of the line as a command.
+WRAPPERS = {"command", "exec", "env", "nice", "time", "sudo", "xargs"}
+
+# git: subcommands that never write.
+GIT_READ = {
+    "blame", "cat-file", "check-attr", "check-ignore", "describe", "diff",
+    "for-each-ref", "grep", "help", "log", "ls-files", "ls-remote", "ls-tree",
+    "merge-base", "name-rev", "rev-list", "rev-parse", "shortlog", "show",
+    "show-ref", "status", "var", "version", "whatchanged",
+}
+# git: subcommands that only read when their first argument is one of these.
+GIT_READ_WHEN = {
+    "branch": {None, "-l", "--list", "-a", "-r", "-v", "-vv", "--show-current"},
+    "config": {"--get", "--get-all", "--get-regexp", "-l", "--list"},
+    "remote": {None, "-v", "get-url", "show"},
+    "stash": {"list", "show"},
+    "tag": {None, "-l", "--list"},
+    "worktree": {"list"},
+}
+GIT_GLOBAL_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
+
+JJ_GLOBAL_WITH_VALUE = {
+    "-R", "--repository", "--at-op", "--at-operation", "--color",
+    "--config", "--config-toml", "--config-file",
+}
+# jj: subcommands that take a subcommand of their own.
+JJ_GROUPS = {"bookmark", "b", "config", "git", "op", "operation", "sparse",
+             "tag", "util", "workspace"}
+
+# jj: asked before running. (group, subcommand) or (command, None).
+JJ_ASK = {
+    ("git", "push"): "pushes to a remote",
+    ("git", "fetch"): "fetches from a remote",
+    ("git", "import"): "imports git refs over jj's view",
+    ("git", "export"): "exports jj's view over git refs",
+    ("git", "init"): "creates a repository",
+    ("git", "clone"): "creates a repository",
+    ("undo", None): "undoes the last operation",
+    ("redo", None): "redoes an operation",
+    ("op", "restore"): "restores the whole repository to an old operation",
+    ("op", "revert"): "reverts an operation",
+    ("op", "abandon"): "drops operation history",
+    ("util", "gc"): "deletes unreachable data",
+}
+JJ_ASK_GROUP = {
+    "bookmark": ({"delete", "forget", "move", "rename", "set", "track",
+                  "untrack"}, "changes bookmarks other people may see"),
+    "workspace": ({"add", "forget", "rename"}, "changes the workspaces"),
+}
+# Flags that open an editor or a diff editor.
+JJ_INTERACTIVE = {"-i", "--interactive", "--editor", "--edit"}
+
+GIT_MESSAGE = """\
+`git {sub}` writes, and this is a jj repository. Use jj:
+`jj describe`/`jj commit` (commit), `jj new`/`jj edit` (checkout),
+`jj restore --from` (reset), `jj rebase`, `jj git fetch`/`jj git push`.
+Reading with git is fine (status, log, diff, show, ...)."""
+
+
+def in_jj_repo(cwd):
+    path = os.path.abspath(cwd)
+    while True:
+        if os.path.isdir(os.path.join(path, ".jj")):
+            return True
+        parent = os.path.dirname(path)
+        if parent == path:
+            return False
+        path = parent
+
+
+HEREDOC = re.compile(r"<<(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
+
+
+def strip_heredocs(command):
+    """Drop heredoc bodies: they are data, not commands."""
+    out, pending = [], []
+    for line in command.split("\n"):
+        if pending:
+            strip_tabs, word = pending[0]
+            if (line.lstrip("\t") if strip_tabs else line) == word:
+                pending.pop(0)
+            continue
+        out.append(line)
+        pending = [(m.group(1) == "-", m.group(3))
+                   for m in HEREDOC.finditer(line)]
+    return "\n".join(out)
+
+
+def segments(command):
+    """Split a command line into simple commands, as lists of words."""
+    lexer = shlex.shlex(strip_heredocs(command), posix=True,
+                        punctuation_chars=";&|()\n")
+    lexer.whitespace = " \t\r"  # newline separates commands, like ;
+    lexer.whitespace_split = True
+    words = []
+    for token in lexer:
+        if token and set(token) <= set(";&|()\n"):
+            if words:
+                yield words
+            words = []
+        else:
+            words.append(token)
+    if words:
+        yield words
+
+
+def program(words):
+    """The program a simple command runs, and its arguments."""
+    i = 0
+    while i < len(words):
+        w = words[i]
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w) or w in WRAPPERS:
+            i += 1
+        elif w == "mise" and words[i + 1:i + 2] in (["exec"], ["x"]):
+            i += 2
+            while i < len(words) and words[i] != "--":
+                i += 1
+            i += 1
+        else:
+            break
+    if i >= len(words):
+        return None, []
+    return os.path.basename(words[i]), words[i + 1:]
+
+
+def skip_globals(args, with_value):
+    i = 0
+    while i < len(args) and args[i].startswith("-"):
+        i += 2 if args[i] in with_value else 1
+    return args[i:]
+
+
+def check_git(args):
+    args = skip_globals(args, GIT_GLOBAL_WITH_VALUE)
+    if not args:
+        return ALLOW, ""
+    sub, rest = args[0], args[1:]
+    first = rest[0] if rest else None
+    if sub in GIT_READ:
+        return ALLOW, ""
+    if sub in GIT_READ_WHEN and first in GIT_READ_WHEN[sub]:
+        return ALLOW, ""
+    if sub == "config" and len(rest) == 1 and not first.startswith("-"):
+        return ALLOW, ""  # `git config user.name` reads
+    return BLOCK, GIT_MESSAGE.format(sub=sub)
+
+
+def has(args, *flags):
+    for a in args:
+        for f in flags:
+            if a == f or (f.startswith("--") and a.startswith(f + "=")):
+                return True
+            # Short flags with a value attached: -mfoo
+            if len(f) == 2 and not f.startswith("--") and a.startswith(f) \
+                    and not a.startswith("--"):
+                return True
+    return False
+
+
+def positionals(args):
+    return [a for a in args if not a.startswith("-")]
+
+
+def check_jj(args):
+    args = skip_globals(args, JJ_GLOBAL_WITH_VALUE)
+    if not args:
+        return ALLOW, ""
+    cmd, rest = args[0], args[1:]
+    sub = None
+    if cmd in JJ_GROUPS and rest and not rest[0].startswith("-"):
+        sub, rest = rest[0], rest[1:]
+    if cmd == "b":
+        cmd = "bookmark"
+    if cmd == "operation":
+        cmd = "op"
+    name = "jj " + cmd + (" " + sub if sub else "")
+
+    # Block: an editor or a diff editor would wait for a human.
+    flag = next((a for a in rest if a in JJ_INTERACTIVE), None)
+    if flag and cmd != "new":
+        return BLOCK, f"`{name} {flag}` opens an editor, and nobody can answer it."
+    if cmd == "diffedit" or (cmd, sub) in {("config", "edit"), ("sparse", "edit")}:
+        return BLOCK, f"`{name}` opens an editor, and nobody can answer it."
+    if cmd in ("describe", "desc") and not has(rest, "-m", "--message", "--stdin", "--no-edit"):
+        return BLOCK, "`jj describe` without -m opens an editor. Use -m or --stdin."
+    if cmd == "commit" and not has(rest, "-m", "--message"):
+        return BLOCK, "`jj commit` without -m opens an editor. Use -m."
+    if cmd == "split" and not (positionals(rest) and has(rest, "-m", "--message")):
+        return BLOCK, ("`jj split` without paths opens a diff editor, and without "
+                       "-m an editor. Use `jj split -m MSG PATHS`.")
+    if cmd == "squash" and not has(rest, "-m", "--message", "-u", "--use-destination-message"):
+        return BLOCK, ("`jj squash` opens an editor when both commits have a "
+                       "description. Add -u (--use-destination-message) or -m.")
+    if cmd == "resolve" and not has(rest, "-l", "--list", "--tool"):
+        return BLOCK, ("`jj resolve` opens a merge editor. Use --tool :ours, "
+                       "--tool :theirs or --tool weave, or --list.")
+    # Block: a bare restore discards every change in the working copy.
+    if cmd == "restore" and not rest:
+        return BLOCK, ("bare `jj restore` discards every change in the working "
+                       "copy. Name the paths, or --from/--into.")
+
+    # Ask: outside the repository, or hard to undo.
+    reason = JJ_ASK.get((cmd, sub)) or JJ_ASK.get((cmd, None))
+    if not reason and cmd in JJ_ASK_GROUP and sub in JJ_ASK_GROUP[cmd][0]:
+        reason = JJ_ASK_GROUP[cmd][1]
+    if not reason and (cmd, sub) in {("config", "set"), ("config", "unset")} \
+            and has(rest, "--user"):
+        reason = "changes the user's jj config"
+    if reason:
+        return ASK, f"`{name}` {reason}."
+    return ALLOW, ""
+
+
+def check(command, cwd):
+    """The decision for a whole command line: the strictest of its parts."""
+    if not in_jj_repo(cwd):
+        return ALLOW, ""
+    try:
+        parsed = list(segments(command))
+    except ValueError:
+        return ALLOW, ""  # unbalanced quotes: let the shell report it
+    asked = None
+    for words in parsed:
+        prog, args = program(words)
+        if prog == "git":
+            decision = check_git(args)
+        elif prog == "jj":
+            decision = check_jj(args)
+        else:
+            continue
+        if decision[0] == BLOCK:
+            return decision
+        if decision[0] == ASK and asked is None:
+            asked = decision
+    return asked or (ALLOW, "")
+
+
+def main(argv):
+    cwd = os.getcwd()
+    if argv[:1] == ["--cwd"]:
+        cwd, argv = argv[1], argv[2:]
+    command = " ".join(argv) if argv else sys.stdin.read()
+    decision, reason = check(command, cwd)
+    if reason:
+        print(reason, file=sys.stderr)
+    return decision
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
