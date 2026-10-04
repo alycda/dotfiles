@@ -93,3 +93,19 @@ block	jj split --message=first -r abc
 block	jj split -m first >/dev/null
 allow	jj split -r abc -m first a.txt
 allow	jj split -m first -A main a.txt b.txt
+ask	jj b d develop
+ask	jj b s v1 -r x
+ask	jj b m develop --to @
+ask	jj b f old
+ask	jj b t main@origin
+ask	jj bookmark advance
+ask	jj b a --to @
+ask	jj tag s v1 -r x
+ask	jj config s --user ui.editor hx
+block	jj config e --user
+block	jj ci
+allow	jj ci -m x
+allow	jj b c develop -r mtq
+allow	jj b l
+allow	jj tag l
+allow	jj config g user.name

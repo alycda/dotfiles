@@ -54,8 +54,8 @@ JJ_GLOBAL_WITH_VALUE = {
     "--config", "--config-toml", "--config-file",
 }
 # jj: subcommands that take a subcommand of their own.
-JJ_GROUPS = {"bookmark", "b", "config", "git", "op", "operation", "sparse",
-             "tag", "util", "workspace"}
+JJ_GROUPS = {"bookmark", "config", "git", "op", "sparse", "tag", "util",
+             "workspace"}
 
 # jj: asked before running. (group, subcommand) or (command, None).
 JJ_ASK = {
@@ -73,9 +73,23 @@ JJ_ASK = {
     ("util", "gc"): "deletes unreachable data",
 }
 JJ_ASK_GROUP = {
-    "bookmark": ({"delete", "forget", "move", "rename", "set", "track",
-                  "untrack"}, "changes bookmarks other people may see"),
+    "bookmark": ({"advance", "delete", "forget", "move", "rename", "set",
+                  "track", "untrack"}, "changes bookmarks other people may see"),
+    "tag": ({"delete", "set", "track", "untrack"},
+            "changes tags other people may see"),
     "workspace": ({"add", "forget", "rename"}, "changes the workspaces"),
+}
+# jj's built-in aliases (jj 0.45), so `jj b d` is checked as
+# `jj bookmark delete`.
+JJ_ALIASES = {"b": "bookmark", "ci": "commit", "desc": "describe",
+              "operation": "op"}
+JJ_SUB_ALIASES = {
+    "bookmark": {"a": "advance", "c": "create", "d": "delete", "f": "forget",
+                 "l": "list", "m": "move", "r": "rename", "s": "set",
+                 "t": "track"},
+    "config": {"e": "edit", "g": "get", "l": "list", "p": "path", "s": "set",
+               "u": "unset"},
+    "tag": {"d": "delete", "l": "list", "s": "set"},
 }
 # Flags that open an editor or a diff editor.
 JJ_INTERACTIVE = {"-i", "--interactive", "--editor", "--edit"}
@@ -229,14 +243,11 @@ def check_jj(args):
     args = skip_globals(args, JJ_GLOBAL_WITH_VALUE)
     if not args:
         return ALLOW, ""
-    cmd, rest = args[0], args[1:]
+    cmd, rest = JJ_ALIASES.get(args[0], args[0]), args[1:]
     sub = None
     if cmd in JJ_GROUPS and rest and not rest[0].startswith("-"):
         sub, rest = rest[0], rest[1:]
-    if cmd == "b":
-        cmd = "bookmark"
-    if cmd == "operation":
-        cmd = "op"
+        sub = JJ_SUB_ALIASES.get(cmd, {}).get(sub, sub)
     name = "jj " + cmd + (" " + sub if sub else "")
 
     # Block: an editor or a diff editor would wait for a human.
@@ -245,7 +256,7 @@ def check_jj(args):
         return BLOCK, f"`{name} {flag}` opens an editor, and nobody can answer it."
     if cmd == "diffedit" or (cmd, sub) in {("config", "edit"), ("sparse", "edit")}:
         return BLOCK, f"`{name}` opens an editor, and nobody can answer it."
-    if cmd in ("describe", "desc") and not has(rest, "-m", "--message", "--stdin", "--no-edit"):
+    if cmd == "describe" and not has(rest, "-m", "--message", "--stdin", "--no-edit"):
         return BLOCK, "`jj describe` without -m opens an editor. Use -m or --stdin."
     if cmd == "commit" and not has(rest, "-m", "--message"):
         return BLOCK, "`jj commit` without -m opens an editor. Use -m."
