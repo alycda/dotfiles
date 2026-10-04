@@ -20,6 +20,19 @@ The quickest way to a working setup: `mise install` gets `just` (and `helix`), t
   just) into `$HOME`. `--dry-run` shows what it would change; it leaves an
   existing file alone unless given `--force`.
 
+## [Nix](https://nixos.org/download/)
+
+`flake.nix` has a (minimal) dev shell.
+
+```sh
+curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install | sh
+# Open a new terminal, then in the checkout:
+nix --extra-experimental-features 'nix-command flakes' \
+  develop -c sh -c 'jj --version && just --version'
+```
+
+Flakes are still experimental in Nix, so the flag enables them for this command only.
+
 ## Global just recipes
 
 `mise dotfiles apply` links `tools/just/` to `~/.config/just`, so
