@@ -10,9 +10,6 @@
 [[--scope]]
 --when.repositories = [
   "~/dotfiles",
-  "~/WIP/dotfiles-again",
-  "/workspaces/dotfiles",
-  "/workspaces/develop",
 ]
 
 # Track every bookmark on origin as soon as it exists, locally or fetched, so

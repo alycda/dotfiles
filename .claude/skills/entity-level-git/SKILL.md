@@ -44,7 +44,7 @@ instead of reading the file to reconstruct that yourself.
 
 ## In this repo: sem on jj
 
-sem reads git, and this is a colocated jj repository, so git sees jj's
+sem reads git, and this is _probably_ a colocated jj repository, so git sees jj's
 changes. Translate as follows:
 
 | You want | Run |
