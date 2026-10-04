@@ -8,6 +8,25 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
 adds one, and `just check-effver` checks it against `VERSION`.
 
+## 0.1.4 (meso) - 2026-10-03
+
+- A Nix flake with a dev shell (`nix develop`), for macOS on Apple silicon
+  and Linux. It only has `jj` and `just` for now.
+- `.envrc` loads that dev shell through direnv and nix-direnv. On a machine
+  without direnv it does nothing.
+- The Nix devcontainer gets jj and just from the dev shell instead of the
+  Nix feature: it installs direnv, hooks it into bash and zsh, and builds
+  the shell when the container is created. VS Code loads the same
+  environment through the direnv extension.
+- The README says these are Nix dotfiles, with mise for machines that
+  can't or won't install Nix, and that either one is enough. Its Nix
+  section installs Nix, sets up direnv, and shows how to drop mise when
+  moving from it to Nix.
+
+To adopt: optional; the mise setup keeps working. To move to Nix, follow
+the README's Nix section: install Nix, check the dev shell, set up direnv,
+then `mise implode` so `jj` and `just` come from one place.
+
 ## 0.1.3 (micro) - 2026-10-03
 
 - Two devcontainers, both on Debian bookworm. The default has jj and just
