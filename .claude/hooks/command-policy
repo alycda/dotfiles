@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+# Claude Code adapter for tools/agent/command-policy: a PreToolUse hook for
+# the Bash tool. The policy decides; this file only translates.
+#
+#   allow -> exit 0, nothing printed
+#   block -> exit 2, reason on stderr (Claude Code shows it to the agent)
+#   ask   -> exit 0 with permissionDecision "ask" (Claude Code asks the user)
+import json
+import os
+import sys
+from importlib.machinery import SourceFileLoader
+
+sys.dont_write_bytecode = True  # no __pycache__ in tools/agent
+root = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..")
+policy = SourceFileLoader(
+    "command_policy", os.path.join(root, "tools", "agent", "command-policy")
+).load_module()
+
+payload = json.load(sys.stdin)
+if payload.get("tool_name") != "Bash":
+    sys.exit(0)
+command = payload.get("tool_input", {}).get("command", "")
+decision, reason = policy.check(command, payload.get("cwd") or os.getcwd())
+
+if decision == policy.BLOCK:
+    print("blocked: " + reason, file=sys.stderr)
+    sys.exit(2)
+if decision == policy.ASK:
+    json.dump({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "ask",
+        "permissionDecisionReason": reason,
+    }}, sys.stdout)
+sys.exit(0)
