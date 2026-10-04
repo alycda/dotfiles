@@ -6,26 +6,26 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 
 ### EffVer
 
-The versioning scheme: a version is MACRO.MESO.MICRO, and which number changes says how much Effort it takes to adopt the Release.
+The versioning scheme: a version is MACRO.MESO.MICRO, and which number changes says how much Effort it takes to adopt the Version.
 
 Below 1.0 the scheme has only two numbers that move: a macro Effort bumps the middle one, and meso and micro both bump the last. The label still records which of the three it was.
 
 ### Effort
 
-What it takes to adopt a Release on a machine already running the previous one, not what it took to build.
+What it takes to adopt a VERSION on a machine already running the previous one, not what it took to build.
 *Avoid:* size, impact
 
-Decided in order. If everything that worked before still works after pulling, it is micro, however large the change. If getting back to working is a bounded step, like installing a tool or an extension or renaming a setting, it is meso. If it means changing how you work or redoing something, it is macro. Opt-in additions are micro: the cost of opting in is written in the Release's notes, not counted in the version. Opt-in that quietly becomes required, such as a setting that switches the old way off or a command that loses its fallback, raises the Effort.
+Decided in order. If everything that worked before still works after pulling, it is micro, however large the change. If getting back to working is a bounded step, like installing a tool or an extension or renaming a setting, it is meso. If it means changing how you work or redoing something, it is macro. Opt-in additions are micro: the cost of opting in is written in the Version's notes, not counted in the version. Opt-in that quietly becomes required, such as a setting that switches the old way off or a command that loses its fallback, raises the Effort.
 
-### Release
+### Version
 
 A version together with its changelog section, which says what changed and, unless the Effort is micro, the steps to adopt it.
 
-The version bump belongs to the Release commit, never to the changes that make it up. The section of a Release that has been published is not edited afterwards.
+The version bump belongs to the Version commit, never to the changes that make it up. The section of a Version that has been published is not edited afterwards.
 
-### Release commit
+### Version commit
 
-The merge that brings a Release's Lanes together and carries its version bump and changelog section.
+The merge that brings a Version's Lanes together and carries its version bump and changelog section.
 
 ## History
 
@@ -42,7 +42,7 @@ Ignore rules only stop a file from becoming tracked. A file already tracked stay
 
 ### Lane
 
-An independent line of Changes, one concern each, that converges with the other Lanes of a Release in an octopus merge.
+An independent line of Changes, one concern each, that converges with the other Lanes of a Version in an octopus merge.
 *Avoid:* branch
 
 Files that every Lane appends to, such as the changelog or ignore rules, conflict when the Lanes merge, because each claims the same end of file. Moving a single Change out of a Lane hands its descendants to its old parent; to give a merge another parent, move it together with its descendants.
@@ -113,4 +113,3 @@ Using a Devcontainer is opt-in, so adding one is micro; it raises the Effort onl
 
 - "Branch" had been used for both a Lane and a Bookmark; these are distinct, and neither word is "branch".
 - "Task" means a HUID Task in this repository. Personal to-dos kept in other tools are not Tasks.
-- "Release" and "publish" are distinct: a Release is a version with its notes; publishing is adding a Published commit.
