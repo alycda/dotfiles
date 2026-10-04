@@ -545,6 +545,24 @@ the anchor-line workaround and why it only relocates the problem. weave (see
 Conflicts) dissolves this for TOML and JSON, where each sibling adds its own key, but
 not for a changelog: siblings adding bullets to one section still conflict.
 
+## Version Stacks
+
+Alyssa's experimental workflow (2026-10-04) for versioned work: each version
+exists twice on the previous version's squashed commit, as a micro chain and a
+**squashed sibling** with the chain tip's tree. Each version is a PR that GitHub
+squash-merges; then the next chain moves onto the squash and the merged micro
+chain goes away. Recipes and pitfalls: `references/version-stacks.md`.
+
+```text
+jj new --no-edit <base> -m "version(0.1.N): summary"
+jj restore --from <chain-tip> --into <new>          # the squashed sibling
+jj duplicate '(::v0.1.N@origin ~ ::<below>)' -o effver   # after a squash-merge
+```
+
+**Never abandon merged micro commits while later chains descend from them**, and
+never resolve with `--tool :theirs` on a file both sides edited: it takes the
+whole file. Both are in the reference.
+
 ## Bookmarks and Pushing
 
 ### Bookmarks aren't branches
@@ -706,6 +724,13 @@ keep this file under context budget.
   parents, why append-only files conflict under sibling merges, and why octopus
   merges render as an empty diff. Load when working in a repo whose history
   converges on merge commits, or when a merge conflicts for no obvious reason.
+
+- **`references/version-stacks.md`** — Alyssa's experimental version workflow:
+  micro chains with squashed siblings, moving the next chain onto GitHub's
+  squash after a PR merges (`jj duplicate` from the pushed branch), checking the
+  result, dropping a merged chain, and the pitfalls (abandon cascades,
+  `:theirs` taking a whole file). Load when she works in versions, asks to
+  squash or rebase a version, or a PR into `effver` conflicts after a merge.
 
 - **`references/version-notes.md`** — jj v0.45-specific behavior: what's new in v0.45
   (`jj converge`, `config --file`), flags removed since the tutorials were written
