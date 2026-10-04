@@ -1,0 +1,7 @@
+[env]
+EDITOR = "hx"
+
+[tools]
+helix = "latest"
+just = "latest"
+"github:taskbook-sh/taskbook" = "latest"
