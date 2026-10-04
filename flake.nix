@@ -20,6 +20,12 @@
       url = "github:yaxitech/ragenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # The system layer on the Macs (darwin/). master tracks nixpkgs-unstable,
+    # as nixpkgs here does.
+    nix-darwin = {
+      url = "github:nix-darwin/nix-darwin/master";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -28,6 +34,7 @@
       home-manager,
       taskbook,
       ragenix,
+      nix-darwin,
       ...
     }:
     let
@@ -38,26 +45,61 @@
         "x86_64-linux"
       ];
       # claude-code is the one unfree package, and the only one allowed.
-      # taskbook's overlay replaces pkgs.taskbook with the Rust port.
-      pkgsFor =
-        system:
-        import nixpkgs {
-          inherit system;
-          config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "claude-code";
-          overlays = [ taskbook.overlays.default ];
-        };
+      # taskbook's overlay replaces pkgs.taskbook with the Rust port. Shared
+      # by pkgsFor and the darwin module's nixpkgs, so a Mac gets the same.
+      nixpkgsSettings = {
+        config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "claude-code";
+        overlays = [ taskbook.overlays.default ];
+      };
+      pkgsFor = system: import nixpkgs ({ inherit system; } // nixpkgsSettings);
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (pkgsFor system));
+
+      # What every home-manager configuration has, standalone or in darwin.
+      homeModules = [
+        ragenix.homeManagerModules.default
+        ./home-manager/common.nix
+        ./home-manager/agenix.nix
+      ];
 
       mkHome =
         system: username: homeDirectory:
         home-manager.lib.homeManagerConfiguration {
           pkgs = pkgsFor system;
+          modules = homeModules ++ [ { home = { inherit username homeDirectory; }; } ];
+        };
+
+      # A Mac: darwin/configuration.nix for the system, and home-manager as
+      # its module for the primary user, with the same modules as mkHome.
+      # `sudo darwin-rebuild switch --flake .#<name>` applies it.
+      mkDarwin =
+        {
+          user,
+          system ? "aarch64-darwin",
+          modules ? [ ],
+        }:
+        nix-darwin.lib.darwinSystem {
           modules = [
-            ragenix.homeManagerModules.default
-            ./home-manager/common.nix
-            ./home-manager/agenix.nix
-            { home = { inherit username homeDirectory; }; }
-          ];
+            ./darwin/configuration.nix
+            home-manager.darwinModules.home-manager
+            {
+              nixpkgs = nixpkgsSettings // {
+                hostPlatform = system;
+              };
+              # Who the per-user settings (system.defaults, Homebrew) are for.
+              system.primaryUser = user;
+              users.users.${user}.home = "/Users/${user}";
+              home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                # As `switch -b backup` does on Linux: a file home-manager
+                # takes over, such as ~/.zprofile, moves to <file>.backup
+                # rather than stopping the switch.
+                backupFileExtension = "backup";
+                users.${user}.imports = homeModules;
+              };
+            }
+          ]
+          ++ modules;
         };
     in
     {
@@ -76,9 +118,21 @@
 
       # The home-manager CLI at the version this flake pins:
       #   nix run .#home-manager -- switch --flake .#vscode@$(uname -m)-linux
-      packages = forAllSystems (pkgs: {
-        home-manager = home-manager.packages.${pkgs.stdenv.hostPlatform.system}.default;
-      });
+      # and on a Mac, darwin-rebuild, for the first switch (afterwards it is
+      # on PATH):
+      #   sudo nix run .#darwin-rebuild -- switch --flake .#<name>
+      packages = forAllSystems (
+        pkgs:
+        let
+          system = pkgs.stdenv.hostPlatform.system;
+        in
+        {
+          home-manager = home-manager.packages.${system}.default;
+        }
+        // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
+          darwin-rebuild = nix-darwin.packages.${system}.darwin-rebuild;
+        }
+      );
 
       # The Nix devcontainer's user, and the Dockerfile image's, on either
       # kind of host.
