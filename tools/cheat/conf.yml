@@ -1,0 +1,17 @@
+# cheat config. mise points CHEAT_CONFIG_PATH here (see mise.toml).
+editor: hx
+colorize: true
+style: monokai
+formatter: terminal256
+pager: less -FRX
+
+# No paths of our own: cheat reads the .cheat directory in the working
+# directory or any parent, which is this repo's .cheat/. Paths listed here are
+# not env-expanded, and relative ones resolve against the working directory.
+cheatpaths: []
+  # Community cheatsheets (https://github.com/cheat/cheatsheets):
+  # git clone https://github.com/cheat/cheatsheets ~/.config/cheat/cheatsheets/community
+  #- name: community
+  #  path: ~/.config/cheat/cheatsheets/community
+  #  tags: [ community ]
+  #  readonly: true

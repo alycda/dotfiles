@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # bump-effver: write the next EffVer version to VERSION, and an empty
-# heading for it at the top of CHANGELOG.md. 
+# heading for it at the top of CHANGELOG.md. check-effver fails until the
+# section under the heading says what changed and what it takes to adopt.
 #
 #   bump-effver macro|meso|micro [YYYY-MM-DD]
 #

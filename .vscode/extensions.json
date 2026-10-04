@@ -6,6 +6,10 @@
         "hverlin.mise-vscode",
         "skellock.just",
         "tamasfe.even-better-toml",
-        "timonwong.shellcheck"
+        "timonwong.shellcheck",
+        "visualjj.visualjj"
+    ],
+    "unwantedRecommendations": [
+        "eamodio.gitlens"
     ]
 }

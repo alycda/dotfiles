@@ -1,0 +1,31 @@
+# Two layers: micro-commits stay local (the personal changelog, the
+# dependency DAG); a linear `develop` chain holds converged commits for
+# GitHub. They are linked by TREE equality, not by ancestry.
+
+# First publish: a sibling of the first micro-commit
+jj new 'root()' --no-edit -m "init"
+jj restore --from TIP --into INIT     # TIP = a converged, conflict-free rev
+jj bookmark create develop -r INIT
+
+# Every later publish: the diff is exactly the work since the last one
+jj new develop --no-edit -m "area(scope): summary"
+jj restore --from TIP --into NEW
+jj bookmark move develop --to NEW
+
+# Verify: empty = the published commit matches the micro tip
+jj diff --from TIP --to develop --stat
+
+# Only publish conflict-free tips (conflicts would be copied)
+jj log -r 'conflicts()'
+
+# Undo a publish. Plain abandon DELETES bookmarks on the commit;
+# --retain-bookmarks moves `develop` back to the previous publish instead.
+jj abandon --retain-bookmarks develop
+
+# The micro-commits are never rewritten. The strict commit format only
+# needs to apply to `develop` (what GitHub sees):
+just check-commits '::develop ~ root()'
+
+# Alternative: squash locally; jj evolog keeps the squashed commits as
+# predecessors (local only, until gc)
+jj evolog -r REV
