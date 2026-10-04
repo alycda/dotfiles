@@ -81,8 +81,8 @@ JJ_GLOBAL_WITH_VALUE = {
     "--config", "--config-toml", "--config-file",
 }
 # jj: subcommands that take a subcommand of their own.
-JJ_GROUPS = {"bookmark", "config", "git", "op", "sparse", "tag", "util",
-             "workspace"}
+JJ_GROUPS = {"bookmark", "config", "file", "git", "op", "sparse", "tag",
+             "util", "workspace"}
 
 # jj: asked before running. (group, subcommand) or (command, None).
 JJ_ASK = {
@@ -109,7 +109,7 @@ JJ_ASK_GROUP = {
 # jj's built-in aliases (jj 0.45), so `jj b d` is checked as
 # `jj bookmark delete`.
 JJ_ALIASES = {"b": "bookmark", "ci": "commit", "desc": "describe",
-              "operation": "op"}
+              "operation": "op", "st": "status"}
 JJ_SUB_ALIASES = {
     "bookmark": {"a": "advance", "c": "create", "d": "delete", "f": "forget",
                  "l": "list", "m": "move", "r": "rename", "s": "set",
@@ -128,15 +128,20 @@ GIT_MESSAGE = """\
 Reading with git is fine (status, log, diff, show, ...)."""
 
 
-def in_jj_repo(cwd):
+def jj_root(cwd):
+    """The jj workspace that contains `cwd`, or None."""
     path = os.path.abspath(cwd)
     while True:
         if os.path.isdir(os.path.join(path, ".jj")):
-            return True
+            return path
         parent = os.path.dirname(path)
         if parent == path:
-            return False
+            return None
         path = parent
+
+
+def in_jj_repo(cwd):
+    return jj_root(cwd) is not None
 
 
 # `<<WORD` or `<<-WORD`, but not a here-string (`<<< word`), which has
@@ -302,15 +307,24 @@ SPLIT_WITH_VALUE = {
 }
 
 
-def check_jj(args):
+def jj_parts(args):
+    """A jj command's (command, subcommand, rest), aliases resolved. The
+    command is None for a bare `jj`, which runs `jj log`."""
     args = skip_globals(args, JJ_GLOBAL_WITH_VALUE)
     if not args:
-        return ALLOW, ""
+        return None, None, []
     cmd, rest = JJ_ALIASES.get(args[0], args[0]), args[1:]
     sub = None
     if cmd in JJ_GROUPS and rest and not rest[0].startswith("-"):
         sub, rest = rest[0], rest[1:]
         sub = JJ_SUB_ALIASES.get(cmd, {}).get(sub, sub)
+    return cmd, sub, rest
+
+
+def check_jj(args):
+    cmd, sub, rest = jj_parts(args)
+    if cmd is None:
+        return ALLOW, ""
     name = "jj " + cmd + (" " + sub if sub else "")
 
     # Block: an editor or a diff editor would wait for a human.
@@ -375,18 +389,14 @@ def target(here, prog, args):
     return here
 
 
-def check(command, cwd):
-    """The decision for a whole command line: the strictest of its parts.
-    Each command is judged where it runs: `cd` moves that place, and
-    `git -C` or `jj -R` points a single command elsewhere. A place the hook
-    cannot know (`cd $DIR`) is taken to be a jj repository."""
-    try:
-        parsed = list(segments(command))
-    except ValueError:
-        return ALLOW, ""  # unbalanced quotes: let the shell report it
+def vcs_commands(command, cwd):
+    """The git and jj commands on a command line that act on a jj
+    repository, as (program, arguments). Each is placed where it runs: `cd`
+    moves that place, and `git -C` or `jj -R` points a single command
+    elsewhere. A place that cannot be known (`cd $DIR`) is taken to be a jj
+    repository. Raises ValueError on unbalanced quotes."""
     here = os.path.abspath(cwd)
-    asked = None
-    for words in parsed:
+    for words in list(segments(command)):
         prog, args = program(words)
         if prog in ("cd", "pushd"):
             dirs = [a for a in args if a == "-" or not a.startswith("-")]
@@ -398,8 +408,45 @@ def check(command, cwd):
         if prog not in ("git", "jj"):
             continue
         where = target(here, prog, args)
-        if where is not None and not in_jj_repo(where):
-            continue
+        if where is None or in_jj_repo(where):
+            yield prog, args
+
+
+# jj commands that only read the repository (they may snapshot the working
+# copy, which records it but moves nothing).
+JJ_READS = {
+    (None, None), ("diff", None), ("evolog", None), ("help", None),
+    ("interdiff", None), ("log", None), ("root", None), ("show", None),
+    ("status", None), ("version", None), ("bookmark", "list"),
+    ("config", "get"), ("config", "list"), ("config", "path"),
+    ("file", "annotate"), ("file", "list"), ("file", "search"),
+    ("file", "show"), ("op", "diff"), ("op", "log"),
+    ("op", "show"), ("tag", "list"), ("workspace", "list"),
+    ("workspace", "root"),
+}
+
+
+def jj_writes(command, cwd):
+    """Whether a command line runs a jj command that changes the repository."""
+    try:
+        for prog, args in vcs_commands(command, cwd):
+            if prog == "jj":
+                cmd, sub, _ = jj_parts(args)
+                if (cmd, sub) not in JJ_READS and (cmd, None) not in JJ_READS:
+                    return True
+    except ValueError:
+        pass
+    return False
+
+
+def check(command, cwd):
+    """The decision for a whole command line: the strictest of its parts."""
+    try:
+        parsed = list(vcs_commands(command, cwd))
+    except ValueError:
+        return ALLOW, ""  # unbalanced quotes: let the shell report it
+    asked = None
+    for prog, args in parsed:
         if prog == "git":
             decision = check_git(args)
         else:

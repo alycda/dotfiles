@@ -20,6 +20,10 @@ This _may_ be a **colocated repository** worked with jj. If a .jj folder exists:
 - Before asking for a push, run `check-commits --jj '<revset>'` on the
   changes you made. Pass the revset: the default reaches back to history
   older than this format. Never push; publishing is the owner's call.
+- The owner moves around while you work (`jj edit`, `new`, `rebase`,
+  `abandon`). Never assume `@` is where you left it: read `jj st`, `jj log`
+  or `jj op log` before you write. A hook (`tools/agent/jj-state`) adds what
+  moved to your prompt, and blocks a write once if you have not looked since.
 
 ## Tools: mise
 
