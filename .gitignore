@@ -11,3 +11,7 @@
 
 # Thumbnails
 ._*
+
+
+## Python (the agent tools load each other as modules)
+__pycache__/
