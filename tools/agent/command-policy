@@ -287,23 +287,60 @@ def check_jj(args):
     return ALLOW, ""
 
 
+def resolve(here, path):
+    """`path` as seen from directory `here`, or None when it is unknown:
+    a variable the hook cannot expand, `cd -`, or an unknown `here`."""
+    path = os.path.expandvars(os.path.expanduser(path))
+    if path == "-" or "$" in path or "`" in path:
+        return None
+    if os.path.isabs(path):
+        return os.path.normpath(path)
+    return None if here is None else os.path.normpath(os.path.join(here, path))
+
+
+def target(here, prog, args):
+    """The directory a git or jj command acts on: `here`, unless `git -C`
+    or `jj -R` points somewhere else."""
+    flags = {"git": ("-C",), "jj": ("-R", "--repository")}[prog]
+    for i, a in enumerate(args):
+        if not a.startswith("-"):
+            break  # the subcommand: global options end here
+        if a in flags and i + 1 < len(args):
+            here = resolve(here, args[i + 1])
+        elif a.startswith("--repository="):
+            here = resolve(here, a.split("=", 1)[1])
+    return here
+
+
 def check(command, cwd):
-    """The decision for a whole command line: the strictest of its parts."""
-    if not in_jj_repo(cwd):
-        return ALLOW, ""
+    """The decision for a whole command line: the strictest of its parts.
+    Each command is judged where it runs: `cd` moves that place, and
+    `git -C` or `jj -R` points a single command elsewhere. A place the hook
+    cannot know (`cd $DIR`) is taken to be a jj repository."""
     try:
         parsed = list(segments(command))
     except ValueError:
         return ALLOW, ""  # unbalanced quotes: let the shell report it
+    here = os.path.abspath(cwd)
     asked = None
     for words in parsed:
         prog, args = program(words)
+        if prog in ("cd", "pushd"):
+            dirs = [a for a in args if a == "-" or not a.startswith("-")]
+            here = resolve(here, dirs[0] if dirs else "~")
+            continue
+        if prog == "popd":
+            here = None
+            continue
+        if prog not in ("git", "jj"):
+            continue
+        where = target(here, prog, args)
+        if where is not None and not in_jj_repo(where):
+            continue
         if prog == "git":
             decision = check_git(args)
-        elif prog == "jj":
-            decision = check_jj(args)
         else:
-            continue
+            decision = check_jj(args)
         if decision[0] == BLOCK:
             return decision
         if decision[0] == ASK and asked is None:

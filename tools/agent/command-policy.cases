@@ -78,7 +78,7 @@ ask	jj workspace add ../validate-mtq -r mtq
 ask	jj workspace forget validate-mtq
 ask	jj config set --user ui.editor hx
 ask	jj log; jj git push --all
-ask	jj -R ../other git push
+ask	jj -R . git push
 block	jj restore >/dev/null
 block	jj restore 2>&1
 block	jj restore 2> /dev/null
@@ -109,3 +109,14 @@ allow	jj b c develop -r mtq
 allow	jj b l
 allow	jj tag l
 allow	jj config g user.name
+allow	cd /tmp && git commit -m x
+allow	cd /tmp; git -C . add .
+allow	git -C /tmp reset --hard
+block	cd /tmp && cd @ROOT@ && git commit -m x
+block	cd /tmp && git -C @ROOT@ reset --hard
+block	cd /tmp && jj -R @ROOT@ restore
+block	cd /tmp && jj --repository=@ROOT@ describe
+ask	cd /tmp && cd @ROOT@/tools && jj git push
+block	cd /tmp && cd - && git commit -m x
+block	cd -P /tmp && cd @ROOT@ && git add .
+block	popd; git add .
