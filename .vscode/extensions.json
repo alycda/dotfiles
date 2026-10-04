@@ -4,6 +4,7 @@
         "editorconfig.editorconfig",
         "foxundermoon.shell-format",
         "hverlin.mise-vscode",
+        "ms-python.python",
         "skellock.just",
         "tamasfe.even-better-toml",
         "timonwong.shellcheck"
