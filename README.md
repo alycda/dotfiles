@@ -33,6 +33,37 @@ nix --extra-experimental-features 'nix-command flakes' \
 
 Flakes are still experimental in Nix, so the flag enables them for this command only.
 
+### direnv
+
+`.envrc` loads the dev shell on entering the checkout, through direnv and
+nix-direnv (which caches it):
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' \
+  profile add nixpkgs#direnv nixpkgs#nix-direnv
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+mkdir -p ~/.config/direnv
+echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' \
+  > ~/.config/direnv/direnvrc
+# Open a new terminal, then in the checkout:
+direnv allow
+```
+
+### Coming from mise
+
+mise and the dev shell both put `jj` and `just` on `PATH`. Keep one: to drop
+mise,
+
+```sh
+mise implode --dry-run   # lists what it removes
+mise implode             # the mise binary, its tools and caches
+sed -i '' '/mise activate/d' ~/.zshrc   # the line mise's installer added
+```
+
+`mise implode` keeps `~/.config/mise` (add `--config` to remove it), and the
+links `mise dotfiles apply` made into `tools/` keep working. `jj` and `just`
+then come from the dev shell, so only inside the checkout.
+
 ## Global just recipes
 
 `mise dotfiles apply` links `tools/just/` to `~/.config/just`, so
