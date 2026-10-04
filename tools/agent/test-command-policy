@@ -3,7 +3,8 @@
 # print each case whose decision differs. Exits 1 if any case fails.
 #
 # Each line of the cases file is: allow|ask|block, a tab, the command line.
-# `\n` in a command line stands for a newline (for heredocs).
+# `\n` in a command line stands for a newline (for heredocs), and @ROOT@
+# for the repository root.
 set -euo pipefail
 
 dir="$(cd "$(dirname "$0")" && pwd)"
@@ -14,6 +15,7 @@ pass=0
 fail=0
 while IFS=$'\t' read -r want cmd; do
   rc=0
+  cmd="${cmd//@ROOT@/$root}"
   printf '%b' "$cmd" | "$dir/command-policy" --cwd "$root" 2>/dev/null || rc=$?
   case $rc in 0) got=allow ;; 2) got=block ;; 3) got=ask ;; *) got="exit $rc" ;; esac
   if [ "$got" = "$want" ]; then
