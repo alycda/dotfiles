@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+# Claude Code adapter for tools/agent/jj-state: read before write.
+#
+#   UserPromptSubmit         when the repository moved since the agent last
+#                            looked (or on the first prompt), add what
+#                            changed and where @ is to the prompt
+#   PreToolUse  Edit, Write, when the repository moved since the agent last
+#   NotebookEdit, and Bash   looked, block once with what changed; the
+#   running a jj write       block counts as the look, so a retry runs
+#   PostToolUse Bash         a jj command that shows the state (st, log,
+#                            op log, evolog, show) or changes it counts as
+#                            a look
+import json
+import os
+import subprocess
+import sys
+from importlib.machinery import SourceFileLoader
+
+sys.dont_write_bytecode = True
+root = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..")
+tools = os.path.join(root, "tools", "agent")
+policy = SourceFileLoader(
+    "command_policy", os.path.join(tools, "command-policy")).load_module()
+
+# jj commands whose output shows where the repository is.
+LOOKS = {(None, None), ("status", None), ("log", None), ("evolog", None),
+         ("show", None), ("op", "log"), ("op", "show"), ("workspace", "list")}
+
+FILE_TOOLS = {"Edit", "MultiEdit", "Write", "NotebookEdit"}
+
+
+def jj_state(action, key, cwd):
+    out = subprocess.run(
+        [sys.executable, os.path.join(tools, "jj-state"), action, key,
+         "--cwd", cwd], capture_output=True, text=True)
+    return out.returncode, out.stdout.strip()
+
+
+def looks(command, cwd):
+    """Whether a command line runs a jj command that shows or changes the
+    state."""
+    try:
+        for prog, args in policy.vcs_commands(command, cwd):
+            if prog == "jj":
+                cmd, sub, _ = policy.jj_parts(args)
+                if (cmd, sub) in LOOKS or policy.jj_writes(
+                        " ".join(["jj"] + args), cwd):
+                    return True
+    except ValueError:
+        pass
+    return False
+
+
+payload = json.load(sys.stdin)
+event = payload.get("hook_event_name")
+key = payload.get("session_id") or "unknown"
+cwd = payload.get("cwd") or os.getcwd()
+tool = payload.get("tool_name")
+tool_input = payload.get("tool_input") or {}
+
+if event == "UserPromptSubmit":
+    _, text = jj_state("look", key, cwd)
+    if text:
+        json.dump({"hookSpecificOutput": {
+            "hookEventName": "UserPromptSubmit",
+            "additionalContext": text,
+        }}, sys.stdout)
+
+elif event == "PreToolUse":
+    if tool in FILE_TOOLS:
+        path = tool_input.get("file_path") or tool_input.get("notebook_path")
+        where = os.path.dirname(path) if path else cwd
+    elif tool == "Bash" and policy.jj_writes(tool_input.get("command", ""), cwd):
+        where = cwd
+    else:
+        sys.exit(0)
+    rc, text = jj_state("check", key, where)
+    if rc == 2:
+        print(text + "\nThis was the look: run the same call again if it "
+              "still makes sense.", file=sys.stderr)
+        sys.exit(2)
+
+elif event == "PostToolUse" and tool == "Bash":
+    if looks(tool_input.get("command", ""), cwd):
+        jj_state("seen", key, cwd)
+
+sys.exit(0)

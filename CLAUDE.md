@@ -18,6 +18,10 @@ git steps if a .jj folder exists:
   `jj describe -m "..."`, or `jj commit -m "..."` to start the next one.
 - Split by concern with `jj split -m "..." <paths>`, never interactively.
 - Never push. Publishing is the owner's call.
+- The owner moves around while you work (`jj edit`, `new`, `rebase`,
+  `abandon`). Never assume `@` is where you left it: read `jj st`, `jj log`
+  or `jj op log` before you write. A hook (`tools/agent/jj-state`) adds what
+  moved to your prompt, and blocks a write once if you have not looked since.
 
 ## Tools: mise
 
