@@ -139,7 +139,9 @@ def in_jj_repo(cwd):
         path = parent
 
 
-HEREDOC = re.compile(r"<<(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
+# `<<WORD` or `<<-WORD`, but not a here-string (`<<< word`), which has
+# no body.
+HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
 
 
 def strip_heredocs(command):
