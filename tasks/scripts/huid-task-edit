@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# huid-task-edit TITLE: create a task (huid-task) and open it in $EDITOR.
+set -euo pipefail
+
+here="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+file="$("$here/huid-task" "${1:?usage: huid-task-edit TITLE}")"
+exec "${EDITOR:-hx}" "$file"

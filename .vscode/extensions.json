@@ -1,5 +1,6 @@
 {
     "recommendations": [
+        "anthropic.claude-code",
         "davidanson.vscode-markdownlint",
         "editorconfig.editorconfig",
         "foxundermoon.shell-format",
@@ -10,6 +11,8 @@
         "visualjj.visualjj"
     ],
     "unwantedRecommendations": [
-        "eamodio.gitlens"
+        "donjayamanne.githistory",
+        "eamodio.gitlens",
+        "vscodevim.vim"
     ]
 }

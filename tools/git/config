@@ -1,0 +1,29 @@
+# Git settings that work on every account.
+#
+# This file is tracked, so it never holds identity or credentials. Those go
+# in ~/.gitconfig, which includes this file (see [dotfiles] in mise.toml).
+# jj reads user.name/user.email from its own config, not from here.
+
+[init]
+	defaultBranch = main
+
+[push]
+	autoSetupRemote = true
+
+[pull]
+	rebase = true
+
+[log]
+	date = relative
+
+[alias]
+	br = branch
+	co = checkout
+	cp = cherry-pick
+	st = status
+	branches = branch -a
+	remotes = remote -v
+	# Last 20 commits: short SHA, subject, author
+	l = log --color --graph --format='%C(magenta)%h%Creset %s %C(cyan)<%an>%Creset' -n 20 --abbrev-commit
+	# Short SHA, refs, subject, relative commit time, author
+	lg = log --color --graph --format='%C(magenta)%h%Creset -%C(green)%d%Creset %s %C(yellow)(%cr) %C(cyan)<%an>%Creset' --abbrev-commit --
