@@ -9,8 +9,8 @@ Write commit messages by the compound-engineering `ce-commit` skill: one
 logical change per commit, and a subject that names the outcome, not the files.
 Match the recent log's `area(scope): summary` style.
 
-This is a **colocated repository** worked with jj, so do not follow ce-commit's
-git steps:
+This _may_ be a **colocated repository** worked with jj, so do not follow ce-commit's
+git steps if a .jj folder exists:
 
 - Don't run `git add`, `git commit`, `git checkout` or any other git command
   that writes. Reading with git is fine.
@@ -28,7 +28,7 @@ git steps:
 - Get tools from mise, not from brew, `npm -g`, curl scripts or `mise use -g`.
   The repo has to work from its own `mise.toml`.
 - Ask before adding a tool, and add it with `mise use <tool>` so `mise.toml`
-  stays the record. Heavier tooling waits for the **full toolset**.
+  stays the record. Heavier tooling waits for the **full toolset** (Nix).
 
 ## Tasks: HUID
 
@@ -54,7 +54,7 @@ Each **task** is `tasks/<HUID>/TASK.md`; the file format is in
 
 - Don't bump `VERSION` unless asked. When a change affects adoption, say which
   **effort** you think it is and why.
-- The bump and its changelog heading belong in the **release commit**.
+- The bump and its changelog heading belong in the **version commit**.
 - Each section says what changed. Unless it is micro, end it with a "To adopt:"
   line naming the steps.
-- Don't edit the section of a release that has been published.
+- Don't edit the section of a version that has been pushed to an immutable head.
