@@ -79,3 +79,10 @@ ask	jj workspace forget validate-mtq
 ask	jj config set --user ui.editor hx
 ask	jj log; jj git push --all
 ask	jj -R ../other git push
+block	jj restore >/dev/null
+block	jj restore 2>&1
+block	jj restore 2> /dev/null
+block	jj restore &>/dev/null; jj st
+allow	jj restore --from @- justfile 2>/dev/null
+allow	jj log -r @ 2>&1 | head -5
+allow	jj st >/dev/null && echo ok

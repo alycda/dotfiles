@@ -116,20 +116,37 @@ def strip_heredocs(command):
     return "\n".join(out)
 
 
+PUNCTUATION = ";&|()<>\n"
+# A redirection operator: >, >>, <, >&, <&, &>, <<, <<<, >|.
+REDIRECT = re.compile(r"&?[<>]+[&|]?")
+
+
 def segments(command):
-    """Split a command line into simple commands, as lists of words."""
+    """Split a command line into simple commands, as lists of words.
+    Redirections (`>/dev/null`, `2>&1`) are dropped with their targets:
+    they are not arguments."""
     lexer = shlex.shlex(strip_heredocs(command), posix=True,
-                        punctuation_chars=";&|()\n")
+                        punctuation_chars=PUNCTUATION)
     lexer.whitespace = " \t\r"  # newline separates commands, like ;
     lexer.whitespace_split = True
     words = []
+    target = False  # the next word is a redirection's target
     for token in lexer:
-        if token and set(token) <= set(";&|()\n"):
-            if words:
-                yield words
+        if not (token and set(token) <= set(PUNCTUATION)):
+            if target:
+                target = False
+            else:
+                words.append(token)
+            continue
+        separator = REDIRECT.sub("", token)
+        if separator and words:
+            yield words
             words = []
-        else:
-            words.append(token)
+        if separator != token:
+            # `2>`: the lexer splits the fd number off as a word.
+            if words and words[-1].isdigit() and len(words) > 1:
+                words.pop()
+            target = True
     if words:
         yield words
 
