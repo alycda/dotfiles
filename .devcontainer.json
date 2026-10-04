@@ -12,7 +12,7 @@
     },
 
     "remoteEnv": {
-        // "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
+        "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
         "JJ_USER": "${localEnv:JJ_USER}",
         "JJ_EMAIL": "${localEnv:JJ_EMAIL}"
     },
