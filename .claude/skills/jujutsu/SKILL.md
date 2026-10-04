@@ -108,7 +108,7 @@ The implication is in the next section.
 
 ## Agent Environment Rules
 
-### Always use `-m` for messages
+### Always pass the message: `-m` or `--stdin`
 
 Editor prompts hang in non-interactive environments. Every command that accepts
 `-m` must get one inline:
@@ -120,6 +120,16 @@ jj commit -m "message"        # NOT: jj commit
 jj squash -m "message"        # NOT: jj squash (opens editor for combined description)
 ```
 
+A message with a body is awkward in `-m`. Write it to a file outside the working
+copy and pass it on stdin:
+
+```text
+jj describe --stdin < /path/to/msg.txt
+```
+
+`jj squash --into <X>` from a described change also opens the editor, to combine
+the two descriptions. Pass `--use-destination-message` (`-u`) to keep `<X>`'s.
+
 ### Avoid interactive commands
 
 These open TUIs and hang. Use alternatives:
@@ -128,8 +138,8 @@ These open TUIs and hang. Use alternatives:
 | --- | --- |
 | `jj split` (no args) | `jj split <path>...` with explicit fileset, or `jj squash`/`jj restore` patterns |
 | `jj squash -i` | `jj squash <path>...` with explicit fileset |
-| `jj resolve` | Edit conflict markers directly in the affected files, then `jj st` to verify |
-| `jj describe` (no `-m`) | `jj describe -m "..."` |
+| `jj resolve` | `jj resolve --tool weave` (see Conflicts), else edit the markers directly, then `jj st` |
+| `jj describe` (no `-m`) | `jj describe -m "..."` or `jj describe --stdin < file` |
 
 ### Verify after mutation
 
@@ -531,7 +541,9 @@ jj rebase -r <merge> -d 'heads(parents(<merge>))'
 **Append-only files (`.gitignore`, changelogs) cannot be built by sibling merges** —
 every sibling claims the same end-of-file offset and the merge conflicts. A linear
 chain gives each commit a distinct offset and merges cleanly. See the reference for
-the anchor-line workaround and why it only relocates the problem.
+the anchor-line workaround and why it only relocates the problem. weave (see
+Conflicts) dissolves this for TOML and JSON, where each sibling adds its own key, but
+not for a changelog: siblings adding bullets to one section still conflict.
 
 ## Bookmarks and Pushing
 
@@ -585,10 +597,39 @@ conflicted commits stay conflicted until resolved.
 jj st                              # shows "There are unresolved conflicts" with paths
 ```
 
-To resolve: edit the conflicted file directly. Conflict markers look like git's
+**Try weave first.** Many conflicts are false: the sides edited different functions,
+or added different keys, and a line merge can't tell. weave (the entity-level-git
+skill) merges by entity, and `jj resolve` runs it without opening anything. It needs
+no jj config: pass the merge tool on the command line.
+
+```text
+jj resolve -r <change> --tool weave \
+  --config 'merge-tools.weave.program="weave-driver"' \
+  --config 'merge-tools.weave.merge-args=["$base","$left","$right","-o","$output","-l","$marker_length","-p","$path"]' \
+  --config 'merge-tools.weave.merge-conflict-exit-codes=[1]' \
+  --config 'merge-tools.weave.merge-tool-edits-conflict-markers=true' \
+  --config 'merge-tools.weave.conflict-marker-style="git"' \
+  [paths]
+```
+
+`-r` works on any change, not only `@`; descendants are rebased onto the result.
+Verified on jj 0.45.1 with weave 0.5.4:
+
+| Conflict | weave |
+| --- | --- |
+| Two sides edit different functions on adjacent lines | resolved |
+| Two sides add different keys to a TOML table or JSON object | resolved |
+| Two sides add bullets to one Markdown section | conflict |
+| Two sides edit the same function | conflict |
+
+What weave can't resolve keeps conflict markers, **plus one hint line it appends to
+the file** (`// weave: run 'weave explain …'`, or with `#`). Delete that line along
+with the markers. `weave explain <file>` and `weave check` are read-only aids.
+
+Otherwise, edit the conflicted file directly. Conflict markers look like git's
 `<<<<<<<` / `=======` / `>>>>>>>` blocks with extra context lines explaining each side.
-Remove markers, save, then run `jj st` to confirm resolution. Do not use `jj resolve` —
-it's interactive.
+Remove markers, save, then run `jj st` to confirm resolution. To resolve in a change
+that is not `@`, `jj new <change>`, edit, then `jj squash --into <change> -u`.
 
 If conflicts arose from a rebase and Claude isn't sure which side wins, **stop and ask**.
 Don't guess on conflict resolution.

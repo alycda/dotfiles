@@ -1,0 +1,19 @@
+# Linked to ~/.config/jj/conf.d/dotfiles.toml by mise.toml. conf.d is merged
+# over config.toml, so never put a [user] block here: it would silently beat
+# `jj config set --user` (and the identity task).
+#
+# This file is user-level config for every repo on the machine. Anything that
+# should only apply to the dotfiles goes in the scope below. The paths are the
+# host checkout and the devcontainer's. Without the [[--scope]] header, jj
+# rejects the whole file ("Expected an array of tables"), so every jj command
+# fails, VisualJJ's included.
+[[--scope]]
+--when.repositories = [
+  "~/dotfiles",
+]
+
+# Track every bookmark on origin as soon as it exists, locally or fetched, so
+# `jj git push -b <name>` needs no `jj bookmark track` first. Fine here, where
+# only I push; in a shared repo it would track everyone's bookmarks.
+[--scope.remotes.origin]
+auto-track-bookmarks = "*"
