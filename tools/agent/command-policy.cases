@@ -145,3 +145,18 @@ allow	git config --show-origin -l
 allow	git config get user.name
 allow	git stash list
 allow	git worktree list
+block	nice -n 5 git commit -m x
+block	nice -n5 git add .
+block	find . -name "*.nix" | xargs -0 git add
+block	xargs -I {} git rm {}
+block	xargs -n 1 -P 4 git add
+block	sudo -u ditto git reset --hard
+block	env -i PATH=/usr/bin git commit -m x
+block	env -u GIT_DIR git checkout main
+block	time -p jj restore
+block	exec -a foo git push
+block	sudo -- git add .
+ask	nice -n 10 jj git push
+allow	nice -n 5 git status
+allow	command -v git
+allow	xargs -0 git log
