@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+# jj-state: make an agent look at a jj repository before it writes to it.
+# The owner moves around (jj edit, new, rebase, abandon) while agents work;
+# an agent that assumes @ is where it left it writes to the wrong commit.
+# This remembers, per agent session and workspace, the last jj operation
+# the agent has seen, and reports the operations since.
+#
+#   jj-state look  KEY [--cwd DIR]   print what changed since KEY last saw
+#                                    the repository (or where @ is, the
+#                                    first time), and mark it seen
+#   jj-state check KEY [--cwd DIR]   the same, but print only when
+#                                    something changed, and exit 2 then
+#   jj-state seen  KEY [--cwd DIR]   mark the current state seen
+#
+# KEY names one agent session. Snapshots and reconciled operations are not
+# changes: an editor's jj extension snapshots all the time, and file
+# contents are the harness's read-before-edit rule. Outside a jj repository,
+# or without jj, it does nothing and exits 0.
+#
+# jj runs with --ignore-working-copy, so this never adds an operation.
+import hashlib
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from importlib.machinery import SourceFileLoader
+
+sys.dont_write_bytecode = True
+policy = SourceFileLoader(
+    "command_policy",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "command-policy"),
+).load_module()
+
+NOISE = {"snapshot working copy", "reconcile divergent operations"}
+SHOWN = 10  # operations listed, newest first
+HEX = re.compile(r"\b([0-9a-f]{12})[0-9a-f]{20,}\b")
+
+
+def jj(root, *args):
+    try:
+        out = subprocess.run(
+            ["jj", "--ignore-working-copy", "--no-pager", "--color=never",
+             "-R", root, *args],
+            capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return out.stdout if out.returncode == 0 else None
+
+
+def operations(root):
+    """The newest operations, as (id, description), newest first."""
+    out = jj(root, "op", "log", "--no-graph", "-n", "100",
+             "-T", 'id ++ "\\t" ++ description.first_line() ++ "\\n"')
+    if out is None:
+        return None
+    return [tuple(line.split("\t", 1)) for line in out.splitlines() if "\t" in line]
+
+
+def record_path(key, root):
+    name = hashlib.sha1(f"{key}\0{root}".encode()).hexdigest()[:16]
+    return os.path.join(tempfile.gettempdir(), "agent-jj-state", name)
+
+
+def last_seen(key, root):
+    try:
+        with open(record_path(key, root)) as f:
+            return f.read().strip() or None
+    except OSError:
+        return None
+
+
+def mark_seen(key, root, op_id):
+    path = record_path(key, root)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "w") as f:
+        f.write(op_id)
+    os.replace(path + ".tmp", path)
+
+
+def now(root):
+    out = jj(root, "log", "-r", "@-::@", "--no-graph", "-T",
+             'if(current_working_copy, "  @  ", "  @- ") ++ change_id.short(4)'
+             ' ++ " " ++ if(empty, "(empty) ", "") ++ if(description,'
+             ' description.first_line(), "(no description)") ++ "\\n"')
+    return out or "  (jj log failed)\n"
+
+
+def changes(key, root):
+    """(current op id, the operations since KEY last looked, newest first).
+    The list is None when KEY never looked, or looked too long ago."""
+    ops = operations(root)
+    if not ops:
+        return None, []
+    seen = last_seen(key, root)
+    ids = [i for i, _ in ops]
+    if seen not in ids:
+        return ops[0][0], None
+    since = ops[:ids.index(seen)]
+    return ops[0][0], [(i, d) for i, d in since if d not in NOISE]
+
+
+def report(root, since):
+    lines = []
+    if since is None:
+        lines.append(f"jj: where the working copy is now ({root}):")
+    else:
+        lines.append(f"jj: the repository changed since you last looked "
+                     f"({len(since)} operation{'s' if len(since) != 1 else ''}, "
+                     f"newest first):")
+        for op_id, desc in since[:SHOWN]:
+            desc = HEX.sub(r"\1", desc)  # commit ids, shortened
+            lines.append(f"  {op_id[:12]} {desc}")
+        if len(since) > SHOWN:
+            lines.append(f"  ... and {len(since) - SHOWN} more (jj op log)")
+        lines.append("Now:")
+    lines.append(now(root).rstrip("\n"))
+    lines.append("Read before you write: jj st, jj log, jj op log, jj evolog.")
+    return "\n".join(lines)
+
+
+def main(argv):
+    if len(argv) < 2 or argv[0] not in ("look", "check", "seen"):
+        print("usage: jj-state look|check|seen KEY [--cwd DIR]", file=sys.stderr)
+        return 64
+    action, key, rest = argv[0], argv[1], argv[2:]
+    cwd = rest[1] if rest[:1] == ["--cwd"] and len(rest) > 1 else os.getcwd()
+    root = policy.jj_root(cwd)
+    if root is None:
+        return 0
+    current, since = changes(key, root)
+    if current is None:
+        return 0  # no jj, or it failed: never block on that
+    if action != "seen" and (since is None or since):
+        print(report(root, since))
+        mark_seen(key, root, current)
+        return 2 if action == "check" else 0
+    mark_seen(key, root, current)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
