@@ -49,12 +49,19 @@ def jj(root, *args):
 
 
 def operations(root):
-    """The newest operations, as (id, description), newest first."""
-    out = jj(root, "op", "log", "--no-graph", "-n", "100",
-             "-T", 'id ++ "\\t" ++ description.first_line() ++ "\\n"')
+    """The newest operations, as (id, parent ids, description), newest
+    first."""
+    out = jj(root, "op", "log", "--no-graph", "-n", "100", "-T",
+             'id ++ "\\t" ++ parents.map(|p| p.id()).join(",") ++ "\\t"'
+             ' ++ description.first_line() ++ "\\n"')
     if out is None:
         return None
-    return [tuple(line.split("\t", 1)) for line in out.splitlines() if "\t" in line]
+    ops = []
+    for line in out.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) == 3:
+            ops.append((parts[0], parts[1].split(",") if parts[1] else [], parts[2]))
+    return ops
 
 
 def record_path(key, root):
@@ -71,11 +78,18 @@ def last_seen(key, root):
 
 
 def mark_seen(key, root, op_id):
+    """Record `op_id` as seen. Hooks run in parallel, so each process writes
+    its own temporary file; a failed write is ignored (the next check then
+    reports again, which is safe)."""
     path = record_path(key, root)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path + ".tmp", "w") as f:
-        f.write(op_id)
-    os.replace(path + ".tmp", path)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(tmp, "w") as f:
+            f.write(op_id)
+        os.replace(tmp, path)
+    except OSError:
+        pass
 
 
 def now(root):
@@ -88,20 +102,33 @@ def now(root):
 
 def changes(key, root):
     """(current op id, the operations since KEY last looked, newest first).
-    The list is None when KEY never looked, or looked too long ago."""
+    The list is None when KEY never looked, or looked too long ago.
+
+    "Since" means not the seen operation nor one of its ancestors: an
+    operation that ran concurrently with the seen one (jj reconciles the
+    two) may be listed below it in the op log, and is still new."""
     ops = operations(root)
     if not ops:
         return None, []
     seen = last_seen(key, root)
-    ids = [i for i, _ in ops]
-    if seen not in ids:
+    parents = {i: ps for i, ps, _ in ops}
+    if seen not in parents:
         return ops[0][0], None
-    since = ops[:ids.index(seen)]
-    return ops[0][0], [(i, d) for i, d in since if d not in NOISE]
+    known, stack = set(), [seen]
+    while stack:
+        op_id = stack.pop()
+        if op_id not in known:
+            known.add(op_id)
+            stack.extend(parents.get(op_id, []))
+    since = [(i, d) for i, _, d in ops if i not in known and d not in NOISE]
+    return ops[0][0], since
 
 
-def report(root, since):
+def report(root, since, blocking):
     lines = []
+    if blocking:
+        lines.append("Blocked before it ran: the jj repository may have moved "
+                     "since you last looked. Nothing was changed.")
     if since is None:
         lines.append(f"jj: where the working copy is now ({root}):")
     else:
@@ -115,7 +142,11 @@ def report(root, since):
             lines.append(f"  ... and {len(since) - SHOWN} more (jj op log)")
         lines.append("Now:")
     lines.append(now(root).rstrip("\n"))
-    lines.append("Read before you write: jj st, jj log, jj op log, jj evolog.")
+    if blocking:
+        lines.append("This message is your look. If @ above is still where you "
+                     "mean to work, repeat the same call; otherwise adjust it.")
+    else:
+        lines.append("Read before you write: jj st, jj log, jj op log, jj evolog.")
     return "\n".join(lines)
 
 
@@ -132,7 +163,7 @@ def main(argv):
     if current is None:
         return 0  # no jj, or it failed: never block on that
     if action != "seen" and (since is None or since):
-        print(report(root, since))
+        print(report(root, since, blocking=action == "check"))
         mark_seen(key, root, current)
         return 2 if action == "check" else 0
     mark_seen(key, root, current)

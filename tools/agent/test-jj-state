@@ -146,5 +146,102 @@ expect "a write outside jj is not checked" 0 ""
 run hook PreToolUse Read "" "$repo/file.txt"
 expect "other tools are not checked" 0 ""
 
+# What the adapter counts as a look, a read or a write
+
+run "$(command -v python3)" - "$dir/command-policy" "$repo" <<'EOF'
+import sys
+from importlib.machinery import SourceFileLoader
+sys.dont_write_bytecode = True
+policy = SourceFileLoader("policy", sys.argv[1]).load_module()
+repo = sys.argv[2]
+cases = [
+    ("look", "jj st"), ("look", "jj"), ("look", "jj log -r @"),
+    ("look", "jj op log"), ("look", "jj evolog"), ("look", "jj workspace list"),
+    ("read", "jj diff"), ("read", "jj file show -r @ x"), ("read", "jj b l"),
+    ("read", "jj config get user.name"),
+    ("write", "jj new"), ("write", "jj ci -m x"), ("write", "jj b c x -r @"),
+    ("write", "jj op restore abc"), ("write", "jj describe -m \"don't\""),
+    ("help", "jj new --help"), ("help", "jj rebase -h"), ("help", "jj help"),
+]
+bad = 0
+for want, command in cases:
+    words = next(policy.segments(command))
+    got = policy.jj_kind(policy.program(words)[1])
+    if got != want:
+        bad += 1
+        print(f"jj_kind({command!r}) = {got}, want {want}")
+targets = [
+    ([repo], "jj new", ("write",), None),
+    ([], "jj st", ("write",), None),
+    ([], "cd /tmp && jj new", ("write",), None),
+    ([repo], "cd /tmp && jj -R " + repo + " new", ("write",), None),
+    ([], "cd $X && jj new", ("write",), None),
+    (["UNKNOWN"], "cd $X && jj new", ("write",), "UNKNOWN"),
+    ([], "jj describe -m 'unbalanced", ("write",), None),
+    ([repo], "jj st; jj log", ("look",), None),
+]
+for want, command, kinds, unknown in targets:
+    got = policy.jj_targets(command, repo, kinds, unknown)
+    if got != want:
+        bad += 1
+        print(f"jj_targets({command!r}) = {got}, want {want}")
+sys.exit(1 if bad else 0)
+EOF
+expect "jj commands are classed as look, read, write or help" 0
+
+# Review fixes
+
+jjr new -m "moved 1"
+hook PostToolUse Bash "jj st" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "jj st counts as a look" 0 ""
+
+jjr new -m "moved 2"
+hook PostToolUse Bash "jj op log -n 3" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "jj op log counts as a look" 0 ""
+
+jjr new -m "moved 3"
+hook PostToolUse Bash "jj describe -m \"agent's own write\"" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "a jj write with an apostrophe counts as a look" 0 ""
+
+jjr new -m "moved 4"
+hook PostToolUse Bash "jj new --help" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "jj --help is not a look" 2 "moved 4"
+
+other="$work/other"
+jj git init "$other" >/dev/null 2>&1
+payload PostToolUse Bash "jj -R $other st" "" | "$adapter" >/dev/null 2>&1
+jjr new -m "moved 5"
+payload PostToolUse Bash "cd $other && jj log" "" | "$adapter" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "a look in another repository does not count here" 2 "moved 5"
+
+jj -R "$other" new -m "other moved" >/dev/null 2>&1
+run hook PreToolUse Bash "jj -R $other describe -m x" ""
+expect "a jj write elsewhere is checked where it runs" 2 "other moved"
+
+run hook PreToolUse Write "" "new.txt"
+expect "a relative path is resolved against the session cwd" 0 ""
+
+jjr new -m "moved 6"
+jq -nc --arg d "$repo" '{hook_event_name:"PostToolUse", session_id:"s",
+  agent_id:"sub1", cwd:$d, tool_name:"Bash", tool_input:{command:"jj st"}}' |
+  "$adapter" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "a subagent's look does not count for the parent" 2 "moved 6"
+
+# A concurrent operation: the owner's `jj new` starts from the same
+# operation as the agent's write, and jj reconciles the two.
+base="$(jj -R "$repo" op log --no-graph -n 1 -T id 2>/dev/null)"
+jjr describe -m "agent write"
+run "$state" seen k --cwd "$repo"
+jj -R "$repo" --at-op "$base" new -m "owner concurrent" >/dev/null 2>&1
+jjr st
+run "$state" check k --cwd "$repo"
+expect "an operation concurrent with the seen one is reported" 2 "new empty commit"
+
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
