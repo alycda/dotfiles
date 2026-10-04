@@ -9,7 +9,10 @@
 #   running a jj write       block counts as the look, so a retry runs
 #   PostToolUse Bash         a jj command that shows the state (st, log,
 #                            op log, evolog, show) or changes it counts as
-#                            a look
+#                            a look, in the workspace it ran in
+#
+# State is kept per session and per subagent (agent_id), so one agent's
+# look never counts for another.
 import json
 import os
 import subprocess
@@ -23,10 +26,6 @@ tools = os.path.join(root, "tools", "agent")
 policy = SourceFileLoader(
     "command_policy", os.path.join(tools, "command-policy")).load_module()
 
-# jj commands whose output shows where the repository is.
-LOOKS = {(None, None), ("status", None), ("log", None), ("evolog", None),
-         ("show", None), ("op", "log"), ("op", "show"), ("workspace", "list")}
-
 FILE_TOOLS = {"Edit", "MultiEdit", "Write", "NotebookEdit"}
 
 
@@ -37,24 +36,11 @@ def jj_state(action, key, cwd):
     return out.returncode, out.stdout.strip()
 
 
-def looks(command, cwd):
-    """Whether a command line runs a jj command that shows or changes the
-    state."""
-    try:
-        for prog, args in policy.vcs_commands(command, cwd):
-            if prog == "jj":
-                cmd, sub, _ = policy.jj_parts(args)
-                if (cmd, sub) in LOOKS or policy.jj_writes(
-                        " ".join(["jj"] + args), cwd):
-                    return True
-    except ValueError:
-        pass
-    return False
-
-
 payload = json.load(sys.stdin)
 event = payload.get("hook_event_name")
 key = payload.get("session_id") or "unknown"
+if payload.get("agent_id"):
+    key += "/" + payload["agent_id"]
 cwd = payload.get("cwd") or os.getcwd()
 tool = payload.get("tool_name")
 tool_input = payload.get("tool_input") or {}
@@ -70,19 +56,28 @@ if event == "UserPromptSubmit":
 elif event == "PreToolUse":
     if tool in FILE_TOOLS:
         path = tool_input.get("file_path") or tool_input.get("notebook_path")
-        where = os.path.dirname(path) if path else cwd
-    elif tool == "Bash" and policy.jj_writes(tool_input.get("command", ""), cwd):
-        where = cwd
+        places = [os.path.dirname(os.path.join(cwd, path)) if path else cwd]
+    elif tool == "Bash":
+        # Each workspace a jj write runs in; one the hook cannot place
+        # (`cd $DIR && jj new`) is checked as the session's own.
+        places = policy.jj_targets(tool_input.get("command", ""), cwd,
+                                   ("write",), unknown=cwd)
     else:
-        sys.exit(0)
-    rc, text = jj_state("check", key, where)
-    if rc == 2:
-        print(text + "\nThis was the look: run the same call again if it "
-              "still makes sense.", file=sys.stderr)
+        places = []
+    blocked = []
+    for place in places:
+        rc, text = jj_state("check", key, place)
+        if rc == 2:
+            blocked.append(text)
+    if blocked:
+        print("\n\n".join(blocked), file=sys.stderr)
         sys.exit(2)
 
 elif event == "PostToolUse" and tool == "Bash":
-    if looks(tool_input.get("command", ""), cwd):
-        jj_state("seen", key, cwd)
+    # Each workspace a jj look or write ran in; one the hook cannot place is
+    # not marked, so it is checked again before the next write.
+    for place in policy.jj_targets(tool_input.get("command", ""), cwd,
+                                   ("look", "write")):
+        jj_state("seen", key, place)
 
 sys.exit(0)
