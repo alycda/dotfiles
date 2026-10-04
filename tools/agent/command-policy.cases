@@ -1,0 +1,167 @@
+allow	git status
+allow	git log --oneline -5
+allow	git -C . diff --stat
+allow	git ls-remote origin
+allow	git branch --show-current
+allow	git config --get user.email
+allow	git config user.name
+allow	git status 2>&1 | head
+allow	echo "git commit -m x"
+allow	cat > /tmp/x <<'EOF'\nUse jj, not:\ngit commit -m x\nEOF
+allow	cat <<-EOF > m.txt\n\tjj describe\n\tEOF\njj describe --stdin < m.txt
+allow	jj log -r @
+allow	jj --no-pager st
+allow	jj diff --git
+allow	jj new mons -m wip
+allow	jj new A B C -m merge
+allow	jj describe -m "x"
+allow	jj describe -r xtm --stdin < msg.txt
+allow	jj desc -mfoo
+allow	jj commit -m x
+allow	jj squash --into nkks -u
+allow	jj squash --from smqy --into rtwz --use-destination-message .cheat/jj/fix
+allow	jj squash -m "merged"
+allow	jj split -m first a.txt b.txt
+allow	jj resolve --list
+allow	jj resolve -r yxu --tool :theirs justfile
+allow	jj restore --from yxup --into worr VERSION
+allow	jj restore justfile
+allow	jj edit rwwp
+allow	jj rebase -s yxup -o mxky -o vwtx
+allow	jj abandon rxvn
+allow	jj bookmark create develop -r mtq
+allow	jj bookmark list --all
+allow	jj workspace list
+allow	jj workspace update-stale
+allow	jj --ignore-working-copy op log
+allow	jj op log
+allow	jj config get user.name
+allow	jj config set --repo user.name t
+allow	jj git remote list
+allow	mise exec -- jj log
+block	git add .
+block	git commit -m x
+block	cd x && git reset --hard
+block	jj new m -m wip >/dev/null 2>&1 && git rm -q --cached lib/a.nix
+block	mise exec -- git commit -am x
+block	git branch -D foo
+block	ls; git pull
+block	jj diff --git; jj restore && jj st
+block	jj restore -i
+block	jj describe
+block	jj describe -r xtm
+block	jj describe -m x --edit
+block	jj commit
+block	jj commit -i -m x
+block	jj split
+block	jj split a.txt
+block	jj squash --into nkks
+block	jj squash -i --into x -u
+block	jj resolve
+block	jj resolve -r yxu justfile
+block	jj diffedit -r @-
+block	jj config edit --user
+block	jj git push -b x; git add .
+ask	jj git push --remote origin -b effver
+ask	jj git fetch
+ask	jj git import
+ask	jj git export
+ask	cd $S && jj git init
+ask	jj undo
+ask	jj op restore 4c7a7505d87d
+ask	jj op abandon ..@-
+ask	jj bookmark delete develop
+ask	jj b move develop --to @
+ask	jj bookmark set v0.1.0 -r yxu
+ask	jj bookmark track main@origin
+ask	jj workspace add ../validate-mtq -r mtq
+ask	jj workspace forget validate-mtq
+ask	jj config set --user ui.editor hx
+ask	jj log; jj git push --all
+ask	jj -R . git push
+block	jj restore >/dev/null
+block	jj restore 2>&1
+block	jj restore 2> /dev/null
+block	jj restore &>/dev/null; jj st
+allow	jj restore --from @- justfile 2>/dev/null
+allow	jj log -r @ 2>&1 | head -5
+allow	jj st >/dev/null && echo ok
+block	jj split -m first
+block	jj split -r abc -m first
+block	jj split -m first -o main
+block	jj split --message=first -r abc
+block	jj split -m first >/dev/null
+allow	jj split -r abc -m first a.txt
+allow	jj split -m first -A main a.txt b.txt
+ask	jj b d develop
+ask	jj b s v1 -r x
+ask	jj b m develop --to @
+ask	jj b f old
+ask	jj b t main@origin
+ask	jj bookmark advance
+ask	jj b a --to @
+ask	jj tag s v1 -r x
+ask	jj config s --user ui.editor hx
+block	jj config e --user
+block	jj ci
+allow	jj ci -m x
+allow	jj b c develop -r mtq
+allow	jj b l
+allow	jj tag l
+allow	jj config g user.name
+allow	cd /tmp && git commit -m x
+allow	cd /tmp; git -C . add .
+allow	git -C /tmp reset --hard
+block	cd /tmp && cd @ROOT@ && git commit -m x
+block	cd /tmp && git -C @ROOT@ reset --hard
+block	cd /tmp && jj -R @ROOT@ restore
+block	cd /tmp && jj --repository=@ROOT@ describe
+ask	cd /tmp && cd @ROOT@/tools && jj git push
+block	cd /tmp && cd - && git commit -m x
+block	cd -P /tmp && cd @ROOT@ && git add .
+block	popd; git add .
+block	git branch -a -D foo
+block	git branch -v -m old new
+block	git branch foo
+block	git branch --list -d foo
+block	git tag -l -d v1
+block	git tag -a v1 -m x
+block	git remote -v add x url
+block	git remote add origin url
+block	git config --get --unset user.name
+block	git config user.name me
+block	git config set user.name me
+block	git stash drop
+block	git worktree add ../x
+allow	git branch -a
+allow	git branch -v --contains abc
+allow	git branch --list "feat/*"
+allow	git branch --sort=-committerdate
+allow	git tag -n5 -l "v*"
+allow	git remote
+allow	git remote get-url origin
+allow	git config --global --get user.email
+allow	git config --show-origin -l
+allow	git config get user.name
+allow	git stash list
+allow	git worktree list
+block	nice -n 5 git commit -m x
+block	nice -n5 git add .
+block	find . -name "*.nix" | xargs -0 git add
+block	xargs -I {} git rm {}
+block	xargs -n 1 -P 4 git add
+block	sudo -u ditto git reset --hard
+block	env -i PATH=/usr/bin git commit -m x
+block	env -u GIT_DIR git checkout main
+block	time -p jj restore
+block	exec -a foo git push
+block	sudo -- git add .
+ask	nice -n 10 jj git push
+allow	nice -n 5 git status
+allow	command -v git
+allow	xargs -0 git log
+block	jq . <<< foo\ngit commit -am x
+block	cat <<<EOF\ngit add .
+block	tr a b <<< "x"; jj restore
+block	cat <<< foo <<EOF\nbody\nEOF\ngit add .
+allow	jq . <<< '{"a": 1}'\njj log

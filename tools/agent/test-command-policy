@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# test-command-policy: run command-policy over command-policy.cases and
+# print each case whose decision differs. Exits 1 if any case fails.
+#
+# Each line of the cases file is: allow|ask|block, a tab, the command line.
+# `\n` in a command line stands for a newline (for heredocs), and @ROOT@
+# for the repository root.
+set -euo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+# The policy allows everything outside a jj repository, so the cases are
+# judged as if run from the repository root.
+root="$(cd "$dir/../.." && pwd)"
+pass=0
+fail=0
+while IFS=$'\t' read -r want cmd; do
+  rc=0
+  cmd="${cmd//@ROOT@/$root}"
+  printf '%b' "$cmd" | "$dir/command-policy" --cwd "$root" 2>/dev/null || rc=$?
+  case $rc in 0) got=allow ;; 2) got=block ;; 3) got=ask ;; *) got="exit $rc" ;; esac
+  if [ "$got" = "$want" ]; then
+    pass=$((pass + 1))
+  else
+    fail=$((fail + 1))
+    echo "want $want, got $got: $cmd"
+  fi
+done <"$dir/command-policy.cases"
+echo "$pass passed, $fail failed"
+[ "$fail" -eq 0 ]

@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+# test-jj-state: test jj-state and its Claude Code adapter in a throwaway jj
+# repository. Records go to a throwaway TMPDIR, and jj reads no user config,
+# so nothing here touches this repository or a real session.
+# Prints each failing check and exits 1 if any failed.
+set -uo pipefail
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+root="$(cd "$dir/../.." && pwd)"
+state="$dir/jj-state"
+adapter="$root/.claude/hooks/jj-state"
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+export TMPDIR="$work/tmp" JJ_CONFIG="$work/jj.toml"
+export JJ_USER=test JJ_EMAIL=test@example.com CLAUDE_PROJECT_DIR="$root"
+mkdir -p "$TMPDIR"
+: >"$JJ_CONFIG"
+repo="$work/repo"
+jj git init "$repo" >/dev/null 2>&1 || { echo "jj git init failed"; exit 1; }
+
+pass=0
+fail=0
+out=""
+rc=0
+
+# run CMD...: run it, keep its stdout and stderr in $out and its status in $rc.
+run() {
+  rc=0
+  out="$("$@" 2>&1)" || rc=$?
+}
+# expect NAME RC [TEXT]: the last run exited RC, and printed TEXT (or, with
+# TEXT "", printed nothing).
+expect() {
+  local name="$1" want="$2"
+  local ok=1
+  [ "$rc" = "$want" ] || ok=0
+  if [ $# -ge 3 ]; then
+    if [ -z "$3" ]; then
+      [ -z "$out" ] || ok=0
+    else
+      case "$out" in *"$3"*) ;; *) ok=0 ;; esac
+    fi
+  fi
+  if [ "$ok" = 1 ]; then
+    pass=$((pass + 1))
+  else
+    fail=$((fail + 1))
+    printf 'FAIL %s: exit %s, want %s\n%s\n' "$name" "$rc" "$want" "$out" | sed '2,$s/^/  /'
+  fi
+}
+jjr() { jj -R "$repo" "$@" >/dev/null 2>&1; }
+# payload EVENT TOOL COMMAND FILE: a Claude Code hook payload.
+payload() {
+  jq -nc --arg e "$1" --arg t "$2" --arg c "$3" --arg f "$4" --arg d "$repo" \
+    '{hook_event_name:$e, session_id:"s", cwd:$d, tool_name:$t,
+      tool_input:{command:$c, file_path:$f}}'
+}
+hook() { payload "$@" | "$adapter"; }
+
+# jj-state
+
+run "$state" check k --cwd "$work"
+expect "outside jj: check passes" 0 ""
+run "$state" check never --cwd "$repo"
+expect "never looked: check blocks with where @ is" 2 "where the working copy is now"
+run "$state" look k --cwd "$repo"
+expect "first look prints where @ is" 0 "@  "
+run "$state" look k --cwd "$repo"
+expect "second look, nothing moved: silent" 0 ""
+run "$state" check k --cwd "$repo"
+expect "check, nothing moved: passes" 0 ""
+
+jjr new -m moved
+run "$state" check k --cwd "$repo"
+expect "check after a move blocks and lists it" 2 "new empty commit"
+run "$state" check k --cwd "$repo"
+expect "the block was the look: retry passes" 0 ""
+
+echo x >"$repo/file.txt"
+jjr st
+run "$state" check k --cwd "$repo"
+expect "a snapshot is not a move" 0 ""
+
+jjr describe -m "described"
+run "$state" seen k --cwd "$repo"
+run "$state" check k --cwd "$repo"
+expect "seen after a move: check passes" 0 ""
+
+jjr describe -m "long ids"
+run "$state" check k --cwd "$repo"
+case "$out" in *[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*) rc=99 ;; esac
+expect "commit ids are shortened to 12" 2
+
+for i in 1 2 3 4 5 6 7 8 9 10 11 12; do jjr new -m "n$i"; done
+run "$state" check k --cwd "$repo"
+expect "more than ten moves are summarised" 2 "and 2 more"
+
+run "$state" look other --cwd "$repo/nested/dir"
+expect "a path below the root is the same repository" 0 "where the working copy is now"
+
+run env PATH=/usr/bin:/bin "$(command -v python3)" "$state" check fresh --cwd "$repo"
+expect "without jj: never blocks" 0 ""
+
+run "$state" bogus k
+expect "a bad action is a usage error" 64
+
+# The Claude Code adapter
+
+run hook UserPromptSubmit "" "" ""
+expect "first prompt carries where @ is" 0 '"additionalContext"'
+run hook UserPromptSubmit "" "" ""
+expect "next prompt, nothing moved: nothing added" 0 ""
+run hook PreToolUse Edit "" "$repo/file.txt"
+expect "Edit, nothing moved: passes" 0 ""
+
+jjr new -m "owner moved"
+run hook PreToolUse Bash "jj st" ""
+expect "a jj read is never blocked" 0 ""
+run hook PreToolUse Bash "ls -la" ""
+expect "a non-jj command is not checked" 0 ""
+run hook PreToolUse Edit "" "$repo/file.txt"
+expect "Edit after a move is blocked" 2 "owner moved"
+run hook PreToolUse Edit "" "$repo/file.txt"
+expect "Edit retry passes" 0 ""
+
+jjr new -m "moved again"
+run hook PreToolUse Bash "jj describe -m x" ""
+expect "a jj write after a move is blocked" 2 "moved again"
+
+jjr new -m "and again"
+hook PostToolUse Bash "jj log -r @" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "a jj log counts as a look" 0 ""
+
+jjr new -m "once more"
+hook PostToolUse Bash "jj diff" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "a jj diff does not count as a look" 2 "once more"
+
+jjr new -m "last"
+run hook UserPromptSubmit "" "" ""
+expect "a prompt after a move carries it" 0 "last"
+run hook PreToolUse Write "" "$work/outside.txt"
+expect "a write outside jj is not checked" 0 ""
+run hook PreToolUse Read "" "$repo/file.txt"
+expect "other tools are not checked" 0 ""
+
+# What the adapter counts as a look, a read or a write
+
+run "$(command -v python3)" - "$dir/command-policy" "$repo" <<'EOF'
+import sys
+from importlib.machinery import SourceFileLoader
+sys.dont_write_bytecode = True
+policy = SourceFileLoader("policy", sys.argv[1]).load_module()
+repo = sys.argv[2]
+cases = [
+    ("look", "jj st"), ("look", "jj"), ("look", "jj log -r @"),
+    ("look", "jj op log"), ("look", "jj evolog"), ("look", "jj workspace list"),
+    ("read", "jj diff"), ("read", "jj file show -r @ x"), ("read", "jj b l"),
+    ("read", "jj config get user.name"),
+    ("write", "jj new"), ("write", "jj ci -m x"), ("write", "jj b c x -r @"),
+    ("write", "jj op restore abc"), ("write", "jj describe -m \"don't\""),
+    ("help", "jj new --help"), ("help", "jj rebase -h"), ("help", "jj help"),
+]
+bad = 0
+for want, command in cases:
+    words = next(policy.segments(command))
+    got = policy.jj_kind(policy.program(words)[1])
+    if got != want:
+        bad += 1
+        print(f"jj_kind({command!r}) = {got}, want {want}")
+targets = [
+    ([repo], "jj new", ("write",), None),
+    ([], "jj st", ("write",), None),
+    ([], "cd /tmp && jj new", ("write",), None),
+    ([repo], "cd /tmp && jj -R " + repo + " new", ("write",), None),
+    ([], "cd $X && jj new", ("write",), None),
+    (["UNKNOWN"], "cd $X && jj new", ("write",), "UNKNOWN"),
+    ([], "jj describe -m 'unbalanced", ("write",), None),
+    ([repo], "jj st; jj log", ("look",), None),
+]
+for want, command, kinds, unknown in targets:
+    got = policy.jj_targets(command, repo, kinds, unknown)
+    if got != want:
+        bad += 1
+        print(f"jj_targets({command!r}) = {got}, want {want}")
+sys.exit(1 if bad else 0)
+EOF
+expect "jj commands are classed as look, read, write or help" 0
+
+# Review fixes
+
+jjr new -m "moved 1"
+hook PostToolUse Bash "jj st" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "jj st counts as a look" 0 ""
+
+jjr new -m "moved 2"
+hook PostToolUse Bash "jj op log -n 3" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "jj op log counts as a look" 0 ""
+
+jjr new -m "moved 3"
+hook PostToolUse Bash "jj describe -m \"agent's own write\"" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "a jj write with an apostrophe counts as a look" 0 ""
+
+jjr new -m "moved 4"
+hook PostToolUse Bash "jj new --help" "" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "jj --help is not a look" 2 "moved 4"
+
+other="$work/other"
+jj git init "$other" >/dev/null 2>&1
+payload PostToolUse Bash "jj -R $other st" "" | "$adapter" >/dev/null 2>&1
+jjr new -m "moved 5"
+payload PostToolUse Bash "cd $other && jj log" "" | "$adapter" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "a look in another repository does not count here" 2 "moved 5"
+
+jj -R "$other" new -m "other moved" >/dev/null 2>&1
+run hook PreToolUse Bash "jj -R $other describe -m x" ""
+expect "a jj write elsewhere is checked where it runs" 2 "other moved"
+
+run hook PreToolUse Write "" "new.txt"
+expect "a relative path is resolved against the session cwd" 0 ""
+
+jjr new -m "moved 6"
+jq -nc --arg d "$repo" '{hook_event_name:"PostToolUse", session_id:"s",
+  agent_id:"sub1", cwd:$d, tool_name:"Bash", tool_input:{command:"jj st"}}' |
+  "$adapter" >/dev/null 2>&1
+run hook PreToolUse Write "" "$repo/new.txt"
+expect "a subagent's look does not count for the parent" 2 "moved 6"
+
+# A concurrent operation: the owner's `jj new` starts from the same
+# operation as the agent's write, and jj reconciles the two.
+base="$(jj -R "$repo" op log --no-graph -n 1 -T id 2>/dev/null)"
+jjr describe -m "agent write"
+run "$state" seen k --cwd "$repo"
+jj -R "$repo" --at-op "$base" new -m "owner concurrent" >/dev/null 2>&1
+jjr st
+run "$state" check k --cwd "$repo"
+expect "an operation concurrent with the seen one is reported" 2 "new empty commit"
+
+echo "$pass passed, $fail failed"
+[ "$fail" -eq 0 ]
