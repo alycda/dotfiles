@@ -8,6 +8,10 @@ import './tools/just/justfile'
 _default:
     @just --list
 
+[group('nix')]
+dev:
+    nix --extra-experimental-features 'nix-command flakes' develop
+
 # MACRO.MESO.MICRO
 bump effort:
     tools/effver/bump-effver {{ effort }}
