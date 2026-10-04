@@ -14,13 +14,13 @@
     // ~/.zshrc, as on the Mac, so mise's tools are on zsh's PATH.
     "onCreateCommand": "curl -fsSL https://mise.run/zsh | sh && ~/.local/bin/mise trust && ~/.local/bin/mise install",
 
-    // The test. Apply this checkout's [dotfiles] and print the status: every
+    // Apply this checkout's [dotfiles] and print the status: every
     // entry should read "applied". No --force, so a genuine conflict is
     // reported rather than overwritten.
     "postCreateCommand": "~/.local/bin/mise dotfiles apply -y && ~/.local/bin/mise dotfiles status",
 
     "remoteEnv": {
-        // "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
+        "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
         "JJ_USER": "${localEnv:JJ_USER}",
         "JJ_EMAIL": "${localEnv:JJ_EMAIL}"
     },
@@ -57,9 +57,6 @@
                 "search.exclude": {
                     "**/.jj": true
                 },
-                "sourceControl.providers": [
-                    "jujutsu" // keep only the Jujutsu provider
-                ],
                 // hide copilot
                 "workbench.secondarySideBar.defaultVisibility": "hidden"
             }
