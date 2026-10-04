@@ -5,6 +5,11 @@ Nix, and a supporting path to Nix when secrets/passwords are needed during setup
 
 If you are following along, you DON'T need to install BOTH mise and Nix, jump [ahead](#nix).
 
+Heads-up if you already use Homebrew: these dotfiles will manage it through
+nix-darwin (not yet). nix-darwin's Homebrew module installs what its config
+lists, and can be set to remove everything else, so applying them to your Mac
+would replace your Homebrew setup with mine. Read the config first.
+
 ## [Jujutsu](https://www.jj-vcs.dev/latest/)
 
 `mise install` gets `jj` too. The repo _may_ be [colocated](https://docs.jj-vcs.dev/latest/git-compatibility/#colocated-jujutsugit-repos) (`.jj/` next to `.git/`),
