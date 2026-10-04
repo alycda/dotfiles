@@ -45,9 +45,6 @@
                 "search.exclude": {
                     "**/.jj": true
                 },
-                "sourceControl.providers": [
-                    "jujutsu" // keep only the Jujutsu provider
-                ],
                 // hide copilot
                 "workbench.secondarySideBar.defaultVisibility": "hidden"
             }
