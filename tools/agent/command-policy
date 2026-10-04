@@ -204,8 +204,25 @@ def has(args, *flags):
     return False
 
 
-def positionals(args):
-    return [a for a in args if not a.startswith("-")]
+def positionals(args, with_value=()):
+    """The arguments that are not options, nor the value of an option."""
+    out, skip = [], False
+    for a in args:
+        if skip:
+            skip = False
+        elif a.startswith("-"):
+            skip = a in with_value
+        else:
+            out.append(a)
+    return out
+
+
+# jj split: options that take the next word as their value.
+SPLIT_WITH_VALUE = {
+    "-r", "--revision", "-m", "--message", "-d", "--destination", "-o",
+    "--onto", "-A", "--insert-after", "--after", "-B", "--insert-before",
+    "--before", "--tool",
+}
 
 
 def check_jj(args):
@@ -232,7 +249,8 @@ def check_jj(args):
         return BLOCK, "`jj describe` without -m opens an editor. Use -m or --stdin."
     if cmd == "commit" and not has(rest, "-m", "--message"):
         return BLOCK, "`jj commit` without -m opens an editor. Use -m."
-    if cmd == "split" and not (positionals(rest) and has(rest, "-m", "--message")):
+    if cmd == "split" and not (positionals(rest, SPLIT_WITH_VALUE)
+                               and has(rest, "-m", "--message")):
         return BLOCK, ("`jj split` without paths opens a diff editor, and without "
                        "-m an editor. Use `jj split -m MSG PATHS`.")
     if cmd == "squash" and not has(rest, "-m", "--message", "-u", "--use-destination-message"):

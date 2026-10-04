@@ -86,3 +86,10 @@ block	jj restore &>/dev/null; jj st
 allow	jj restore --from @- justfile 2>/dev/null
 allow	jj log -r @ 2>&1 | head -5
 allow	jj st >/dev/null && echo ok
+block	jj split -m first
+block	jj split -r abc -m first
+block	jj split -m first -o main
+block	jj split --message=first -r abc
+block	jj split -m first >/dev/null
+allow	jj split -r abc -m first a.txt
+allow	jj split -m first -A main a.txt b.txt
