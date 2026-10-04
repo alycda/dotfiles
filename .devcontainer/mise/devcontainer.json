@@ -1,0 +1,68 @@
+// Mise: the account with no Nix and no admin rights.
+{
+    "name": "dotfiles (mise, no Nix)",
+    // Stock image, no Nix anywhere in it on purpose: the point of this is
+    // that mise alone is enough.
+    "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+
+    // Install mise and its tools before VS Code attaches. onCreateCommand
+    // finishes before extensions start and terminals open; postCreateCommand
+    // runs after. Installing in postCreateCommand left a window where
+    // mise-vscode and new shells activated mise with nothing installed, and
+    // warned "missing" for the pinned tools (an uninstalled "latest" tool is
+    // not reported). The zsh installer also adds the activate line to
+    // ~/.zshrc, as on the Mac, so mise's tools are on zsh's PATH.
+    "onCreateCommand": "curl -fsSL https://mise.run/zsh | sh && ~/.local/bin/mise trust && ~/.local/bin/mise install",
+
+    // Apply this checkout's [dotfiles] and print the status: every
+    // entry should read "applied". No --force, so a genuine conflict is
+    // reported rather than overwritten.
+    "postCreateCommand": "~/.local/bin/mise dotfiles apply -y && ~/.local/bin/mise dotfiles status",
+
+    "remoteEnv": {
+        "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",
+        "JJ_USER": "${localEnv:JJ_USER}",
+        "JJ_EMAIL": "${localEnv:JJ_EMAIL}"
+    },
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "anthropic.claude-code",
+                "davidanson.vscode-markdownlint",
+                "editorconfig.editorconfig",
+                "hverlin.mise-vscode",
+                "jjk.jjk",
+                "skellock.just",
+                "tamasfe.even-better-toml",
+                // replaces git as Source Control
+                "visualjj.visualjj"
+            ],
+            "settings": {
+                // zsh, so a new terminal is the test: [dotfiles] added the line
+                // to ~/.zshrc that sources interactive.zsh, which sets AUTO_CD.
+                // Typing `..` works only if that whole chain did.
+                "terminal.integrated.defaultProfile.linux": "zsh",
+
+                // disable copilot
+                "chat.disableAIFeatures": true,
+                "editor.rulers": [80],
+                "editor.wordWrap": "on",
+                "files.exclude": {
+                    "**/.jj": true
+                },
+                "git.confirmSync": false,
+                // disable git for jj
+                "git.enabled": false,
+                "search.exclude": {
+                    "**/.jj": true
+                },
+                // hide copilot
+                "workbench.secondarySideBar.defaultVisibility": "hidden"
+            }
+        }
+    },
+
+    // https://code.visualstudio.com/docs/sourcecontrol/faq#_why-is-vs-code-warning-me-that-the-git-repository-is-potentially-unsafe
+    "postStartCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+}
