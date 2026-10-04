@@ -160,3 +160,8 @@ ask	nice -n 10 jj git push
 allow	nice -n 5 git status
 allow	command -v git
 allow	xargs -0 git log
+block	jq . <<< foo\ngit commit -am x
+block	cat <<<EOF\ngit add .
+block	tr a b <<< "x"; jj restore
+block	cat <<< foo <<EOF\nbody\nEOF\ngit add .
+allow	jq . <<< '{"a": 1}'\njj log
