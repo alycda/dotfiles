@@ -2,7 +2,7 @@
 
 ## [Jujutsu](https://www.jj-vcs.dev/latest/)
 
-`mise install` gets `jj` too. The repo _may_ be colocated (`.jj/` next to `.git/`),
+`mise install` gets `jj` too. The repo _may_ be [colocated](https://docs.jj-vcs.dev/latest/git-compatibility/#colocated-jujutsugit-repos) (`.jj/` next to `.git/`),
 so git tools keep working; in a fresh clone, `jj git init --colocate` sets it
 up.
 
