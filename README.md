@@ -69,6 +69,30 @@ sed -i '' '/mise activate/d' ~/.zshrc   # the line mise's installer added
 links `mise dotfiles apply` made into `tools/` keep working. `jj` and `just`
 then come from the dev shell, so only inside the checkout.
 
+## [Docker](https://docs.docker.com/desktop/)
+
+Optional: the `Dockerfile` builds an image with the home-manager setup
+activated in it, for a machine without Nix. `just docker-build`, then
+`just docker-run` opens zsh in it with the current directory at `/work`.
+
+On a Mac, Docker Desktop provides `docker`. With Homebrew (`docker` is an
+older name for the same cask):
+
+```sh
+brew install --cask docker-desktop
+open -a Docker   # start it once and accept its terms; this starts the daemon
+docker info      # answers once the daemon is up
+```
+
+Until Docker Desktop is running, `just docker-build` fails with "failed to
+connect to the docker API at unix:///var/run/docker.sock". Without Homebrew,
+download Docker Desktop from docker.com.
+
+Docker Desktop runs Linux in a VM of its own, so it does not run inside a
+macOS VM such as Tart's: nested virtualization is for Linux guests only. To
+try the image in a VM, use a Linux one (`tart clone
+ghcr.io/cirruslabs/ubuntu:latest ubuntu`), where Docker Engine runs directly.
+
 ## Global just recipes
 
 `mise dotfiles apply` links `tools/just/` to `~/.config/just`, so
