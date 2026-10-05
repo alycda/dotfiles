@@ -127,7 +127,10 @@ it is habit. jj's `fix` tools are out.
 
 ## GUI
 
-- [ ] Casks (19): arc, brave-browser, claude, clocker, cmux, dropbox,
+- [x] Casks: 18 of main's 19, in `darwin/shesfast.nix`; not installed one
+  by one, since they are what shesfast has today. clocker moves to ditto
+  (Alyssa, 2026-10-05); it stays installed here until removed by hand. Cleanup stays "none" until the formulae
+  are listed too (item 8). arc, brave-browser, claude, clocker, cmux, dropbox,
   font-jetbrains-mono-nerd-font, google-drive, logseq-og, obsidian, orbstack,
   proton-drive, proton-mail, proton-pass, rustdesk, tailscale-app,
   visual-studio-code, workflowy, zoom. The same 19 as installed today.
