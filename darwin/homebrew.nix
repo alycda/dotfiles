@@ -25,7 +25,8 @@
     greedyCasks = true;
 
     # HOMEBREW_BUNDLE_FILE in /etc/zshenv, pointing at the generated Brewfile,
-    # so `brew bundle` outside a switch uses the same lists.
+    # so `brew bundle` outside a switch (`just brew-upgrade`) uses the same
+    # lists.
     global.brewfile = true;
   };
 

@@ -97,6 +97,24 @@ identity: gh-login
 docker-daemon:
     @docker info >/dev/null 2>&1 || { echo "No Docker daemon is running: start OrbStack or Docker Desktop (README.md, Docker)." >&2; exit 1; }
 
+# nix-darwin runs `brew bundle` only when it switches, so between switches
+# nothing Homebrew installed moves. This brings it up to date without one,
+# from the Brewfile of the switch the Mac is running (homebrew.global.brewfile
+# exports its path), not the checkout's, which may be ahead. It installs and
+# upgrades (--upgrade, whatever HOMEBREW_BUNDLE_NO_UPGRADE says), greedily
+# for the casks (greedyCasks), and never removes: that, like adding to the
+# lists, stays a switch. Run it as the account that owns Homebrew. The
+# variable comes from /etc/zshenv, so a shell started before that switch, or
+# not zsh, doesn't have it.
+
+# Update and upgrade what Homebrew installed, as the running switch declared it
+[group('darwin')]
+[macos]
+brew-upgrade:
+    @: "${HOMEBREW_BUNDLE_FILE:?unset: start a new zsh after a switch with homebrew.global.brewfile}"
+    brew update
+    brew bundle install --upgrade --file="$HOMEBREW_BUNDLE_FILE"
+
 # Build the image with this checkout's home-manager generation (see Dockerfile)
 [group('docker')]
 docker-build: docker-daemon
