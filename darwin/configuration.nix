@@ -1,11 +1,9 @@
 # The nix-darwin system layer every Mac gets: what home-manager, which is per
 # user, can't set. Hosts add to it from flake.nix (mkDarwin).
 #
-# Minimal on purpose: settings arrive one at a time, each with the reason it
-# is here. `main`'s darwin/ is the list to port from, through the parity task
-# (tasks/20261004-222929). Homebrew is in darwin/homebrew.nix, for the hosts
-# that have it.
-{ lib, ... }:
+# Minimal on purpose, see the parity task (tasks/20261004-222929). Homebrew is not
+# managed yet, since its cleanup can remove unlisted casks.
+{ lib, pkgs, ... }:
 {
   # nix-darwin manages the Nix daemon and /etc/nix/nix.conf from here on.
   nix.settings.experimental-features = [
@@ -34,6 +32,10 @@
       fi
     '';
   };
+
+  # Fira Code with Nerd Font icons, for every app on the Mac: gh-dash's
+  # icons, and a terminal font for starship's.
+  fonts.packages = [ pkgs.nerd-fonts.fira-code ];
 
   # The nix-darwin release this was first switched with. Don't change it on
   # an existing Mac; it pins defaults that later releases may change.

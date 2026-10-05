@@ -89,14 +89,32 @@ it is habit. jj's `fix` tools are out.
 
 ### 5. Editor and TUIs
 
-- [ ] helix: `languages.toml` (with the language servers in item 2) and
-  `themes/mine.toml`. Here only `config.toml` and `ignore`.
-- [ ] television: six cable channels (cheat, claude, jj-log, postgres,
-  redis, sqlite).
-- [ ] gh-dash: `~/.config/gh-dash/config.yml`.
-- [ ] crush: `crush.json` and its hooks (allow-commands, outbound-gate).
+Decided on 2026-10-05: crush moves to item 6; fzf keeps Ctrl-R; language servers
+split by use.
+
+- [x] helix: main's `languages.toml` and `themes/mine.toml`, and
+  `theme = "mine"`, as plain files in `tools/helix/`, which the mise
+  account links too.
+- [x] Language servers, Nix only: nil, nixd, typescript-language-server,
+  vscode-langservers-extracted, zls, zig, just-lsp, harper for every profile,
+  swift-format on the Macs; jdt-language-server, kotlin-language-server, go and
+  dart in the `work` profile only, so shesfast and the containers skip a JDK.
+- [x] television: main's cheat, claude and jj-log cable channels, from
+  `tools/television/cable/`. Its postgres, redis and sqlite examples are
+  each in a change of their own, off this one, not in the profile.
+  Its shell integration is off, so it binds no key: Ctrl-R and Ctrl-T stay
+  fzf's. main bound Ctrl-R to `tv shell-history`. On macOS it finds the
+  channels in `~/.config/television`.
+- [x] gh-dash: main's settings.
+- [x] The system font: Fira Code Nerd Font, on every Mac.
+- [ ] crush: moved to item 6, with the agent files its config loads.
 
 ### 6. Agents (47 files)
+
+- [ ] crush, moved here from item 5: `crush.json` (its context paths are the
+  `~/.agents` files below, its hooks the outbound-comment gate and the
+  bash allowlist, its allowed tools Linear's), the hooks, and crush itself:
+  unfree, from Charm's own Nix input on main.
 
 - [ ] `~/.agents/`: AGENTS.md, persona, constitution, company values,
   preferred tooling, rubrics, rules (outbound-comment-gate).

@@ -8,7 +8,7 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
 adds one, and `just check-effver` checks it against `VERSION`.
 
-## 0.1.8 (meso) - 2026-10-06
+## 0.1.8 (meso) - 2026-10-08
 
 - nix-darwin builds the first real Mac, with a primary user: the admin who runs
   darwin-rebuild and the owner of its Homebrew.

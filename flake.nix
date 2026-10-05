@@ -67,6 +67,8 @@
         ./home-manager/common.nix
         ./home-manager/agenix.nix
         ./home-manager/shell.nix
+        ./home-manager/editor.nix
+        ./home-manager/tuis.nix
         ./home-manager/profiles/${profile}.nix
       ];
 

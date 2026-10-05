@@ -1,0 +1,7 @@
+inherits = "boo_berry"
+
+# intended for warp, with background image
+# "ui.background" = {}
+
+"ui.cursor.primary.select" = { fg = "berry", bg = "bubblegum" }
+"ui.cursor.primary.insert" = { fg = "berry", bg = "mint" }
