@@ -21,6 +21,11 @@ unset, so nix-darwin doesn't replace it).
 - **System defaults** that differ from the base (dock, hot corners, keyboard).
 - **Profile name**: keep `home`, or name it after what it is.
 
+### Parity with main
+
+[audit/AUDIT.md](audit/AUDIT.md) lists what main gives it, by category, CLI first:
+the work to do before the switch.
+
 ## Open questions
 
 - **macOS 26.** Second Clock, from the App Store, needs 26; until then its
@@ -30,5 +35,9 @@ unset, so nix-darwin doesn't replace it).
 
 ## Verification
 
-To do, as the primary user : `darwin-rebuild build --flake .#shesfast`, then `switch`;
-then the tool check from the base task, for each managed account.
+The audit, on 2026-10-04: [audit/audit.nix](audit/audit.nix) evaluated in
+the Tart VM against main's `darwinConfigurations.shesfast` and effver's
+`darwinConfigurations.tart`; the results are the two JSON files beside it.
+
+To do, as the primary user : `darwin-rebuild build --flake .#shesfast`, then
+`switch`; then the tool check from the base task, for each managed account.
