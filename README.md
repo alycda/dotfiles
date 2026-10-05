@@ -108,6 +108,22 @@ sed -i '' '/mise activate/d' ~/.zshrc
 links `mise dotfiles apply` made into `tools/` keep working. `jj` and `just`
 then come from the dev shell, so only inside the checkout.
 
+### Switching
+
+The `nix` recipes apply the flake to the machine they run on: nix-darwin
+on a Mac, to the configuration named after its host (lowercased), and
+home-manager on Linux, to the one for its user and architecture, such as
+`vscode@aarch64-linux` in the devcontainer.
+
+- `just check`: the flake for every system, with `flake.lock` as committed.
+- `just update`: every input in `flake.lock`, or `just update nixpkgs`.
+- `just build` and `just switch`: build this machine's configuration, and
+  switch to it. Either takes another name, such as `just switch tart` in
+  the Tart VM, whose host name isn't `tart`. On a Mac, `switch` asks for
+  your password: nix-darwin activates as root.
+- `just generations` and `just rollback`: list what has been switched to,
+  and switch back to the one before.
+
 ### Secrets
 
 home-manager installs the [agenix](https://github.com/yaxitech/ragenix)

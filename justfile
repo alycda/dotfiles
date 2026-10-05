@@ -8,9 +8,57 @@ import './tools/just/justfile'
 _default:
     @just --list
 
+# Flakes are still experimental, and a fresh Nix install has them off.
+nix := "nix --extra-experimental-features 'nix-command flakes'"
+
+# This machine's configuration. A Mac's is named after its host, as
+# darwin-rebuild picks it, but lowercased: macOS capitalizes the name
+# (Shesfast) and the flake's are lowercase. A Linux one (the devcontainer,
+# the Docker image) is named after its user and architecture, e.g.
+# vscode@aarch64-linux.
+machine := if os() == "macos" { shell('scutil --get LocalHostName | tr "[:upper:]" "[:lower:]"') } else { shell('whoami') + '@' + arch() + '-linux' }
+
 [group('nix')]
 dev:
-    nix --extra-experimental-features 'nix-command flakes' develop
+    {{ nix }} develop
+
+# Check the flake for every system, failing rather than updating flake.lock
+[group('nix')]
+check:
+    {{ nix }} flake check --all-systems --no-update-lock-file
+
+# Update flake.lock: every input, or only the ones named
+[group('nix')]
+update *inputs:
+    {{ nix }} flake update {{ inputs }}
+
+# Build and switch run darwin-rebuild on a Mac and home-manager elsewhere,
+# from the flake: the versions flake.lock pins, and the first switch works
+# before either is installed. A Mac's switch needs root; Linux's moves a
+# file it takes over to <file>.backup, as the devcontainer's first one does.
+
+# Build this machine's configuration, or NAME's, into ./result
+[group('nix')]
+build name=machine:
+    {{ nix }} run .#{{ if os() == "macos" { "darwin-rebuild" } else { "home-manager" } }} -- build --flake .#{{ quote(name) }}
+
+# Build this machine's configuration, or NAME's, and switch to it
+[group('nix')]
+switch name=machine:
+    {{ if os() == "macos" { "sudo " + nix + " run .#darwin-rebuild -- switch" } else { nix + " run .#home-manager -- switch -b backup" } }} --flake .#{{ quote(name) }}
+
+# Generations and rollback use the CLI the last switch installed, not the
+# flake's: they are for when the checkout is what's broken.
+
+# List the generations switched to
+[group('nix')]
+generations:
+    {{ if os() == "macos" { "darwin-rebuild --list-generations" } else { "home-manager generations" } }}
+
+# Switch back to the generation before the current one
+[group('nix')]
+rollback:
+    {{ if os() == "macos" { "sudo darwin-rebuild --rollback" } else { "home-manager switch --rollback" } }}
 
 # MACRO.MESO.MICRO
 bump effort:
