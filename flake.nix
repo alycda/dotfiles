@@ -54,18 +54,26 @@
       pkgsFor = system: import nixpkgs ({ inherit system; } // nixpkgsSettings);
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (pkgsFor system));
 
-      # What every home-manager configuration has, standalone or in darwin.
-      homeModules = [
+      # What every home-manager configuration has, standalone or in darwin,
+      # plus its profile (home-manager/profiles/<name>.nix): dev, home or
+      # work, which is what lets the containers and the Macs differ.
+      homeModules = profile: [
         ragenix.homeManagerModules.default
         ./home-manager/common.nix
         ./home-manager/agenix.nix
+        ./home-manager/profiles/${profile}.nix
       ];
 
       mkHome =
-        system: username: homeDirectory:
+        {
+          system,
+          profile,
+          username,
+          homeDirectory,
+        }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = pkgsFor system;
-          modules = homeModules ++ [ { home = { inherit username homeDirectory; }; } ];
+          modules = homeModules profile ++ [ { home = { inherit username homeDirectory; }; } ];
         };
 
       # A Mac: darwin/configuration.nix for the system, and home-manager as
@@ -74,6 +82,7 @@
       mkDarwin =
         {
           user,
+          profile,
           system ? "aarch64-darwin",
           modules ? [ ],
         }:
@@ -95,7 +104,7 @@
                 # takes over, such as ~/.zprofile, moves to <file>.backup
                 # rather than stopping the switch.
                 backupFileExtension = "backup";
-                users.${user}.imports = homeModules;
+                users.${user}.imports = homeModules profile;
               };
             }
           ]
@@ -135,19 +144,31 @@
       );
 
       # The Nix devcontainer's user, and the Dockerfile image's, on either
-      # kind of host.
-      homeConfigurations = {
-        "vscode@aarch64-linux" = mkHome "aarch64-linux" "vscode" "/home/vscode";
-        "vscode@x86_64-linux" = mkHome "x86_64-linux" "vscode" "/home/vscode";
-        "root@aarch64-linux" = mkHome "aarch64-linux" "root" "/root";
-        "root@x86_64-linux" = mkHome "x86_64-linux" "root" "/root";
-      };
+      # kind of host. The names stay as they were; the profile is dev.
+      homeConfigurations =
+        let
+          dev =
+            system: username: homeDirectory:
+            mkHome {
+              inherit system username homeDirectory;
+              profile = "dev";
+            };
+        in
+        {
+          "vscode@aarch64-linux" = dev "aarch64-linux" "vscode" "/home/vscode";
+          "vscode@x86_64-linux" = dev "x86_64-linux" "vscode" "/home/vscode";
+          "root@aarch64-linux" = dev "aarch64-linux" "root" "/root";
+          "root@x86_64-linux" = dev "x86_64-linux" "root" "/root";
+        };
 
       darwinConfigurations = {
         # A Tart VM cloned from Cirrus Labs' macOS base image
         # (ghcr.io/cirruslabs/macos-*-base), whose admin user is `admin`. For
         # trying a switch on a throwaway Mac before a real one.
-        tart = mkDarwin { user = "admin"; };
+        tart = mkDarwin {
+          user = "admin";
+          profile = "dev";
+        };
       };
     };
 }
