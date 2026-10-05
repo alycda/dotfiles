@@ -1,8 +1,7 @@
 # The nix-darwin system layer every Mac gets: what home-manager, which is per
 # user, can't set. Hosts add to it from flake.nix (mkDarwin).
 #
-# Minimal on purpose, see the parity task (tasks/20261004-222929). Homebrew is not
-# managed yet, since its cleanup can remove unlisted casks.
+# Homebrew is in darwin/homebrew.nix, for the hosts that have it.
 { lib, pkgs, ... }:
 {
   # nix-darwin manages the Nix daemon and /etc/nix/nix.conf from here on.
@@ -36,6 +35,40 @@
   # Fira Code with Nerd Font icons, for every app on the Mac: gh-dash's
   # icons, and a terminal font for starship's.
   fonts.packages = [ pkgs.nerd-fonts.fira-code ];
+
+  # macOS preferences, for the primary user, on every Mac. Each one is authoritative:
+  # a switch sets it back if changed by hand. What is left unset (the Dock's apps,
+  # for one) stays as it is.
+  system.defaults = {
+    dock = {
+      autohide = true;
+      orientation = "bottom";
+      # Keep Spaces in a fixed order rather than by most recent use.
+      mru-spaces = false;
+      wvous-tl-corner = 2; # Mission Control
+      wvous-tr-corner = 4; # Desktop
+      wvous-br-corner = 13; # Lock Screen
+      wvous-bl-corner = 14; # Quick Note
+    };
+
+    finder = {
+      AppleShowAllExtensions = true;
+      FXEnableExtensionChangeWarning = false;
+      ShowPathbar = true;
+      ShowStatusBar = true;
+    };
+
+    NSGlobalDomain = {
+      AppleShowAllExtensions = true;
+      # Fast key repeat, after a short delay (lower is faster).
+      InitialKeyRepeat = 15;
+      KeyRepeat = 2;
+      NSAutomaticCapitalizationEnabled = false;
+      NSAutomaticSpellingCorrectionEnabled = false;
+      # Natural scrolling off.
+      "com.apple.swipescrolldirection" = false;
+    };
+  };
 
   # The nix-darwin release this was first switched with. Don't change it on
   # an existing Mac; it pins defaults that later releases may change.

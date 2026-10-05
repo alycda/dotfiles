@@ -127,14 +127,21 @@ split by use.
   rules; `~/.codex/AGENTS.md`.
 - [ ] Activation: `claudeAgentsImports`, `claudeManagedSettings`.
 
-### 7. System defaults (17 only on main)
+### 7. System defaults
 
-- [ ] Keyboard: `InitialKeyRepeat`, `KeyRepeat`, autocorrect and
+In `darwin/configuration.nix`, for every Mac, as on main.
+
+- [x] Keyboard: `InitialKeyRepeat` 15, `KeyRepeat` 2, autocorrect and
   auto-capitalisation off.
-- [ ] Trackpad: natural scrolling (`com.apple.swipescrolldirection`).
-- [ ] Finder: show all extensions, no extension-change warning, path bar,
+- [x] Trackpad: natural scrolling off (`com.apple.swipescrolldirection`).
+- [x] Finder: show all extensions, no extension-change warning, path bar,
   status bar.
-- [ ] Dock: autohide, orientation, `mru-spaces`, the four hot corners.
+- [x] Dock: autohide, at the bottom, `mru-spaces` off, the four hot
+  corners. main's bottom-left corner is 24, which is no action; Quick Note
+  is 14, so it is 14 here.
+- [ ] Not in the audit's lists, found while porting: main's
+  `fonts.packages = [ pkgs.nerd-fonts.fira-code ]`, a system font for
+  gh-dash's icons. With gh-dash, item 5.
 
 ### 8. Homebrew: taps, formulae, policy
 
