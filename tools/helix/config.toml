@@ -1,3 +1,5 @@
+theme = "mine"
+
 [editor]
 soft-wrap.enable = true
 rulers = [72, 80, 100, 120]
