@@ -85,9 +85,6 @@ it is habit. jj's `fix` tools are out.
 
 ### 4. git
 
-- [ ] `programs.git`, `~/.config/git/config`, identity from the
-  `git-config` secret. Here: `tools/git/config` included from
-  `~/.gitconfig`, identity from `just identity`.
 - [ ] `git-worktree-clone`. - maybe
 
 ### 5. Editor and TUIs
