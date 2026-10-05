@@ -134,6 +134,9 @@ it is habit. jj's `fix` tools are out.
   font-jetbrains-mono-nerd-font, google-drive, logseq-og, obsidian, orbstack,
   proton-drive, proton-mail, proton-pass, rustdesk, tailscale-app,
   visual-studio-code, workflowy, zoom. The same 19 as installed today.
+- [x] Not on main: Second Clock (Mac App Store, id 6450279539), as
+  `homebrew.masApps`; there is no cask. It needs macOS 26 (Alyssa,
+  2026-10-05: shesfast is moving to it).
 - [ ] VS Code: `programs.vscode` with three profiles (ditto, jujutsu, rust),
   their extensions and settings, user settings; activation
   `vscodeProfiles`, `vscodeImmutableUserSettings`. VS Code itself from Nix
