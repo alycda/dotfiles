@@ -71,9 +71,14 @@ it is habit. jj's `fix` tools are out.
 
 ### 3. Shell and its variables
 
-- [ ] `programs.starship`, `~/.config/starship.toml`, `STARSHIP_CONFIG`.
-- [ ] `programs.fzf`, `FZF_*` (5 variables).
-- [ ] `programs.bash`: `.bashrc`, `.bash_profile`, `.profile`. - why?
+- [x] `programs.starship`, `~/.config/starship.toml`, `STARSHIP_CONFIG`:
+  in `home-manager/shell.nix`, as on main (nerd-font-symbols, 1s timeout).
+- [x] `programs.fzf`, `FZF_*` (5 variables): as on main.
+- [x] `programs.bash`: `.bashrc`, `.bash_profile`, `.profile`. home-manager's
+  bash 5 on the Macs; config only in the containers, whose base image has
+  its own bash (as main's dev profile does).
+- [x] zsh: main's `zsh.nix` (line editor, chpwd repo status, history
+  options, `AUTO_CD`, `..` aliases) is already `tools/zsh/interactive.zsh`.
 - [x] `CHEAT_CONFIG_PATH` (here only inside the checkout, through mise):
   set aside. The cheat sheets this repo has are enough for now (Alyssa,
   2026-10-05).

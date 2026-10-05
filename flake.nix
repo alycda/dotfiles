@@ -66,6 +66,7 @@
         ragenix.homeManagerModules.default
         ./home-manager/common.nix
         ./home-manager/agenix.nix
+        ./home-manager/shell.nix
         ./home-manager/profiles/${profile}.nix
       ];
 
