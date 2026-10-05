@@ -35,4 +35,15 @@
     "workflowy"
     "zoom"
   ];
+
+  # Mac App Store apps, by name and App Store ID, installed by `mas` in the
+  # same `brew bundle`. mas installs only apps the Apple ID already has, so
+  # get each one in the App Store once, signed in. Cleanup never removes
+  # these.
+  homebrew.masApps = {
+    # A second clock in the menu bar (sindresorhus.com/second-clock). No
+    # Homebrew cask. 1.2.0 needs macOS 26, which shesfast is moving to; on
+    # macOS 15 the App Store won't install it.
+    "Second Clock" = 6450279539;
+  };
 }
