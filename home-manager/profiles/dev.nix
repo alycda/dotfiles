@@ -11,10 +11,14 @@
   imports = [ ../rust.nix ];
 
   home.packages = [
+    pkgs.codecrafters-cli
     # The CLI only. The engine is the host's: OrbStack on a Mac, the
     # mounted socket in a container. On the Tart VM it has none.
     pkgs.docker
+    pkgs.glab
     # Nix's language server; helix finds it on PATH with no config.
     pkgs.nil
+    pkgs.nodejs
+    pkgs.supabase-cli
   ];
 }

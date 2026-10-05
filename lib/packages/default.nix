@@ -31,5 +31,34 @@ in
   pkgs.jujutsu
   pkgs.just
   pkgs.tmux
+
+  # From main's core list (lib/core-packages.nix there), for every Nix
+  # account, as there. Nix only: mise.toml gets no new tools.
+  pkgs.asciinema
+  pkgs.bat
+  pkgs.clock-rs
+  # curl, file and jq are also what agent skills shell out to.
+  pkgs.curl
+  pkgs.eza
+  # pkgs.file
+  # pkgs.gawk
+  # pkgs.glab
+  pkgs.glow
+  # GNU sed; the attribute is gnused (pkgs.sed doesn't exist).
+  pkgs.gnused
+  pkgs.hcloud
+  pkgs.hunk
+  pkgs.jq
+  # For agent plugins whose scripts are stdlib-only Python.
+  pkgs.python3
+  # agenix's CLIs on PATH, not only in the dev shell (`just edit-secret`).
+  pkgs.rage
+  pkgs.ragenix
+  pkgs.ripgrep
+  # A local key-value store for short non-secret strings. Plaintext on disk:
+  # secrets stay in agenix.
+  pkgs.skate
+  pkgs.supabase-cli
+  pkgs.vhs
 ]
 ++ lib.concatMap (name: import (./. + "/${name}") { inherit pkgs; }) files
