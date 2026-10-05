@@ -174,6 +174,16 @@
           profile = "dev";
           modules = [ ./darwin/homebrew.nix ];
         };
+
+        # The personal Mac (tasks/20261003-082724).
+        shesfast = mkDarwin {
+          user = "alyssa";
+          profile = "home";
+          modules = [
+            ./darwin/homebrew.nix
+            ./darwin/shesfast.nix
+          ];
+        };
       };
     };
 }
