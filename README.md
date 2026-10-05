@@ -47,6 +47,35 @@ nix --extra-experimental-features 'nix-command flakes' \
 
 Flakes are still experimental in Nix, so the flag enables them for this command only.
 
+### /etc/nix/nix.conf
+
+Without nix-darwin, which writes this file itself, it is yours to edit. The
+installer puts only `build-users-group = nixbld` in it; this adds two lines:
+
+```
+allowed-users = @nix-users
+build-users-group = nixbld
+
+extra-experimental-features = nix-command flakes
+```
+
+- `extra-experimental-features` turns flakes on for every command, so the
+  flag above can be dropped.
+- `allowed-users` limits who can use the Nix daemon; the default `*` is every
+  account. The installer doesn't create `nix-users`, so create it and add
+  yourself first, or only root can use Nix:
+
+  ```sh
+  sudo dseditgroup -o create nix-users
+  sudo dseditgroup -o edit -a "$USER" -t user nix-users
+  ```
+
+  (On Linux, `sudo groupadd nix-users` and `sudo usermod -aG nix-users "$USER"`.)
+
+The daemon reads the file when it starts, so restart it:
+`sudo launchctl kickstart -k system/org.nixos.nix-daemon` on macOS, or
+`sudo systemctl restart nix-daemon` on Linux.
+
 ### direnv
 
 `.envrc` loads the dev shell on entering the checkout, through direnv and
