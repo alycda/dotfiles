@@ -39,18 +39,26 @@ reads it.
 
 ### 2. home-manager packages (52 only on main)
 
-- [ ] General CLI: bat, curl, eza, file, fzf, gawk, gnused, jq, ripgrep,
-  python3, nodejs, man-db, bash-interactive, git.
-- [ ] Secrets CLI on PATH: rage, ragenix (here only in the dev shell).
-- [ ] Charm: crush, glow, skate, vhs.
-- [ ] Language servers: nil, nixd, harper, just-lsp, gopls,
+By where main gets them: its core list for every profile, its `home`
+profile, and its program modules. Only the first two are this item; the
+rest come with their categories.
+
+- [x] main's core list, into `lib/packages/default.nix` for every Nix
+  account, containers included, as on main: asciinema, bat, clock-rs,
+  codecrafters-cli, curl, eza, file, gawk, glab, glow, gnused, hcloud, hunk,
+  jq, nodejs, python3, rage, ragenix, ripgrep, skate, supabase-cli, vhs. All
+  free, for both Linux and macOS.
+- [x] tart, in the `home` profile: macOS only, unfree, allowed by name.
+- [ ] crush: unfree, and from Charm's own input on main. With its config, in
+  item 5.
+- [ ] Language servers (nil, nixd, harper, just-lsp, gopls,
   golangci-lint-langserver, delve, jdt-language-server,
   kotlin-language-server, swift-format, typescript-language-server,
-  vscode-langservers-extracted, zls, zig, dart. These are what main's helix
-  `languages.toml` uses (item 5).
-- [ ] Tools: asciinema, clock-rs, codecrafters-cli, glab, hcloud, hunk,
-  lazydiff, presenterm, supabase-cli, tart, television, starship, gh-dash,
-  git-worktree-clone, hackmd-cli, ghost.
+  vscode-langservers-extracted, zls, zig, dart): with helix, item 5.
+- [ ] starship, fzf: item 3. git, git-worktree-clone: item 4. television,
+  gh-dash: item 5. ghost, hackmd-cli: with their secrets, item 1. lazydiff:
+  with the tools (a `mise(tools)` sibling exists, but mise gets no new
+  tools). vscode: GUI. bash-interactive and man-db: `programs.bash`, item 3.
 
 Only in effver: huid-tasks, sem (main gets `sem-cli` from Homebrew),
 weave-driver.
