@@ -31,12 +31,10 @@ hosts themselves are their own changes ("nix(darwin): shesfast",
 
 ### Assumptions to confirm before building
 
-- **Admin rights.** `darwin-rebuild switch` needs an admin. The account this
-  was planned from (`ditto` on Shesfast) can't even reach the Nix daemon
-  socket. Which account runs it, on which Mac?
+- **Admin rights.** `darwin-rebuild switch` needs an admin.
 - **Homebrew already present**, and owned by which account. On a Mac where
   Homebrew belongs to another user, the casks and greedy upgrades behave
-  differently (the old repo hit this).
+  differently.
 - **What nix-darwin owns.** Dock, Finder, keyboard defaults, `/etc/zshrc`;
   anything it sets is authoritative, so leave unset what should stay manual
   (the old repo left `dock.persistent-apps` unset on one host for that
@@ -94,19 +92,12 @@ On the VM (Nix from the README's installer, nothing else changed):
   `~/.zprofile.local` from `profileExtra` and rename the old file to it on
   adoption, or tell adopters to move what they need by hand. Open; the base
   works without Homebrew, but a real Mac will notice.
-- **agenix on macOS is all or nothing.** (Settled as harmless here: Alyssa
-  is the one recipient on every machine, Answered by Alyssa on 2026-10-05, so one key decrypts
-  every secret.) ragenix's launchd agent stops the
+- **agenix on macOS is all or nothing.** ragenix's launchd agent stops the
   whole generation at the first secret this key can't decrypt, so none
   install (on Linux, `agenix.nix` warns and goes on), and the agent is kept
   alive on failure, so it retries in a loop. With every secret encrypted to
   every recipient, as `secrets.nix` does, that only happens with the wrong
   key; worth knowing when a key is added per machine.
-- Admin rights and Homebrew, answered for the real Macs (Answered by Alyssa on 2026-10-05):
-  shesfast's admin is `alyssa`, who owns its Homebrew; the work Mac
-  (`ditto`) allows nix-darwin, with `alyssaevans` as its user.
-- Answers to the other assumptions, for the real Macs: they move to the
-  shesfast and ditto tasks.
 - `stateVersion` 6 for nix-darwin; nix-darwin on master, not a release
   branch, matching nixpkgs-unstable.
 - **Effort**, for the release with this: micro while only a VM host
@@ -139,5 +130,4 @@ Done, on 2026-10-04:
   nothing; with it moved out, the agent exits 0 and
   `~/.local/share/agenix/check-darwin` is decrypted, mode 0400.
 
-Not done: a real Mac (needs an admin there, and the shesfast or ditto
-answers); `brew bundle check` (no Homebrew module yet).
+Not done: a real Mac (needs an admin there); `brew bundle check` (no Homebrew module yet).

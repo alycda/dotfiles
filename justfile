@@ -13,10 +13,9 @@ nix := "nix --extra-experimental-features 'nix-command flakes'"
 
 # This machine's configuration. On a Mac, an admin's is named after its
 # host, as darwin-rebuild picks it, but lowercased: macOS capitalizes the
-# name (Shesfast) and the flake's are lowercase. An account without admin
-# can't run darwin-rebuild, so its is a home of its own, named after its
-# user and architecture as on Linux (the devcontainer, the Docker image):
-# code@aarch64-darwin, vscode@aarch64-linux.
+# name and the flake's are lowercase. An account without admin can't run darwin-rebuild,
+# so its is a home of its own, named after its user and architecture as on Linux
+# (the devcontainer, the Docker image): code@aarch64-darwin, vscode@aarch64-linux.
 machine := if os() == "macos" { if shell('id -Gn') =~ '(^| )admin( |$)' { shell('scutil --get LocalHostName | tr "[:upper:]" "[:lower:]"') } else { shell('whoami') + '@' + arch() + '-darwin' } } else { shell('whoami') + '@' + arch() + '-linux' }
 
 # A name with an @ is a home-manager configuration, run without root and

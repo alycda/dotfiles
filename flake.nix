@@ -20,8 +20,7 @@
       url = "github:yaxitech/ragenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    # The system layer on the Macs (darwin/). master tracks nixpkgs-unstable,
-    # as nixpkgs here does.
+    # The system layer on the Macs (darwin/).
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin/master";
       inputs.nixpkgs.follows = "nixpkgs";

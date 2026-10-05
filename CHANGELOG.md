@@ -8,6 +8,36 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
 adds one, and `just check-effver` checks it against `VERSION`.
 
+## 0.1.7 (meso) - 2026-10-06
+
+- nix-darwin, for the Macs: `darwin/configuration.nix` for the system,
+  with home-manager as its module for the primary user, so a Mac gets the
+  same configs, tools and secrets as the devcontainer. Minimal so far:
+  flakes, zsh, and no Homebrew.
+- One Mac so far, `tart`: user `admin` in a Tart VM cloned from Cirrus
+  Labs' macOS base image, for trying a switch on a throwaway Mac.
+  `sudo nix run .#darwin-rebuild -- switch --flake .#tart` applies it.
+- Profiles (`home-manager/profiles/`): `dev` for the containers, the VM
+  and `code`, `home` and `work` for the two Macs to come. `home` and
+  `work` are empty for now.
+- The dev profile has Rust (rustup, bacon, cc, pkg-config; the first
+  switch installs the stable toolchain and rust-analyzer, and goes on
+  without them when offline), docker's CLI, and nil for Nix in helix.
+- `code@aarch64-darwin`: a Mac account without sudo, on the dev profile.
+  It switches its own home with
+  `nix run .#home-manager -- switch -b backup --flake .#code@aarch64-darwin`.
+- `just check`, `update`, `build`, `switch`, `generations` and `rollback`
+  apply the flake to the account they run in: nix-darwin for an admin on
+  a Mac, home-manager for anyone else (`code`) and on Linux.
+- The README says how to edit `/etc/nix/nix.conf` on a Mac without
+  nix-darwin: flakes on for every command, and the daemon limited to the
+  `nix-users` group.
+
+To try nix-darwin on a Mac: the first switch stops on `/etc/bashrc` and
+`/etc/zshrc`; rename each to `<file>.before-nix-darwin` and switch again.
+home-manager then moves `~/.zprofile` to `~/.zprofile.backup`, and
+whatever it held stops running, such as Homebrew's `brew shellenv`.
+
 ## 0.1.6 (micro) - 2026-10-04
 
 - Secrets with agenix: home-manager installs every `.age` file under

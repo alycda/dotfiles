@@ -1,6 +1,5 @@
-# Rust, from rustup, as main's home-manager/modules/dev/rust.nix: the toolchain
-# and what building crates needs beside it. Imported by the profiles that
-# build Rust; lldb (1.6 GiB, not a Rust dependency) stays out.
+# Rust, from rustup: the toolchain and what building crates needs beside it. Imported
+# by the profiles that build Rust; lldb (1.6 GiB, not a Rust dependency) stays out.
 { lib, pkgs, ... }:
 {
   home.packages = [

@@ -1,10 +1,8 @@
 # The nix-darwin system layer every Mac gets: what home-manager, which is per
 # user, can't set. Hosts add to it from flake.nix (mkDarwin).
 #
-# Minimal on purpose: settings arrive one at a time, each with the reason it
-# is here. `main`'s darwin/ is the list to port from, through the parity task
-# (tasks/20261004-222929). Homebrew is not managed yet; its module comes with
-# the first host that needs casks, since its cleanup can remove unlisted ones.
+# Minimal on purpose, see the parity task (tasks/20261004-222929). Homebrew is not
+# managed yet, since its cleanup can remove unlisted casks.
 { ... }:
 {
   # nix-darwin manages the Nix daemon and /etc/nix/nix.conf from here on.
