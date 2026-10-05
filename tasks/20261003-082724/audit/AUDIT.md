@@ -145,12 +145,33 @@ In `darwin/configuration.nix`, for every Mac, as on main.
 
 ### 8. Homebrew: taps, formulae, policy
 
-- [ ] Taps: `charmbracelet/tap`, `withgraphite/tap`.
-- [ ] Formulae: docker, envchain, kondo, llmfit, ollama, openvpn, poppler,
-  sem-cli, typst, wishlist, `withgraphite/tap/graphite`.
-- [ ] Policy: main has `cleanup = "zap"`, `autoUpdate`, `upgrade`. Effver's
-  module defaults to none of them. On shesfast, the lists match what is
-  installed, so `zap` would remove nothing on the first switch.
+Decided on 2026-10-05: formulae from Nix where possible, `zap`, and update and
+upgrade on every switch.
+
+- [x] Formulae from Nix, in the `home` profile (alyssa only): kondo, llmfit,
+  ollama, openvpn, poppler (`poppler-utils`), typst, wishlist.
+- [x] Formulae kept in Homebrew, shared by every account on shesfast:
+  docker, envchain (the mise account runs it), and graphite from
+  `withgraphite/tap` (unfree in nixpkgs).
+- [x] Dropped: sem-cli (Nix has sem; brew's would shadow it on PATH) and
+  `charmbracelet/tap` (only wishlist needed it).
+- [x] Policy: `cleanup = "zap"`, `autoUpdate`, `upgrade`, in
+  `darwin/shesfast.nix`.
+
+What the first switch removes, from `brew bundle cleanup` run as a dry run
+on shesfast against the generated Brewfile (graphite's line left out, since
+this account doesn't trust its tap):
+
+- The clocker cask (it moves to ditto).
+- The formulae now from Nix or dropped (kondo, llmfit, ollama, openvpn,
+  poppler, sem-cli, typst) and the dependencies only they needed: about 60
+  more, among them python@3.14, libtiff and xz. Other accounts on shesfast
+  lose them.
+- The taps `charmbracelet/tap` and `cirruslabs/cli`.
+- Not on the list, though no longer listed: wishlist, which comes from the
+  Charm tap. Check after the switch whether it stays behind, untapped.
+- Homebrew's ollama ran as a `brew services` agent if it was started that
+  way; Nix's runs when started. Its models in `~/.ollama` stay.
 
 ### 9. Smaller
 

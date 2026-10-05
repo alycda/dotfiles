@@ -5,16 +5,46 @@
 # gives it that this doesn't yet; switch only once that is done.
 { ... }:
 {
+  # As on main: every switch updates Homebrew, upgrades what is listed
+  # (casks greedily), and removes with "zap" whatever no list below names,
+  # app data included. A cask or formula left off a list is uninstalled.
+  # App Store apps are never removed.
+  homebrew.onActivation = {
+    cleanup = "zap";
+    autoUpdate = true;
+    upgrade = true;
+  };
+
+  # Taps and formulae. Homebrew is shared by every account on this Mac, Nix
+  # packages reach alyssa only, so the formulae here are the ones another
+  # account uses too. The rest of main's formulae come from Nix (the home
+  # profile); sem comes from Nix for alyssa and mise for the others.
+  homebrew.taps = [
+    {
+      name = "withgraphite/tap";
+      # Homebrew 6 won't load a formula from an untrusted third-party tap.
+      trusted = true;
+    }
+  ];
+  homebrew.brews = [
+    # The docker CLI; the daemon is OrbStack (a cask). OrbStack's own CLI is
+    # per user; this one is on every account's PATH.
+    "docker"
+    # Keychain-backed secrets as environment variables. The mise account
+    # (ditto) runs this copy: it can run formulae, not install them.
+    "envchain"
+    # Graphite's CLI, for stacked PRs. Unfree in nixpkgs, so from its tap.
+    "withgraphite/tap/graphite"
+  ];
+
   # GUI apps: main's list for this Mac, which is also what is installed on it
-  # today (/opt/homebrew/Caskroom). Formulae and taps are still to come, so
-  # cleanup stays at the module's "none": with "zap", every installed formula
-  # would be removed as unlisted.
+  # today (/opt/homebrew/Caskroom).
   homebrew.casks = [
     "arc"
     "brave-browser"
     "claude"
-    # clocker is installed here too, but belongs on the work Mac (ditto). With
-    # cleanup "none" it stays installed until removed by hand.
+    # clocker, installed here today, belongs on the work Mac (ditto); "zap"
+    # removes it on the first switch.
     "cmux"
     "dropbox"
     # A Nerd Font, for a prompt with icons (starship, once it is ported).
