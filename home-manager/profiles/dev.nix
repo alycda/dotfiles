@@ -15,6 +15,8 @@
     pkgs.docker
     pkgs.glab
     pkgs.hurl
+    pkgs.kondo # removes build artifacts
+    pkgs.llmfit
     # Nix's language server; helix finds it on PATH with no config.
     pkgs.nil
     pkgs.nodejs

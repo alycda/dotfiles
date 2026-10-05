@@ -175,8 +175,7 @@
 
       darwinConfigurations = {
         # A Tart VM cloned from Cirrus Labs' macOS base image
-        # (ghcr.io/cirruslabs/macos-*-base), whose admin user is `admin`. For
-        # trying a switch on a throwaway Mac before a real one.
+        # (ghcr.io/cirruslabs/macos-*-base), whose admin user is `admin`.
         # Its image has Homebrew, as a real Mac would.
         tart = mkDarwin {
           user = "admin";
