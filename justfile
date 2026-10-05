@@ -29,7 +29,7 @@ dev:
 
 # Check the flake for every system, failing rather than updating flake.lock
 [group('nix')]
-check:
+check-nix:
     {{ nix }} flake check --all-systems --no-update-lock-file
 
 # Update flake.lock: every input, or only the ones named
