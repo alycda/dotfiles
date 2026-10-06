@@ -1,6 +1,7 @@
 {
     "Exclude": [
         "^LICENSE$",
-        "^LICENSES/"
+        "^LICENSES/",
+        "^\\.devcontainer-lock\\.json$"
     ]
 }

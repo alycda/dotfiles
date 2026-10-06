@@ -1,8 +1,9 @@
 # CI
 
-`lint.yml` and `test.yml` run on every push and pull request. Neither needs
-Nix, and only `test.yml` needs mise. Actions are pinned to commit SHAs, with
-the tag in a comment.
+`lint.yml` and `test.yml` run on every push and pull request, and
+`devcontainer.yml` when the devcontainer files change. On the runner itself
+none needs Nix, and only `test.yml` needs mise. Actions are pinned to commit
+SHAs, with the tag in a comment.
 
 ## editorconfig
 
@@ -15,6 +16,7 @@ text, `.claude/settings.json` keeps the two spaces Claude Code writes, and
 `.editorconfig-checker.json` excludes files that aren't ours to reformat:
 
 - `LICENSE`, `LICENSES/`: license texts, as published.
+- `.devcontainer-lock.json`: written by the devcontainer CLI.
 
 Run it locally with `editorconfig-checker`.
 
@@ -92,3 +94,23 @@ only the jj stack not on trunk yet. The rules are in the script's header.
   dry run only warns, so the job's real `mise install` is the check).
 
 Run them locally with `bats tests`.
+
+## devcontainer
+
+`devcontainer.yml` checks both devcontainers when their files change, in
+three jobs:
+
+- **config:** biome parses `.devcontainer.json` and
+  `.devcontainer/mise/devcontainer.json` strictly (the devcontainer CLI's own
+  parser accepts truncated JSONC), the CLI reads both, and `outdated` shows
+  the locked features against their latest releases.
+- **nix:** builds `.devcontainer.json` with `--experimental-frozen-lockfile`,
+  so a lock that no longer matches the config fails, then checks `jj`,
+  `just` and `nix` run inside.
+- **mise:** builds `.devcontainer/mise/`, whose create commands install mise
+  and its tools and apply `[dotfiles]`, then checks a zsh that sources
+  `~/.zshrc` gets `just`, `jj` and `hx` and the `AUTO_CD` that
+  `interactive.zsh` sets.
+
+develop's `prebuild` job, which pushes the image to GHCR, isn't here:
+whether to publish images is still open.
