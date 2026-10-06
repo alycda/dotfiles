@@ -76,6 +76,11 @@ only the jj stack not on trunk yet. The rules are in the script's header.
 - `tests/cheat.bats` checks that cheat, with `tools/cheat/conf.yml`, lists
   and shows every sheet in `.cheat/`: one sheet whose front matter doesn't
   parse stops cheat for all of them.
+- `tests/zsh.bats` checks `tools/zsh/interactive.zsh`: it parses and loads
+  silently, its options, key bindings and aliases, typing `..` or a
+  directory's name at a real prompt (driven through `zpty`), and the chpwd
+  hook in jj and git repositories. jj comes from the root `mise.toml`; the
+  job checks it's there, since the jj tests skip without it.
 - `tests/mise.bats` checks the root `mise.toml`: it's formatted, its
   `[dotfiles]` apply to a clean HOME and a second apply changes nothing, zsh
   started there gets the config, and a bad version pin fails an install (a
