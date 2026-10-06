@@ -1,9 +1,9 @@
 # CI
 
 `lint.yml` and `test.yml` run on every push and pull request, and
-`devcontainer.yml` when the devcontainer files change. On the runner itself
-none needs Nix, and only `test.yml` needs mise. Actions are pinned to commit
-SHAs, with the tag in a comment.
+`devcontainer.yml` and `nix.yml` when their files change. On the runner
+itself only `nix.yml` needs Nix, and only `test.yml` needs mise. Actions are
+pinned to commit SHAs, with the tag in a comment.
 
 ## editorconfig
 
@@ -116,3 +116,17 @@ three jobs:
 
 develop's `prebuild` job, which pushes the image to GHCR, isn't here:
 whether to publish images is still open.
+
+## nix
+
+`nix.yml` checks the flake in two jobs:
+
+- **check:** `nix flake check --all-systems` evaluates every output for every
+  system the flake lists, with `--no-update-lock-file` so a `flake.lock` that
+  no longer matches the inputs fails. nixfmt, from the flake's own nixpkgs,
+  checks every `*.nix` file.
+- **shell:** builds the dev shell on each system (Linux x86_64 and arm64, and
+  an Apple Silicon Mac) and checks `jj` and `just` run inside.
+
+develop's third job, **home**, checks a home-manager profile, which comes
+later.
