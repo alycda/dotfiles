@@ -27,3 +27,7 @@ indent_size = unset
 # Two spaces, as Claude Code writes it.
 [.claude/settings*.json]
 indent_size = 2
+
+# Tabs, as git writes them.
+[tools/git/config]
+indent_style = tab
