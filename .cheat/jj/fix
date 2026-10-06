@@ -1,0 +1,28 @@
+---
+syntax: sh
+tags: [ jj ]
+---
+# There are no pre-commit hooks: format a change before moving on from it.
+# Formatters (taplo, rumdl, biome) and their scope: tools/jujutsu/fix.toml,
+# which only `just fix` loads; a plain `jj fix` has no formatters. They come
+# from mise, so run these where mise is active, or prefix `mise exec --`.
+
+# Format the working-copy change, and any changes on top of it
+just fix
+
+# The habit: format, then start the next change
+just fix && jj new -m "next thing"
+
+# Format another change, and its descendants
+just fix -s <change>
+
+# Also format files the change didn't touch (the whole tree at that change)
+just fix --include-unchanged-files
+
+# Nothing is formatted below the starting change: revsets.fix is @ in
+# fix.toml. Never widen -s to old history; that reformats commits written
+# before these formatters existed.
+
+# No dry run: fix, look, and take it back if you don't want it
+just fix && jj diff
+jj undo

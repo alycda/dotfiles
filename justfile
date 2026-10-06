@@ -20,6 +20,11 @@ bump effort:
 check-effver revset='':
     tools/effver/check-effver --jj {{ quote(revset) }}
 
+# Format @ and the changes on top of it with jj fix (args go to jj fix)
+[positional-arguments]
+fix *args:
+    jj --config-file tools/jujutsu/fix.toml fix "$@"
+
 # Setup recipes are one-time steps you run by hand, written so that running
 # one again does nothing. Never make them run automatically, e.g. from a hook:
 # a login prompt with no terminal attached just hangs. On a new machine, mise
