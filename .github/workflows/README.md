@@ -81,6 +81,11 @@ only the jj stack not on trunk yet. The rules are in the script's header.
   directory's name at a real prompt (driven through `zpty`), and the chpwd
   hook in jj and git repositories. jj comes from the root `mise.toml`; the
   job checks it's there, since the jj tests skip without it.
+- `tests/configs.bats` checks the plain-file configs `[dotfiles]` links: every
+  TOML file parses (`tools/helix/config.toml` included; helix itself starts
+  on a broken one), jj loads `tools/jujutsu/config` and git
+  `tools/git/config`, and neither sets identity, which would override the
+  account's own.
 - `tests/mise.bats` checks the root `mise.toml`: it's formatted, its
   `[dotfiles]` apply to a clean HOME and a second apply changes nothing, zsh
   started there gets the config, and a bad version pin fails an install (a
