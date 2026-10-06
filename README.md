@@ -35,6 +35,25 @@ lists the recipes.
 `~/.local/share/just/local.just`, which the global justfile imports when it
 exists.
 
+## Devcontainers
+
+Two, both on Debian bookworm. With the Dev Containers extension (VS Code
+recommends it here), **Reopen in Container** asks which:
+
+- `.devcontainer.json`: jj and just from the Nix feature, whose version is
+  locked in `.devcontainer-lock.json`.
+- `.devcontainer/mise/`: no Nix, only mise. It installs mise and the tools
+  before VS Code attaches, then applies `[dotfiles]` and prints their status.
+  Terminals open in zsh, so `..` working there shows the whole chain did.
+
+Both pass `JJ_USER` and `JJ_EMAIL` through from the host, so jj commits as
+you. Without VS Code, the [devcontainer CLI](https://github.com/devcontainers/cli) starts either:
+
+```sh
+devcontainer up --workspace-folder .
+devcontainer up --workspace-folder . --config .devcontainer/mise/devcontainer.json
+```
+
 ## Tasks
 
 Work is tracked in `tasks/`, one directory per task, named with a HUID: a UTC
