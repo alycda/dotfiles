@@ -41,12 +41,17 @@ gh-login: ssh-key
 identity: gh-login
     @tools/setup/identity
 
+# Without a daemon, docker's own error names a socket path, not the fix.
+[private]
+docker-daemon:
+    @docker info >/dev/null 2>&1 || { echo "No Docker daemon is running: start OrbStack or Docker Desktop (README.md, Docker)." >&2; exit 1; }
+
 # Build the image with this checkout's home-manager generation (see Dockerfile)
 [group('docker')]
-docker-build:
+docker-build: docker-daemon
     docker build -t dotfiles .
 
 # Run that image, with the current directory at /work
 [group('docker')]
-docker-run:
+docker-run: docker-daemon
     docker run -it --rm -e TERM="$TERM" -v {{ quote(invocation_directory()) }}:/work dotfiles
