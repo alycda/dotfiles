@@ -80,23 +80,25 @@ Optional: the `Dockerfile` builds an image with the home-manager setup
 activated in it, for a machine without Nix. `just docker-build`, then
 `just docker-run` opens zsh in it with the current directory at `/work`.
 
-On a Mac, Docker Desktop provides `docker`. With Homebrew (`docker` is an
-older name for the same cask):
+On a Mac, either [OrbStack](https://orbstack.dev) or Docker Desktop
+provides `docker`. OrbStack is the lighter of the two, and starts faster.
+With Homebrew:
 
 ```sh
-brew install --cask docker-desktop
-open -a Docker   # start it once and accept its terms; this starts the daemon
-docker info      # answers once the daemon is up
+brew install --cask orbstack          # or: brew install --cask docker-desktop
+open -a OrbStack                      # or: open -a Docker; accept its terms
+docker info                           # answers once the daemon is up
 ```
 
-Until Docker Desktop is running, `just docker-build` fails with "failed to
+Until one of them is running, `just docker-build` fails with "failed to
 connect to the docker API at unix:///var/run/docker.sock". Without Homebrew,
-download Docker Desktop from docker.com.
+download either from its site.
 
-Docker Desktop runs Linux in a VM of its own, so it does not run inside a
-macOS VM such as Tart's: nested virtualization is for Linux guests only. To
-try the image in a VM, use a Linux one (`tart clone
-ghcr.io/cirruslabs/ubuntu:latest ubuntu`), where Docker Engine runs directly.
+Both run Linux in a VM of their own, so neither runs inside a macOS VM such
+as Tart's: nested virtualization is for Linux guests only. To try the image
+in a VM, use a Linux one
+(`tart clone ghcr.io/cirruslabs/ubuntu:latest ubuntu`), where Docker Engine
+runs directly.
 
 ## Global just recipes
 
