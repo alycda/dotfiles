@@ -10,7 +10,7 @@ line endings, final newline, trailing whitespace and indentation.
 
 `.editorconfig-checker.json` excludes files that aren't ours to reformat:
 
-- `LICENSE`: the license text, as published.
+- `LICENSE`, `LICENSES/`: license texts, as published.
 
 Run it locally with `editorconfig-checker`.
 
@@ -22,3 +22,11 @@ and anything whose shebang runs sh, bash, dash, ksh or bats. zsh is left out
 (shellcheck doesn't support it). The shell inside `justfile` recipes isn't a
 file, so it isn't checked. Run it locally with
 `.github/scripts/shell-files -0 | xargs -0 shellcheck`.
+
+## reuse
+
+`reuse lint` checks that every file declares its license and copyright.
+`REUSE.toml` does that by path, so no file needs a header: everything is MIT,
+as `LICENSE` and the README say. The SPDX text is in `LICENSES/`. A file that
+needs another license gets its own annotation in `REUSE.toml`, after the
+general one, since the last match wins.
