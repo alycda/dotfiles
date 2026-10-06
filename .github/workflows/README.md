@@ -76,7 +76,9 @@ only the jj stack not on trunk yet. The rules are in the script's header.
 - `tests/cheat.bats` checks that cheat, with `tools/cheat/conf.yml`, lists
   and shows every sheet in `.cheat/`: one sheet whose front matter doesn't
   parse stops cheat for all of them.
-- `tests/mise.bats` checks that the root `mise.toml` is formatted, and the
-  job's own `mise install` checks that its tools install.
+- `tests/mise.bats` checks the root `mise.toml`: it's formatted, its
+  `[dotfiles]` apply to a clean HOME and a second apply changes nothing, zsh
+  started there gets the config, and a bad version pin fails an install (a
+  dry run only warns, so the job's real `mise install` is the check).
 
 Run them locally with `bats tests`.

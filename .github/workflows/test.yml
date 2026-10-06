@@ -25,6 +25,9 @@ jobs:
           assert-install: false
           detik-install: false
           file-install: false
+      # tests/mise.bats starts zsh from the HOME [dotfiles] applied to.
+      - name: Install zsh
+        run: sudo apt-get install -y --no-install-recommends zsh
       # mise at the version tests/mise.bats was written against. The action's
       # default `mise install` installs the root mise.toml's tools for real,
       # which is what catches a tool that no longer installs.
