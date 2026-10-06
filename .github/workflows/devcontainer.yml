@@ -1,5 +1,5 @@
-# The two devcontainers: .devcontainer.json (jj and just from the Nix
-# feature) and .devcontainer/mise/ (mise only). Are the configs valid, does
+# The two devcontainers: .devcontainer.json (jj and just from the flake's dev
+# shell, through direnv) and .devcontainer/mise/ (mise only). Are the configs valid, does
 # the lock match, and does each container build and deliver its tools?
 # Runs when the devcontainer files change; a build takes minutes.
 name: devcontainer
@@ -10,6 +10,10 @@ on:
       - .devcontainer.json
       - .devcontainer-lock.json
       - .devcontainer/**
+      # The Nix container's tools come from the dev shell that .envrc loads.
+      - .envrc
+      - flake.nix
+      - flake.lock
       - .github/workflows/devcontainer.yml
   pull_request:
     paths: *paths
@@ -42,8 +46,9 @@ jobs:
         run: npx -y "$DEVCONTAINER_CLI" outdated --workspace-folder .
 
   # Build from the locked features (a stale lock fails with "Lockfile does not
-  # match"), then check the container has the jj and just the feature
-  # promises.
+  # match"); postCreateCommand hooks direnv in, allows .envrc and builds the
+  # dev shell. jj and just are only on PATH inside it, so the smoke test runs
+  # them through direnv, as a terminal there gets them.
   nix:
     needs: config
     runs-on: ubuntu-latest
@@ -52,7 +57,7 @@ jobs:
       - name: Build and start
         run: npx -y "$DEVCONTAINER_CLI" up --workspace-folder . --experimental-frozen-lockfile
       - name: Smoke test
-        run: npx -y "$DEVCONTAINER_CLI" exec --workspace-folder . sh -c 'jj --version && just --version && nix --version'
+        run: npx -y "$DEVCONTAINER_CLI" exec --workspace-folder . sh -c 'nix --version && direnv exec . sh -c "jj --version && just --version"'
 
   # onCreateCommand installs mise and the root mise.toml's tools, and
   # postCreateCommand applies [dotfiles], so a build that finishes has run

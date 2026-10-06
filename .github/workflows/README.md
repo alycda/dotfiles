@@ -105,8 +105,10 @@ three jobs:
   parser accepts truncated JSONC), the CLI reads both, and `outdated` shows
   the locked features against their latest releases.
 - **nix:** builds `.devcontainer.json` with `--experimental-frozen-lockfile`,
-  so a lock that no longer matches the config fails, then checks `jj`,
-  `just` and `nix` run inside.
+  so a lock that no longer matches the config fails. Its create command
+  hooks direnv in, allows `.envrc` and builds the flake's dev shell; then
+  `nix` runs inside, and `jj` and `just` through `direnv exec`, as a terminal
+  there gets them. It also runs when `.envrc` or the flake changes.
 - **mise:** builds `.devcontainer/mise/`, whose create commands install mise
   and its tools and apply `[dotfiles]`, then checks a zsh that sources
   `~/.zshrc` gets `just`, `jj` and `hx` and the `AUTO_CD` that
