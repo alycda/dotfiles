@@ -13,3 +13,12 @@ line endings, final newline, trailing whitespace and indentation.
 - `LICENSE`: the license text, as published.
 
 Run it locally with `editorconfig-checker`.
+
+## shellcheck
+
+`shellcheck` (a pinned release, verified by checksum) runs on every shell
+script that `.github/scripts/shell-files` finds: `*.sh` and `*.bats` files,
+and anything whose shebang runs sh, bash, dash, ksh or bats. zsh is left out
+(shellcheck doesn't support it). The shell inside `justfile` recipes isn't a
+file, so it isn't checked. Run it locally with
+`.github/scripts/shell-files -0 | xargs -0 shellcheck`.
