@@ -32,9 +32,9 @@ COPY . /opt/dotfiles
 ARG HM_PROFILE
 ENV USER=root
 RUN profile="${HM_PROFILE:-root@$(uname -m)-linux}" \
- && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
- && nix-env -e man-db \
- && HOME_MANAGER_BACKUP_EXT=backup /opt/hm-activation/activate
+  && nix build "path:/opt/dotfiles#homeConfigurations.\"$profile\".activationPackage" -o /opt/hm-activation \
+  && nix-env -e man-db \
+  && HOME_MANAGER_BACKUP_EXT=backup /opt/hm-activation/activate
 
 ENV PATH=/root/.nix-profile/bin:$PATH
 

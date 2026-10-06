@@ -10,7 +10,7 @@
 #   arm64 macOS kills unsigned binaries.
 # - Linux: release binaries are linked against an FHS glibc loader, which a
 #   Nix-only system (the Docker image) doesn't have. autoPatchelfHook fixes
-#   them.
+#   them, from the libraries listed in buildInputs (OpenSSL, libgcc_s, zlib).
 #
 # Bumping a tool: change its version, set each hash to lib.fakeHash, build,
 # and take the hashes Nix reports.
@@ -42,6 +42,9 @@ stdenv.mkDerivation {
   buildInputs = lib.optionals stdenv.hostPlatform.isLinux [
     pkgs.openssl
     stdenv.cc.cc.lib
+    # inspect links libz.so.1: the GitHub release is built against the
+    # build machine's system zlib, which a Nix-only system doesn't have.
+    pkgs.zlib
   ];
 
   installPhase = ''

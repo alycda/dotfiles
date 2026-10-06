@@ -1,0 +1,69 @@
+# The Dockerfile image: does it build, with the flake's home-manager profile
+# for the build container's own architecture, and does a container from it
+# start into a zsh that has the tools? A build fetches and builds the whole
+# generation, so it takes minutes: this runs only when something the image
+# reads changes, not on every push.
+name: docker
+
+on:
+  push:
+    paths: &paths
+      - Dockerfile
+      - .dockerignore
+      # What the flake and the profile read, as .dockerignore lists them.
+      - flake.nix
+      - flake.lock
+      - home-manager/**
+      - lib/**
+      - tools/**
+      - tasks/scripts/**
+      # The agenix secrets the profile installs (home-manager/agenix.nix).
+      - secrets/**
+      - .github/workflows/docker.yml
+  pull_request:
+    paths: *paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # One runner per architecture: the Dockerfile picks root@<uname -m>-linux,
+  # so each runner builds the profile it would run, natively. The build needs
+  # no network apart from the Nix fetches.
+  image:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      # Actions are pinned to commits; the comment is the tag that was pinned.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        run: docker build -t dotfiles .
+      # The image's default command is `zsh -l`, which has no terminal here,
+      # so the login zsh runs a command instead. EDITOR comes from the
+      # profile's ~/.zshenv, and the rest from its packages.
+      - name: Smoke test
+        run: >-
+          docker run --rm dotfiles zsh -lc
+          'test "$EDITOR" = hx && jj --version && just --version && hx --version'
+      # With an age key mounted at ~/.age, as `just docker-run` does when the
+      # host has one, the entrypoint runs the activation again to install the
+      # secrets. A throwaway key opens none of them (example.age is Alyssa's),
+      # so agenix must say so on stderr, the activation itself not fail, and
+      # the shell start anyway. Ubuntu's age makes the key.
+      - name: With a key it can't use, the shell still starts
+        run: |
+          sudo apt-get install -y --no-install-recommends age
+          mkdir "$RUNNER_TEMP/age"
+          age-keygen -o "$RUNNER_TEMP/age/personal-key.txt"
+          docker run --rm -v "$RUNNER_TEMP/age:/root/.age:ro" dotfiles \
+            zsh -lc 'jj --version' 2> "$RUNNER_TEMP/stderr" || {
+            cat "$RUNNER_TEMP/stderr"
+            exit 1
+          }
+          cat "$RUNNER_TEMP/stderr"
+          grep -F "agenix: could not decrypt 'example'" "$RUNNER_TEMP/stderr"
+          if grep -F 'activation failed' "$RUNNER_TEMP/stderr"; then exit 1; fi

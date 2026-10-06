@@ -1,0 +1,84 @@
+# Checks that need neither Nix nor mise, so they're fast and run everywhere.
+name: lint
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  editorconfig:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commits; the comment is the tag that was pinned.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: editorconfig-checker/action-editorconfig-checker@51f63319f592f97930c73d9c46184d20bd206393 # v3.0.0
+        with:
+          version: v4.0.2
+      # Exclusions and their reasons: .editorconfig-checker.json, and
+      # .github/workflows/README.md.
+      - run: editorconfig-checker
+
+  # Every shell script (.github/scripts/shell-files decides which), with
+  # shellcheck at a pinned release, verified by checksum.
+  shellcheck:
+    runs-on: ubuntu-latest
+    env:
+      SHELLCHECK_VERSION: v0.11.0
+      SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install shellcheck
+        run: |
+          tarball="shellcheck-$SHELLCHECK_VERSION.linux.x86_64.tar.xz"
+          curl -fsSLO "https://github.com/koalaman/shellcheck/releases/download/$SHELLCHECK_VERSION/$tarball"
+          echo "$SHELLCHECK_SHA256  $tarball" | sha256sum -c -
+          tar -xJf "$tarball"
+          echo "$PWD/shellcheck-$SHELLCHECK_VERSION" >> "$GITHUB_PATH"
+      - name: Check shell scripts
+        run: .github/scripts/shell-files -0 | xargs -0 --no-run-if-empty shellcheck
+
+  # Every file has a declared license and copyright (REUSE.toml maps paths to
+  # MIT; the text is in LICENSES/).
+  reuse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: fsfe/reuse-action@676e2d560c9a403aa252096d99fcab3e1132b0f5 # v6.0.0
+
+  # VERSION and CHANGELOG.md follow EffVer in every commit: the whole history,
+  # which is small, so a pull request is checked with everything under it.
+  effver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - run: tools/effver/check-effver HEAD
+
+  # Every tracked symlink points at something (.github/scripts/check-links).
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: .github/scripts/check-links
+
+  # Every agent skill's frontmatter meets the Agent Skills spec
+  # (.github/scripts/check-skills), with the runner's own yq.
+  skills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: yq --version
+      - run: .github/scripts/check-skills
+
+  # Every .age file under secrets/ is an age file encrypted to as many keys as
+  # secrets/recipients.txt lists (.github/scripts/check-secrets says why that
+  # is as far as a check without the key goes).
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: .github/scripts/check-secrets
