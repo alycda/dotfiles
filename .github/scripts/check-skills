@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# check-skills: check every agent skill's SKILL.md frontmatter against the
+# Agent Skills spec (https://agentskills.io/specification), which loaders
+# enforce by skipping a skill that fails, often silently:
+#
+#   - the frontmatter opens on line 1 and parses as YAML
+#   - name: 1-64 characters of a-z, 0-9 and "-", no "-" at either end or
+#     twice in a row, and the same as the skill's directory
+#   - description: 1-1024 characters, counting the newline a ">" block keeps
+#
+# Checks .claude/skills/*/ and .agents/skills/*/ (links into the first). Needs
+# mikefarah's yq (v4), which GitHub's Ubuntu runners have.
+set -euo pipefail
+
+cd "$(dirname "$0")/../.."
+status=0
+
+fail() {
+  echo "FAIL $1: $2" >&2
+  status=1
+  ok=0
+}
+
+shopt -s nullglob
+for skill_md in .claude/skills/*/SKILL.md .agents/skills/*/SKILL.md; do
+  dir="$(basename "$(dirname "$skill_md")")"
+  ok=1
+
+  if [ "$(head -n 1 "$skill_md")" != --- ]; then
+    fail "$skill_md" "frontmatter must open with --- on line 1"
+    continue
+  fi
+  frontmatter="$(awk 'NR == 1 { next } /^---$/ { exit } { print }' "$skill_md")"
+
+  if ! name="$(yq -r '.name // ""' <<<"$frontmatter" 2>&1)"; then
+    fail "$skill_md" "frontmatter is not valid YAML: $name"
+    continue
+  fi
+  if [ -z "$name" ]; then
+    fail "$skill_md" "name is required"
+  elif ! [[ $name =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || [ "${#name}" -gt 64 ]; then
+    fail "$skill_md" "name '$name' must be 1-64 of a-z, 0-9 and single inner hyphens"
+  elif [ "$name" != "$dir" ]; then
+    fail "$skill_md" "name '$name' must match its directory, '$dir'"
+  fi
+
+  # base64 round-trip: command substitution would drop the trailing newline.
+  chars="$(yq -r '.description // "" | @base64' <<<"$frontmatter" | base64 -d | LC_ALL=C.UTF-8 wc -m | tr -d ' ')"
+  if [ "$chars" -eq 0 ]; then
+    fail "$skill_md" "description is required"
+  elif [ "$chars" -gt 1024 ]; then
+    fail "$skill_md" "description is $chars characters (max 1024)"
+  fi
+  [ "$ok" -eq 1 ] && echo "ok   $skill_md (description: $chars characters)"
+done
+
+exit "$status"

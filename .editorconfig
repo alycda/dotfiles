@@ -17,3 +17,13 @@ trim_trailing_whitespace = true
 
 [{justfile,*.just,*.json}]
 indent_size = 4
+
+# Markdown list continuations align with the item's text, which isn't a
+# multiple of indent_size.
+[*.md]
+indent_style = unset
+indent_size = unset
+
+# Two spaces, as Claude Code writes it.
+[.claude/settings*.json]
+indent_size = 2
