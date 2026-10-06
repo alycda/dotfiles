@@ -1,7 +1,7 @@
 # CI
 
-`lint.yml` runs on every push and pull request, and needs neither Nix nor
-mise. Actions are pinned to commit SHAs, with the tag in a comment.
+`lint.yml` and `test.yml` run on every push and pull request, and need
+neither Nix nor mise. Actions are pinned to commit SHAs, with the tag in a comment.
 
 ## editorconfig
 
@@ -30,3 +30,14 @@ file, so it isn't checked. Run it locally with
 as `LICENSE` and the README say. The SPDX text is in `LICENSES/`. A file that
 needs another license gets its own annotation in `REUSE.toml`, after the
 general one, since the last match wins.
+
+## bats
+
+`test.yml` runs every [bats](https://github.com/bats-core/bats-core) suite in
+`tests/`, with the `just` version it pins. `tests/tasks.bats` checks the HUID
+task recipes in the `justfile` against the spec in `tasks/README.md`: the HUID
+and its collision handling, the TASK.md template, `task-edit`, and every task
+already in the repo. `tests/effver.bats` checks `tools/effver/bump-effver`:
+which number each effort bumps, in `0.x` and after, where the new changelog
+heading goes, and that a bad effort or a missing `VERSION` fails. Run them
+locally with `bats tests`.
