@@ -1,0 +1,39 @@
+# `jj fix` for this repo, loaded only by `just fix` (jj --config-file), so it
+# needs no [[--scope]] and works from any checkout path or workspace. A plain
+# `jj fix` doesn't read it.
+
+# A bare `jj fix` starts at @ (fix always includes descendants), never below it.
+# The default, reachable(@, mutable()), also rewrites @'s ancestors: across this
+# history that reformats commits written before these formatters existed.
+[revsets]
+fix = "@"
+
+# Each formatter reads the file on stdin and writes it to stdout.
+[fix.tools.taplo]
+command = ["taplo", "fmt", "-"]
+patterns = ["root-glob:'**/*.toml'"]
+
+# markdownlint's rules, with its fixes. Reads .markdownlint.* like the VS Code
+# extension does.
+[fix.tools.rumdl]
+command = ["rumdl", "fmt", "-", "--stdin-filename", "$path"]
+patterns = ["root-glob:'**/*.md'"]
+
+# JSON, comments allowed: biome rejects them in a .json file unless told,
+# and then skips the file without a word from jj fix. Indent passed
+# explicitly (matches .editorconfig) because biome looks for .editorconfig
+# from its working directory, not the file's. Left as their writers write
+# them: .devcontainer-lock.json (the devcontainer CLI) and
+# .claude/settings*.json (Claude Code, with two spaces).
+[fix.tools.biome]
+command = [
+  "biome",
+  "format",
+  "--indent-style=space",
+  "--indent-width=4",
+  "--json-parse-allow-comments=true",
+  "--stdin-file-path=$path",
+]
+patterns = [
+  "root-glob:'**/*.json' ~ root-file:'.devcontainer-lock.json' ~ root-glob:'.claude/settings*.json'",
+]

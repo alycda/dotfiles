@@ -1,0 +1,8 @@
+# Licensing by path, for `reuse lint` (the lint workflow's reuse job). The
+# text is in LICENSES/. Everything is MIT, as LICENSE and the README say.
+version = 1
+
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2026 Alyssa Evans"
+SPDX-License-Identifier = "MIT"
