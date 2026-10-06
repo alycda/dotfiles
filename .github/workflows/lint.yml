@@ -57,3 +57,10 @@ jobs:
         with:
           fetch-depth: 0
       - run: tools/effver/check-effver HEAD
+
+  # Every tracked symlink points at something (.github/scripts/check-links).
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: .github/scripts/check-links

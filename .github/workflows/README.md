@@ -34,6 +34,12 @@ as `LICENSE` and the README say. The SPDX text is in `LICENSES/`. A file that
 needs another license gets its own annotation in `REUSE.toml`, after the
 general one, since the last match wins.
 
+## links
+
+`.github/scripts/check-links` fails on a tracked symlink whose target is
+missing: `AGENTS.md` points at `CLAUDE.md`, and each skill in
+`.agents/skills/` at its directory in `.claude/skills/`.
+
 ## effver
 
 `tools/effver/check-effver HEAD` checks `VERSION` and `CHANGELOG.md` against
