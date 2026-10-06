@@ -34,14 +34,26 @@ as `LICENSE` and the README say. The SPDX text is in `LICENSES/`. A file that
 needs another license gets its own annotation in `REUSE.toml`, after the
 general one, since the last match wins.
 
+## effver
+
+`tools/effver/check-effver HEAD` checks `VERSION` and `CHANGELOG.md` against
+EffVer in every commit of the history, which needs the full clone
+(`fetch-depth: 0`). It's the git form of `just check-effver`, which checks
+only the jj stack not on trunk yet. The rules are in the script's header.
+
 ## bats
 
 `test.yml` runs every [bats](https://github.com/bats-core/bats-core) suite in
-`tests/`, with the `just` version it pins. `tests/tasks.bats` checks the HUID
-task recipes in the `justfile` against the spec in `tasks/README.md`: the HUID
-and its collision handling, the TASK.md template, `task-edit`, and every task
-already in the repo. `tests/effver.bats` checks `tools/effver/bump-effver`:
-which number each effort bumps, in `0.x` and after, where the new changelog
-heading goes, and that a bad effort or a missing `VERSION` fails. `tests/mise.bats` checks that the root `mise.toml` is
-formatted, and the job's own `mise install` checks that its tools install.
+`tests/`, with the `just` version it pins.
+
+- `tests/tasks.bats` checks the HUID task recipes in the `justfile` against
+  the spec in `tasks/README.md`: the HUID and its collision handling, the
+  TASK.md template, `task-edit`, and every task already in the repo.
+- `tests/effver.bats` checks `tools/effver/bump-effver`: which number each
+  effort bumps, in `0.x` and after, where the new changelog heading goes, and
+  that a bad effort or a missing `VERSION` fails. It checks `check-effver`
+  against small git histories, one rule each.
+- `tests/mise.bats` checks that the root `mise.toml` is formatted, and the
+  job's own `mise install` checks that its tools install.
+
 Run them locally with `bats tests`.

@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
-# tools/effver/bump-effver against the EffVer rules in CHANGELOG.md's header.
-# Each test runs a copy of the script in a temp git repo with its own VERSION
-# and CHANGELOG.md, so the repo's are never touched.
+# tools/effver/bump-effver and check-effver against the EffVer rules in
+# CHANGELOG.md's header. Each test runs copies of the scripts in a temp git
+# repo with its own VERSION and CHANGELOG.md, so the repo's are never touched.
 
 setup() {
   repo="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   work="$BATS_TEST_TMPDIR/work"
   mkdir -p "$work/tools/effver"
-  cp "$repo/tools/effver/bump-effver" "$work/tools/effver/"
+  cp "$repo/tools/effver/bump-effver" "$repo/tools/effver/check-effver" "$work/tools/effver/"
   cd "$work" || return
   # The script finds its root with jj, else git.
   git init -q .
@@ -72,4 +72,88 @@ bump() {
   run tools/effver/bump-effver micro
   [ "$status" -eq 1 ]
   [[ $output == *"no VERSION"* ]]
+}
+
+# commit VERSION HEADING [SECTION]: commit VERSION and a CHANGELOG.md whose
+# first heading is HEADING, over the tools/ copied in setup. With VERSION
+# "-", VERSION is removed.
+commit() {
+  if [ "$1" = - ]; then rm -f VERSION; else echo "$1" > VERSION; fi
+  printf '# Changelog\n\n%s\n\n%s\n' "$2" "${3-- What changed.}" > CHANGELOG.md
+  git add -A
+  git -c user.name=t -c user.email=t@t commit -q --allow-empty -m "$1"
+}
+
+check() {
+  run tools/effver/check-effver "$@"
+}
+
+@test "check-effver: a history of proper bumps passes" {
+  commit 0.1.0 "## 0.1.0 (macro) - 2026-10-01"
+  commit 0.1.0 "## 0.1.0 (macro) - 2026-10-01" "- What changed, more."
+  commit 0.1.1 "## 0.1.1 (meso) - 2026-10-02"
+  commit 0.2.0 "## 0.2.0 (macro) - 2026-10-03"
+  check HEAD
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "check-effver: commits before VERSION exists are skipped" {
+  git -c user.name=t -c user.email=t@t commit -q --allow-empty -m "before"
+  commit 0.1.0 "## 0.1.0 (macro) - 2026-10-01"
+  check HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "check-effver: a bump other than the effort calls for fails" {
+  commit 0.1.0 "## 0.1.0 (macro) - 2026-10-01"
+  commit 0.2.0 "## 0.2.0 (meso) - 2026-10-02"
+  check HEAD
+  [ "$status" -eq 1 ]
+  [[ $output == *"a meso bump of 0.1.0 is 0.1.1"* ]]
+}
+
+@test "check-effver: a heading that isn't VERSION fails" {
+  commit 0.1.1 "## 0.1.0 (macro) - 2026-10-01"
+  check HEAD
+  [ "$status" -eq 1 ]
+  [[ $output == *"heading is 0.1.0, but VERSION is 0.1.1"* ]]
+}
+
+@test "check-effver: a malformed heading fails" {
+  commit 0.1.0 "## 0.1.0 - 2026-10-01"
+  check HEAD
+  [ "$status" -eq 1 ]
+  [[ $output == *"not \"## 0.1.0 (macro|meso|micro) - YYYY-MM-DD\""* ]]
+}
+
+@test "check-effver: an empty section fails" {
+  commit 0.1.0 "## 0.1.0 (macro) - 2026-10-01" ""
+  check HEAD
+  [ "$status" -eq 1 ]
+  [[ $output == *"section of CHANGELOG.md is empty"* ]]
+}
+
+@test "check-effver: removing VERSION fails" {
+  commit 0.1.0 "## 0.1.0 (macro) - 2026-10-01"
+  commit - "## 0.1.0 (macro) - 2026-10-01"
+  check HEAD
+  [ "$status" -eq 1 ]
+  [[ $output == *"VERSION is removed"* ]]
+}
+
+@test "check-effver: --require-bump fails a commit that keeps VERSION" {
+  commit 0.1.0 "## 0.1.0 (macro) - 2026-10-01"
+  commit 0.1.0 "## 0.1.0 (macro) - 2026-10-01" "- More."
+  check HEAD
+  [ "$status" -eq 0 ]
+  check --require-bump HEAD
+  [ "$status" -eq 1 ]
+  [[ $output == *"VERSION is still 0.1.0"* ]]
+}
+
+@test "check-effver: without a range it prints usage" {
+  check
+  [ "$status" -eq 2 ]
+  [[ $output == *usage* ]]
 }
