@@ -40,6 +40,16 @@ general one, since the last match wins.
 missing: `AGENTS.md` points at `CLAUDE.md`, and each skill in
 `.agents/skills/` at its directory in `.claude/skills/`.
 
+## skills
+
+`.github/scripts/check-skills` checks each skill's `SKILL.md` frontmatter, in
+`.claude/skills/` and `.agents/skills/`, against the
+[Agent Skills spec](https://agentskills.io/specification): it parses as YAML,
+`name` is lowercase with single hyphens, at most 64 characters, and matches
+its directory, and `description` is at most 1024 characters. A loader skips a
+skill that fails these, often without saying so. It needs mikefarah's `yq`,
+which the runner has.
+
 ## effver
 
 `tools/effver/check-effver HEAD` checks `VERSION` and `CHANGELOG.md` against
