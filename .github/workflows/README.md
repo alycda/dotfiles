@@ -108,7 +108,9 @@ three jobs:
   so a lock that no longer matches the config fails. Its create command
   hooks direnv in, allows `.envrc` and builds the flake's dev shell; then
   `nix` runs inside, and `jj` and `just` through `direnv exec`, as a terminal
-  there gets them. It also runs when `.envrc` or the flake changes.
+  there gets them. A second load must report nix-direnv's cache, since
+  without nix-direnv direnv's own `use flake` still works, uncached and
+  silently. It also runs when `.envrc` or the flake changes.
 - **mise:** builds `.devcontainer/mise/`, whose create commands install mise
   and its tools and apply `[dotfiles]`, then checks a zsh that sources
   `~/.zshrc` gets `just`, `jj` and `hx` and the `AUTO_CD` that

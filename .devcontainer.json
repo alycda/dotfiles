@@ -15,7 +15,9 @@
 
     // Hook direnv into bash and zsh, load nix-direnv, allow this checkout's
     // .envrc, and build the dev shell once so the first terminal doesn't wait.
-    "postCreateCommand": "echo 'eval \"$(direnv hook bash)\"' >> ~/.bashrc && echo 'eval \"$(direnv hook zsh)\"' >> ~/.zshrc && mkdir -p ~/.config/direnv && echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > ~/.config/direnv/direnvrc && direnv allow && direnv exec . true",
+    // The feature installs packages into the default profile, not
+    // ~/.nix-profile (which doesn't exist here), so nix-direnv is there.
+    "postCreateCommand": "echo 'eval \"$(direnv hook bash)\"' >> ~/.bashrc && echo 'eval \"$(direnv hook zsh)\"' >> ~/.zshrc && mkdir -p ~/.config/direnv && echo 'source /nix/var/nix/profiles/default/share/nix-direnv/direnvrc' > ~/.config/direnv/direnvrc && direnv allow && direnv exec . true",
 
     "remoteEnv": {
         "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",

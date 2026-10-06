@@ -58,6 +58,14 @@ jobs:
         run: npx -y "$DEVCONTAINER_CLI" up --workspace-folder . --experimental-frozen-lockfile
       - name: Smoke test
         run: npx -y "$DEVCONTAINER_CLI" exec --workspace-folder . sh -c 'nix --version && direnv exec . sh -c "jj --version && just --version"'
+      # postCreateCommand built the dev shell through nix-direnv, so loading it
+      # again must hit nix-direnv's cache. Without nix-direnv (a direnvrc that
+      # sources nothing), direnv's own use_flake still works, uncached and
+      # silently, so this line is the only sign.
+      - name: nix-direnv caches the dev shell
+        run: |
+          npx -y "$DEVCONTAINER_CLI" exec --workspace-folder . \
+            sh -c 'direnv exec . true 2>&1 | grep -F "nix-direnv: Using cached dev shell"'
 
   # onCreateCommand installs mise and the root mise.toml's tools, and
   # postCreateCommand applies [dotfiles], so a build that finishes has run
