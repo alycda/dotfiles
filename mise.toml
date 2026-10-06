@@ -46,6 +46,10 @@ weave-driver = { version = "latest", asset_pattern = 'weave-driver-{{ arch(x64="
 gh = "latest"
 claude = "latest"
 tmux = "latest"
+# formatters for `just fix`
+taplo = "0.10"
+rumdl = "0.2"
+biome = "2.5"
 
 [settings]
 minimum_release_age_excludes = ["claude"]
