@@ -63,9 +63,12 @@ only the jj stack not on trunk yet. The rules are in the script's header.
 `test.yml` runs every [bats](https://github.com/bats-core/bats-core) suite in
 `tests/`, with the `just` version it pins.
 
-- `tests/tasks.bats` checks the HUID task recipes in the `justfile` against
-  the spec in `tasks/README.md`: the HUID and its collision handling, the
-  TASK.md template, `task-edit`, and every task already in the repo.
+- `tests/tasks.bats` checks the global HUID task recipes (`tools/just`, run
+  as `just -g` runs them, with `tasks/scripts` on `PATH` as mise puts it)
+  against the spec in `tasks/README.md`: the HUID and its collision handling,
+  the TASK.md template, `task-edit`, where a task goes (`tasks/`, else
+  `.tasks/`, or `TASKS_DIR`), that the repo's `justfile` imports them, and
+  every task already in the repo.
 - `tests/effver.bats` checks `tools/effver/bump-effver`: which number each
   effort bumps, in `0.x` and after, where the new changelog heading goes, and
   that a bad effort or a missing `VERSION` fails. It checks `check-effver`
