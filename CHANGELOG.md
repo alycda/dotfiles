@@ -20,7 +20,10 @@ adds one, and `just check-effver` checks it against `VERSION`.
   `docker run` on a machine without Nix. `just docker-build` and
   `just docker-run`.
 
-TO ADOPT: ...
+To adopt: rebuild the Nix devcontainer. Its create command now switches to
+home-manager (`vscode@<arch>-linux`), which takes over zsh and keeps the old
+`~/.zshrc` as `~/.zshrc.backup`. The Docker image is optional:
+`just docker-build`. Nothing changes on the Mac or in the mise setup.
 
 ## 0.1.4 (meso) - 2026-10-03
 
