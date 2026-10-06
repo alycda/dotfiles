@@ -44,7 +44,7 @@ nix --extra-experimental-features 'nix-command flakes' \
 
 Flakes are still experimental in Nix, so the flag enables them for this command only.
 
-### direnv
+### [direnv](https://direnv.net/)
 
 `.envrc` loads the dev shell on entering the checkout, through direnv and
 nix-direnv (which caches it):
@@ -75,7 +75,7 @@ sed -i '' '/mise activate/d' ~/.zshrc   # the line mise's installer added
 links `mise dotfiles apply` made into `tools/` keep working. `jj` and `just`
 then come from the dev shell, so only inside the checkout.
 
-## Global just recipes
+## Global [just](https://github.com/casey/just) recipes
 
 `mise dotfiles apply` links `tools/just/` to `~/.config/just`, so
 `just -g <recipe>` works from any directory, and runs there:
@@ -90,7 +90,7 @@ then come from the dev shell, so only inside the checkout.
 `~/.local/share/just/local.just`, which the global justfile imports when it
 exists.
 
-## Devcontainers
+## [Devcontainers](https://containers.dev/)
 
 Two, both on Debian bookworm. With the Dev Containers extension (VS Code
 recommends it here), **Reopen in Container** asks which:
