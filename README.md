@@ -8,11 +8,17 @@ up.
 
 ## [mise-en-place](https://mise.jdx.dev/)
 
-The quickest way to a working setup: `mise install` gets `just` (and `hx`, `tb`), then
-`just` lists the recipes.
+The quickest way to a MINIMAL working setup:
 
-- `curl https://mise.run | sh` (bash) or `curl https://mise.run/zsh | sh` (see [docs](https://mise.jdx.dev/installing-mise.html#shell-specific-installation-activation))
-- `mise install`
+1. Install mise: `curl https://mise.run | sh` (bash) or
+   `curl https://mise.run/zsh | sh` (zsh). See
+   [mise's docs](https://mise.jdx.dev/installing-mise.html#shell-specific-installation-activation).
+2. Clone the `effver` branch:
+   `git clone -b effver https://github.com/alycda/dotfiles.git && cd dotfiles`
+3. `mise install` gets a few tools. Then `just` lists the recipes.
+
+The tools work only inside the clone: `mise.toml` is a project config, so
+mise doesn't put them on `PATH` anywhere else.
 
 ## Tasks
 
