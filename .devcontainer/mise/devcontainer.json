@@ -32,7 +32,7 @@
                 "davidanson.vscode-markdownlint",
                 "editorconfig.editorconfig",
                 "hverlin.mise-vscode",
-                "jjk.jjk",
+                // "jjk.jjk",
                 "skellock.just",
                 "tamasfe.even-better-toml",
                 // replaces git as Source Control

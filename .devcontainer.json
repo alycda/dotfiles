@@ -29,7 +29,7 @@
                 "anthropic.claude-code",
                 "davidanson.vscode-markdownlint",
                 "editorconfig.editorconfig",
-                "jjk.jjk",
+                // "jjk.jjk",
                 "jnoortheen.nix-ide",
                 // loads .envrc, so extensions see the dev shell's tools too
                 "mkhl.direnv",

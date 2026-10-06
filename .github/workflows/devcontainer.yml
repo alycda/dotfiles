@@ -1,0 +1,74 @@
+# The two devcontainers: .devcontainer.json (jj and just from the Nix
+# feature) and .devcontainer/mise/ (mise only). Are the configs valid, does
+# the lock match, and does each container build and deliver its tools?
+# Runs when the devcontainer files change; a build takes minutes.
+name: devcontainer
+
+on:
+  push:
+    paths: &paths
+      - .devcontainer.json
+      - .devcontainer-lock.json
+      - .devcontainer/**
+      - .github/workflows/devcontainer.yml
+  pull_request:
+    paths: *paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The devcontainer CLI, run through npx on the runner's Node.
+  DEVCONTAINER_CLI: "@devcontainers/cli@0.89.0"
+  MISE_CONFIG: .devcontainer/mise/devcontainer.json
+
+jobs:
+  # Cheap checks first. The CLI's own parser accepts truncated JSONC, so
+  # biome parses both configs strictly, and `outdated` shows where the lock
+  # stands against each feature's latest release.
+  config:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commits; the comment is the tag that was pinned.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse the configs
+        run: npx -y @biomejs/biome@2.5.14 check --formatter-enabled=false --linter-enabled=false .devcontainer.json "$MISE_CONFIG"
+      - name: Read them as the CLI does
+        run: |
+          npx -y "$DEVCONTAINER_CLI" read-configuration --workspace-folder . > /dev/null
+          npx -y "$DEVCONTAINER_CLI" read-configuration --workspace-folder . --config "$MISE_CONFIG" > /dev/null
+      - name: Features against the lock
+        run: npx -y "$DEVCONTAINER_CLI" outdated --workspace-folder .
+
+  # Build from the locked features (a stale lock fails with "Lockfile does not
+  # match"), then check the container has the jj and just the feature
+  # promises.
+  nix:
+    needs: config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and start
+        run: npx -y "$DEVCONTAINER_CLI" up --workspace-folder . --experimental-frozen-lockfile
+      - name: Smoke test
+        run: npx -y "$DEVCONTAINER_CLI" exec --workspace-folder . sh -c 'jj --version && just --version && nix --version'
+
+  # onCreateCommand installs mise and the root mise.toml's tools, and
+  # postCreateCommand applies [dotfiles], so a build that finishes has run
+  # both. The token keeps mise's GitHub downloads clear of the anonymous rate
+  # limit. Then a zsh started the way a terminal would be must get the tools
+  # and interactive.zsh (AUTO_CD), which needs that whole chain.
+  mise:
+    needs: config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build and start
+        run: npx -y "$DEVCONTAINER_CLI" up --workspace-folder . --config "$MISE_CONFIG" --remote-env "GITHUB_TOKEN=$GITHUB_TOKEN"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Smoke test
+        run: |
+          npx -y "$DEVCONTAINER_CLI" exec --workspace-folder . --config "$MISE_CONFIG" \
+            zsh -c 'source ~/.zshrc; just --version && jj --version && hx --version && [[ -o autocd ]]'
