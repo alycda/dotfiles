@@ -7,7 +7,9 @@ the tag in a comment.
 ## editorconfig
 
 `editorconfig-checker` checks every file against `.editorconfig`: charset,
-line endings, final newline, trailing whitespace and indentation.
+line endings, final newline, trailing whitespace and indentation. Markdown
+indentation is left alone, since list continuations align with the item's
+text, and `.claude/settings.json` keeps the two spaces Claude Code writes.
 
 `.editorconfig-checker.json` excludes files that aren't ours to reformat:
 
