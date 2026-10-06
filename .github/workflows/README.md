@@ -69,6 +69,9 @@ only the jj stack not on trunk yet. The rules are in the script's header.
   effort bumps, in `0.x` and after, where the new changelog heading goes, and
   that a bad effort or a missing `VERSION` fails. It checks `check-effver`
   against small git histories, one rule each.
+- `tests/cheat.bats` checks that cheat, with `tools/cheat/conf.yml`, lists
+  and shows every sheet in `.cheat/`: one sheet whose front matter doesn't
+  parse stops cheat for all of them.
 - `tests/mise.bats` checks that the root `mise.toml` is formatted, and the
   job's own `mise install` checks that its tools install.
 
