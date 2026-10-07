@@ -5,6 +5,11 @@ Nix, and a supporting path to Nix when secrets/passwords are needed during setup
 
 If you are following along, you DON'T need to install BOTH mise and Nix, jump [ahead](#nix).
 
+Heads-up if you already use Homebrew: these dotfiles will manage it through
+nix-darwin (not yet). nix-darwin's Homebrew module installs what its config
+lists, and can be set to remove everything else, so applying them to your Mac
+would replace your Homebrew setup with mine. Read the config first.
+
 ## [Jujutsu](https://www.jj-vcs.dev/latest/)
 
 `mise install` gets `jj` too. The repo _may_ be [colocated](https://docs.jj-vcs.dev/latest/git-compatibility/#colocated-jujutsugit-repos) (`.jj/` next to `.git/`),
@@ -68,6 +73,32 @@ sed -i '' '/mise activate/d' ~/.zshrc   # the line mise's installer added
 `mise implode` keeps `~/.config/mise` (add `--config` to remove it), and the
 links `mise dotfiles apply` made into `tools/` keep working. `jj` and `just`
 then come from the dev shell, so only inside the checkout.
+
+## [Docker](https://docs.docker.com/desktop/)
+
+Optional: the `Dockerfile` builds an image with the home-manager setup
+activated in it, for a machine without Nix. `just docker-build`, then
+`just docker-run` opens zsh in it with the current directory at `/work`.
+
+On a Mac, either [OrbStack](https://orbstack.dev) or Docker Desktop
+provides `docker`. OrbStack is the lighter of the two, and starts faster.
+With Homebrew:
+
+```sh
+brew install --cask orbstack          # or: brew install --cask docker-desktop
+open -a OrbStack                      # or: open -a Docker; accept its terms
+docker info                           # answers once the daemon is up
+```
+
+Until one of them is running, `just docker-build` fails with "failed to
+connect to the docker API at unix:///var/run/docker.sock". Without Homebrew,
+download either from its site.
+
+Both run Linux in a VM of their own, so neither runs inside a macOS VM such
+as Tart's: nested virtualization is for Linux guests only. To try the image
+in a VM, use a Linux one
+(`tart clone ghcr.io/cirruslabs/ubuntu:latest ubuntu`), where Docker Engine
+runs directly.
 
 ## Global just recipes
 
