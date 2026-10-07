@@ -47,6 +47,35 @@ nix --extra-experimental-features 'nix-command flakes' \
 
 Flakes are still experimental in Nix, so the flag enables them for this command only.
 
+### /etc/nix/nix.conf
+
+Without nix-darwin, which writes this file itself, it is yours to edit. The
+installer puts only `build-users-group = nixbld` in it; this adds two lines:
+
+```
+allowed-users = @nix-users
+build-users-group = nixbld
+
+extra-experimental-features = nix-command flakes
+```
+
+- `extra-experimental-features` turns flakes on for every command, so the
+  flag above can be dropped.
+- `allowed-users` limits who can use the Nix daemon; the default `*` is every
+  account. The installer doesn't create `nix-users`, so create it and add
+  yourself first, or only root can use Nix:
+
+  ```sh
+  sudo dseditgroup -o create nix-users
+  sudo dseditgroup -o edit -a "$USER" -t user nix-users
+  ```
+
+  (On Linux, `sudo groupadd nix-users` and `sudo usermod -aG nix-users "$USER"`.)
+
+The daemon reads the file when it starts, so restart it:
+`sudo launchctl kickstart -k system/org.nixos.nix-daemon` on macOS, or
+`sudo systemctl restart nix-daemon` on Linux.
+
 ### direnv
 
 `.envrc` loads the dev shell on entering the checkout, through direnv and
@@ -78,6 +107,24 @@ sed -i '' '/mise activate/d' ~/.zshrc
 `mise implode` keeps `~/.config/mise` (add `--config` to remove it), and the
 links `mise dotfiles apply` made into `tools/` keep working. `jj` and `just`
 then come from the dev shell, so only inside the checkout.
+
+### Switching
+
+The `nix` recipes apply the flake to the account they run in: nix-darwin
+for an admin on a Mac, to the configuration named after its host
+(lowercased), and home-manager everywhere else, to the one for its user
+and architecture, such as `vscode@aarch64-linux` in the devcontainer or
+`code@aarch64-darwin` for a Mac account without admin.
+
+- `just check`: the flake for every system, with `flake.lock` as committed.
+- `just update`: every input in `flake.lock`, or `just update nixpkgs`.
+- `just build` and `just switch`: build this machine's configuration, and
+  switch to it. Either takes another name, such as `just switch tart` in
+  the Tart VM, whose host name isn't `tart`. A name with an `@` is a
+  home-manager configuration; one without is nix-darwin's, and `switch`
+  asks for your password: nix-darwin activates as root.
+- `just generations` and `just rollback`: list what has been switched to,
+  and switch back to the one before.
 
 ### Secrets
 
