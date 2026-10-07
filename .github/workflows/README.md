@@ -153,8 +153,8 @@ whether to publish images is still open.
   `tests/edit-secret.bats` there (see [bats](#bats)), with bats from the
   flake's nixpkgs.
 - **homes:** builds every `homeConfigurations` profile the flake lists
-  (`vscode` and `root`, on Linux x86_64 and arm64), each on a runner of its
-  own system. The names are read from the flake, so a new profile is built
+  (`vscode` and `root` on Linux x86_64 and arm64, and `code` on an Apple
+  Silicon Mac), each on a runner of its own system. The names are read from the flake, so a new profile is built
   without editing the workflow. It builds the activation package and
   switches nothing; **home** does that for one profile.
 - **home:** switches the devcontainer profile for a `vscode` user that already

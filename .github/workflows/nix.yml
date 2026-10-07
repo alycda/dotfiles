@@ -78,7 +78,8 @@ jobs:
           command -v bats && bats tests/edit-secret.bats'
 
   # Every homeConfigurations output the flake lists, built, on a runner of its
-  # own system: Linux on both architectures. The names come from the flake,
+  # own system: Linux on both architectures, and an Apple Silicon Mac for an
+  # account such as code@aarch64-darwin. The names come from the flake,
   # so a profile added to flake.nix is built without touching this file.
   # Building the activation package runs nothing as the user, so root's
   # builds as well as vscode's.
@@ -92,6 +93,8 @@ jobs:
             system: x86_64-linux
           - runner: ubuntu-24.04-arm
             system: aarch64-linux
+          - runner: macos-latest
+            system: aarch64-darwin
     runs-on: ${{ matrix.runner }}
     env:
       SYSTEM: ${{ matrix.system }}
