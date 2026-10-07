@@ -82,9 +82,9 @@ key at `~/.age/personal-key.txt`. Without the key it warns and carries on.
 The Nix devcontainer and `just docker-run` mount `~/.age` read-only, so the
 secrets install there too.
 
-The secrets here are encrypted to my key. On a fork, make your own key in
-the dev shell. `rage-keygen` writes it readable by you only, and prints its
-public key:
+> The secrets here are encrypted to my key. On a fork, make your own key in
+> the dev shell. `rage-keygen` writes it readable by you only, and prints its
+> public key:
 
 ```sh
 mkdir -p ~/.age
