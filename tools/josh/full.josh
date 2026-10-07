@@ -1,0 +1,15 @@
+:[
+    :+tools/josh/shared
+    ::.devcontainer-lock.json
+    ::.devcontainer.json
+    ::.dockerignore
+    ::.envrc
+    ::Dockerfile
+    ::darwin/
+    ::flake.lock
+    ::flake.nix
+    ::home-manager/
+    ::lib/
+    ::secrets/
+    ::tools/secrets/
+]
