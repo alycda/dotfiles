@@ -8,6 +8,16 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
 adds one, and `just check-effver` checks it against `VERSION`.
 
+## 0.1.9 (micro) - 2026-10-06
+
+- The plan for ditto, the work Mac, in task 20261003-082726:
+  `darwinConfigurations.ditto` with primary user alyssaevans and its own
+  work profile, the same age key as everywhere else. Before it builds:
+  profiles, whether Homebrew is allowed there, and the work-only tools and
+  dock.
+
+To adopt: nothing; this version adds a task.
+
 ## 0.1.8 (micro) - 2026-10-06
 
 - nix-darwin builds shesfast, the first real Mac, with alyssa as primary
