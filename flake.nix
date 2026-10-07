@@ -145,6 +145,9 @@
 
       # The Nix devcontainer's user, and the Dockerfile image's, on either
       # kind of host. The names stay as they were; the profile is dev.
+      # And `code`, a Mac account without sudo, which can't run
+      # darwin-rebuild, so it switches its own home, as on main:
+      #   nix run .#home-manager -- switch -b backup --flake .#code@aarch64-darwin
       homeConfigurations =
         let
           dev =
@@ -159,6 +162,7 @@
           "vscode@x86_64-linux" = dev "x86_64-linux" "vscode" "/home/vscode";
           "root@aarch64-linux" = dev "aarch64-linux" "root" "/root";
           "root@x86_64-linux" = dev "x86_64-linux" "root" "/root";
+          "code@aarch64-darwin" = dev "aarch64-darwin" "code" "/Users/code";
         };
 
       darwinConfigurations = {
