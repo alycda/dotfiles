@@ -1,0 +1,5 @@
+:[
+    :+tools/josh/shared
+    ::.devcontainer/mise/
+    ::mise.toml
+]

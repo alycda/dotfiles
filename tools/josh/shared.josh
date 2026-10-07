@@ -1,0 +1,9 @@
+:[
+    ::tasks/scripts/
+    ::tools/cheat/
+    ::tools/git/
+    ::tools/helix/
+    ::tools/jujutsu/
+    ::tools/just/
+    ::tools/zsh/
+]
