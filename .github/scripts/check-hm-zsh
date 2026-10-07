@@ -1,0 +1,20 @@
+#!/usr/bin/env zsh
+# Run as `zsh -i check-hm-zsh` by the user home-manager switched: checks the
+# interactive zsh it owns has tools/zsh/interactive.zsh and its own defaults.
+# Prints each failure and exits non-zero if there was one.
+failed=0
+check() {
+  if eval "$2"; then print "ok: $1"; else print "FAIL: $1"; failed=1; fi
+}
+
+check "~/.zshrc is home-manager's"   '[[ $(readlink ~/.zshrc) == /nix/store/* ]]'
+check "EDITOR=hx from ~/.zshenv"     '[[ $EDITOR == hx ]]'
+check "compinit ran"                 '(( $+functions[compdef] ))'
+check "SHARE_HISTORY (hm default)"   '[[ -o sharehistory ]]'
+check "EXTENDED_HISTORY"             '[[ -o extendedhistory ]]'
+check "AUTO_CD"                      '[[ -o autocd ]]'
+check "alias .."                     '[[ $aliases[..] == "cd .." ]]'
+check "^X^R is redo, after compinit" '[[ $(bindkey "^X^R") == *" redo" ]]'
+check "space is magic-space"         '[[ $(bindkey " ") == *" magic-space" ]]'
+check "chpwd repo hook"              '(( ${chpwd_functions[(Ie)_dotfiles_repo_status]} ))'
+exit $failed

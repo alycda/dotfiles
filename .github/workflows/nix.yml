@@ -1,6 +1,7 @@
 # The flake: does it evaluate on every system it lists, with the lock as
-# committed, is its Nix formatted, and does the dev shell deliver its tools?
-# Runs when Nix files change.
+# committed, is its Nix formatted, does the dev shell deliver its tools, and
+# does the home-manager profile give zsh its config? Runs when Nix files, or
+# the zsh config the profile sources, change.
 name: nix
 
 on:
@@ -9,6 +10,8 @@ on:
       - flake.nix
       - flake.lock
       - "**/*.nix"
+      - tools/zsh/**
+      - .github/scripts/check-hm-zsh
       - .github/workflows/nix.yml
   pull_request:
     paths: *paths
@@ -46,3 +49,40 @@ jobs:
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       - name: Dev shell
         run: nix develop --no-update-lock-file -c sh -c 'jj --version && just --version'
+
+  # The devcontainer profile, switched for a real vscode user whose ~/.zshrc
+  # already exists, as the image's oh-my-zsh one does: home-manager takes it
+  # over (-b moves the old one aside), and an interactive zsh must then have
+  # tools/zsh/interactive.zsh on top of home-manager's defaults. The copy in
+  # /tmp is one vscode can read; path: keeps nix from asking git about it.
+  home:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: A vscode user with a ~/.zshrc of its own
+        run: |
+          sudo apt-get install -y --no-install-recommends zsh
+          sudo useradd --create-home --shell /usr/bin/zsh vscode
+          echo '# oh-my-zsh, as the image has' | sudo -u vscode tee /home/vscode/.zshrc > /dev/null
+          cp -R . /tmp/dotfiles && chmod -R a+rX /tmp/dotfiles
+      - name: Switch
+        working-directory: /tmp/dotfiles
+        run: >-
+          sudo -u vscode -H env PATH="$PATH" USER=vscode
+          nix run --no-update-lock-file path:.#home-manager --
+          switch -b backup --flake path:.#vscode@x86_64-linux
+      - name: The old ~/.zshrc was moved aside
+        run: sudo grep -q oh-my-zsh /home/vscode/.zshrc.backup
+      # The runner has completion dirs compaudit rejects (as a Mac with
+      # another account's Homebrew does). The profile's compinit -i skips
+      # them, so zsh must start without compinit saying anything.
+      - name: Interactive zsh
+        run: |
+          sudo -u vscode -H zsh -i /tmp/dotfiles/.github/scripts/check-hm-zsh 2> "$RUNNER_TEMP/stderr"
+          cat "$RUNNER_TEMP/stderr"
+          if grep -q compinit "$RUNNER_TEMP/stderr"; then
+            echo "compinit complained at startup" >&2
+            exit 1
+          fi
