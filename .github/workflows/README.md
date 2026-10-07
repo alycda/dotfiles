@@ -1,9 +1,9 @@
 # CI
 
 `lint.yml` and `test.yml` run on every push and pull request, and
-`devcontainer.yml` and `nix.yml` when their files change. On the runner
-itself only `nix.yml` needs Nix, and only `test.yml` needs mise. Actions are
-pinned to commit SHAs, with the tag in a comment.
+`devcontainer.yml`, `docker.yml` and `nix.yml` when their files change. On
+the runner itself only `nix.yml` needs Nix, and only `test.yml` needs mise.
+Actions are pinned to commit SHAs, with the tag in a comment.
 
 ## editorconfig
 
@@ -145,3 +145,15 @@ whether to publish images is still open.
 
 The workflow also runs when `tools/` or `tasks/scripts/` change, since the
 profiles link them.
+
+## docker
+
+`docker.yml` builds the image from the `Dockerfile` with `docker build`,
+natively on Linux x86_64 and arm64, since the Dockerfile picks the
+`root@<arch>-linux` profile by the build container's own architecture. The
+build fetches and builds the whole home-manager generation, which takes
+minutes, so it runs only when the `Dockerfile`, `.dockerignore`, the flake,
+`home-manager/`, `lib/`, `tools/` or `tasks/scripts/` change: the paths
+`.dockerignore` leaves in the build context. A container from the image must
+then start a login zsh with `EDITOR=hx`, and `jj`, `just` and `hx` on `PATH`.
+The image isn't pushed anywhere; whether to publish one is still open.
