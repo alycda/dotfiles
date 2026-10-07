@@ -15,6 +15,8 @@ on:
       - tasks/scripts/**
       # home-manager/agenix.nix installs every .age file under secrets/.
       - secrets/**
+      # Run in the dev shell, which has the rage and ragenix it needs.
+      - tests/edit-secret.bats
       - .github/scripts/check-hm-zsh
       - .github/workflows/nix.yml
   pull_request:
@@ -53,6 +55,17 @@ jobs:
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       - name: Dev shell
         run: nix develop --no-update-lock-file -c sh -c 'jj --version && just --version'
+      # tools/secrets/edit-secret with the dev shell's rage and ragenix, which
+      # test.yml doesn't have, so the suite skips there. bats comes from the
+      # flake's nixpkgs; the dev shell keeps the PATH it starts from. Listing
+      # the tools first fails the step if one is missing, where bats would
+      # skip.
+      - name: edit-secret
+        run: >-
+          nix shell --inputs-from . nixpkgs#bats -c
+          nix develop --no-update-lock-file -c sh -c
+          'command -v rage && command -v rage-keygen && command -v ragenix &&
+          command -v bats && bats tests/edit-secret.bats'
 
   # Every homeConfigurations output the flake lists, built, on a runner of its
   # own system: Linux on both architectures. The names come from the flake,

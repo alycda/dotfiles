@@ -102,6 +102,14 @@ only the jj stack not on trunk yet. The rules are in the script's header.
   `[dotfiles]` apply to a clean HOME and a second apply changes nothing, zsh
   started there gets the config, and a bad version pin fails an install (a
   dry run only warns, so the job's real `mise install` is the check).
+- `tests/edit-secret.bats` checks `tools/secrets/edit-secret` with the real
+  rage and ragenix, in a copy of the repo's layout whose `recipients.txt`
+  holds a throwaway key: a new secret starts as the placeholder, encrypted
+  to it; an edit is encrypted back; a secret left unchanged keeps its bytes;
+  and a missing identity, or one without a trailing newline, fails before
+  anything is created. Only the dev shell has rage and ragenix, so the suite
+  skips in `test.yml` and runs in `nix.yml`'s **shell** job, on Linux and
+  macOS.
 
 Run them locally with `bats tests`.
 
@@ -138,7 +146,9 @@ whether to publish images is still open.
   no longer matches the inputs fails. nixfmt, from the flake's own nixpkgs,
   checks every `*.nix` file.
 - **shell:** builds the dev shell on each system (Linux x86_64 and arm64, and
-  an Apple Silicon Mac) and checks `jj` and `just` run inside.
+  an Apple Silicon Mac) and checks `jj` and `just` run inside. Then it runs
+  `tests/edit-secret.bats` there (see [bats](#bats)), with bats from the
+  flake's nixpkgs.
 - **homes:** builds every `homeConfigurations` profile the flake lists
   (`vscode` and `root`, on Linux x86_64 and arm64), each on a runner of its
   own system. The names are read from the flake, so a new profile is built
