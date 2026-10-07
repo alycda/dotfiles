@@ -38,6 +38,16 @@ jobs:
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       - name: Evaluate for every system
         run: nix flake check --all-systems --no-update-lock-file
+      # flake check skips darwinConfigurations and homeConfigurations: they
+      # aren't outputs it knows. Evaluating each one's derivation catches a
+      # broken module or option on every Mac and account, for every system,
+      # without building anything.
+      - name: Evaluate every configuration
+        run: |
+          nix eval --no-update-lock-file --json .#darwinConfigurations \
+            --apply 'builtins.mapAttrs (_: c: c.system.drvPath)'
+          nix eval --no-update-lock-file --json .#homeConfigurations \
+            --apply 'builtins.mapAttrs (_: c: c.activationPackage.drvPath)'
       - name: Format
         run: git ls-files -z '*.nix' | xargs -0 nix run --inputs-from . nixpkgs#nixfmt -- --check
 

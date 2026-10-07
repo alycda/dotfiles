@@ -141,10 +141,13 @@ whether to publish images is still open.
 
 `nix.yml` checks the flake in four jobs:
 
-- **check:** `nix flake check --all-systems` evaluates every output for every
-  system the flake lists, with `--no-update-lock-file` so a `flake.lock` that
-  no longer matches the inputs fails. nixfmt, from the flake's own nixpkgs,
-  checks every `*.nix` file.
+- **check:** `nix flake check --all-systems` evaluates every output it knows
+  for every system the flake lists, with `--no-update-lock-file` so a
+  `flake.lock` that no longer matches the inputs fails. It skips
+  `darwinConfigurations` and `homeConfigurations`, so the job then evaluates
+  each one's derivation itself: every Mac and every account, Linux or macOS,
+  without building. nixfmt, from the flake's own nixpkgs, checks every
+  `*.nix` file.
 - **shell:** builds the dev shell on each system (Linux x86_64 and arm64, and
   an Apple Silicon Mac) and checks `jj` and `just` run inside. Then it runs
   `tests/edit-secret.bats` there (see [bats](#bats)), with bats from the
