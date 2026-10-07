@@ -14,5 +14,7 @@
     # The CLI only. The engine is the host's: OrbStack on a Mac, the
     # mounted socket in a container. On the Tart VM it has none.
     pkgs.docker
+    # Nix's language server; helix finds it on PATH with no config.
+    pkgs.nil
   ];
 }
