@@ -178,7 +178,12 @@ natively on Linux x86_64 and arm64, since the Dockerfile picks the
 `root@<arch>-linux` profile by the build container's own architecture. The
 build fetches and builds the whole home-manager generation, which takes
 minutes, so it runs only when the `Dockerfile`, `.dockerignore`, the flake,
-`home-manager/`, `lib/`, `tools/` or `tasks/scripts/` change: the paths
-`.dockerignore` leaves in the build context. A container from the image must
-then start a login zsh with `EDITOR=hx`, and `jj`, `just` and `hx` on `PATH`.
+`home-manager/`, `lib/`, `secrets/`, `tools/` or `tasks/scripts/` change: the
+paths `.dockerignore` leaves in the build context. A container from the image
+must then start a login zsh with `EDITOR=hx`, and `jj`, `just` and `hx` on
+`PATH`. A second one gets a throwaway age key at `~/.age`, as
+`just docker-run` mounts the host's: the entrypoint runs the activation
+again, agenix must warn that it can't decrypt `example.age`, and zsh must
+still start. Installing a secret is the **home** job's to check (see
+[nix](#nix)), since the image's secrets are encrypted to Alyssa's key only.
 The image isn't pushed anywhere; whether to publish one is still open.

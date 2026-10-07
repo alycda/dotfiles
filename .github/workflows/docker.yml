@@ -17,6 +17,8 @@ on:
       - lib/**
       - tools/**
       - tasks/scripts/**
+      # The agenix secrets the profile installs (home-manager/agenix.nix).
+      - secrets/**
       - .github/workflows/docker.yml
   pull_request:
     paths: *paths
@@ -47,3 +49,21 @@ jobs:
         run: >-
           docker run --rm dotfiles zsh -lc
           'test "$EDITOR" = hx && jj --version && just --version && hx --version'
+      # With an age key mounted at ~/.age, as `just docker-run` does when the
+      # host has one, the entrypoint runs the activation again to install the
+      # secrets. A throwaway key opens none of them (example.age is Alyssa's),
+      # so agenix must say so on stderr, the activation itself not fail, and
+      # the shell start anyway. Ubuntu's age makes the key.
+      - name: With a key it can't use, the shell still starts
+        run: |
+          sudo apt-get install -y --no-install-recommends age
+          mkdir "$RUNNER_TEMP/age"
+          age-keygen -o "$RUNNER_TEMP/age/personal-key.txt"
+          docker run --rm -v "$RUNNER_TEMP/age:/root/.age:ro" dotfiles \
+            zsh -lc 'jj --version' 2> "$RUNNER_TEMP/stderr" || {
+            cat "$RUNNER_TEMP/stderr"
+            exit 1
+          }
+          cat "$RUNNER_TEMP/stderr"
+          grep -F "agenix: could not decrypt 'example'" "$RUNNER_TEMP/stderr"
+          if grep -F 'activation failed' "$RUNNER_TEMP/stderr"; then exit 1; fi
