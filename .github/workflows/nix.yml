@@ -1,7 +1,8 @@
 # The flake: does it evaluate on every system it lists, with the lock as
 # committed, is its Nix formatted, does the dev shell deliver its tools, and
-# does the home-manager profile give zsh its config? Runs when Nix files, or
-# the zsh config the profile sources, change.
+# does every home-manager profile build, and does the one for a vscode user
+# give zsh its config? Runs when Nix files, or the files the profiles link
+# or source, change.
 name: nix
 
 on:
@@ -10,7 +11,8 @@ on:
       - flake.nix
       - flake.lock
       - "**/*.nix"
-      - tools/zsh/**
+      - tools/**
+      - tasks/scripts/**
       - .github/scripts/check-hm-zsh
       - .github/workflows/nix.yml
   pull_request:
@@ -49,6 +51,38 @@ jobs:
       - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
       - name: Dev shell
         run: nix develop --no-update-lock-file -c sh -c 'jj --version && just --version'
+
+  # Every homeConfigurations output the flake lists, built, on a runner of its
+  # own system: Linux on both architectures. The names come from the flake,
+  # so a profile added to flake.nix is built without touching this file.
+  # Building the activation package runs nothing as the user, so root's
+  # builds as well as vscode's.
+  homes:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            system: x86_64-linux
+          - runner: ubuntu-24.04-arm
+            system: aarch64-linux
+    runs-on: ${{ matrix.runner }}
+    env:
+      SYSTEM: ${{ matrix.system }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Build each profile for this system
+        run: |
+          names=$(nix eval --no-update-lock-file --json .#homeConfigurations \
+            --apply builtins.attrNames | jq -r --arg s "@$SYSTEM" '.[] | select(endswith($s))')
+          test -n "$names" || { echo "no homeConfigurations for $SYSTEM" >&2; exit 1; }
+          for name in $names; do
+            echo "::group::$name"
+            nix build --no-update-lock-file --no-link ".#homeConfigurations.\"$name\".activationPackage"
+            echo "::endgroup::"
+          done
 
   # The devcontainer profile, switched for a real vscode user whose ~/.zshrc
   # already exists, as the image's oh-my-zsh one does: home-manager takes it

@@ -121,7 +121,7 @@ whether to publish images is still open.
 
 ## nix
 
-`nix.yml` checks the flake in three jobs:
+`nix.yml` checks the flake in four jobs:
 
 - **check:** `nix flake check --all-systems` evaluates every output for every
   system the flake lists, with `--no-update-lock-file` so a `flake.lock` that
@@ -129,12 +129,19 @@ whether to publish images is still open.
   checks every `*.nix` file.
 - **shell:** builds the dev shell on each system (Linux x86_64 and arm64, and
   an Apple Silicon Mac) and checks `jj` and `just` run inside.
+- **homes:** builds every `homeConfigurations` profile the flake lists
+  (`vscode` and `root`, on Linux x86_64 and arm64), each on a runner of its
+  own system. The names are read from the flake, so a new profile is built
+  without editing the workflow. It builds the activation package and
+  switches nothing; **home** does that for one profile.
 - **home:** switches the devcontainer profile for a `vscode` user that already
   has a `~/.zshrc`, like the image's oh-my-zsh one. home-manager must take it
   over, keeping the old one as `~/.zshrc.backup`. Then
   `.github/scripts/check-hm-zsh` checks an interactive zsh: home-manager's
   defaults (history sharing, compinit, `EDITOR`) and everything
-  `tools/zsh/interactive.zsh` sets. It also runs when `tools/zsh/` changes.
-  The runner has completion dirs compinit rejects, so zsh must also start
-  without compinit printing a prompt or warning: the profile's `compinit -i`
-  skips them.
+  `tools/zsh/interactive.zsh` sets. The runner has completion dirs compinit
+  rejects, so zsh must also start without compinit printing a prompt or
+  warning: the profile's `compinit -i` skips them.
+
+The workflow also runs when `tools/` or `tasks/scripts/` change, since the
+profiles link them.
