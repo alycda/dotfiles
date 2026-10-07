@@ -58,6 +58,24 @@ applied on GitHub), so moving N+1 onto it is conflict-free.
    jj log -r "roots($S)" -T 'change_id.short(4) ++ " <- " ++ parents.map(|p| p.change_id().short(4)).join(",") ++ "\n"'
    ```
 
+   **Shortcut when GitHub changed nothing.** If the squash's tree equals the
+   pushed tip of version N (`jj diff --from <tip> --to effver --stat` is
+   empty), the local commits above that tip are not conflicted and need no
+   copying. Rebase them, keeping change IDs, bookmarks and side lanes:
+
+   ```text
+   jj rebase -s 'children(<pushed tip of N>)' -o effver
+   ```
+
+   A merge in the moved set would get `effver` as its only parent, so give
+   it the others again: `jj rebase -s <merge> -o effver -o <other parent>`.
+   Then point `effort/v0.1.N` at the squash (`jj bookmark set effort/v0.1.N
+   -r effver --allow-backwards`), move what hangs off the stale local
+   squashed siblings of N the same way, and abandon those siblings once
+   `children(<sibling>)` is empty. Steps 3 and 4 are for review commits
+   that came through the squash. Done this way for 0.1.5 on 2026-10-06:
+   67 commits moved, no new conflicts.
+
 3. Put them on the new base. `jj duplicate` from the **pushed** commits is the
    reliable path; local copies may already be conflicted:
 
