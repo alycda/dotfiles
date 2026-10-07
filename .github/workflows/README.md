@@ -139,7 +139,7 @@ whether to publish images is still open.
 
 ## nix
 
-`nix.yml` checks the flake in four jobs:
+`nix.yml` checks the flake in five jobs:
 
 - **check:** `nix flake check --all-systems` evaluates every output it knows
   for every system the flake lists, with `--no-update-lock-file` so a
@@ -157,6 +157,11 @@ whether to publish images is still open.
   Silicon Mac), each on a runner of its own system. The names are read from the flake, so a new profile is built
   without editing the workflow. It builds the activation package and
   switches nothing; **home** does that for one profile.
+- **darwins:** builds every `darwinConfigurations` Mac the flake lists on an
+  Apple Silicon runner: the system closure, its home-manager users and its
+  Brewfile, without activating it. The names are read from the flake, as in
+  **homes**. Switching a Mac needs root and changes the runner, so that is
+  left to the Tart VM.
 - **home:** switches the devcontainer profile for a `vscode` user that already
   has a `~/.zshrc`, like the image's oh-my-zsh one. home-manager must take it
   over, keeping the old one as `~/.zshrc.backup`. Then

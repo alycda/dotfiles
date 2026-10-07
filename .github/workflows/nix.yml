@@ -1,8 +1,8 @@
 # The flake: does it evaluate on every system it lists, with the lock as
-# committed, is its Nix formatted, does the dev shell deliver its tools, and
-# does every home-manager profile build, and does the one for a vscode user
-# give zsh its config? Runs when Nix files, or the files the profiles link
-# or source, change.
+# committed, is its Nix formatted, does the dev shell deliver its tools, do
+# every home-manager profile and every Mac build, and does the profile for a
+# vscode user give zsh its config? Runs when Nix files, or the files the
+# profiles link or source, change.
 name: nix
 
 on:
@@ -109,6 +109,28 @@ jobs:
           for name in $names; do
             echo "::group::$name"
             nix build --no-update-lock-file --no-link ".#homeConfigurations.\"$name\".activationPackage"
+            echo "::endgroup::"
+          done
+
+  # Every darwinConfigurations output the flake lists, built on an Apple
+  # Silicon Mac: the system closure, with its home-manager users and
+  # Homebrew's Brewfile, without activating it, so nothing touches the
+  # runner. The names come from the flake, so a Mac added to flake.nix is
+  # built without touching this file.
+  darwins:
+    needs: check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - name: Build each Mac
+        run: |
+          names=$(nix eval --no-update-lock-file --json .#darwinConfigurations \
+            --apply builtins.attrNames | jq -r '.[]')
+          test -n "$names" || { echo "no darwinConfigurations" >&2; exit 1; }
+          for name in $names; do
+            echo "::group::$name"
+            nix build --no-update-lock-file --no-link ".#darwinConfigurations.\"$name\".system"
             echo "::endgroup::"
           done
 
