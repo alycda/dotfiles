@@ -13,6 +13,8 @@ on:
       - "**/*.nix"
       - tools/**
       - tasks/scripts/**
+      # home-manager/agenix.nix installs every .age file under secrets/.
+      - secrets/**
       - .github/scripts/check-hm-zsh
       - .github/workflows/nix.yml
   pull_request:
@@ -103,12 +105,23 @@ jobs:
           cp -R . /tmp/dotfiles && chmod -R a+rX /tmp/dotfiles
       - name: Switch
         working-directory: /tmp/dotfiles
+        shell: bash
         run: >-
           sudo -u vscode -H env PATH="$PATH" USER=vscode
           nix run --no-update-lock-file path:.#home-manager --
           switch -b backup --flake path:.#vscode@x86_64-linux
+          2>&1 | tee "$RUNNER_TEMP/switch.log"
       - name: The old ~/.zshrc was moved aside
         run: sudo grep -q oh-my-zsh /home/vscode/.zshrc.backup
+      # The user has no ~/.age/personal-key.txt, as a devcontainer on a host
+      # without one: home-manager/agenix.nix must say it can't decrypt
+      # example.age, install nothing and leave no .tmp behind, and the switch
+      # above still succeed.
+      - name: Without a key, agenix warns and installs nothing
+        run: |
+          grep -F "agenix: could not decrypt 'example'" "$RUNNER_TEMP/switch.log"
+          sudo test ! -e /home/vscode/.local/share/agenix/example
+          test -z "$(sudo find /home/vscode/.local/share -name '*.tmp')"
       # The runner has completion dirs compaudit rejects (as a Mac with
       # another account's Homebrew does). The profile's compinit -i skips
       # them, so zsh must start without compinit saying anything.
@@ -120,3 +133,25 @@ jobs:
             echo "compinit complained at startup" >&2
             exit 1
           fi
+      # With a key: a throwaway one, and a secret encrypted to it in the copy,
+      # which path: reads untracked. Switching again must install that secret
+      # as ~/.local/share/agenix/ci, vscode's, mode 0400; example.age, which
+      # the key doesn't open, still only warns.
+      - name: With a key, agenix installs what it decrypts
+        shell: bash
+        run: |
+          with_rage() { nix shell --inputs-from . nixpkgs#rage -c "$@"; }
+          with_rage rage-keygen -o "$RUNNER_TEMP/key.txt"
+          recipient=$(sed -n 's/^# public key: //p' "$RUNNER_TEMP/key.txt")
+          test -n "$recipient"
+          echo 'from ci' | with_rage rage -a -r "$recipient" -o /tmp/dotfiles/secrets/ci.age
+          sudo install -d -o vscode -m 700 /home/vscode/.age
+          sudo install -o vscode -m 600 "$RUNNER_TEMP/key.txt" /home/vscode/.age/personal-key.txt
+          cd /tmp/dotfiles
+          sudo -u vscode -H env PATH="$PATH" USER=vscode \
+            nix run --no-update-lock-file path:.#home-manager -- \
+            switch -b backup --flake path:.#vscode@x86_64-linux \
+            2>&1 | tee "$RUNNER_TEMP/switch-key.log"
+          grep -F "agenix: could not decrypt 'example'" "$RUNNER_TEMP/switch-key.log"
+          test "$(sudo stat -c '%a %U' /home/vscode/.local/share/agenix/ci)" = '400 vscode'
+          test "$(sudo cat /home/vscode/.local/share/agenix/ci)" = 'from ci'

@@ -151,10 +151,15 @@ whether to publish images is still open.
   defaults (history sharing, compinit, `EDITOR`) and everything
   `tools/zsh/interactive.zsh` sets. The runner has completion dirs compinit
   rejects, so zsh must also start without compinit printing a prompt or
-  warning: the profile's `compinit -i` skips them.
+  warning: the profile's `compinit -i` skips them. Last, the agenix secrets
+  (`home-manager/agenix.nix`): without `~/.age/personal-key.txt` the switch
+  must warn that it can't decrypt `example.age` and install nothing. Then,
+  with a throwaway key and a secret encrypted to it in the copy, a second
+  switch must install that secret at mode 0400, and still only warn about
+  `example.age`, which needs Alyssa's key.
 
 The workflow also runs when `tools/` or `tasks/scripts/` change, since the
-profiles link them.
+profiles link them, and `secrets/`, which they install.
 
 ## docker
 
