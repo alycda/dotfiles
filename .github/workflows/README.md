@@ -53,6 +53,16 @@ its directory, and `description` is at most 1024 characters. A loader skips a
 skill that fails these, often without saying so. It needs mikefarah's `yq`,
 which the runner has.
 
+## secrets
+
+`.github/scripts/check-secrets` checks every `.age` file under `secrets/`:
+it must be an age file, armored or binary, whose header has one X25519
+stanza for each `age1` key in `secrets/recipients.txt`. That catches a
+plaintext file named `.age`, and a key added to `recipients.txt` without
+re-encrypting the secrets. An age header doesn't name its recipients, so a
+secret encrypted to the wrong key of the right count passes, and whether it
+decrypts takes the key, which CI doesn't have.
+
 ## effver
 
 `tools/effver/check-effver HEAD` checks `VERSION` and `CHANGELOG.md` against

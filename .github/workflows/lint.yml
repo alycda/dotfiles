@@ -73,3 +73,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: yq --version
       - run: .github/scripts/check-skills
+
+  # Every .age file under secrets/ is an age file encrypted to as many keys as
+  # secrets/recipients.txt lists (.github/scripts/check-secrets says why that
+  # is as far as a check without the key goes).
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: .github/scripts/check-secrets
