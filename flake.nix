@@ -15,6 +15,11 @@
       url = "github:taskbook-sh/taskbook";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # agenix secrets (secrets/), in Rust: the CLI and the home-manager module.
+    ragenix = {
+      url = "github:yaxitech/ragenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -22,6 +27,7 @@
       nixpkgs,
       home-manager,
       taskbook,
+      ragenix,
       ...
     }:
     let
@@ -47,7 +53,9 @@
         home-manager.lib.homeManagerConfiguration {
           pkgs = pkgsFor system;
           modules = [
+            ragenix.homeManagerModules.default
             ./home-manager/common.nix
+            ./home-manager/agenix.nix
             { home = { inherit username homeDirectory; }; }
           ];
         };
@@ -58,6 +66,10 @@
           packages = [
             pkgs.jujutsu
             pkgs.just
+            # `just edit-secret`. nixpkgs' ragenix: the ragenix flake's own
+            # package builds through a rust-overlay too old for this nixpkgs.
+            pkgs.rage
+            pkgs.ragenix
           ];
         };
       });

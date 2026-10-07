@@ -32,11 +32,15 @@ lists the recipes.
 
 ## [Nix](https://nixos.org/download/)
 
-`flake.nix` has a (minimal) dev shell.
+`flake.nix` has a (minimal) dev shell. Install Nix:
 
 ```sh
 curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install | sh
-# Open a new terminal, then in the checkout:
+```
+
+Then open a new terminal, and in the checkout:
+
+```sh
 nix --extra-experimental-features 'nix-command flakes' \
   develop -c sh -c 'jj --version && just --version'
 ```
@@ -55,40 +59,67 @@ echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
 mkdir -p ~/.config/direnv
 echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' \
   > ~/.config/direnv/direnvrc
-# Open a new terminal, then in the checkout:
-direnv allow
 ```
+
+Then open a new terminal, and in the checkout run `direnv allow`.
 
 ### Coming from mise
 
-mise and the dev shell both put `jj` and `just` on `PATH`. Keep one: to drop
-mise,
+mise and the dev shell both put `jj` and `just` on `PATH`. Keep one. To drop
+mise, `mise implode --dry-run` lists what it would remove; then remove the
+mise binary, its tools and caches, and the line mise's installer added to
+`~/.zshrc`:
 
 ```sh
-mise implode --dry-run   # lists what it removes
-mise implode             # the mise binary, its tools and caches
-sed -i '' '/mise activate/d' ~/.zshrc   # the line mise's installer added
+mise implode
+sed -i '' '/mise activate/d' ~/.zshrc
 ```
 
 `mise implode` keeps `~/.config/mise` (add `--config` to remove it), and the
 links `mise dotfiles apply` made into `tools/` keep working. `jj` and `just`
 then come from the dev shell, so only inside the checkout.
 
+### Secrets
+
+home-manager installs the [agenix](https://github.com/yaxitech/ragenix)
+secrets in `secrets/` into `~/.local/share/agenix/`, decrypted with the age
+key at `~/.age/personal-key.txt`. Without the key it warns and carries on.
+The Nix devcontainer and `just docker-run` mount `~/.age` read-only, so the
+secrets install there too.
+
+> The secrets here are encrypted to my key. On a fork, make your own key in
+> the dev shell. `rage-keygen` writes it readable by you only, and prints its
+> public key:
+
+```sh
+mkdir -p ~/.age
+rage-keygen -o ~/.age/personal-key.txt
+```
+
+Then put that public key in `secrets/recipients.txt` in place of mine,
+delete my `.age` files, and run `just edit-secret NAME` to create
+`secrets/NAME.age` (or edit it) in `$EDITOR`.
+
 ## [Docker](https://docs.docker.com/desktop/)
 
 Optional: the `Dockerfile` builds an image with the home-manager setup
 activated in it, for a machine without Nix. `just docker-build`, then
 `just docker-run` opens zsh in it with the current directory at `/work`.
+When `~/.age` exists, `docker-run` mounts it read-only and the container
+installs the [secrets](#secrets) as it starts.
 
 On a Mac, either [OrbStack](https://orbstack.dev) or Docker Desktop
 provides `docker`. OrbStack is the lighter of the two, and starts faster.
 With Homebrew:
 
 ```sh
-brew install --cask orbstack          # or: brew install --cask docker-desktop
-open -a OrbStack                      # or: open -a Docker; accept its terms
-docker info                           # answers once the daemon is up
+brew install --cask orbstack
+open -a OrbStack
 ```
+
+For Docker Desktop instead, the cask is `docker-desktop` and the app
+`Docker`; start it once and accept its terms. Either way, opening the app
+starts the daemon, and `docker info` answers once it's up.
 
 Until one of them is running, `just docker-build` fails with "failed to
 connect to the docker API at unix:///var/run/docker.sock". Without Homebrew,

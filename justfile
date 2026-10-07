@@ -51,7 +51,13 @@ docker-daemon:
 docker-build: docker-daemon
     docker build -t dotfiles .
 
-# Run that image, with the current directory at /work
+# Run that image, with the current directory at /work and ~/.age read-only
+# (if the host has it), so the entrypoint installs the agenix secrets
 [group('docker')]
 docker-run: docker-daemon
-    docker run -it --rm -e TERM="$TERM" -v {{ quote(invocation_directory()) }}:/work dotfiles
+    docker run -it --rm -e TERM="$TERM" {{ if path_exists(home_directory() / ".age") == "true" { "-v " + quote(home_directory() / ".age") + ":/root/.age:ro" } else { "" } }} -v {{ quote(invocation_directory()) }}:/work dotfiles
+
+# Create or edit an agenix secret, secrets/NAME.age (needs the dev shell)
+[group('secrets')]
+edit-secret name:
+    tools/secrets/edit-secret {{ quote(name) }}

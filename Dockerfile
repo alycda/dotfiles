@@ -4,8 +4,8 @@
 # container's own `uname -m`.
 #
 #   docker build -t dotfiles .        # or: just docker-build
-#   docker run -it --rm -e TERM="$TERM" -v "$PWD":/work dotfiles
-#                                     # or: just docker-run
+#   docker run -it --rm -e TERM="$TERM" -v ~/.age:/root/.age:ro \
+#     -v "$PWD":/work dotfiles        # or: just docker-run
 #
 # The generation is built and activated here, at build time, so the
 # container starts straight into zsh. Rebuild the image to pick up a change
@@ -37,5 +37,25 @@ RUN profile="${HM_PROFILE:-root@$(uname -m)-linux}" \
  && HOME_MANAGER_BACKUP_EXT=backup /opt/hm-activation/activate
 
 ENV PATH=/root/.nix-profile/bin:$PATH
+
+# The build had no age identity, so the agenix secrets didn't install. At
+# start, with one mounted read-only at ~/.age (just docker-run does it when
+# the host has one), run the activation again: it is idempotent, and it is
+# what installs them. Its output goes to /tmp/activation.log; only agenix's
+# own lines (such as "could not decrypt") are shown. A failure still starts
+# the shell, to fix it from. Written here rather than copied from the
+# context, so an edit to it doesn't rebuild the generation above.
+COPY --chmod=755 <<'EOF' /opt/entrypoint.sh
+#!/bin/sh
+if [ -r "$HOME/.age/personal-key.txt" ]; then
+  if ! HOME_MANAGER_BACKUP_EXT=backup /opt/hm-activation/activate >/tmp/activation.log 2>&1; then
+    echo "entrypoint: activation failed, secrets may be missing; see /tmp/activation.log" >&2
+  fi
+  grep 'agenix:' /tmp/activation.log >&2
+fi
+exec "$@"
+EOF
+ENTRYPOINT ["/opt/entrypoint.sh"]
+
 WORKDIR /work
 CMD ["zsh", "-l"]
