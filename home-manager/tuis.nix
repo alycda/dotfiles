@@ -15,7 +15,7 @@
     map (name: {
       name = "television/cable/${name}.toml";
       value.source = ../tools/television/cable/${name}.toml;
-    }) [ "cheat" "claude" "jj-log" ]
+    }) [ "cheat" "claude" "claude-memory" "jj-log" "taskbook" ]
   );
 
   # gh-dash: pull requests and issues in the terminal, as `gh dash`. Its

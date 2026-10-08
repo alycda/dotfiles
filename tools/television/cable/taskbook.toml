@@ -1,0 +1,27 @@
+# taskbook cable channel: tasks and notes.  Usage: `tv tb`
+#
+# Reads taskbook's storage (~/.taskbook/storage/storage.json, an object of
+# items keyed by id) rather than `tb --cli`, whose board view has no field
+# that is reliably the id. Each item shows as its id, state (☐ open, … in
+# progress, ✔ done, ● a note), boards and date, newest first; the preview is
+# its description. Fields are tab-separated: id, state, boards, date.
+[metadata]
+name = "tb"
+description = "Select a taskbook item; preview its description"
+requirements = ["jq"]
+
+[source]
+command = '''
+jq -r 'to_entries | map(.value) | sort_by(-._timestamp) | .[]
+  | [ (._id | tostring),
+      (if ._isTask | not then "●" elif .isComplete then "✔"
+       elif .inProgress then "…" else "☐" end),
+      (.boards | map("@" + .) | join(" ")),
+      ._date ]
+  | @tsv' ~/.taskbook/storage/storage.json
+'''
+display = "{split:\\t:0}  {split:\\t:1}  {split:\\t:2}  {split:\\t:3}"
+output = "{split:\\t:0}"
+
+[preview]
+command = "jq -r --arg id '{split:\\t:0}' '.[$id].description' ~/.taskbook/storage/storage.json"
