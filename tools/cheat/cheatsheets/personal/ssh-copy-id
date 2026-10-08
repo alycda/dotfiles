@@ -1,0 +1,43 @@
+# Put a public key in a host's ~/.ssh/authorized_keys, so ssh logs in with the key.
+# /usr/bin/ssh-copy-id ships with macOS's OpenSSH. It logs in once with a password.
+
+# --- on the target first ---
+# Remote Login must be on (System Preferences > Sharing > Remote Login), or:
+sudo systemsetup -setremotelogin on
+sudo systemsetup -getremotelogin
+
+# --- copy the key ---
+# dry run: which keys would be copied, and which the host already has
+ssh-copy-id -n -i ~/.ssh/id_ed25519.pub USER@HOST
+
+# copy one key (name the .pub; without -i it copies every key in ssh-add -L or ~/.ssh/id_*)
+ssh-copy-id -i ~/.ssh/id_ed25519.pub USER@HOST
+
+# through a Host block in ~/.ssh/config (picks up its HostName, User and Port)
+ssh-copy-id -i ~/.ssh/id_ed25519.pub felixia
+
+# non-default port
+ssh-copy-id -i ~/.ssh/id_ed25519.pub -p 2222 USER@HOST
+
+# --- the host key ---
+# ~/.ssh/config here ends with StrictHostKeyChecking yes, so a host missing from
+# known_hosts is refused before the password prompt. Add its key first, and check
+# the fingerprint against the one the target prints:
+ssh-keyscan -t ed25519 HOST >> ~/.ssh/known_hosts
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub     # on the target
+
+# or accept a new host key for this one run (still refuses a changed one)
+ssh-copy-id -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519.pub USER@HOST
+
+# --- check it ---
+# fails instead of asking for a password if the key is not accepted
+ssh -o BatchMode=yes -o PasswordAuthentication=no USER@HOST true && echo key-ok
+
+# --- without ssh-copy-id ---
+ssh USER@HOST 'umask 077; mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys' < ~/.ssh/id_ed25519.pub
+
+# --- gotchas ---
+# * sshd ignores authorized_keys if ~ or ~/.ssh is group/world-writable:
+#   chmod go-w ~; chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys
+# * -f skips the already-installed check and appends again: duplicates.
+# * The password prompt needs the account's password, not the key passphrase.
