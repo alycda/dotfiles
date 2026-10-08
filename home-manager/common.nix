@@ -42,7 +42,8 @@ in
     # abort with no terminal).
     completionInit = "autoload -U compinit && compinit -i";
     # Debian and Ubuntu's /etc/zsh/zshrc run their own compinit, without -i,
-    # unless this is set. Elsewhere nothing reads it.
+    # unless this is set. On a Mac, darwin/configuration.nix's /etc/zshrc
+    # reads it too, so compinit runs once.
     envExtra = "skip_global_compinit=1";
   };
 

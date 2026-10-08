@@ -78,7 +78,13 @@ On the VM (Nix from the README's installer, nothing else changed):
    for `/etc/zshrc`.
 2. Without a backup extension, home-manager then stops on `~/.zprofile`.
    With it, the file moves to `~/.zprofile.backup`.
-3. That `.zprofile` held `eval "$(/opt/homebrew/bin/brew shellenv)"` (and
+3. A symlink home-manager doesn't own is never backed up: the backup
+   extension applies to regular files only. Cirrus's image has
+   `~/.profile -> ~/.zprofile`, which stopped the switch once
+   `programs.bash` wanted `~/.profile`; moving it aside by hand fixed it.
+   Links into a home-manager generation (main's, on shesfast) count as its
+   own and are replaced.
+4. That `.zprofile` held `eval "$(/opt/homebrew/bin/brew shellenv)"` (and
    rbenv, node, pnpm). After the switch `brew` is no longer on PATH. A
    typical Mac's `~/.zprofile` holds the same line, from Homebrew's
    installer; this Mac's holds OrbStack's init.

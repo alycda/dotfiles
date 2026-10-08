@@ -1,0 +1,12 @@
+# This checkout's HUID tasks: pick one, preview it, edit it on Enter. Reads
+# tasks/*/TASK.md under the current directory, newest first, as HUID, STATUS,
+# title and [tags]. `tv tasks` is the same picker. Type OPEN to narrow.
+for f in $(ls -r tasks/*/TASK.md 2>/dev/null); do
+  awk -v f="$f" 'FNR == 1 { sub(/^# /, ""); t = $0 }
+    /^- STATUS:/ { s = $3 }
+    /^- TAGS:/ { sub(/^- TAGS: */, ""); g = $0 }
+    /^## / { exit }
+    END { split(f, p, "/"); printf "%s\t%s\t%s\t%s\t[%s]\n", f, p[2], s, t, g }' "$f"
+done | fzf --delimiter '\t' --with-nth 2.. \
+  --preview 'bat --color=always --style=plain --language=markdown {1}' \
+  --bind 'enter:become(${EDITOR:-hx} {1})'

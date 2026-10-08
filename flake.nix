@@ -43,11 +43,17 @@
         "aarch64-linux"
         "x86_64-linux"
       ];
-      # claude-code is the one unfree package, and the only one allowed.
+      # Unfree packages are allowed by name, one at a time: claude-code, and
+      # tart (the home profile).
       # taskbook's overlay replaces pkgs.taskbook with the Rust port. Shared
       # by pkgsFor and the darwin module's nixpkgs, so a Mac gets the same.
       nixpkgsSettings = {
-        config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "claude-code";
+        config.allowUnfreePredicate =
+          pkg:
+          builtins.elem (nixpkgs.lib.getName pkg) [
+            "claude-code"
+            "tart"
+          ];
         overlays = [ taskbook.overlays.default ];
       };
       pkgsFor = system: import nixpkgs ({ inherit system; } // nixpkgsSettings);
@@ -60,6 +66,9 @@
         ragenix.homeManagerModules.default
         ./home-manager/common.nix
         ./home-manager/agenix.nix
+        ./home-manager/shell.nix
+        ./home-manager/editor.nix
+        ./home-manager/tuis.nix
         ./home-manager/profiles/${profile}.nix
       ];
 
@@ -166,11 +175,22 @@
 
       darwinConfigurations = {
         # A Tart VM cloned from Cirrus Labs' macOS base image
-        # (ghcr.io/cirruslabs/macos-*-base), whose admin user is `admin`. For
-        # trying a switch on a throwaway Mac before a real one.
+        # (ghcr.io/cirruslabs/macos-*-base), whose admin user is `admin`.
+        # Its image has Homebrew, as a real Mac would.
         tart = mkDarwin {
           user = "admin";
           profile = "dev";
+          modules = [ ./darwin/homebrew.nix ];
+        };
+
+        # The personal Mac (tasks/20261003-082724).
+        shesfast = mkDarwin {
+          user = "alyssa";
+          profile = "home";
+          modules = [
+            ./darwin/homebrew.nix
+            ./darwin/shesfast.nix
+          ];
         };
       };
     };

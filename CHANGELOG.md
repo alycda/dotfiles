@@ -8,6 +8,25 @@ no effort. In `0.x` the format is `0.MACRO.MICRO`.
 Each heading is `## <version> (<effort>) - <date>`. `just bump <effort>`
 adds one, and `just check-effver` checks it against `VERSION`.
 
+## 0.1.8 (meso) - 2026-10-08
+
+- nix-darwin builds the first real Mac, with a primary user: the admin who runs
+  darwin-rebuild and the owner of its Homebrew.
+- `darwin/homebrew.nix`: Homebrew managed by nix-darwin for the hosts that
+  import it. Nothing is removed, updated or upgraded unless a host opts in,
+  and `brew shellenv` moves to `/etc/zshrc`, since home-manager owns
+  `~/.zprofile`. tart imports it; its empty Brewfile left every formula in
+  place and brew on `PATH` in an interactive zsh.
+- `/etc/zshrc` runs `compinit -i`, so an account without home-manager no longer
+  gets compaudit's prompt at every login about completion dirs owned by the admin's
+  Homebrew or the shared Nix profile.
+- `just brew-upgrade`: upgrade Homebrew's formulae and casks between switches,
+  since the module only does that on activation when a host opts in.
+- Still to define, in task 20261003-082724: shesfast's casks, defaults and
+  profile.
+
+To adopt: nothing changes until shesfast switches to its configuration.
+
 ## 0.1.7 (meso) - 2026-10-06
 
 - nix-darwin, for the Macs: `darwin/configuration.nix` for the system,

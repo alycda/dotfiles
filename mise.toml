@@ -36,6 +36,7 @@ weave-driver = "github:Ataraxy-Labs/weave"
 [tools]
 cheat = "5.1"
 helix = "25"
+fzf = "latest"
 jujutsu = "0.45.1"
 just = "1.58"
 "github:taskbook-sh/taskbook" = "latest"
@@ -46,6 +47,7 @@ weave-driver = { version = "latest", asset_pattern = 'weave-driver-{{ arch(x64="
 gh = "latest"
 claude = "latest"
 tmux = "latest"
+harper-ls = "latest" # helix language server
 
 [settings]
 minimum_release_age_excludes = ["claude"]
