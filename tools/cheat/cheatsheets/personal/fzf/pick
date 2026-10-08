@@ -1,0 +1,14 @@
+# Open files in helix (Tab marks several; {+} is every marked line)
+fzf --multi --bind 'enter:become(hx {+})'
+
+# Run a just recipe, previewing its body
+just --summary | tr ' ' '\n' | fzf \
+  --preview 'just --show {}' --bind 'enter:become(just {})'
+
+# Read a cheatsheet (`tv cheat` is the same picker)
+cheat -l | tail -n +2 | fzf --preview 'cheat {1}' --bind 'enter:become(cheat {1})'
+
+# Grep, then jump to the line in helix. {1}=file {2}=line from rg's file:line:
+rg --line-number --color=always PATTERN | fzf --ansi --delimiter : \
+  --preview 'bat --color=always --highlight-line {2} {1}' \
+  --preview-window '+{2}/2' --bind 'enter:become(hx {1}:{2})'
