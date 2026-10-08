@@ -1,0 +1,35 @@
+# television cable channel: this repo's HUID tasks.  Usage: `tv tasks`
+#
+# Reads tasks/*/TASK.md under the current directory, so run it from a
+# checkout's root; it doesn't search $HOME. One line per task, newest HUID
+# first: HUID, STATUS, title and tags (tasks/README.md has the format). Type
+# OPEN to narrow to open tasks. The preview is the file; Enter opens it in
+# $EDITOR. Fields are tab-separated: path, HUID, status, title, tags.
+[metadata]
+name = "tasks"
+description = "Select a HUID task in this checkout; preview it; edit it"
+requirements = ["bat"]
+
+[source]
+command = '''
+for f in $(ls -r tasks/*/TASK.md 2>/dev/null); do
+  awk -v f="$f" 'FNR == 1 { sub(/^# /, ""); t = $0 }
+    /^- STATUS:/ { s = $3 }
+    /^- TAGS:/ { sub(/^- TAGS: */, ""); g = $0 }
+    /^## / { exit }
+    END { split(f, p, "/"); printf "%s\t%s\t%s\t%s\t%s\n", f, p[2], s, t, g }' "$f"
+done
+'''
+display = "{split:\\t:1}  {split:\\t:2}  {split:\\t:3}  [{split:\\t:4}]"
+output = "{split:\\t:0}"
+
+[preview]
+command = "bat --color=always --style=plain --language=markdown '{split:\\t:0}'"
+
+[keybindings]
+enter = "actions:edit"
+
+[actions.edit]
+description = "Open the task in $EDITOR"
+command = "${EDITOR:-hx} '{split:\\t:0}'"
+mode = "execute"
