@@ -20,3 +20,27 @@ jj bookmark list -T 'if(!remote, name ++ "\n")' | fzf \
 cd "$(jj workspace list -T 'name ++ "\t" ++ root ++ "\n"' | fzf \
   --delimiter '\t' --with-nth 1 --accept-nth 2 \
   --preview 'jj log --color=always -R {2} -r @')"
+
+# History of one file, or one string, across every lane (not just @'s
+# ancestors). The pickers pass commit ids: main's old changes can be
+# divergent, and jj won't take a divergent change id. J is the line format.
+J='commit_id.short(12) ++ " " ++ change_id.short(8) ++ " " ++ committer.timestamp().format("%F") ++ " " ++ description.first_line() ++ "\n"'
+f=.vscode/extensions.json
+
+# Every change that touched $f; preview its diff of $f
+jj log --no-graph -r "files('$f')" -T "$J" \
+  | fzf --preview "jj diff --color=always --git -r {1} -- '$f'"
+
+# Every change whose diff adds or removes a line containing jjk. diff_lines
+# needs substring:, since its default pattern doesn't match part of a line.
+jj log --no-graph -r 'diff_lines(substring:"jjk")' -T "$J" \
+  | fzf --preview 'jj diff --color=always --git -r {1}'
+
+# Line blame (jj file annotate): pick a line, preview the change behind it
+jj file annotate -r @ "$f" -T 'commit.commit_id().short(12) ++ " " ++ commit.committer().timestamp().format("%F") ++ " " ++ line_number ++ ": " ++ content' \
+  | fzf --preview 'jj show --color=always -r {1}'
+
+# The same file history in tv, ad hoc (no channel file): {0} is the commit id
+tv --source-command "jj log --no-graph -r \"files('$f')\" -T '$J'" \
+  --preview-command "jj diff --color=always --git -r {0} -- '$f'" \
+  --source-output '{split: :0}'
