@@ -1,0 +1,25 @@
+# Global mise config for felixia, the 2012 x86_64 Mac on macOS 10.15.8. The
+# offload config: only what this machine still needs before it is emptied out.
+# Its full config (jj, helix, age, restic, the brew and launchd tasks) is on the
+# `felixia` branch, as tools/mise/felixia/config.toml.
+#
+# install-felixia.sh, at the top of the checkout, installs the pinned mise and
+# links this file as ~/.config/mise/config.toml. Nothing else loads globally,
+# so ./config.toml (the no-Nix account on a current Mac) and its `latest` pins
+# never reach this machine.
+#
+# EVERY VERSION IS PINNED. On 10.15 a binary's declared minimum macOS
+# (`otool -l <bin> | grep minos`) predicts nothing: age declares 13.0 and runs.
+# What predicts a dyld failure is importing a symbol 10.15 lacks:
+#   nm -u <bin> | grep -c SecTrustCopyCertificateChain   # must be 0
+# That predicts; only running it on the machine proves. Before a bump:
+#   mise install tool@x && mise exec tool@x -- tool --version
+#
+# Left out on purpose:
+#   fzf  not needed here.
+
+[tools]
+# The x86_64-apple-darwin release binary: minos 10.12, imports no
+# SecTrustCopyCertificateChain (read off the release, 2026-10-08). Not yet run
+# on felixia.
+television = "0.15.9" # aqua:alexpasmantier/television, the tv binary
