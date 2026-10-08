@@ -23,6 +23,8 @@
 	st = status
 	branches = branch -a
 	remotes = remote -v
+	# Pick a local branch with fzf, previewing its last commit, and switch to it
+	sw = "!git branch --format='%(refname:short)' | fzf --preview 'git show --color=always {}' --bind 'enter:become(git switch {})' --height 40% --layout reverse"
 	# Last 20 commits: short SHA, subject, author
 	l = log --color --graph --format='%C(magenta)%h%Creset %s %C(cyan)<%an>%Creset' -n 20 --abbrev-commit
 	# Short SHA, refs, subject, relative commit time, author
