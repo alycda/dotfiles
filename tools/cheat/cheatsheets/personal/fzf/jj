@@ -1,0 +1,22 @@
+# Pick a change, preview it with jj show, edit it on Enter. `tv jj-log` is
+# the same picker as a television channel. With --ansi, fzf strips the color
+# from {1}, so the first field is a clean change id.
+jj log --no-graph --color=always -T builtin_log_oneline | fzf --ansi \
+  --preview 'jj show --color=always {1}' \
+  --bind 'enter:become(jj edit {1})'
+
+# Any command, any revset: swap the revset and the become(...)
+jj log --no-graph --color=always -T builtin_log_oneline -r 'mutable()' | fzf --ansi \
+  --preview 'jj show --color=always {1}' --bind 'enter:become(jj new {1})'
+
+# Pick into a substitution, e.g. rebase @ onto a chosen change
+jj rebase -s @ -d "$(jj log --no-graph -T builtin_log_oneline | fzf | cut -d' ' -f1)"
+
+# Pick a bookmark (local only)
+jj bookmark list -T 'if(!remote, name ++ "\n")' | fzf \
+  --preview 'jj log --color=always -r {}' --bind 'enter:become(jj new {})'
+
+# cd to a workspace: show the name, return the path
+cd "$(jj workspace list -T 'name ++ "\t" ++ root ++ "\n"' | fzf \
+  --delimiter '\t' --with-nth 1 --accept-nth 2 \
+  --preview 'jj log --color=always -R {2} -r @')"
