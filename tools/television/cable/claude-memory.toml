@@ -1,0 +1,25 @@
+# television cable channel: Claude Code's auto-memory.  Usage: `tv claude-memory`
+#
+# The memory files Claude writes for itself, one folder per project
+# (~/.claude/projects/<project>/memory/*.md, MEMORY.md being each one's
+# index), newest first. Each shows as <project>/<file>, the project being
+# its directory with $HOME's path dropped. Fields are tab-separated: path,
+# label. The instructions people write (CLAUDE.md, rules, skills) are the
+# claude channel's.
+[metadata]
+name = "claude-memory"
+description = "Select a Claude Code memory file; preview it"
+requirements = ["bat"]
+
+[source]
+command = '''
+for f in $(ls -t ~/.claude/projects/*/memory/*.md 2>/dev/null); do
+  project=$(basename "$(dirname "$(dirname "$f")")" | sed "s|^$(echo "$HOME" | tr / -)-||")
+  printf '%s\t%s/%s\n' "$f" "$project" "$(basename "$f")"
+done
+'''
+display = "{split:\\t:1}"
+output = "{split:\\t:0}"
+
+[preview]
+command = "bat --color=always --style=plain --language=markdown '{split:\\t:0}'"
