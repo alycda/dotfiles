@@ -1,25 +1,49 @@
-# television cable channel: browse Claude Code memory files.  Usage: `tv claude`
+# television cable channel: Claude Code sessions.  Usage: `tv claude`
 #
-# One rg sweep over $HOME with restrictive include globs:
-#   CLAUDE*.md                        - project memory (CLAUDE.md, CLAUDE.local.md)
-#                                       and user memory (~/.claude/CLAUDE.md)
-#   **/.claude/rules/**, skills/**    - rules and skills content, user-level
-#                                       (~/.claude/) or per-project (.claude/)
-#   **/.claude/{memory,memories}/**   - Claude's auto-memory folders, both the
-#                                       user-level ~/.claude/memory and any
-#                                       per-project .claude/memory directory
-# --hidden is required (everything under a .claude dir is inside a dotdir);
-# --no-ignore-vcs keeps gitignored files visible (CLAUDE.local.md is usually
-# gitignored). The exclusions prune the traversal-heavy noise directories so
-# results start streaming quickly. rg is used rather than fd because ripgrep
-# is already in core-packages (fzf.nix leans on it the same way).
+# One line per session file (~/.claude/projects/<project>/<id>.jsonl), newest
+# first: when it was last written, the directory it ran in, and its title,
+# which is the /rename title, else the AI title, else the last prompt.
+# ~/.claude/history.jsonl would be cheaper, but it only has terminal sessions,
+# not the IDE's. Fields are tab-separated: id, date, short cwd, title, cwd.
+#
+# The preview is the conversation's text, prompts marked with ❯; tool calls
+# and results, and the context blocks the IDE and harness add (text starting
+# with "<"), are left out. Enter resumes the session, from the directory it
+# ran in, since `claude --resume` only finds a session from its own project.
 [metadata]
 name = "claude"
-description = "Browse Claude Code memory files (CLAUDE.md, rules, skills, memory folders)"
-requirements = ["rg", "bat"]
+description = "Select a Claude Code session; preview its conversation; resume it"
+requirements = ["claude", "jq"]
 
 [source]
-command = "rg --files --hidden --no-ignore-vcs -g 'CLAUDE*.md' -g '**/.claude/rules/**' -g '**/.claude/skills/**' -g '**/.claude/{memory,memories}/**' -g '!**/.git/**' -g '!**/node_modules/**' -g '!**/.cache/**' ~ 2>/dev/null"
+command = '''
+for f in $(ls -t ~/.claude/projects/*/*.jsonl); do
+  cwd=$(grep -m1 -o '"cwd":"[^"]*"' "$f" | cut -d'"' -f4)
+  title=$(grep -h -E '"type":"(custom-title|ai-title|last-prompt)"' "$f" | jq -js '
+    (map(.customTitle // empty) | last) // (map(.aiTitle // empty) | last)
+    // (map(.lastPrompt // empty) | last) // ""' | tr '\n\t' '  ' | cut -c1-100)
+  printf '%s\t%s\t%s\t%s\t%s\n' "$(basename "$f" .jsonl)" \
+    "$(date -r "$f" '+%F %R')" "$(echo "$cwd" | sed "s|^$HOME|~|")" "$title" "$cwd"
+done
+'''
+display = "{split:\\t:1}  {split:\\t:2}  {split:\\t:3}"
+output = "{split:\\t:0}"
 
 [preview]
-command = "bat --color=always {}"
+command = '''
+jq -r 'select((.type == "user" or .type == "assistant") and (.isMeta | not))
+  | (.message.content | if type == "string" then [.]
+      else map(select(.type == "text") | .text) end
+      | map(select(startswith("<") | not)) | join("\n")) as $t
+  | select($t != "")
+  | (if .type == "user" then "\n❯ " else "" end) + $t' \
+  ~/.claude/projects/*/'{split:\t:0}'.jsonl
+'''
+
+[keybindings]
+enter = "actions:resume"
+
+[actions.resume]
+description = "Resume the session, from the directory it ran in"
+command = "cd '{split:\\t:4}' && claude --resume '{split:\\t:0}'"
+mode = "execute"
