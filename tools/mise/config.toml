@@ -26,6 +26,7 @@ claude = "latest" # aqua:anthropics/claude-code
 helix = "latest"  # aqua:helix-editor/helix
 jj = "latest"     # aqua:jj-vcs/jj (prebuilt; the cargo:jj-cli fallback compiles)
 gh = "latest"     # log in once: mise run gh-login
+taplo = "latest"  # aqua:tamasfe/taplo, helix's TOML language server
 
 # Proton Pass CLI. Proton publishes bare binaries on proton.me, not GitHub, so
 # no registry backend covers it and `latest` is not available: bump version and

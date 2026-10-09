@@ -38,6 +38,9 @@ in
     # Just
     just-lsp
 
+    # TOML (helix already lists taplo for .toml; it only lacked the binary)
+    taplo
+
     # Prose / grammar (Markdown, commit messages, comments)
     # Provides the `harper-ls` binary - a fast, offline, Rust grammar checker.
     # https://writewithharper.com/ - no desktop app, just the LSP for helix.

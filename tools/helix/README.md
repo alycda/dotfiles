@@ -23,9 +23,9 @@ them as they are:
   ```sh
   ln -s ~/dotfiles/tools/helix ~/.config/helix
   ```
-  That account has helix from mise but none of the language servers.
-  `hx --health` lists them as `not found in $PATH`, and helix just doesn't
-  start them.
+  That account has helix from mise and only one language server, taplo for
+  TOML. `hx --health` lists the rest as `not found in $PATH`, and helix
+  just doesn't start them.
 
 ## Why not the devShell?
 
@@ -38,7 +38,7 @@ ships helix (for cheat's `$EDITOR`) and language servers but no config.
 | `nix develop .#tools` | basic | none | none |
 | `nix develop` | basic | none | ✓ available |
 | home-manager | full | ✓ | ✓ |
-| mise account (linked dir) | full | ✓ | none |
+| mise account (linked dir) | full | ✓ | taplo only |
 
 ## Files
 
