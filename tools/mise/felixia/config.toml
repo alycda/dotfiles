@@ -121,6 +121,8 @@ node = "22.17.1"
 # asdf as fallback) and there are two. The link also puts the rest of
 # /opt/bin on PATH, which is only libevent's event_rpcgen.py.
 tmux = "3.3a"
+television = "latest"
+fzf = "0.65.2"
 
 # gh is UNSUPPORTED on this machine through mise — left here, commented out, so
 # nobody re-adds it thinking it was forgotten. Upstream's macOS builds target

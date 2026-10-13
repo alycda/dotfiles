@@ -11,12 +11,12 @@ brew "htop"
 # PDF rendering library (based on the xpdf-3.0 code base)
 brew "poppler"
 # Password manager that keeps all passwords secure behind one password
-cask "1password"
+# cask "1password"
 # Client for the Dropbox cloud storage service
-cask "dropbox"
+# cask "dropbox"
 # Get up and running with large language models locally
-cask "ollama-app"
+# cask "ollama-app"
 # Multimedia player
 cask "vlc"
 # Rust-based terminal
-cask "warp"
+# cask "warp"
