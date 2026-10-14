@@ -41,12 +41,12 @@ entity-level tools (tree-sitter entities instead of lines) over raw git:
 | Question | Prefer | Fall back to |
 |---|---|---|
 | What changed, structurally? | `sem diff` | `git diff` |
-| What breaks if I change X? | `sem impact X` / `sem callers X` | `rg` callers + reading |
-| Who last touched this function? | `sem blame <file>` | `git blame` |
+| What breaks if I change X? | `sem impact X` / `sem find X --callers` | `rg` callers + reading |
+| Who last touched this function? | `sem history --blame <file>` | `git blame` |
 | Merge conflict (esp. parallel agents) | `weave` / `jj resolve --tool weave` | manual resolution |
-| Where's the risk in this big diff/PR? | `inspect diff` / `inspect pr` | reading the full diff |
+| Where's the risk in this big diff/PR? | `sem certify <range>` / `inspect diff` | reading the full diff |
 
-Full usage, guardrails (`sem setup`/`weave setup` mutate config — propose,
+Full usage, guardrails (`sem config setup`/`weave setup` mutate config — propose,
 don't run), and jj integration live in the **entity-level-git** skill. The
 nix-summon trick below works for weave only (`nix run nixpkgs#weave`).
 **`nixpkgs#sem` is an unrelated program** (the Semaphore CI CLI) — never

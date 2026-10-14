@@ -14,15 +14,21 @@ description: >
   named, and to interpret the sem entity-diff comment CI posts on PRs. The
   entity-level answer is cheaper and more precise than reading whole files.
 # Read-only subcommands only. Deliberately NOT `Bash(sem *)` / `Bash(weave *)`:
-# a wildcard would pre-approve sem setup/login/cloud/update and weave setup,
-# which the body says never to run unprompted - the permission prompt is the
-# backstop for those rules, so the allowlist must not remove it. Also excluded:
+# a wildcard would pre-approve `sem config setup|update`, `sem cloud *` and
+# weave setup, which the body says never to run unprompted - the permission
+# prompt is the backstop for those rules, so the allowlist must not remove it.
+# `sem check` is left out too: it runs the project's test suite and checkers,
+# which is executing the repo's code, not reading it. Also excluded:
 # `inspect review` (sends code to an LLM API) and `inspect comment` (posts to
 # GitHub). `weave apply` and `weave patch apply` write working files, so they
 # are excluded too; `weave explain`/`check` and `sem graph` are read-only and
 # are listed because the body tells the reader to run them - explain and check
 # exist only from 0.5.x, so on an older weave they simply do not resolve.
-allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem entities *), Bash(sem graph *), Bash(sem context *), Bash(weave preview *), Bash(weave summary *), Bash(weave explain *), Bash(weave check *), Bash(inspect diff *), Bash(inspect predict *), Bash(inspect pr *), Bash(inspect file *), Bash(git status), Bash(git log *), Bash(git diff *)
+# sem 0.27 renamed callers/refs/context/entities to `find` flags and log/blame
+# to `history`; both spellings are listed because the old ones still work.
+# `sem certify` only reads the repo and writes to stdout (its temp trees are
+# its own), checked in the v0.27.0 source.
+allowed-tools: Bash(sem diff *), Bash(sem impact *), Bash(sem callers *), Bash(sem refs *), Bash(sem find *), Bash(sem blame *), Bash(sem log *), Bash(sem history *), Bash(sem entities *), Bash(sem graph *), Bash(sem context *), Bash(sem certify *), Bash(weave preview *), Bash(weave summary *), Bash(weave explain *), Bash(weave check *), Bash(inspect diff *), Bash(inspect predict *), Bash(inspect pr *), Bash(inspect file *), Bash(git status), Bash(git log *), Bash(git diff *)
 ---
 
 # Entity-Level Git (sem, weave, inspect)
@@ -69,37 +75,41 @@ yourself.
   rule: `nix run` weave if nix is present; for sem and inspect don't
   hand-install in a throwaway environment — fall back to `git diff` / reading
   the diff, and say which path you took.
-- sem has a `sem update` self-updater. Don't run it: the binary is
-  brew-managed, and a self-update fights the package manager.
+- sem has a self-updater (`sem config update`; `sem update` before 0.27).
+  Don't run it: the binary is brew-managed, and a self-update fights the
+  package manager.
 - Check with `command -v sem weave inspect` before building a plan around them.
 - **Check versions against upstream before trusting a capability verdict**
-  (`gh release list -R Ataraxy-Labs/<tool>`). As of 2026-09-22 sem 0.25.0 is
-  current and inspect 0.1.1 is the latest upstream has. weave is the awkward
+  (`gh release list -R Ataraxy-Labs/<tool>`). As of 2026-10-14 sem 0.27.0 is
+  both upstream's latest and what Homebrew core's `sem-cli` ships, and
+  inspect 0.1.1 is the latest upstream has. weave is the awkward
   one: nixpkgs tracks 0.3.6 (2026-06-05) against upstream's 0.5.4, so
   `lib/weave.nix` pins past it — onto `alycda/weave`'s ARB branch rather than
   the upstream tag. A missing weave feature is therefore about *which build
   you have*, not about weave. Run `weave --version` first.
 
-## Language coverage: Dart/Flutter (verified 2026-09-21)
+## Language coverage: Dart/Flutter (verified 2026-09-21; sem re-verified 2026-10-14)
 
 Measured on `alycda/DittoXCactus`, a Flutter app (~80 Dart entities). Dart is
 the worked example of the uneven-coverage caveat above, and it fails quietly
 in all three tools — one of them dangerously:
 
-- **sem extracts Dart entities but builds no edges between them.** `diff`,
-  `blame`, `log`, `entities` and `context` are all correct and worth using.
-  The dependency graph is empty: in a two-file Dart repo where `app.dart`
-  constructs a class from `greeter.dart`, `sem graph` reports
-  `3 entities, 0 edges`, `sem impact` on the class answers
-  `✓ No other entities are affected`, and `callers`/`refs` both say "none".
-  The identical shapes in TypeScript produce the edge and the correct
-  `← depended on by: function run (ts/app.ts)`. So this is Dart reference
-  extraction, not a sem-wide limit. **In a Dart repo that checkmark is a
-  false negative, not permission to refactor — `rg` for the callers.**
-  Worse, in a mixed-language repo the name matching leaks: `sem callers
-  hello --file dart/greeter.dart` returned `function run ts/app.ts:3`, a
-  caller in a different file *and a different language*. Treat any
-  graph-derived Dart answer as unusable in both directions.
+- **sem: fixed in 0.26.0, now at parity with TypeScript.** On 0.25.0 sem
+  extracted Dart entities but built no edges: a two-file repo where
+  `app.dart` constructs a class from `greeter.dart` gave `0 edges` and a
+  green `✓ No other entities are affected`, and `callers` leaked a TS caller
+  into a Dart answer. 0.26.0 fixed Dart call resolution (upstream #491).
+  Re-run on 0.27.0 against the same shape plus a typed parameter, in a repo
+  holding identical TS twins: `impact` on the Dart class returns
+  `← depended on by: function run (dart/app.dart)`, and
+  `String typed(Greeter g) => g.hello()` resolves as a caller of `hello`
+  exactly as the TS twin does. What is still unresolved —
+  `Greeter('x').hello()`, an untyped receiver — is unresolved in TS too.
+  sem now says so: an incomplete answer prints `INCOMPLETE` with the reason
+  and a "possible callers" list instead of a green check, and that list is
+  where a cross-language name match still shows up, labelled as unresolved.
+  Re-verified synthetically, not yet on DittoXCactus itself — run `sem
+  graph` there and confirm a non-zero edge count before relying on it.
 - **inspect does not parse Dart at all.** `inspect diff` on a 7-file branch
   returned 61 `chunk` entities (`lines 161-180`) plus 1 `section` — zero
   functions, zero classes — under a headline of "0 critical, 0 high, 48
@@ -125,12 +135,14 @@ in all three tools — one of them dangerously:
   0.5.4 both report `weave 0.5.4`. Use the store-path or behaviour probe
   above, and assume stock unless one of them says otherwise.
 
-Net: in a Dart repo, use `sem diff` / `blame` / `log` / `entities` /
-`context` and `weave` freely, never trust `sem impact` / `callers` / `refs`,
-and skip inspect. Dart may not be the only language in this state — before
-trusting a graph-dependent answer in an untested language, check that the
-tool returned real entity kinds (`method`, `class`) rather than `chunk`s,
-and that `sem graph` reports a non-zero edge count.
+Net: in a Dart repo on sem ≥ 0.26, use sem and weave as in any other
+language. Read `INCOMPLETE` and the possible-caller list before acting on
+an `impact` answer, as you would in TS, and skip inspect. On an older sem the
+0.25.0 behaviour above applies: never trust `impact` / `callers` / `refs`.
+Another language may be in the state Dart was — before trusting a
+graph-dependent answer in an untested language, check that the tool
+returned real entity kinds (`method`, `class`) rather than `chunk`s, and
+that `sem graph` reports a non-zero edge count.
 
 **Don't repeat my measurement mistake.** The first version of this section
 claimed weave couldn't parse Dart, on the evidence of a `weave preview`
@@ -141,10 +153,11 @@ nothing to three-way merge. **`git merge-base A B` and check the file
 exists there before concluding anything from a `weave preview`** — and
 prefer a synthetic two-branch repo for a real language-support verdict.
 
-**Naming wart** (`sem 0.25.0`, not Dart-specific): the `Class::method` form
-resolves for `impact` but is rejected by `callers`
-(`error: no entity named 'DittoService::initialize'`). A bare name prints a
-disambiguation list; `--entity-id '<path>::class::<Name>'` works everywhere.
+**Naming** (`sem 0.27.0`): the qualified form is `Class.method` (also
+`module.func`, `name@line`), accepted by `find` and `impact`. `Class::method`
+is not, but the error now names the `Owner.method` spelling to retry with. When
+the name exists in several files, pass `--file` (a directory works too) or
+`--entity-id '<path>::class::<Name>'`, which works everywhere.
 
 ## sem — entity diffs, blame, impact
 
@@ -158,38 +171,57 @@ sem diff --json                # machine-readable; carries entity IDs for `impac
 sem impact <entity>            # deps, dependents, transitive impact, tests
 sem impact <entity> --tests    # only the affected test entities
 sem impact <entity> --depth 0  # unlimited transitive depth (default is 2)
-sem callers <entity>           # direct callers only — cheaper than full impact
-sem refs <entity>              # what the entity itself calls
+sem impact --diff <range>      # the same for a whole change (e.g. --diff HEAD~1)
 sem find <name>                # locate an entity's definition
-sem blame <file>               # who last modified each entity in the file
-sem log <entity>               # history of one function/class (-v shows content diffs)
-sem log --limit 200            # no entity: repo hotspots + co-change pairs (default scans 50)
-sem entities <path> --json     # list parsed entities
-sem context <entity>           # token-budgeted LLM context for an entity
+sem find <entity> --callers    # direct callers only — cheaper than full impact
+sem find <entity> --refs       # what the entity itself calls
+sem find <entity> --context    # token-budgeted LLM context for an entity
+sem find --in <path> --json    # list parsed entities
+sem history <entity>           # history of one function/class (-v shows content diffs)
+sem history --limit 200        # no entity: repo hotspots + co-change pairs (default scans 50)
+sem history --blame <file>     # who last modified each entity in the file
+sem graph --json               # every entity and edge (fromEntity/toEntity/refType)
+sem certify <range>            # review certificate: signature changes, callers left behind
+sem certify <range> --arch --view  # at most 10 ranked architecture items
+sem certify <range> --html > f.html  # module-level architecture view, one page
 ```
 
-Commands checked against `sem 0.25.0`. When an entity name is ambiguous, pass
-`--file <path>` to disambiguate.
+Commands checked against `sem 0.27.0`, which folded the old verbs into
+these. `callers`, `refs`, `context`, `entities`, `log` and `blame` still
+work with identical output (at a terminal they print a one-line note naming
+the new spelling), so either form in older notes is fine. When an entity
+name is ambiguous, pass `--file <path>` to disambiguate.
 
 Notes:
 
 - **Before large refactors**, run `sem impact` on the entities you're about to
   change — it's the cheap version of "read every caller". For a rename,
-  `sem callers` is usually the whole answer. **Caveat: the call graph is
-  only as good as the language support** — in Dart it is file-local and
-  "no other entities are affected" is routinely wrong. See
-  **Language coverage: Dart/Flutter** above.
-- `sem setup` rewires `git diff` output globally and `sem unsetup` reverts it.
-  That mutates the user's git config: **propose it, never run it unprompted.**
+  `sem find --callers` is usually the whole answer. **Caveat: the call graph
+  is only as good as the language support.** Since 0.26 sem says when its
+  answer is partial: `INCOMPLETE` plus a "possible callers" list means
+  "none resolved" is *not* "none". Check that list before you refactor.
+- **`sem certify` is the "what should a human review" verb** and is local and
+  read-only. Use the plain certificate to list signature changes with the
+  callers a change left unmodified. Use `--arch --view` for architecture
+  deltas (new data paths, side effects, dependencies, cycles). Its `--html`
+  page is a *module*-level graph — boxes per directory, not per function.
+- `sem check` runs the project's own checkers and tests (exit 0 pass, 1 fail,
+  2 undecided). It executes repo code, so treat it like running the test
+  suite, not like a read.
+- `sem config setup` (`sem setup` before 0.27) rewires `git diff` output
+  globally and `sem config unsetup` reverts it. That mutates the user's git
+  config: **propose it, never run it unprompted.**
 - **Everything above runs locally, and that is the default** — cloud is "off
   until you enable it" and telemetry is "local by default — nothing uploaded"
-  (sem's own help text). `sem login`, `sem cloud`, `sem review`, `sem xref`
-  and `sem telemetry on` change that by sending repo-derived data to Ataraxy's
-  servers. On a machine holding work code that is the user's call alone:
-  never run them, and don't suggest them as a performance fix.
-- `sem mcp` serves these as MCP tools (`sem_impact`, `sem_context`, `sem_diff`,
-  `sem_entities`, `sem_blame`, `sem_log`). If a `sem` MCP server is already
-  registered in the session, prefer its tools over shelling out.
+  (sem's own help text). `sem cloud login|review|xref|enable` and
+  `sem config telemetry on` change that by sending repo-derived data to
+  Ataraxy's servers. On a machine holding work code that is the user's call
+  alone: never run them, and don't suggest them as a performance fix.
+- `sem mcp` serves the verbs as MCP tools (`sem_find`, `sem_grep`,
+  `sem_impact`, `sem_check`, `sem_certify`, `sem_diff`, `sem_graph`,
+  `sem_history`; the pre-0.27 names still answer when called by name). If a
+  `sem` MCP server is already registered in the session, prefer its tools
+  over shelling out — but not `sem_check` unprompted, for the reason above.
 - **In the dotfiles repo, CI already posts a sticky sem entity-diff comment on
   every PR** (`.github/workflows/entity-diff.yml`, `Ataraxy-Labs/sem/action`).
   Don't post duplicate entity-diff comments there — read the existing one.
@@ -355,6 +387,6 @@ with `GITHUB_TOKEN`, falling back to `gh`'s login.
 - "What did this change put at risk that it didn't touch?" → `inspect predict`
 - History questions ("when did this function change / who owns it") →
   `sem log` / `sem blame`
-- **Dart/Flutter repo** → `sem diff` / `blame` / `log` / `context` and
-  `weave` are fine; `sem impact` / `callers` / `refs` return empty graphs,
-  and inspect doesn't parse Dart. See **Language coverage: Dart/Flutter**.
+- "What should a human look at in this range?" → `sem certify <range>`
+- **Dart/Flutter repo** → sem (≥ 0.26) and `weave` as usual; inspect
+  doesn't parse Dart. See **Language coverage: Dart/Flutter**.
