@@ -45,6 +45,7 @@ entity-level tools (tree-sitter entities instead of lines) over raw git:
 | Who last touched this function? | `sem history --blame <file>` | `git blame` |
 | Merge conflict (esp. parallel agents) | `weave` / `jj resolve --tool weave` | manual resolution |
 | Where's the risk in this big diff/PR? | `sem certify <range>` / `inspect diff` | reading the full diff |
+| Show me what X reaches (diagram) | skill's `scripts/sem-mermaid.py` | don't draw edges by hand |
 
 Full usage, guardrails (`sem config setup`/`weave setup` mutate config — propose,
 don't run), and jj integration live in the **entity-level-git** skill. The

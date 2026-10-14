@@ -11,8 +11,9 @@ description: >
   formatting commit wrecked line-based blame); merge conflicts in code files,
   above all false conflicts where branches or parallel agents edited different
   functions in the same file. Also use whenever sem, weave, or inspect is
-  named, and to interpret the sem entity-diff comment CI posts on PRs. The
-  entity-level answer is cheaper and more precise than reading whole files.
+  named, to interpret the sem entity-diff comment CI posts on PRs, and to
+  draw a change's dependents as a Mermaid diagram. The entity-level answer is
+  cheaper and more precise than reading whole files.
 # Read-only subcommands only. Deliberately NOT `Bash(sem *)` / `Bash(weave *)`:
 # a wildcard would pre-approve `sem config setup|update`, `sem cloud *` and
 # weave setup, which the body says never to run unprompted - the permission
@@ -204,7 +205,8 @@ Notes:
   read-only. Use the plain certificate to list signature changes with the
   callers a change left unmodified. Use `--arch --view` for architecture
   deltas (new data paths, side effects, dependencies, cycles). Its `--html`
-  page is a *module*-level graph — boxes per directory, not per function.
+  page is a *module*-level graph — boxes per directory, not per function — so
+  it complements the entity diagram below and does not replace it.
 - `sem check` runs the project's own checkers and tests (exit 0 pass, 1 fail,
   2 undecided). It executes repo code, so treat it like running the test
   suite, not like a read.
@@ -225,6 +227,67 @@ Notes:
 - **In the dotfiles repo, CI already posts a sticky sem entity-diff comment on
   every PR** (`.github/workflows/entity-diff.yml`, `Ataraxy-Labs/sem/action`).
   Don't post duplicate entity-diff comments there — read the existing one.
+
+## Drawing it — Mermaid from sem's graph, never from reading code
+
+When a picture explains a change better than a list ("what does touching
+`Greeter` reach?", "show me the blast radius"), draw it from sem's data.
+humanlayer's `show-me` skill draws call trees from the model's reading of
+the code; that is the failure to avoid here, because an invented edge looks
+exactly as authoritative as a real one. **Every node and edge in the diagram
+comes from sem output.**
+
+**Impact → flowchart:** run the bundled renderer (in this skill's
+directory):
+
+```bash
+scripts/sem-mermaid.py -- <entity> --file <path>          # args after -- go to sem impact
+scripts/sem-mermaid.py --max-nodes 30 -C ../repo -- --entity-id '<id>' --depth 1
+```
+
+It takes nodes from `sem impact --json` and edges from `sem graph --json`,
+filtered to those nodes. Impact's JSON gives each entity's depth but not
+which entity it was reached *through*, so depth-2 arrows drawn from impact
+alone would be guesses. Output: target bold, resolved edges solid (non-call
+edges labelled, e.g. `typeref`), sem's possible callers dotted and labelled
+`unresolved`, and `%%` comments for `INCOMPLETE` reasons and "no test
+reaches the target". Paste it in a ```` ```mermaid ```` block. It refuses
+rather than drawing something misleading:
+
+- **exit 2** when `sem graph` has no edges in the target's language. An
+  empty graph drawn as a diagram reads as "nothing depends on this", which
+  is exactly the false negative the Dart section warns about. Fall back to
+  `rg`.
+- **exit 3** above `--max-nodes` (default 20). Past about 20 nodes a Mermaid
+  flowchart stops being readable. Lower `--depth` instead of raising the cap
+  where you can.
+- Possible callers from another language family are dropped, and a `%%`
+  line counts them. sem 0.27 matches unresolved names across languages, and
+  a TS function cannot be called from Dart.
+
+Verified against sem 0.27.0 on a synthetic TS + Dart repo, with both
+diagrams rendered by Mermaid 11.4.1. The script calls only `sem impact
+--json` and `sem graph --json`.
+
+**Diff → text tree, not Mermaid.** For "what changed", a diff-shaped entity
+tree read off `sem diff --json` (`changeType`, `entityType`, `entityName`,
+`filePath`) beats a graph. It has no edges, so nothing in it can be
+invented:
+
+```diff
+ ts/greeter.ts
+   class Greeter
+~    method hello        # signature: hello() → hello(greeting = "hi")
+ ts/app.ts
++  function typed
+```
+
+**Architecture → `sem certify <range> --html`.** That is sem's own
+self-contained page: no external resources, so it is safe to open locally.
+Use it for module-level questions, and the flowchart for entity-level ones.
+
+Keep one diagram per question, placed next to the sentence it supports.
+If the answer fits in two sentences, don't draw.
 
 ## weave — semantic merge driver
 
@@ -388,5 +451,7 @@ with `GITHUB_TOKEN`, falling back to `gh`'s login.
 - History questions ("when did this function change / who owns it") →
   `sem log` / `sem blame`
 - "What should a human look at in this range?" → `sem certify <range>`
+- "Show me" what a change reaches → `scripts/sem-mermaid.py` (see
+  **Drawing it**)
 - **Dart/Flutter repo** → sem (≥ 0.26) and `weave` as usual; inspect
   doesn't parse Dart. See **Language coverage: Dart/Flutter**.
