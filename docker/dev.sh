@@ -22,7 +22,7 @@ usage: dev.sh <command>
                  needed). ref pins a branch/tag, default: default branch
   build-local    build from the checkout containing this script
   run [dir]      start the container, mounting dir (default: current
-                 directory) at /work. devhome + claude-home volumes persist
+                 directory) at /work. The devhome volume persists
                  nix/jj/ssh state and Claude auth across --rm
   up [ref]       build then run the current directory
 
@@ -60,7 +60,6 @@ run_container() {
   dir="${1:-$PWD}"
   set -- --rm \
     -v devhome:/root \
-    -v claude-home:/root/.claude \
     -v "$dir":/work -w /work \
     --network host \
     "$IMAGE"

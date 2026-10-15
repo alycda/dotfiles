@@ -19,8 +19,7 @@
     // container and a terminal one are interchangeable. Do NOT add a volume
     // over /nix - the store is baked into the image (Dockerfile header).
     "mounts": [
-        "source=devhome,target=/root,type=volume",
-        "source=claude-home,target=/root/.claude,type=volume"
+        "source=devhome,target=/root,type=volume"
     ],
 
     // Mount the project at /work, where dev.sh puts it and where the container

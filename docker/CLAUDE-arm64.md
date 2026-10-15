@@ -21,10 +21,11 @@ its constraints apply to this container.
   fast, inotify works). The repo/project you're editing lives here.
 - `/root` is the `devhome` named volume: nix profile state, ssh, jj state
   survive `--rm`.
-- `/root/.claude` is the `claude-home` named volume, nested inside devhome so
-  Claude auth (`.credentials.json`) survives a devhome reset. Authenticate
-  once inside the container (`claude` → login, `gh auth login`) and it
-  persists.
+- `/root/.claude` is part of devhome, so Claude auth (`.credentials.json`),
+  settings and session transcripts persist with the rest of the home.
+  Authenticate once inside the container (`claude` → login, `gh auth login`)
+  and it persists. It used to be a separate `claude-home` volume nested here;
+  that volume is gone - one home, one `.claude`.
 - The Nix store is baked into the image; never mount a volume over `/nix`.
 - This file ships inside the home-manager generation as
   `~/.claude/rules/container-env.md`, so Claude Code loads it in every session
