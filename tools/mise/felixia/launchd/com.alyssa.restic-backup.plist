@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.alyssa.restic-backup</string>
+
+    <!-- The same run as `mise run backup`: tools/restic/backup.sh, which backs
+         up $HOME under tools/restic/excludes.txt and then applies the
+         retention policy. `mise exec` is what puts the pinned restic on PATH
+         under launchd (there is no shell profile here); backup.sh finds
+         Apple's /usr/bin/ssh on launchd's default PATH, which is the ssh that
+         reads ~/.ssh/config for the storagebox alias. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>@HOME@/.local/bin/mise</string>
+        <string>exec</string>
+        <string>--</string>
+        <string>@HOME@/dotfiles/tools/restic/backup.sh</string>
+    </array>
+
+    <!-- Daily 04:00. This machine is a server, always awake, so the laptop
+         module's midday default does not apply; 04:00 is after Immich's
+         02:00 database dump, so each snapshot carries a fresh dump. A slot
+         missed while down runs once on the next boot. RunAtLoad stays off:
+         loading the job must not start a multi-hour upload by itself. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>@HOME@/Library/Logs/restic-backup.log</string>
+    <key>StandardErrorPath</key>
+    <string>@HOME@/Library/Logs/restic-backup.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

@@ -365,8 +365,9 @@ echo "brew-pin: $("$brew" --version | head -n 1); ~/.homebrew/brew.env -> $(read
 # (tools/restic/backup.sh). Extra args go to restic: `mise run backup snapshots`.
 # Needs ~/.config/restic/env with RESTIC_REPOSITORY and RESTIC_PASSWORD:
 #   mise run decrypt personal/restic-env.age ~/.config/restic/env
-# Run by hand, like every task here; this is the machine being emptied out,
-# so a snapshot before each round of deleting is the whole point.
+# Scheduled: launchd/com.alyssa.restic-backup.plist runs the same script daily
+# at 04:00 (install it with `mise run launchd`). Run it by hand too, before a
+# round of deleting: a snapshot first is the whole point.
 [tasks.backup]
 description = "Back up $HOME with restic, or run a restic command against the repo"
 run = "~/dotfiles/tools/restic/backup.sh"

@@ -68,7 +68,8 @@ in
   # restic repository for the offsite backup (home-manager/modules/tools/
   # restic.nix; the mise accounts decrypt the same file by hand). An env file,
   # sourced by tools/restic/backup.sh:
-  #   RESTIC_REPOSITORY=sftp:USER@USER.rsync.net:restic   (or s3:... for R2)
+  #   RESTIC_REPOSITORY=sftp:storagebox:restic   (an ssh config alias; the
+  #     Hetzner Storage Box on port 23 with its own key. Or s3:... for R2.)
   #   RESTIC_PASSWORD=...
   # One secret rather than two because they are only ever used together, and
   # the URL embeds the rsync.net login / R2 account ID, which is not a
