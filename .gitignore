@@ -49,3 +49,5 @@ Temporary Items
 # untracked directory in it. No secret - it deliberately never persists a
 # pre-signed URL - but it is machine state, not repo content.
 .cfnow/
+
+.context/compound-engineering/
