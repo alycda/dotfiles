@@ -182,7 +182,6 @@ cd /srv/ghost && umask 077
 printf 'POSTGRES_PASSWORD=%s\nGHOST_API_KEY=gt_%s\n' "$(openssl rand -hex 24)" "$(openssl rand -hex 20)" > .env
 openssl req -new -x509 -days 3650 -nodes -subj /CN=venari-ghost -keyout certs/server.key -out certs/server.crt
 chown 70:70 certs/server.*; chmod 600 certs/server.key; chmod 644 certs/server.crt   # uid 70 = the image's postgres
-docker network inspect venari-postgres >/dev/null 2>&1 || docker network create venari-postgres   # shared with Convex
 docker compose up -d                    # after `just ghost-deploy` has delivered server/ghost-server
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8787/v0/health
 ```
@@ -219,10 +218,13 @@ app's data lives. They do share one thing: the cluster.
   connection kills all join on that table. So `ghost list` never shows
   Convex's database, and nothing Ghost does can drop it. The storage limit is
   reported, not enforced (`internal/server/config.go` in the fork).
-- **One network owned by neither project.** `ghost-postgres` and
-  `convex-backend` both join `venari-postgres`, an external network created
-  once by hand. `docker compose down` in `/srv/ghost` then removes only
-  `ghost_default`, and Convex keeps its route to the cluster.
+- **One network, owned by Ghost.** `ghost-postgres` and `convex-backend` both
+  join `venari-postgres`. Ghost's compose file creates it; Convex's declares
+  it external. So Ghost runs with or without Convex, and Convex needs Ghost
+  up first, which it needs for the database anyway. `docker compose down` in
+  `/srv/ghost` while Convex is attached keeps the network ("Resource is still
+  in use", exit 0); Convex keeps its route, and the next `up` reattaches
+  Postgres (checked with Docker Compose 2 on 2026-10-16).
 - **Plaintext on that network.** The backend verifies Postgres TLS, and
   Ghost's certificate is self-signed, so a handshake fails with
   `CaUsedAsEndEntity`. The fix needs both `DO_NOT_REQUIRE_SSL=1` and
@@ -295,13 +297,12 @@ turns off the anonymous usage ping. `NEXT_PUBLIC_LOAD_MONACO_INTERNALLY`
 serves the dashboard's editor from the image instead of from a CDN.
 
 Setup, as root on the box, after copying `convex/` here to `/srv/convex/`.
-Ghost must already be running; its `docker-compose.yml` in this repo joins
-`venari-postgres`, so it needs a `docker compose up -d` once the network
-exists.
+Ghost must be running from this repo's `ghost/docker-compose.yml`, which
+creates `venari-postgres`. A box still on the older Ghost file needs one
+`docker compose up` there first; it re-creates Postgres on the new network.
 
 ```sh
-docker network inspect venari-postgres >/dev/null 2>&1 || docker network create venari-postgres
-(cd /srv/ghost && docker compose up -d --wait)      # re-create postgres on the new network
+(cd /srv/ghost && docker compose up -d --wait)      # creates venari-postgres if missing
 
 cd /srv/convex && umask 077 && mkdir -p data
 printf 'CONVEX_POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env

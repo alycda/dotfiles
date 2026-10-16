@@ -33,9 +33,10 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     # Also on venari-postgres, the network Convex reaches this cluster through
-    # (tools/venari/convex/docker-compose.yml). It is created once by hand and
-    # owned by neither project, so `docker compose down` here cannot take it
-    # away from Convex, and the reverse.
+    # (tools/venari/convex/docker-compose.yml). This project creates it, so
+    # Ghost needs no setup step for Convex's sake. `docker compose down` here
+    # while Convex is attached leaves it in place ("Resource is still in use",
+    # exit 0) and Convex keeps running; the next `up` reattaches postgres.
     networks:
       - default
       - venari-postgres
@@ -72,4 +73,4 @@ services:
 
 networks:
   venari-postgres:
-    external: true
+    name: venari-postgres # fixed, so Convex can name it; no project prefix

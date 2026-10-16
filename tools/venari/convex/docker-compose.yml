@@ -13,7 +13,8 @@
 # agents - cannot even open it. ghost-server only ever touches databases listed
 # in its ghost.databases table, so it neither sees nor sizes nor drops this one
 # (checked against the fork's internal/server/store.go). The two projects meet
-# on the venari-postgres network, which neither owns.
+# on the venari-postgres network, which Ghost's project creates; Convex only
+# joins it, so Ghost must be up first.
 #
 # State is split in two, and a backup needs both, taken together:
 # - convex_self_hosted in the cluster: every document and index.
