@@ -241,8 +241,12 @@ app's data lives. They do share one thing: the cluster.
   `convex_self_hosted` in the cluster. Files, function modules, search indexes
   (`data/storage/`) and `data/credentials/` (the instance name, and the secret
   that admin keys are signed with) are on disk. A backup needs both from the
-  same moment, which is what `npx convex export` produces. Two separate copies
-  of the cluster and `data/` do not.
+  same moment. Two kinds of copy give that: a whole-disk snapshot of the box,
+  which takes both at once (crash-consistent, like a power cut, *if* the
+  provider snapshots the disk atomically, which nobody has checked), and
+  `npx convex export`, which is consistent by construction and is the only
+  copy that leaves the box. Copying the two halves separately (a `pg_dump`
+  of the database, then `data/`) does not.
 
 Measured on 2026-09-22 in a sandbox, not on venari. The setup there followed
 this README: Ghost with its self-signed certificate, and Convex on the same
@@ -357,6 +361,10 @@ original: a `*.bak-<ts>` left in `/etc/apt/apt.conf.d/` makes apt print
   (ciphertext, with the plaintext still on felixia), so losing it is
   recoverable. The Moment repos are not.
   Ghost's cluster is no longer all disposable: `convex_self_hosted` in it,
-  plus Convex's `data/`, is application data nothing else has a copy of.
-  Until restic lands, `npx convex export` from the laptop is the only
-  backup, and it is the only one that captures both halves at one moment.
+  plus Convex's `data/`, is application data. On the box it rides the
+  provider's backups like everything else (see "Ghost"), which is one
+  copy, on the same provider, whose atomicity is unchecked. Until restic
+  lands, `npx convex export` from the laptop is the only off-box backup and
+  the only one consistent by construction. Restic for Convex must not
+  repeat the separate-copies mistake: export, or dump and copy with the
+  backend stopped.
