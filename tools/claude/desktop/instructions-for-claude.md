@@ -57,3 +57,11 @@ When you have a shell or a repo:
   `mise exec`) rather than hand-installing. At the end, propose where it
   should live durably: alycda/dotfiles, a local flake, or the project's mise
   config.
+
+## Outbound messages
+
+Before any tool call that posts a comment, review, status update, issue or PR
+body, chat message, email, or other message visible to someone else, on any
+surface: show me the rendered body and the destination, then wait for my
+explicit approval. "Ping X" or "reply to Y" authorizes the act, not the unseen
+content. For a batch, show every body upfront; one approval covers the batch.

@@ -30,6 +30,10 @@
 # ~/.claude/settings.json by `just claude-hooks`, a merge, because Claude
 # writes that file itself (theme, model), so a link would track those too.
 "~/.claude/hooks/session-end-taskbook.sh" = { source = "tools/claude/hooks/session-end-taskbook.sh", mode = "symlink" }
+# Claude Code loads every .md in ~/.claude/rules into every session on the
+# account, with no import line. The gate: show the body and destination of any
+# outbound comment, review or message before sending it.
+"~/.claude/rules/outbound-comment-gate.md" = { source = "tools/claude/rules/outbound-comment-gate.md", mode = "symlink" }
 
 [env]
 EDITOR = "hx"
