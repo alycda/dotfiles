@@ -1,0 +1,77 @@
+# Convex on venari: the self-hosted backend and dashboard, from
+# convex/convex-backend's self-hosted/docker/docker-compose.yml.
+#
+# On the box: /srv/convex/docker-compose.yml, next to an untracked .env (see
+# .env.example) and data/ (never tracked). The database is in Ghost's cluster,
+# so Ghost must be up first.
+#
+# The reasons for every choice below - the shared cluster and its isolation,
+# the network, plaintext, the connection budget, the port offset, the pinned
+# revision, admin keys and backups - are in tools/venari/README.md, "Convex",
+# and only there. The comments here say what must stay true when you edit.
+name: convex
+services:
+  backend:
+    # 0cf49cb = convex/convex-backend main on 2026-09-21; the tag :latest
+    # pointed at on 2026-09-22.
+    # ghcr.io/convex/, not get-convex/: the old path went away with the org
+    # rename (denied, even for :latest), though upstream's compose still names it.
+    image: ghcr.io/convex/convex-backend:0cf49cbf8c4b7e22e631ceda9b5111f6cccbcd49
+    container_name: convex-backend
+    restart: unless-stopped
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    volumes:
+      - ./data:/convex/data
+    networks:
+      - default
+      - venari-postgres
+    ports:
+      - "127.0.0.1:3210:3210" # client API, websocket sync
+      - "127.0.0.1:3211:3211" # HTTP actions
+    environment:
+      # The laptop's end of the tunnel, not the container's address. Must match
+      # the forwards in `just convex-tunnel` (box port + 10000).
+      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:13210
+      CONVEX_SITE_ORIGIN: http://127.0.0.1:13211
+      # No database name: the backend appends one derived from INSTANCE_NAME
+      # (default convex-self-hosted -> convex_self_hosted). Plaintext on
+      # purpose; it takes BOTH sslmode=disable and DO_NOT_REQUIRE_SSL.
+      POSTGRES_URL: "postgresql://convex:${CONVEX_POSTGRES_PASSWORD:?set it in .env}@ghost-postgres:5432?sslmode=disable"
+      DO_NOT_REQUIRE_SSL: "1"
+      # Keep below the convex role's CONNECTION LIMIT (10, README setup). The
+      # cluster has 25 connections in total, shared with every Ghost database.
+      POSTGRES_MAX_CONNECTIONS: "8"
+      # The anonymous usage beacon (a random ID plus the backend version).
+      DISABLE_BEACON: "true"
+      DISABLE_METRICS_ENDPOINT: "true"
+      # Upstream's compose default: keep old document versions for 2 days.
+      DOCUMENT_RETENTION_DELAY: "172800"
+      RUST_LOG: info
+    healthcheck:
+      test: curl -f http://localhost:3210/version
+      interval: 5s
+      start_period: 10s
+    mem_limit: 512m
+
+  dashboard:
+    image: ghcr.io/convex/convex-dashboard:0cf49cbf8c4b7e22e631ceda9b5111f6cccbcd49
+    container_name: convex-dashboard
+    restart: unless-stopped
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    ports:
+      - "127.0.0.1:6791:6791"
+    environment:
+      # Read in the browser, so it is the laptop's tunnel end too.
+      NEXT_PUBLIC_DEPLOYMENT_URL: http://127.0.0.1:13210
+      # Otherwise the editor panes load monaco from a CDN.
+      NEXT_PUBLIC_LOAD_MONACO_INTERNALLY: "true"
+    depends_on:
+      backend:
+        condition: service_healthy
+    mem_limit: 384m
+
+networks:
+  venari-postgres:
+    external: true

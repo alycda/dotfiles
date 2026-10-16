@@ -36,6 +36,59 @@ ghost-tunnel:
 ghost-tunnel-close:
     @pkill -f 'ssh -fN venari-ghost' && echo "ghost tunnel closed" || echo "no ghost tunnel open"
 
+# Convex on venari (tools/venari/README.md, "Convex"): backend, HTTP actions and
+# dashboard listen on the box's loopback. These recipes use the `venari` and
+# `venari-root` aliases from ~/.ssh/config (README, "Access"; the box's address
+# is never in this repo). The forwards are inline, so unlike Ghost they need no
+# third alias. Laptop ports are the box's plus 10000 and must match
+# CONVEX_CLOUD_ORIGIN / CONVEX_SITE_ORIGIN in convex/docker-compose.yml.
+# The tunnel is an ssh control master on a socket, so `ssh -O check` / `-O exit`
+# find and close it on macOS and Linux alike - no pgrep/pkill, whose flags differ
+# (procps pgrep has no -q) and whose -f pattern also matches the calling shell.
+
+# open the Convex tunnel: 13210 -> API, 13211 -> HTTP actions, 16791 -> dashboard
+[group('personal')]
+convex-tunnel:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sock="$HOME/.ssh/venari-convex.sock"
+    if ssh -o ControlPath="$sock" -O check venari 2>/dev/null; then
+        echo "convex tunnel already open"
+        exit 0
+    fi
+    rm -f "$sock"   # a master that died uncleanly leaves its socket behind
+    ssh -fN -o ControlMaster=yes -o ControlPath="$sock" -o ExitOnForwardFailure=yes \
+        -L 127.0.0.1:13210:127.0.0.1:3210 -L 127.0.0.1:13211:127.0.0.1:3211 -L 127.0.0.1:16791:127.0.0.1:6791 venari
+    echo "convex tunnel open: API 13210, HTTP actions 13211, dashboard 16791"
+
+# close the Convex tunnel
+[group('personal')]
+convex-tunnel-close:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sock="$HOME/.ssh/venari-convex.sock"
+    if ssh -o ControlPath="$sock" -O exit venari 2>/dev/null; then
+        echo "convex tunnel closed"
+    else
+        rm -f "$sock"
+        echo "no convex tunnel open"
+    fi
+
+# print a new Convex admin key (each call differs; all stay valid until data/ is lost)
+[group('personal')]
+convex-admin-key:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Without pipefail a failed ssh or exec still exits 0 through `tail`, and the
+    # empty line or error text gets pasted into .env.local as the key. So the
+    # script also refuses anything not shaped like a key: <instance>|<hex>.
+    key=$(ssh venari-root 'cd /srv/convex && docker compose exec -T backend ./generate_admin_key.sh' | tail -n 1)
+    if [[ ! "$key" =~ ^[a-z0-9_-]+\|[0-9a-f]+$ ]]; then
+        echo "convex-admin-key: got no admin key from venari (output: '${key}')" >&2
+        exit 1
+    fi
+    printf '%s\n' "$key"
+
 # The box has two vCPUs and no Go, so the server binary is cross-compiled here
 # and only the static binary travels; the image on the box is Alpine plus that
 # file (tools/venari/ghost/server/Dockerfile).
