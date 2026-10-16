@@ -48,12 +48,15 @@ services:
       - "127.0.0.1:3210:3210" # client API, websocket sync
       - "127.0.0.1:3211:3211" # HTTP actions
     environment:
-      # What clients are told the backend is: the laptop's end of the tunnel
-      # (`just convex-tunnel` forwards the same port numbers). These appear in
-      # storage URLs and action callbacks, so they must be the address the
-      # client actually uses, not the container's.
-      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:3210
-      CONVEX_SITE_ORIGIN: http://127.0.0.1:3211
+      # What clients are told the backend is: the laptop's end of the tunnel.
+      # These appear in storage URLs and action callbacks, so they must be the
+      # address the client actually uses, not the container's. The laptop
+      # ports are offset by 10000 (`just convex-tunnel`: 13210 -> 3210), like
+      # Ghost's 15432 -> 5432, because 3210/3211 are where a local
+      # `npx convex dev` deployment starts; sharing them would let a project
+      # deploy to whichever backend held the port.
+      CONVEX_CLOUD_ORIGIN: http://127.0.0.1:13210
+      CONVEX_SITE_ORIGIN: http://127.0.0.1:13211
       # No database name: the backend appends one derived from INSTANCE_NAME
       # (default convex-self-hosted -> convex_self_hosted).
       #
@@ -98,7 +101,7 @@ services:
     environment:
       # Read by the dashboard in the *browser*, so it is the laptop's tunnel
       # end too.
-      NEXT_PUBLIC_DEPLOYMENT_URL: http://127.0.0.1:3210
+      NEXT_PUBLIC_DEPLOYMENT_URL: http://127.0.0.1:13210
       # Otherwise the editor panes load monaco from a CDN.
       NEXT_PUBLIC_LOAD_MONACO_INTERNALLY: "true"
     depends_on:

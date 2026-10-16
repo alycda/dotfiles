@@ -39,18 +39,20 @@ ghost-tunnel-close:
 # Convex on venari (tools/venari/README.md, "Convex"): backend, HTTP actions and
 # dashboard listen on the box's loopback. The forwards are inline rather than an
 # ssh alias like venari-ghost, so nothing outside this repo has to exist first;
-# the laptop ports match the box's because CONVEX_CLOUD_ORIGIN says 127.0.0.1:3210.
+# laptop ports are the box's plus 10000 (13210 -> 3210, like Ghost's 15432 -> 5432),
+# because 3210/3211 are where a local `npx convex dev` deployment starts, and they
+# must match CONVEX_CLOUD_ORIGIN / CONVEX_SITE_ORIGIN in convex/docker-compose.yml.
 # Safe to re-run: ExitOnForwardFailure kills a second tunnel that cannot bind.
 
-# open the Convex tunnel: 3210 -> API, 3211 -> HTTP actions, 6791 -> dashboard
+# open the Convex tunnel: 13210 -> API, 13211 -> HTTP actions, 16791 -> dashboard
 [group('personal')]
 convex-tunnel:
-    @pgrep -qf 'L 3210:127.0.0.1:3210' && echo "convex tunnel already open" || ssh -fN -o ExitOnForwardFailure=yes -L 3210:127.0.0.1:3210 -L 3211:127.0.0.1:3211 -L 6791:127.0.0.1:6791 venari
+    @pgrep -qf 'L 13210:127.0.0.1:3210' && echo "convex tunnel already open" || ssh -fN -o ExitOnForwardFailure=yes -L 13210:127.0.0.1:3210 -L 13211:127.0.0.1:3211 -L 16791:127.0.0.1:6791 venari
 
 # close the Convex tunnel
 [group('personal')]
 convex-tunnel-close:
-    @pkill -f 'L 3210:127.0.0.1:3210' && echo "convex tunnel closed" || echo "no convex tunnel open"
+    @pkill -f 'L 13210:127.0.0.1:3210' && echo "convex tunnel closed" || echo "no convex tunnel open"
 
 # print a new Convex admin key (each call differs; all stay valid until data/ is lost)
 [group('personal')]

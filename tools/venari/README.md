@@ -267,12 +267,17 @@ cluster, both at the pinned images.
 
 None of these are load figures for this box, which has 2 vCPUs.
 
-All three ports listen on the box's loopback. From the laptop:
+All three ports listen on the box's loopback (3210 API, 3211 HTTP actions,
+6791 dashboard). The tunnel's laptop ends are the same numbers plus 10000,
+like Ghost's 15432, because 3210/3211 are where a local `npx convex dev`
+deployment starts. With equal numbers, a project whose `.env.local` says
+`127.0.0.1:3210` would deploy to whichever backend held the port. From the
+laptop:
 
 ```sh
-just convex-tunnel                      # 3210 -> API, 3211 -> HTTP actions, 6791 -> dashboard
+just convex-tunnel                      # 13210 -> API, 13211 -> HTTP actions, 16791 -> dashboard
 just convex-admin-key                   # prints a new admin key (via venari-root)
-open http://127.0.0.1:6791              # dashboard; paste the admin key
+open http://127.0.0.1:16791             # dashboard; paste the admin key
 just convex-tunnel-close
 ```
 
@@ -281,7 +286,7 @@ by the project and never in this repo. `npx convex dev` and `deploy` then
 target venari:
 
 ```sh
-CONVEX_SELF_HOSTED_URL='http://127.0.0.1:3210'
+CONVEX_SELF_HOSTED_URL='http://127.0.0.1:13210'
 CONVEX_SELF_HOSTED_ADMIN_KEY='<from just convex-admin-key>'
 ```
 
@@ -292,7 +297,7 @@ to keep in agenix. Revoking a key means rotating the instance secret, which
 invalidates every key.
 
 `CONVEX_CLOUD_ORIGIN` and `NEXT_PUBLIC_DEPLOYMENT_URL` say
-`http://127.0.0.1:3210`, which is the laptop's end of the tunnel. That means
+`http://127.0.0.1:13210`, which is the laptop's end of the tunnel. That means
 this deployment serves one person through ssh. A frontend that other people
 use needs a public HTTPS origin for the API. That means a port other than 22
 in the cloud firewall and a TLS reverse proxy. It is a separate decision,
