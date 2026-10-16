@@ -92,6 +92,13 @@ gh-login: ssh-key
 identity: gh-login
     @tools/setup/identity
 
+# The script is linked by `mise dotfiles apply`; this merges its settings entry.
+
+# Register the SessionEnd taskbook hook in ~/.claude/settings.json, unless it is
+[group('setup')]
+claude-hooks:
+    @tools/claude/install-hooks
+
 # Without a daemon, docker's own error names a socket path, not the fix.
 [private]
 docker-daemon:
