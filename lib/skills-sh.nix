@@ -26,6 +26,14 @@
 nix-skills: final: prev:
 let
   github = (nix-skills.overlays.default final prev).agent-skills.github;
+
+  # effect-ts/skills, pinned ahead of the index; see effect-ts below.
+  effect-skills = final.fetchFromGitHub {
+    owner = "effect-ts";
+    repo = "skills";
+    rev = "155c50c911f9c99c294ef8a4461981c5bbe6453e"; # 2026-10-09
+    hash = "sha256-GSmGLOQSp4taxckrg7vfMTD/mbkfBYjv7oBsvDJdyck=";
+  };
 in
 {
   skills-sh = {
@@ -62,6 +70,48 @@ in
     asd-ste100-skill = github.danyuchn.asd-ste100-skill.asd-ste100-skill.override {
       name = "asd-ste100-skill";
     };
+
+    # https://www.skills.sh/effect-ts/skills
+    # The Effect team's own skills. Both are deliberately thin: `effect-ts`
+    # tells an agent to read node_modules/effect/AGENTS.md, which the v4 npm
+    # tarball ships alongside ai-docs/ (the v3 tarball ships neither), and
+    # `effect-v3-to-v4` drives a migration from the generated
+    # migration/v3-to-v4.md in Effect-TS/effect. The repo's `effect` skill
+    # (tools/agents/skills/effect) layers on both: a version gate, because
+    # `effect-ts` step 1 is `pnpm add effect@latest`, and in a v3 project that
+    # is an unrequested major upgrade; and the Rust mapping from
+    # effect-playground. effect-v3-to-v4 sets disable-model-invocation, so it
+    # only runs when invoked by name.
+    #
+    # Pinned here by hand, ahead of the index. agents.nix 0b4d80e still has
+    # 2309e6f, written while v4 was a release candidate: its `effect-ts` says
+    # `pnpm add effect@rc`, which now installs 4.0.0-rc.118, older than the
+    # stable 4.0.x on `latest`; and its `effect-v3-to-v4` sends imports to
+    # `effect/unstable/*` paths that v4 GA removed with no compatibility
+    # exports. 155c50c ("align Effect skills with v4 GA", 2026-10-09) fixes
+    # both. One fetch serves both skills, so they cannot drift apart. When
+    # the index reaches 155c50c or later, switch back to
+    # github.effect-ts.skills.<name> and delete the pin. Until then
+    # `nix flake update nix-skills` does not move it; bump rev + hash by hand.
+    # The hash was computed without nix (a NAR serialization of `git archive
+    # <rev>`), a method that reproduced the index's hash for 2309e6f and the
+    # supabase pin below exactly; `nix flake prefetch
+    # github:effect-ts/skills/<rev>` is the normal way.
+    #
+    # Subdirectories, no builder: neither skill has symlinks, and each
+    # SKILL.md name already matches its deploy directory.
+    effect-ts = "${effect-skills}/skills/effect-ts";
+    effect-v3-to-v4 = "${effect-skills}/skills/effect-v3-to-v4";
+
+    # https://www.skills.sh/rhyssullivan/skills/effect-client-wrapper
+    # Wrap a Promise-based SDK as an Effect service behind one `use(fn)` that
+    # maps rejections to a tagged error and opens a span. By the author of
+    # create-epoch-app. Its code is Effect v3 (Context.Tag, a static Default
+    # layer, Schedule.intersect); the repo's `effect` skill says to keep the
+    # pattern and translate the code on v4 rather than copy it. From
+    # rhyssullivan/skills (indexed at ab3a455), not the older standalone
+    # rhyssullivan/effect-client-wrapper-skill repo the index also carries.
+    effect-client-wrapper = github.rhyssullivan.skills.effect-client-wrapper;
 
     # https://www.skills.sh/supabase/agent-skills/supabase-postgres-best-practices
     # Postgres performance/schema/RLS guidance across 8 priority categories.

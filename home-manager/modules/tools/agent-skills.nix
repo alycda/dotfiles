@@ -36,6 +36,11 @@
 #   brag-doc              - promo-packet impact entries from raw work notes
 #   cf-now                - private file sharing from Cloudflare R2 (pre-signed URLs)
 #   commit-craft          - commit-message craft + jj describe/push workflow
+#   effect                - Effect (TypeScript) with a v3/v4 version gate and
+#                           the effect-playground Rust mapping; carries no v4
+#                           API text, defers to the AGENTS.md the v4 package
+#                           ships and to the external effect-ts /
+#                           effect-v3-to-v4 skills
 #   entity-level-git      - Ataraxy Labs stack: sem (entity diff/blame/impact),
 #                           weave (semantic merge driver), inspect (review triage)
 #   failure-doc           - failures as deliberate-learning records
@@ -50,6 +55,10 @@
 #                           surfaces; carries no rule text, delegates to the
 #                           external asd-ste100-skill and reads CONCEPTS.md as
 #                           the project's technical-name dictionary
+#   topcoat               - tokio-rs/topcoat (server-rendered Rust web apps):
+#                           reads the guides shipped in the crates at the
+#                           locked version, the two contracts the compiler
+#                           does not check, and the Effect <-> Topcoat pairing
 #
 # One of them is vendored rather than authored:
 #   hackmd-cli - upstream's own skill, extracted from the hackmd-cli.skill zip
@@ -90,6 +99,7 @@ let
     "brag-doc"
     "cf-now"
     "commit-craft"
+    "effect"
     "entity-level-git"
     "failure-doc"
     "hackmd-cli"
@@ -98,10 +108,14 @@ let
     "jujutsu"
     "power-of-ten"
     "ste100"
+    "topcoat"
   ];
 
   externalSkills = {
     asd-ste100-skill = pkgs.skills-sh.asd-ste100-skill;
+    effect-client-wrapper = pkgs.skills-sh.effect-client-wrapper;
+    effect-ts = pkgs.skills-sh.effect-ts;
+    effect-v3-to-v4 = pkgs.skills-sh.effect-v3-to-v4;
     here-now = pkgs.skills-sh.here-now;
     supabase-postgres-best-practices = pkgs.skills-sh.supabase-postgres-best-practices;
   };
