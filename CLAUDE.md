@@ -3,24 +3,23 @@
 Terms in **bold** are defined in [CONCEPTS.md](CONCEPTS.md). Read it before
 working here; these instructions don't repeat the definitions.
 
-## Commits: ce-commit, in jj
+## Commits: commit-craft, in jj
 
-Write commit messages by the compound-engineering `ce-commit` skill: one
-logical change per commit, and a subject that names the outcome, not the files.
-Match the recent log's `area(scope): summary` style. Before describing a
-change, run `sem diff` on it (the `entity-level-git` skill has the jj
-forms): the entities it changed are what the subject should name, and
-entities with nothing in common mean the change should be split.
+Every commit message follows the `commit-craft` skill
+(`.claude/skills/commit-craft/SKILL.md`, linked from `.agents/skills/`). Read
+it before writing or changing a message, in any harness, even when skills are
+not loaded for you. It replaces compound-engineering's `ce-commit` here: the
+body is required, and `check-commit-msg` must pass before a message is set.
 
-This _may_ be a **colocated repository** worked with jj, so do not follow ce-commit's
-git steps if a .jj folder exists:
+This _may_ be a **colocated repository** worked with jj. If a .jj folder exists:
 
 - Don't run `git add`, `git commit`, `git checkout` or any other git command
   that writes. Reading with git is fine.
-- Don't create a branch first. Describe the **working-copy change** with
-  `jj describe -m "..."`, or `jj commit -m "..."` to start the next one.
-- Split by concern with `jj split -m "..." <paths>`, never interactively.
-- Never push. Publishing is the owner's call.
+- Set a message from a file: `jj describe --stdin < msg.txt`. Split by
+  concern with `jj split -m "..." <paths>`, never interactively.
+- Before asking for a push, run `check-commits --jj '<revset>'` on the
+  changes you made. Pass the revset: the default reaches back to history
+  older than this format. Never push; publishing is the owner's call.
 
 ## Tools: mise
 
@@ -32,6 +31,27 @@ git steps if a .jj folder exists:
   The repo has to work from its own `mise.toml`.
 - Ask before adding a tool, and add it with `mise use <tool>` so `mise.toml`
   stays the record. Heavier tooling waits for the **full toolset** (Nix).
+
+## Shell: zsh
+
+Commands sent through the Bash tool run in the login shell, which is zsh on
+these machines. Write them for zsh, not bash. A script with a shebang runs in
+the shell it names, so this is only about commands you type.
+
+- An unquoted `$VAR` is one word. Don't keep a command in a string
+  (`J="jj --no-pager"; $J log`). Write a function
+  (`j() { jj --no-pager "$@"; }`) or an array
+  (`j=(jj --no-pager); "${j[@]}" log`).
+- `for x in $str` and `set -- $str` don't split either, and raise no error.
+  Loop over an array or over `$(command)`.
+- A glob that matches nothing is an error, and the command does not run. Quote
+  every argument with `?`, `*` or `[` that the shell should not expand.
+- Write `"${VAR}:path"`, not `$VAR:path`. A colon after the name starts a
+  modifier.
+- For anything that needs bash, use `bash <<'EOF' ... EOF`.
+
+The reasons and examples are in the
+[solution doc](docs/solutions/developer-experience/zsh-does-not-word-split-command-in-a-string.md).
 
 ## Tasks: HUID
 

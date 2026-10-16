@@ -1,0 +1,16 @@
+# Pick a branch, preview its last commit, switch to it on Enter.
+# Alias: `git sw` (tools/git/config).
+git branch --format='%(refname:short)' | fzf \
+  --preview 'git show --color=always {}' \
+  --bind 'enter:become(git switch {})' \
+  --height 40% --layout reverse
+
+# The fzf docs' version (getting-started) reads plain `git branch` and takes
+# the last word, {-1}, to skip the "* " marker. In a colocated jj repo HEAD is
+# detached, so its "* (no branch)" line would yield "branch)"; --format avoids it.
+git branch | fzf --preview 'git show --color=always {-1}' \
+  --bind 'enter:become(git checkout {-1})' --height 40% --layout reverse
+
+# become(...) replaces fzf with the command; Esc exits with nothing run.
+# Without become, use the pick in a substitution:
+git log --oneline "$(git branch --format='%(refname:short)' | fzf)"

@@ -1,0 +1,24 @@
+# Claude Code's auto-memory: pick a memory file, preview it, open it in helix.
+# Shown as <project dir> <file>. `tv claude-memory` is the same picker.
+ls -t ~/.claude/projects/*/memory/*.md | fzf \
+  --delimiter / --with-nth -3,-1 \
+  --preview 'bat --color=always --style=plain --language=markdown {}' \
+  --bind 'enter:become(hx {})'
+
+# Claude Code sessions, newest first: pick one, preview its prompts (❯) and
+# replies, and resume it on Enter, from the directory it ran in (--resume only
+# finds a session from its own project). `tv claude-sessions` is the same
+# picker. Lines are id, date, dir and title (/rename's, else the AI's),
+# tab-separated; T is the preview's jq filter, which the preview reads from
+# the environment to keep its quotes apart from fzf's.
+export T='select((.type == "user" or .type == "assistant") and (.isMeta | not))
+  | .type as $who | .message.content
+  | if type == "string" then . else .[] | select(.type == "text") | .text end
+  | select(startswith("<") | not) | (if $who == "user" then "\n❯ " else "" end) + .'
+for f in $(ls -t ~/.claude/projects/*/*.jsonl); do
+  printf '%s\t%s\t%s\t%s\n' "$(basename "$f" .jsonl)" "$(date -r "$f" '+%F %R')" \
+    "$(grep -m1 -o '"cwd":"[^"]*"' "$f" | cut -d'"' -f4)" \
+    "$(grep -h -E '"type":"(custom|ai)-title"' "$f" | tail -1 | jq -r '.customTitle // .aiTitle')"
+done | fzf --delimiter '\t' --with-nth 2.. \
+  --preview 'jq -r "$T" ~/.claude/projects/*/{1}.jsonl' --preview-window wrap \
+  --bind 'enter:become(cd {3} && claude --resume {1})'

@@ -121,7 +121,7 @@ jj squash -m "message"        # NOT: jj squash (opens editor for combined descri
 ```
 
 A message with a body is awkward in `-m`. Write it to a file outside the working
-copy and pass it on stdin:
+copy, check it with `check-commit-msg` (commit-craft), and pass it on stdin:
 
 ```text
 jj describe --stdin < /path/to/msg.txt
@@ -184,7 +184,9 @@ jj new -m "What I'm about to do"
 ```
 
 This pattern surfaces intent before code exists. If Alyssa hasn't told Claude what
-to commit message-wise, ask once and then proceed.
+to commit message-wise, ask once and then proceed. The intent message is only a
+subject line, in commit-craft's subject format. Replace it with the full message
+(commit-craft) when the change is done.
 
 ### Atomic commits
 
@@ -192,11 +194,9 @@ One logical change per commit. If a commit description starts to need "and" to
 cover everything, that's the signal to split. Use the squash/restore patterns to
 peel out unrelated changes rather than mashing them in.
 
-Commit message format (Alyssa's convention, matches the team's):
-
-- Imperative verb, sentence case, no trailing period
-- `feat:` / `fix:` / `refactor:` / `docs:` / `chore:` prefixes when conventional
-  commits are in use in the repo
+What the message says (subject format, body, trailers) is the **commit-craft**
+skill's, not this one's. Load it before writing any message. This skill covers
+only the commands that set it.
 
 ### Viewing history
 
@@ -545,6 +545,24 @@ the anchor-line workaround and why it only relocates the problem. weave (see
 Conflicts) dissolves this for TOML and JSON, where each sibling adds its own key, but
 not for a changelog: siblings adding bullets to one section still conflict.
 
+## Version Stacks
+
+Alyssa's experimental workflow (2026-10-04) for versioned work: each version
+exists twice on the previous version's squashed commit, as a micro chain and a
+**squashed sibling** with the chain tip's tree. Each version is a PR that GitHub
+squash-merges; then the next chain moves onto the squash and the merged micro
+chain goes away. Recipes and pitfalls: `references/version-stacks.md`.
+
+```text
+jj new --no-edit <base> -m "version(0.1.N): summary"
+jj restore --from <chain-tip> --into <new>          # the squashed sibling
+jj duplicate '(::v0.1.N@origin ~ ::<below>)' -o effver   # after a squash-merge
+```
+
+**Never abandon merged micro commits while later chains descend from them**, and
+never resolve with `--tool :theirs` on a file both sides edited: it takes the
+whole file. Both are in the reference.
+
 ## Bookmarks and Pushing
 
 ### Bookmarks aren't branches
@@ -706,6 +724,13 @@ keep this file under context budget.
   parents, why append-only files conflict under sibling merges, and why octopus
   merges render as an empty diff. Load when working in a repo whose history
   converges on merge commits, or when a merge conflicts for no obvious reason.
+
+- **`references/version-stacks.md`** — Alyssa's experimental version workflow:
+  micro chains with squashed siblings, moving the next chain onto GitHub's
+  squash after a PR merges (`jj duplicate` from the pushed branch), checking the
+  result, dropping a merged chain, and the pitfalls (abandon cascades,
+  `:theirs` taking a whole file). Load when she works in versions, asks to
+  squash or rebase a version, or a PR into `effver` conflicts after a merge.
 
 - **`references/version-notes.md`** — jj v0.45-specific behavior: what's new in v0.45
   (`jj converge`, `config --file`), flags removed since the tutorials were written

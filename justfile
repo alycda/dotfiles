@@ -29,7 +29,7 @@ dev:
 
 # Check the flake for every system, failing rather than updating flake.lock
 [group('nix')]
-check:
+check-nix:
     {{ nix }} flake check --all-systems --no-update-lock-file
 
 # Update flake.lock: every input, or only the ones named
@@ -92,23 +92,69 @@ gh-login: ssh-key
 identity: gh-login
     @tools/setup/identity
 
+# The script is linked by `mise dotfiles apply`; this merges its settings entry.
+
+# Register the SessionEnd taskbook hook in ~/.claude/settings.json, unless it is
+[group('setup')]
+claude-hooks:
+    @tools/claude/install-hooks
+
 # Without a daemon, docker's own error names a socket path, not the fix.
 [private]
 docker-daemon:
     @docker info >/dev/null 2>&1 || { echo "No Docker daemon is running: start OrbStack or Docker Desktop (README.md, Docker)." >&2; exit 1; }
+
+# nix-darwin runs `brew bundle` only when it switches, so between switches
+# nothing Homebrew installed moves. This brings it up to date without one,
+# from the Brewfile of the switch the Mac is running (homebrew.global.brewfile
+# exports its path), not the checkout's, which may be ahead. It installs and
+# upgrades (--upgrade, whatever HOMEBREW_BUNDLE_NO_UPGRADE says), greedily
+# for the casks (greedyCasks), and never removes: that, like adding to the
+# lists, stays a switch. Run it as the account that owns Homebrew. The
+# variable comes from /etc/zshenv, so a shell started before that switch, or
+# not zsh, doesn't have it.
+
+# Update and upgrade what Homebrew installed, as the running switch declared it
+[group('darwin')]
+[macos]
+brew-upgrade:
+    @: "${HOMEBREW_BUNDLE_FILE:?unset: start a new zsh after a switch with homebrew.global.brewfile}"
+    brew update
+    brew bundle install --upgrade --file="$HOMEBREW_BUNDLE_FILE"
 
 # Build the image with this checkout's home-manager generation (see Dockerfile)
 [group('docker')]
 docker-build: docker-daemon
     docker build -t dotfiles .
 
-# Run that image, with the current directory at /work and ~/.age read-only
-# (if the host has it), so the entrypoint installs the agenix secrets
+# Run that image, with the current directory at /work, ~/.age read-only (if the
+# host has it) so the entrypoint installs the agenix secrets, and ~/.taskbook
+# (if the host has it) so Claude sessions in there land on the host's board
 [group('docker')]
 docker-run: docker-daemon
-    docker run -it --rm -e TERM="$TERM" {{ if path_exists(home_directory() / ".age") == "true" { "-v " + quote(home_directory() / ".age") + ":/root/.age:ro" } else { "" } }} -v {{ quote(invocation_directory()) }}:/work dotfiles
+    docker run -it --rm -e TERM="$TERM" {{ if path_exists(home_directory() / ".age") == "true" { "-v " + quote(home_directory() / ".age") + ":/root/.age:ro" } else { "" } }} {{ if path_exists(home_directory() / ".taskbook") == "true" { "-v " + quote(home_directory() / ".taskbook") + ":/root/.taskbook" } else { "" } }} -v {{ quote(invocation_directory()) }}:/work dotfiles
 
 # Create or edit an agenix secret, secrets/NAME.age (needs the dev shell)
 [group('secrets')]
 edit-secret name:
     tools/secrets/edit-secret {{ quote(name) }}
+
+# The commit message format is the commit-craft skill's, checked by the
+# scripts in tools/commit (from alycda/dotfiles#197). jj runs no git hooks,
+# so these recipes are where the format is enforced. CI comes later.
+
+# Check one commit message, from FILE or stdin
+check-msg file='':
+    tools/commit/check-commit-msg {{ file }}
+
+# Check every commit in REVSET (default: the stack not on trunk yet)
+check-commits revset='':
+    tools/commit/check-commits --jj {{ quote(revset) }}
+
+# Check the stack, then `jj git push` with the same arguments
+push *args: check-commits
+    jj git push {{ args }}
+
+# Run the tests for the commit checks
+test:
+    bats tests

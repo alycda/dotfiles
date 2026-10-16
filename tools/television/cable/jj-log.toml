@@ -1,0 +1,20 @@
+# television cable channel: browse Jujutsu changes.  Usage: `tv jj-log`
+#
+# Why a custom channel: television ships a built-in `git-log` channel, but this
+# repo prefers `jj` (see the preferred-tooling agent layer). jj is git-backed,
+# so the built-in still works, but it surfaces git commit ids — this surfaces
+# jj change ids and previews with `jj show`.
+#
+# The `builtin_log_oneline` template puts the short change id first, so the
+# `{0}` placeholder (first whitespace-delimited token of the selection) is the
+# change id `jj show` needs. `--color=never` keeps that token ANSI-free.
+[metadata]
+name = "jj-log"
+description = "Select a Jujutsu change; preview its diff with jj show"
+requirements = ["jj"]
+
+[source]
+command = "jj log --no-graph --color=never -T builtin_log_oneline"
+
+[preview]
+command = "jj show --color=always {0}"

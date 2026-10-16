@@ -42,7 +42,8 @@ in
     # abort with no terminal).
     completionInit = "autoload -U compinit && compinit -i";
     # Debian and Ubuntu's /etc/zsh/zshrc run their own compinit, without -i,
-    # unless this is set. Elsewhere nothing reads it.
+    # unless this is set. On a Mac, darwin/configuration.nix's /etc/zshrc
+    # reads it too, so compinit runs once.
     envExtra = "skip_global_compinit=1";
   };
 
@@ -75,6 +76,22 @@ in
   home.activation.dotfilesLines = lib.hm.dag.entryAfter [ "writeBoundary" ] (
     appendLine "$HOME/.gitconfig" "[include] path = ~/.config/git/dotfiles.gitconfig"
   );
+
+  # Claude Code's SessionEnd hook (tools/claude): what mise's [dotfiles] link
+  # and `just claude-hooks` do on a mise account. tb comes from
+  # lib/packages/taskbook.nix. The settings entry is a merge, not a managed
+  # file, because Claude writes ~/.claude/settings.json itself; install-hooks
+  # keeps what is there and adds the hook once. The whole directory goes to
+  # the store so install-hooks finds hooks.json beside it.
+  home.file.".claude/hooks/session-end-taskbook.sh".source =
+    ../tools/claude/hooks/session-end-taskbook.sh;
+  # The outbound-comment gate, as a user-scope rule: Claude Code loads every
+  # .md in ~/.claude/rules into every session, so no import line in CLAUDE.md.
+  home.file.".claude/rules/outbound-comment-gate.md".source =
+    ../tools/claude/rules/outbound-comment-gate.md;
+  home.activation.claudeHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run env PATH=${lib.makeBinPath [ pkgs.jq ]}:"$PATH" ${../tools/claude}/install-hooks
+  '';
 
   programs.home-manager.enable = true;
   home.stateVersion = "26.05";

@@ -22,12 +22,25 @@
 # Mac and in the devcontainers.
 "~/.local/bin/huid-task" = { source = "tasks/scripts/huid-task", mode = "symlink" }
 "~/.local/bin/huid-task-edit" = { source = "tasks/scripts/huid-task-edit", mode = "symlink" }
+# The few tools needed outside this checkout (tb), as global mise tools. In
+# conf.d, so ~/.config/mise/config.toml stays the account's own.
+"~/.config/mise/conf.d/dotfiles.toml" = { source = "tools/mise/global.toml", mode = "symlink" }
+# Claude Code's SessionEnd hook: one resume pointer per session on taskbook's
+# @claude board. Only the script is linked. The hook entry goes into
+# ~/.claude/settings.json by `just claude-hooks`, a merge, because Claude
+# writes that file itself (theme, model), so a link would track those too.
+"~/.claude/hooks/session-end-taskbook.sh" = { source = "tools/claude/hooks/session-end-taskbook.sh", mode = "symlink" }
+# Claude Code loads every .md in ~/.claude/rules into every session on the
+# account, with no import line. The gate: show the body and destination of any
+# outbound comment, review or message before sending it.
+"~/.claude/rules/outbound-comment-gate.md" = { source = "tools/claude/rules/outbound-comment-gate.md", mode = "symlink" }
 
 [env]
 EDITOR = "hx"
 CHEAT_CONFIG_PATH = "{{config_root}}/tools/cheat/conf.yml"
-# huid-task and huid-task-edit, which the task recipes call.
-_.path = ["{{config_root}}/tasks/scripts"]
+# huid-task and huid-task-edit, which the task recipes call; check-commit-msg
+# and check-commits, the commit message checks.
+_.path = ["{{config_root}}/tasks/scripts", "{{config_root}}/tools/commit"]
 
 [tool_alias]
 # weave ships its CLI and its merge driver as separate release assets.
@@ -36,9 +49,12 @@ weave-driver = "github:Ataraxy-Labs/weave"
 [tools]
 cheat = "5.1"
 helix = "25"
+fzf = "latest"
 jujutsu = "0.45.1"
 just = "1.58"
-"github:taskbook-sh/taskbook" = "latest"
+# Also in tools/mise/global.toml, for outside the checkout. Keep the two, and
+# lib/packages/taskbook.nix's flake pin, on one major.minor.
+"github:taskbook-sh/taskbook" = "1.5"
 "github:Ataraxy-Labs/sem" = "latest"
 "github:Ataraxy-Labs/weave" = { version = "latest", asset_pattern = 'weave-cli-{{ arch(x64="x86_64", arm64="aarch64") }}-{{ os(macos="apple-darwin", linux="unknown-linux-gnu") }}.tar.gz' }
 weave-driver = { version = "latest", asset_pattern = 'weave-driver-{{ arch(x64="x86_64", arm64="aarch64") }}-{{ os(macos="apple-darwin", linux="unknown-linux-gnu") }}.tar.gz' }
@@ -46,6 +62,13 @@ weave-driver = { version = "latest", asset_pattern = 'weave-driver-{{ arch(x64="
 gh = "latest"
 claude = "latest"
 tmux = "latest"
+# tools/claude/install-hooks merges JSON with it.
+jq = "1.8"
+harper-ls = "latest" # helix language server
+# `just test` runs bats over tests/, and the scripts are linted with shellcheck;
+# both at the versions CI pins.
+bats = "1.14.0"
+shellcheck = "0.11.0"
 
 [settings]
 minimum_release_age_excludes = ["claude"]

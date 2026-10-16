@@ -30,6 +30,40 @@ lists the recipes.
   just) into `$HOME`. `--dry-run` shows what it would change; it leaves an
   existing file alone unless given `--force`.
 
+### taskbook and Claude Code
+
+`mise dotfiles apply` also links [tools/mise/global.toml](tools/mise/global.toml)
+into `~/.config/mise/conf.d/`, so `tb`
+([taskbook](https://github.com/taskbook-sh/taskbook)) works from any
+directory. `just claude-hooks` registers a Claude Code `SessionEnd` hook that
+leaves one task per session on the `@claude` board:
+
+```text
+resume: claude --resume <session id> (in <directory>, <reason>)
+```
+
+The reason is Claude's: `clear`, `resume`, `logout`, `prompt_input_exit` or
+`other`. The hook script,
+[session-end-taskbook.sh](tools/claude/hooks/session-end-taskbook.sh), is
+linked into `~/.claude/hooks/`; the settings entry is merged in by
+[install-hooks](tools/claude/install-hooks), since Claude writes
+`~/.claude/settings.json` itself. Without `tb` on the machine the hook exits
+quietly. The mise devcontainer runs the same recipe and bind-mounts the host's
+`~/.taskbook`, so a session inside it lands on the same board.
+
+The same apply links
+[outbound-comment-gate.md](tools/claude/rules/outbound-comment-gate.md) into
+`~/.claude/rules/`, which Claude Code loads into every session: before it posts
+a comment, review or message anywhere, it shows the body and the destination
+and waits for approval. Claude Desktop has no rules directory, so
+[instructions-for-claude.md](tools/claude/desktop/instructions-for-claude.md)
+carries the gate inline.
+
+On a Nix account, a home-manager switch does both steps
+([home-manager/common.nix](home-manager/common.nix)), and `tb` comes with the
+other packages. The Nix devcontainer and `just docker-run` mount the host's
+`~/.taskbook` the same way.
+
 ## [Nix](https://nixos.org/download/)
 
 `flake.nix` has a (minimal) dev shell. Install Nix:
