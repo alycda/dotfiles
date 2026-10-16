@@ -42,6 +42,10 @@ _:
         name = "charmbracelet/tap";
         trusted = true;
       }
+      {
+        name = "withgraphite/tap";
+        trusted = true;
+      }
     ];
 
     # Formulae (CLI packages). Deliberately NOT listed because nix/home-manager
@@ -60,6 +64,7 @@ _:
       "poppler" # pdftotext & friends (also keeps the gpgme/gnupg dep chain)
       "sem-cli" # Semantic Diff (ataraxy-labs/sem)
       "typst"
+      "withgraphite/tap/graphite" # Graphite CLI (stacked PRs)
       "wishlist" # charmbracelet SSH directory
     ];
 
@@ -82,14 +87,14 @@ _:
       # the work homebrew module.
       "font-jetbrains-mono-nerd-font"
       "google-drive"
-      "kitty"
+      # "kitty"
       # Installed today as plain "logseq", but that token now ships the 2.0 DB
       # version and onActivation.upgrade would migrate the app on first switch.
       # logseq-og is the classic file/markdown build (same choice as ditto).
       # Graphs live in user-chosen folders and survive; back up ~/.logseq
       # (settings/plugins) before the first switch anyway.
       "logseq-og"
-      "nordpass"
+      # "nordpass"
       "obsidian"
       "orbstack"
       "proton-drive"

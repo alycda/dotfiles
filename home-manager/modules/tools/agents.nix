@@ -186,12 +186,15 @@ in
       ];
 
     # code-critic: engineering rubrics (TigerStyle, NASA Power of Ten, Test
-    # Desiderata) for judging code, designs, and tests.
+    # Desiderata, Hyrum's Law, behavioral subtyping) for judging code,
+    # designs, and tests.
     ".claude/agents/code-critic.md".text =
       mkCritic ../../../tools/agents/code-critic.md [
         ../../../tools/agents/rubrics/tiger-style.md
         ../../../tools/agents/rubrics/power-of-ten.md
         ../../../tools/agents/rubrics/test-desiderata.md
+        ../../../tools/agents/rubrics/hyrums-law.md
+        ../../../tools/agents/rubrics/behavioral-subtyping.md
       ];
 
     # factory-critic: StrongDM Software Factory method for judging process

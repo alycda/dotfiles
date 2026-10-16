@@ -334,23 +334,41 @@ env var to set), and leave the TTY path alone.
 ### External agent skills (`lib/skills-sh.nix`)
 
 Skills from [skills.sh](https://www.skills.sh/) install declaratively through
-the `nix-skills` flake input ([sudosubin/nix-skills](https://github.com/sudosubin/nix-skills),
-an auto-refreshed index that pins rev+hash for every published skill repo).
+the `nix-skills` flake input ([sudosubin/agents.nix](https://github.com/sudosubin/agents.nix),
+formerly `nix-skills`; an auto-refreshed index that pins rev+hash for every
+published skill repo).
 
-**Do not apply nix-skills' overlay.** Forcing any single `pkgs.skills.*`
-attribute parses all ~48MB of index JSON and materializes a 480k-entry
-attrset — measured at ~65s wall / 3.6GB peak RSS per evaluation (2026-08-04).
-Since agent-skills.nix is in common.nix, that cost would hit every switch and
-every configuration in `nix flake check --all-systems`.
+`lib/skills-sh.nix` calls upstream's **public** `overlays.default` inside
+our own overlay and re-exports only the skills we want as
+`pkgs.skills-sh.<name>`, wired in both `flake.nix` (mkHome) and
+`darwin/configuration.nix` and consumed by
+`home-manager/modules/tools/agent-skills.nix`. Calling the overlay function
+rather than adding it to `nixpkgs.overlays` keeps upstream's `agent-skills`
+tree and its deprecated, warn-on-force `pkgs.skills` alias out of `pkgs`.
 
-Instead, `lib/skills-sh.nix` reads only the per-first-letter data shard for
-each source repo and calls upstream's `buildSkill` directly — byte-identical
-derivations at ~1s eval cost. It's exposed as `pkgs.skills-sh.<name>` via an
-overlay wired in both `flake.nix` (mkHome) and `darwin/configuration.nix`,
-and consumed by `home-manager/modules/tools/agent-skills.nix`.
+**Don't reach into the index's internals again without re-measuring.** Until
+2026-09 this file read nix-skills' per-letter data shards and called
+`nix/build-skill` directly, because the overlay then parsed ~48MB of JSON per
+evaluation (~65s / 3.6GB on 2026-08-04; 18.8s / 2.2GB on 2026-09-21), and
+agent-skills.nix is in common.nix. Upstream then renamed the repo, rewrote
+its history, switched to one JSON file per repo and moved the builder — and
+the scheduled flake update died on `path '.../nix/build-skill' does not
+exist`. The same restructure made the overlay cost ~0.04s over a bare
+`pkgs.hello` eval, so the reason for the internals was already gone. The
+file's header has the measurement command; the header comment in any file
+that depends on internals should say what would make the public route good
+enough, so the next breakage is a prompt to check.
 
-- **Add a skill**: new `mkSkill` entry in `lib/skills-sh.nix` + a
-  `home.file` line in agent-skills.nix
+- **Add a skill**: an entry in `lib/skills-sh.nix`
+  (`github.<owner>.<repo>.<skill>`) + a line in agent-skills.nix'
+  `externalSkills`. Check the installed SKILL.md `name` matches the deploy
+  directory (Crush skips a mismatch silently); if not, `.override { name =
+  "<dir>"; }` makes upstream's builder rewrite it — `asd-ste100-skill` needs
+  this, because a root-path (`.`) skill is named after its repo
+- **The index can drop a live repo.** `supabase/agent-skills` is listed in
+  agents.nix's `sources.json` with no data file, so it is pinned by hand
+  (`fetchFromGitHub` + subdirectory) until it comes back — and does not move
+  with `nix flake update nix-skills` meanwhile
 - **Update pins**: `nix flake update nix-skills` (pins can lag upstream HEAD
   by days-to-weeks — they move when the index re-resolves the repo)
 - **Plugins are not skills**: anything shipped as a Claude Code plugin
@@ -373,8 +391,8 @@ and consumed by `home-manager/modules/tools/agent-skills.nix`.
   did not, so the repo's own skill named a file the install lacked. The
   pinned SKILL.md itself was self-consistent — checking it would have found
   nothing. Before committing a layering skill, check every path it names
-  against the indexed rev (`data/by-name/<initial>/skills.json` in the
-  locked nix-skills, then the file at that rev) or against
+  against the indexed rev (`data/agent-skills/github.com/<owner>/<repo>.json`
+  in the locked input, then the file at that rev) or against
   `~/.agents/skills/<name>/` after a switch, and give the skill a fallback
   for anything that can lag
 - **For a library, look inside the package before writing a skill for it.**
@@ -459,6 +477,18 @@ been compiling crush from scratch.
    - **`lib.hiPrio`** — only for collisions *within* home-manager's own closure; it cannot reach across nix-env profile elements
 
    A green `nix build` does not catch these: the profile union is computed at activation time on the target machine. Full write-up: `docs/solutions/build-errors/home-manager-bash-collides-with-base-image-profile.md`
+
+   The `hiPrio` remedy has a live instance now, and it is worth knowing as the
+   contrast: `ncurses` and `ghostty.terminfo` both provide
+   `share/terminfo/g/ghostty` (#116). Both are things *we* asked for, so the
+   comparison happens inside home-manager's own `buildEnv` - which reads
+   `meta.priority` - and fails at *build* time with a different message
+   (`pkgs.buildEnv error: two given paths contain a conflicting subpath`). The
+   base-image collisions above fail one layer up, at activation, when nix-env unions
+   `home-manager-path` with the base image's profile, where there is no
+   priority to compare. Similar-sounding errors, different layers; work out
+   which before picking a remedy.
+
 5. **System-level shell config reaches every account**: anything under
    `programs.zsh.*` in nix-darwin is written to `/etc/zshrc` / `/etc/zshenv`,
    which every user on the machine reads - including a non-admin account with
@@ -569,6 +599,16 @@ Some tools resist Nix's immutable model. Recurring patterns learned the hard way
   `GHOST_*` env vars (`modules/tools/ghost.nix`), never a managed copy of the
   config file the CLI itself writes. Packaged from the fork as a flake input
   (`lib/ghost.nix`), because the upstream release binary lacks the field.
+
+6. **Terminal capability in the container**: the `nixos/nix` image populates
+   none of the FHS paths ncurses is compiled to search, so the dev profile
+   installs `ncurses` (+ `ghostty.terminfo`) and sets `TERMINFO_DIRS` to
+   `${config.home.profileDirectory}/share/terminfo`. Point it at the profile,
+   never at a `/nix/store/...-ncurses-*` path - the latter works right up until
+   the next bump or `nix-collect-garbage`. Note ncurses has no `terminfo`
+   output; its database is in `$out/share/terminfo`, so plain `pkgs.ncurses` is
+   what you want (`pkgs.ncurses.terminfo` is an eval error, not a fallback).
+   Full write-up: `docs/solutions/runtime-errors/container-ships-no-terminfo-term-falls-back-to-xterm.md`
 
 ## Migration Workflow
 
@@ -690,6 +730,16 @@ CI runs on every push and pull request via `.github/workflows/nix.yml`. Two jobs
 { environment.systemPackages = [ pkgs.git ]; }
 ```
 
+**skill frontmatter** (`.github/scripts/check-skill-frontmatter.sh`, via
+`nix shell nixpkgs#yq-go`) checks each `tools/agents/skills/*/SKILL.md` against
+the rules Crush's skill loader enforces: the YAML must parse, `name` must match
+the directory, and `description` must be at most **1024 bytes**. Crush uses Go's
+`len()`, so the limit is bytes, not characters: an em-dash costs 3. Crush skips
+a skill that fails with no visible error. cf-now (1043 bytes) and
+entity-level-git (1146) were skipped until they were trimmed. The first guess
+was that nested colons broke the YAML. They did not: `:` is literal inside a
+`>` block scalar.
+
 ### Check job: `nix flake check --all-systems` + config evaluation
 
 The flake must evaluate cleanly across all systems. This catches type errors, missing attributes, and evaluation failures.
@@ -741,6 +791,15 @@ exists so lockfile updates can be kicked off and validated from anywhere
 (including the GitHub mobile app) without needing a checkout on whichever
 machine happens to be current; the weekly cron exists so they happen even
 when nobody thinks to ask.
+
+**It updates `main`, never the branch you dispatch it from.** The PR it
+opens changes only `flake.lock` and targets `main`, so the `flake.nix` the
+lock is resolved from, the sources it is validated against, and the tree it
+merges into must all be `main`. The checkout is pinned to `main`, and a
+dispatch from any other branch now fails in its first step. Before that
+guard existed, dispatching it to "validate" the nix-skills fix branch
+quietly re-tested `main` and failed with the very error the branch fixed.
+To validate a branch, look at `nix.yml` on its PR.
 
 The schedule is only safe because the validation below already gates PR
 creation: an unattended run cannot produce a PR for a lockfile that doesn't
@@ -829,6 +888,7 @@ This document should evolve as patterns emerge. When you:
 **Add it here** and commit with a message explaining what prompted the addition.
 
 ---
+*Last updated: 2026-09-29 - The scheduled flake update broke on `nix/build-skill` not existing: nix-skills was renamed to agents.nix, history rewritten and restructured. `lib/skills-sh.nix` now goes through upstream's public overlay, which the restructure made cheap (measured), instead of the internals it used to avoid a then-18s eval; supabase-postgres-best-practices is pinned by hand because the index dropped its repo*
 *Last updated: 2026-09-22 - Added the `topcoat` skill (tokio-rs/topcoat, with the Effect <-> Topcoat pairing), pinned Rhys Sullivan's `effect-client-wrapper`, and reviewed create-epoch-app; corrected a `cause`-field rule the `effect` skill had copied unverified from effect-playground*
 *Last updated: 2026-09-22 - Added the `effect` skill as a layer over the Effect team's pinned `effect-ts` / `effect-v3-to-v4` skills, and recorded the lesson: check whether a library ships its own agent docs in the package (Effect v4 does, v3 does not), gate on the installed version, and verify v3/v4 claims by typechecking against the real package*
 *Last updated: 2026-09-21 - Ghost (#56): ghost.build is shutting down, so venari now runs a server for its OpenAPI contract from the alycda/ghost fork, with the CLI packaged from that fork and driven by an env-setting wrapper; recorded the two client-side assumptions (`tsdb` dbname, viper's empty-env handling) that the "no CLI patch needed" plan missed*
@@ -857,6 +917,8 @@ under Homebrew 6.0; includes the two traps found routing around it (a green
 *2026-08-28 - Documented preferring a vendor's own Nix repo over nix-community/NUR when nixpkgs lags upstream (crush was three releases behind with nixpkgs master equally stale, so `nix flake update` could not fix it), including why the vendor overlay must be scoped rather than applied at top level and why their home-manager module collides with ours*
 
 *2026-08-28 - Documented the `importNpmLock` pattern for packaging an npm-only CLI (hackmd-cli), including why the lockfile-as-pin approach makes over-declared npm dependencies and per-platform binary packages a build-size problem worth overriding away, and added the rule that a CLI reaching `common.nix` must not be able to hit an interactive credential prompt headlessly*
+
+*2026-08-23 - Recorded the container terminfo fix (#116): why terminal capability is a profile-level concern rather than a devShell one, that `pkgs.ncurses` has no `terminfo` output, and the `ncurses`/`ghostty.terminfo` overlap as the first in-closure collision `lib.hiPrio` actually resolves*
 
 *2026-08-23 - Added "system-level shell config reaches every account" as a fifth configuration conflict after nix-darwin's global `compinit` prompted a non-admin user on every login for directories owned by the admin account*
 

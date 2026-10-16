@@ -10,9 +10,9 @@ check:
 check-all:
     nix flake check --all-systems
 
-# Run all linters (statix + deadnix)
+# Run all linters (statix + deadnix + skill frontmatter)
 [group('lint')]
-lint: lint-statix lint-deadnix
+lint: lint-statix lint-deadnix lint-skills
 
 # Check for Nix anti-patterns with statix
 [group('lint')]
@@ -23,6 +23,11 @@ lint-statix:
 [group('lint')]
 lint-deadnix:
     nix run nixpkgs#deadnix -- --fail .
+
+# Check agent-skill frontmatter against Crush's loader rules (1024-byte description)
+[group('lint')]
+lint-skills:
+    nix shell nixpkgs#yq-go --command ./.github/scripts/check-skill-frontmatter.sh
 
 # Run all CI checks locally (lint + flake check)
 [group('lint')]
@@ -110,10 +115,15 @@ _login:
 docker-build:
     ./docker/dev.sh build-local
 
-# Run the dev container, mounting the current directory at /work
+# Run the dev container, mounting the current directory at /work (forwards $TERM)
 [group('docker')]
 docker-run dir=invocation_directory():
     ./docker/dev.sh run {{dir}}
+
+# Open a second shell in the running dev container (also forwards $TERM)
+[group('docker')]
+docker-exec container="":
+    ./docker/dev.sh exec {{container}}
 
 # Assemble the combined agent instruction capsule (public layers + local overlay)
 [group('agents')]

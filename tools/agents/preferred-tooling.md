@@ -53,6 +53,18 @@ nix-summon trick below works for weave only (`nix run nixpkgs#weave`).
 summon sem that way; inspect isn't in nixpkgs at all. Where they're absent,
 fall back to the git equivalent and say so.
 
+`sem impact` finds callers inside the repo. It cannot find the ones outside
+it. **Hyrum's Law**: *"With a sufficient number of users of an API, it does
+not matter what you promise in the contract: all observable behaviors of
+your system will be depended on by somebody."* When a change touches a
+surface other code or people observe (API, CLI output, config or file
+format, FFI/ABI), list what observably moves, promised or not. The
+checklist is in `~/.agents/rubrics/hyrums-law.md`, and the `code-critic`
+agent applies it. Its counterpart for trait impls, alternate implementations
+and test doubles is Liskov and Wing's behavioral subtyping
+(`~/.agents/rubrics/behavioral-subtyping.md`): whatever stands in for a
+thing must keep its contract, not only its signature.
+
 ## Command-line defaults
 
 | Task | Prefer | Fall back to |

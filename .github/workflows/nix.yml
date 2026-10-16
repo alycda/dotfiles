@@ -28,6 +28,12 @@ jobs:
           nix profile install nixpkgs#deadnix
           deadnix --fail .
 
+      # Crush skips a skill whose frontmatter fails its loader checks
+      # (description over 1024 bytes, name not matching the directory)
+      # without a visible error.
+      - name: Check agent-skill frontmatter
+        run: nix shell nixpkgs#yq-go --command ./.github/scripts/check-skill-frontmatter.sh
+
   check:
     name: Validate Flake
     runs-on: ubuntu-latest
