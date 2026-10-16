@@ -17,6 +17,28 @@ let
     patches = [ ];
     postInstall = "installManPage doc/cheat.1";
   });
+
+  # taskbook's Rust port (mise has it as github:taskbook-sh/taskbook). Its own
+  # overlay.nix installs the release binaries as they are, which on Linux ask
+  # for /lib64/ld-linux and so don't run on NixOS; built from source instead.
+  # The workspace's server (axum, sqlx, Postgres) is left out.
+  taskbook = pkgs.rustPlatform.buildRustPackage (finalAttrs: {
+    pname = "taskbook";
+    version = "1.5.0";
+    src = pkgs.fetchFromGitHub {
+      owner = "taskbook-sh";
+      repo = "taskbook";
+      tag = "v${finalAttrs.version}";
+      hash = "sha256-zG/w3xUg6dicFFx1Bd/fcsRAS6RxibPp8mwB9fy5fog=";
+    };
+    cargoHash = "sha256-NLuOE7rdvgqPOEa06u36b+EmWOLWEC3ygJM8lo19ksQ=";
+    cargoBuildFlags = [ "--package=taskbook-client" ];
+    cargoTestFlags = [
+      "--package=taskbook-client"
+      "--package=taskbook-common"
+    ];
+    meta.mainProgram = "tb";
+  });
 in
 [
   pkgs.bat
@@ -27,6 +49,7 @@ in
   pkgs.gh
   pkgs.claude-code
   pkgs.tmux
+  taskbook
   # formatters for `jj fix`
   pkgs.taplo
   pkgs.rumdl

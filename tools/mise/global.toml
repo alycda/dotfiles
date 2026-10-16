@@ -1,5 +1,10 @@
-# Global mise tools, linked to ~/.config/mise/conf.d/dotfiles.toml: only what
-# the global justfile needs outside this repo. The repo's own tools stay in the
-# root mise.toml.
+# Global mise tools, linked to ~/.config/mise/conf.d/dotfiles.toml: the few
+# tools needed outside this repo. The repo's own tools stay in the root
+# mise.toml.
 [tools]
+# The global justfile's recipes.
 just = "latest"
+# taskbook (`tb`), from the Rust port: one binary instead of the original's
+# Node runtime, same ~/.taskbook data format. Its sync swaps local storage for
+# a server, with no offline copy, so it stays off.
+"github:taskbook-sh/taskbook" = "1.5"
