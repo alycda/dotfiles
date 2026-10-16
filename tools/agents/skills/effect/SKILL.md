@@ -88,10 +88,22 @@ also run, first on `4.0.0-rc.117` and again on `4.0.5`, with the same results.
 | `Arc<Mutex<T>>` | `Ref` | same | — |
 | `impl Iterator` | `Stream` | same | — |
 
-For a symbol that is not in this table, do not guess the v4 name. Search the
-reference (the recipes are in `~/.agents/skills/effect-v3-to-v4/SKILL.md`) or
-`node_modules/effect/src/`. This table was checked, and one guess still got
-through: `Schema.TaggedErrorClass` does not exist.
+For a symbol that is not in this table, do not guess the v4 name. Search
+`node_modules/effect/src/` first. For a v3 name, look it up in the generated
+migration reference. The package does not ship that reference, so if
+`.repos/effect` does not exist, fetch only the reference (6.5 MB) with:
+
+```sh
+git clone --depth 1 --filter=blob:none --sparse https://github.com/Effect-TS/effect .repos/effect
+git -C .repos/effect sparse-checkout set migration
+rg -n '^- `Effect\.catchAll`' .repos/effect/migration/v3-to-v4.md   # one symbol at a time
+```
+
+Never read `v3-to-v4.md` whole; it is about 17,000 lines. The other search
+recipes are in `~/.agents/skills/effect-v3-to-v4/SKILL.md`; they expect this
+same `.repos/effect` path, so they work after the clone above. This table was
+checked, and one guess still got through: `Schema.TaggedErrorClass` does not
+exist.
 
 ## v3 → v4 traps that a rename table hides
 
