@@ -67,6 +67,14 @@ services:
       # that bridge is root, and root can read .env.
       POSTGRES_URL: "postgresql://convex:${CONVEX_POSTGRES_PASSWORD:?set it in .env}@ghost-postgres:5432?sslmode=disable"
       DO_NOT_REQUIRE_SSL: "1"
+      # Connection budget. Ghost's cluster allows 25 connections in total
+      # (TimescaleDB tunes max_connections from its 768m limit), 3 of them
+      # reserved for superusers, and every agent's Ghost database draws on
+      # the same 22. The backend's pool defaults to 128 - enough to starve
+      # them, or be starved. 8 is above the 7 it used under a 500-mutation
+      # burst (2026-10-16); the convex role's CONNECTION LIMIT 10 (README
+      # setup) enforces the cap server-side even if this knob changed.
+      POSTGRES_MAX_CONNECTIONS: "8"
       # The anonymous usage beacon (a random ID plus the backend version).
       DISABLE_BEACON: "true"
       DISABLE_METRICS_ENDPOINT: "true"

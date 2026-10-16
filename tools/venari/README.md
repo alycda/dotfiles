@@ -231,6 +231,12 @@ app's data lives. They do share one thing: the cluster.
   `?sslmode=disable`; either one alone still fails. The hop is container to
   container and never leaves the host. The alternative, not tested, is to
   re-issue Ghost's certificate from a CA the backend trusts.
+- **A connection budget.** The cluster allows 25 connections, 3 reserved for
+  superusers (TimescaleDB derives the limit from its memory). Convex's pool is
+  capped at 8 (`POSTGRES_MAX_CONNECTIONS`; its default of 128 could take every
+  slot), and the `convex` role has `CONNECTION LIMIT 10`, so Postgres enforces
+  the cap whatever the knob says. That leaves about 12 for agents' Ghost
+  databases. Under a 500-mutation burst Convex used 7.
 - **State is split across two places.** The documents are in
   `convex_self_hosted` in the cluster. Files, function modules, search indexes
   (`data/storage/`) and `data/credentials/` (the instance name, and the secret
@@ -308,7 +314,7 @@ cd /srv/convex && umask 077 && mkdir -p data
 printf 'CONVEX_POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env
 . ./.env
 (cd /srv/ghost && docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -v pw="$CONVEX_POSTGRES_PASSWORD") <<'SQL'
-CREATE ROLE convex LOGIN PASSWORD :'pw';
+CREATE ROLE convex LOGIN CONNECTION LIMIT 10 PASSWORD :'pw';
 CREATE DATABASE convex_self_hosted OWNER convex;
 REVOKE CONNECT, TEMPORARY ON DATABASE convex_self_hosted FROM PUBLIC;
 SQL
