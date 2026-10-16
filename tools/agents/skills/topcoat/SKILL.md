@@ -86,7 +86,7 @@ the nearest Rust shape. Rows marked "checked" were run; the rest come from the
 | Concern | create-epoch-app / Effect | Topcoat 0.8.1 |
 |---|---|---|
 | Ask for a dependency | `const db = yield* Database`; epoch-app's rule is "prefer `yield*` over passing deps as arguments" | `app_context::<Db>(cx)` inside a small `fn(cx: &Cx)`; "functions, not middlewares" is the same rule |
-| Missing dependency | **Compile error**: the service stays in `R`, and `runPromise` rejects `Effect<A, E, Db>` (checked, TS2345) | **Runtime panic → 500** on that request only (checked) |
+| Missing dependency | **Compile error**: the service stays in `R`, and `runPromise` rejects `Effect<A, E, Db>` (checked on 4.0.5: TS2345, or TS2379 under `exactOptionalPropertyTypes`) | **Runtime panic → 500** on that request only (checked) |
 | Wire implementations | `Layer` + `Effect.provide`; swap a Layer for tests | `Router::builder().app_context(value)`; swap the value in a test router |
 | Request-scoped dedupe | no one-to-one; `RequestResolver` dedupes and batches | `#[memoize]` on a `cx` function, per request |
 | Error type | typed `E` channel, tagged errors, `catchTags` | `topcoat::Error` wraps `anyhow::Error` (type-erased); router error types map to status codes, anything else is 500. Keep `thiserror` enums in the domain and convert at the handler |

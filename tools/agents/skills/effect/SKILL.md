@@ -34,18 +34,25 @@ grep '"effect"' package.json                       # declared range
 
 | Result | Do this |
 |---|---|
-| `4.x` (including `-rc.N` / `-beta.N`) | Read `node_modules/effect/AGENTS.md` completely, then follow its links into `node_modules/effect/ai-docs/src/`. For an API it does not cover, search `node_modules/effect/src/`. Use the v4 column below. |
+| `4.x` | Read `node_modules/effect/AGENTS.md` completely, then follow its links into `node_modules/effect/ai-docs/src/`. For an API it does not cover, search `node_modules/effect/src/`. Use the v4 column below. |
+| `4.0.0-rc.N` / `-beta.N` | A pre-GA build. Treat it as v4, and also apply the import-path trap below: a pre-GA install has the `effect/unstable/*` paths that GA removed. Say that it is a pre-release, and do not upgrade it unasked. |
 | `3.x` | The v3 package ships no `AGENTS.md`. Search `node_modules/effect/src/` for signatures. Use the v3 column below. Do not copy code from v4 docs, from `AGENTS.md` in another project, or from the pinned `effect-ts` skill; it will not compile. |
-| not installed, new project | Ask v3 or v4. Give the tradeoff in one line: npm `latest` is v3 and matches the effect.website docs; v4 is a release candidate, is what the Effect team's own skill installs, and ships agent docs in the package. |
+| not installed, new project | v4: npm `latest` is 4.x, the Effect team's skill installs it, and it ships agent docs in the package. v3 needs a stated reason, for example code that must match an existing v3 codebase. Say which one you chose in one line. |
 | not installed, existing code | Find out why before you install anything. |
 
-As of 2026-09-22: npm `latest` = `3.22.2`, `rc` = `4.0.0-rc.117`. Re-check with
-`npm view effect dist-tags` before you state it.
+As of 2026-10-16: npm `latest` = `4.0.5` (4.0.0 went out 2026-10-01), `prev` =
+`3.22.3` (v3 still gets releases), and `rc` has stayed at `4.0.0-rc.118` since
+2026-09-28, behind the stable releases. Re-check with `npm view effect
+dist-tags` before you state it.
 
 **Do not upgrade the major version unasked.** The pinned `effect-ts` skill
-(`~/.agents/skills/effect-ts/`) starts with `pnpm add effect@rc`. In a v3
-project, that command is a v3-to-v4 migration. Use `effect-ts` only to set up a
-v4 repo. For a migration, Alyssa runs `/effect-v3-to-v4`, which has
+(`~/.agents/skills/effect-ts/`) starts with `pnpm add effect@latest`. Since
+`latest` became 4.x, that command is a v3-to-v4 migration in a v3 project.
+Use `effect-ts` only to set up a v4 repo. In a v3 project, add or update with
+a range, not a tag. `npm install effect` and `pnpm add effect` with no version
+keep the `^3` range already in `package.json`; `effect@latest` rewrites it to
+`^4` (checked with npm 10 and pnpm 10 on 2026-10-16). Use `effect@3` when you
+need to name it. For a migration, Alyssa runs `/effect-v3-to-v4`, which has
 `disable-model-invocation: true` and so never starts automatically.
 
 If `~/.agents/skills/effect-ts/` does not exist, the v4 path still works:
@@ -54,9 +61,10 @@ If `~/.agents/skills/effect-ts/` does not exist, the v4 path still works:
 ## Rust translation
 
 Same table as the playground README, with a v4 column. Every v4 entry is either
-unchanged or resolved against `migration/v3-to-v4.md` in Effect-TS/effect
-(main, 4.0.0-rc.117). The four marked "checked" also typecheck and run on
-rc.117.
+unchanged or resolved against `migration/v3-to-v4.md` in Effect-TS/effect. On
+2026-10-16, every v4 name in this table and in the trap list below was
+re-typechecked against the stable `4.0.5`. The entries marked "checked" were
+also run, first on `4.0.0-rc.117` and again on `4.0.5`, with the same results.
 
 | Rust | v3 | v4 | Lesson |
 |---|---|---|---|
@@ -88,8 +96,18 @@ through: `Schema.TaggedErrorClass` does not exist.
 ## v3 → v4 traps that a rename table hides
 
 These come from typechecking effect-playground (v3, strict tsconfig) against
-`4.0.0-rc.117`. They matter when you read v3 code while you write v4 code, or
-the other way round.
+v4: first `4.0.0-rc.117`, then `4.0.5`, which produced the same 71 errors.
+They matter when you read v3 code while you write v4 code, or the other way
+round.
+
+- **Pre-GA import paths: `effect/unstable/*` is gone.** Before 4.0.0, modules
+  such as http, rpc and ai lived under `effect/unstable/*`. At GA they moved to
+  plain paths (`effect/unstable/http` → `effect/http`), with no compatibility
+  exports: on `4.0.5` the old path fails with TS2307 (checked). Code, examples
+  and answers written against a v4 beta or RC use the old paths, so drop the
+  `unstable` segment. Moving a module did not make its API stable. Stability is
+  now a JSDoc tag: `@stability unstable` APIs can break in a minor release, and
+  `@stability experimental` APIs in a patch release.
 
 - **Same name, different meaning: `Schema.Date`.** v3 `Schema.Date` decodes an
   ISO string to a `Date`. v4 `Schema.Date` is the identity schema for a `Date`,
@@ -133,7 +151,7 @@ the other way round.
 - Expected failures go in `E` as tagged errors. Broken invariants are defects
   (`Effect.die`, `orDie`) and stay out of `E`. A payload field named `cause`
   is fine, including `readonly cause: unknown`, on v3 and v4 (checked:
-  3.22.2 and rc.117). The playground's lesson 06 comment says it conflicts
+  3.22.2, rc.117 and 4.0.5). The playground's lesson 06 comment says it conflicts
   with `Error.cause`. It does not: renaming that field to `cause` still
   typechecks and passes 6/6 tests. Do not repeat that comment.
 - Ask for a dependency with `yield* Service` inside the function. Do not pass
