@@ -77,7 +77,17 @@ convex-tunnel-close:
 # print a new Convex admin key (each call differs; all stay valid until data/ is lost)
 [group('personal')]
 convex-admin-key:
-    @ssh venari-root 'cd /srv/convex && docker compose exec -T backend ./generate_admin_key.sh' | tail -1
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Without pipefail a failed ssh or exec still exits 0 through `tail`, and the
+    # empty line or error text gets pasted into .env.local as the key. So the
+    # script also refuses anything not shaped like a key: <instance>|<hex>.
+    key=$(ssh venari-root 'cd /srv/convex && docker compose exec -T backend ./generate_admin_key.sh' | tail -n 1)
+    if [[ ! "$key" =~ ^[a-z0-9_-]+\|[0-9a-f]+$ ]]; then
+        echo "convex-admin-key: got no admin key from venari (output: '${key}')" >&2
+        exit 1
+    fi
+    printf '%s\n' "$key"
 
 # The box has two vCPUs and no Go, so the server binary is cross-compiled here
 # and only the static binary travels; the image on the box is Alpine plus that
