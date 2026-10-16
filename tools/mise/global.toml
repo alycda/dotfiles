@@ -1,0 +1,8 @@
+# Global mise tools, linked to ~/.config/mise/conf.d/dotfiles.toml by the root
+# mise.toml's [dotfiles]: the few tools needed outside this checkout. The
+# root [tools] apply only inside it.
+[tools]
+# taskbook (`tb`), the Rust port. Tasks are used from any directory, and
+# Claude's SessionEnd hook finds tb through mise from the session's cwd.
+# Same major.minor as the root mise.toml and lib/packages/taskbook.nix.
+"github:taskbook-sh/taskbook" = "1.5"
