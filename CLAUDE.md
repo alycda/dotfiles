@@ -399,10 +399,11 @@ enough, so the next breakage is a prompt to check.
   Effect v4 ships `AGENTS.md` and `ai-docs/` in its npm tarball, and the
   Effect team's own `effect-ts` skill is only a pointer to them. A local API
   reference would restate that content, and it would go stale at each
-  release candidate. The repo's `effect` skill therefore carries what the
-  package cannot: a gate on the *installed* major version (the v3 tarball
-  ships no agent docs, and `effect-ts` starts with `pnpm add effect@rc`, which
-  in a v3 project is an unrequested major upgrade), plus Alyssa's Rust
+  release. The repo's `effect` skill therefore carries what the package
+  cannot: a gate on the *installed* major version (the v3 tarball ships no
+  agent docs, and `effect-ts` starts with `pnpm add effect@latest`, which
+  since v4 GA on 2026-10-01 is an unrequested major upgrade in a v3 project;
+  during the RC the same step said `effect@rc`), plus Alyssa's Rust
   mapping. Get version-specific claims from a typecheck against the real
   package, not from memory: typechecking effect-playground against
   4.0.0-rc.117 found `Schema.Date`, a name that v4 keeps with a different
