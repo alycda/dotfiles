@@ -16,8 +16,20 @@
 
     // Apply this checkout's [dotfiles] and print the status: every
     // entry should read "applied". No --force, so a genuine conflict is
-    // reported rather than overwritten.
-    "postCreateCommand": "~/.local/bin/mise dotfiles apply -y && ~/.local/bin/mise dotfiles status",
+    // reported rather than overwritten. Then the claude-hooks recipe, so a
+    // Claude session in here leaves its resume pointer on the taskbook board
+    // like one on the host.
+    "postCreateCommand": "~/.local/bin/mise dotfiles apply -y && ~/.local/bin/mise dotfiles status && ~/.local/bin/mise exec -- just claude-hooks",
+
+    // The host's taskbook data, so tb in here and tb outside show one board.
+    // tb takes storage.lock around writes, so two sessions ending together
+    // is fine. A bind mount, not a volume: a volume would be a second board
+    // that nothing outside the container reads. A bind mount whose source is
+    // missing stops the container from starting, hence initializeCommand.
+    "initializeCommand": "mkdir -p \"$HOME/.taskbook\"",
+    "mounts": [
+        "source=${localEnv:HOME}/.taskbook,target=/home/vscode/.taskbook,type=bind"
+    ],
 
     "remoteEnv": {
         "GIT_ORIGIN_REMOTE": "git@github.com:alycda/dotfiles.git",

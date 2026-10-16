@@ -92,6 +92,13 @@ gh-login: ssh-key
 identity: gh-login
     @tools/setup/identity
 
+# The script is linked by `mise dotfiles apply`; this merges its settings entry.
+
+# Register the SessionEnd taskbook hook in ~/.claude/settings.json, unless it is
+[group('setup')]
+claude-hooks:
+    @tools/claude/install-hooks
+
 # Without a daemon, docker's own error names a socket path, not the fix.
 [private]
 docker-daemon:
@@ -120,11 +127,12 @@ brew-upgrade:
 docker-build: docker-daemon
     docker build -t dotfiles .
 
-# Run that image, with the current directory at /work and ~/.age read-only
-# (if the host has it), so the entrypoint installs the agenix secrets
+# Run that image, with the current directory at /work, ~/.age read-only (if the
+# host has it) so the entrypoint installs the agenix secrets, and ~/.taskbook
+# (if the host has it) so Claude sessions in there land on the host's board
 [group('docker')]
 docker-run: docker-daemon
-    docker run -it --rm -e TERM="$TERM" {{ if path_exists(home_directory() / ".age") == "true" { "-v " + quote(home_directory() / ".age") + ":/root/.age:ro" } else { "" } }} -v {{ quote(invocation_directory()) }}:/work dotfiles
+    docker run -it --rm -e TERM="$TERM" {{ if path_exists(home_directory() / ".age") == "true" { "-v " + quote(home_directory() / ".age") + ":/root/.age:ro" } else { "" } }} {{ if path_exists(home_directory() / ".taskbook") == "true" { "-v " + quote(home_directory() / ".taskbook") + ":/root/.taskbook" } else { "" } }} -v {{ quote(invocation_directory()) }}:/work dotfiles
 
 # Create or edit an agenix secret, secrets/NAME.age (needs the dev shell)
 [group('secrets')]
