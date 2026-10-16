@@ -51,6 +51,14 @@ linked into `~/.claude/hooks/`; the settings entry is merged in by
 quietly. The mise devcontainer runs the same recipe and bind-mounts the host's
 `~/.taskbook`, so a session inside it lands on the same board.
 
+The same apply links
+[outbound-comment-gate.md](tools/claude/rules/outbound-comment-gate.md) into
+`~/.claude/rules/`, which Claude Code loads into every session: before it posts
+a comment, review or message anywhere, it shows the body and the destination
+and waits for approval. Claude Desktop has no rules directory, so
+[instructions-for-claude.md](tools/claude/desktop/instructions-for-claude.md)
+carries the gate inline.
+
 On a Nix account, a home-manager switch does both steps
 ([home-manager/common.nix](home-manager/common.nix)), and `tb` comes with the
 other packages. The Nix devcontainer and `just docker-run` mount the host's

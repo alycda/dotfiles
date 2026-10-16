@@ -85,6 +85,10 @@ in
   # the store so install-hooks finds hooks.json beside it.
   home.file.".claude/hooks/session-end-taskbook.sh".source =
     ../tools/claude/hooks/session-end-taskbook.sh;
+  # The outbound-comment gate, as a user-scope rule: Claude Code loads every
+  # .md in ~/.claude/rules into every session, so no import line in CLAUDE.md.
+  home.file.".claude/rules/outbound-comment-gate.md".source =
+    ../tools/claude/rules/outbound-comment-gate.md;
   home.activation.claudeHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     run env PATH=${lib.makeBinPath [ pkgs.jq ]}:"$PATH" ${../tools/claude}/install-hooks
   '';
