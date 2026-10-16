@@ -26,9 +26,12 @@
     // the container works as before. A bind mount whose source is missing
     // stops the container from starting, so initializeCommand, which runs on
     // the host first, makes sure ~/.age exists.
-    "initializeCommand": "mkdir -p \"$HOME/.age\"",
+    "initializeCommand": "mkdir -p \"$HOME/.age\" \"$HOME/.taskbook\"",
     "mounts": [
-        "source=${localEnv:HOME}/.age,target=/home/vscode/.age,type=bind,readonly"
+        "source=${localEnv:HOME}/.age,target=/home/vscode/.age,type=bind,readonly",
+        // The host's taskbook board, for the SessionEnd hook home-manager
+        // installs (home-manager/common.nix).
+        "source=${localEnv:HOME}/.taskbook,target=/home/vscode/.taskbook,type=bind"
     ],
 
     "remoteEnv": {

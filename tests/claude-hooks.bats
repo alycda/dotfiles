@@ -69,6 +69,14 @@ ended() {
   [ -z "$output" ]
 }
 
+@test "off PATH, tb is found in the home-manager profile" {
+  mkdir -p "$HOME/.nix-profile/bin"
+  mv "$stubs/tb" "$HOME/.nix-profile/bin/tb"
+  PATH="$stubs:/usr/bin:/bin" run sh "$hook" <<< "$(ended abc-123 /work/repo other)"
+  [ "$status" -eq 0 ]
+  grep -Fx 'tb --cli --task @claude resume: claude --resume abc-123 (in /work/repo, other)' "$log"
+}
+
 @test "empty input exits 0 and calls nothing" {
   run sh "$hook" < /dev/null
   [ "$status" -eq 0 ]

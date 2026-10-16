@@ -8,7 +8,8 @@
 # It never fails. Whatever goes wrong, it exits 0 and stays quiet, so a missing
 # tb or a bare PATH can't make Claude's exit hang or print. A hook runs with the
 # environment Claude was started from, which under the desktop app may not
-# have mise activated, so tb is looked up on PATH first and through mise next.
+# have mise activated or the Nix profile on PATH, so tb is looked up on PATH
+# first, then in the home-manager profiles, then through mise.
 set -u
 
 input=$(cat) || exit 0
@@ -34,6 +35,10 @@ reason=$(field reason)
 [ -n "$session" ] || exit 0
 
 tb=$(command -v tb 2>/dev/null || true)
+# Standalone home-manager, then home-manager under nix-darwin (useUserPackages).
+for candidate in "$HOME/.nix-profile/bin/tb" "/etc/profiles/per-user/$(id -un 2>/dev/null)/bin/tb"; do
+  [ -z "$tb" ] && [ -x "$candidate" ] && tb=$candidate
+done
 if [ -z "$tb" ] && [ -x "$HOME/.local/bin/mise" ]; then
   tb=$("$HOME/.local/bin/mise" which tb 2>/dev/null || true)
 fi
