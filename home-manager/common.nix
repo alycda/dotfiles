@@ -77,6 +77,18 @@ in
     appendLine "$HOME/.gitconfig" "[include] path = ~/.config/git/dotfiles.gitconfig"
   );
 
+  # Claude Code's SessionEnd hook (tools/claude): what mise's [dotfiles] link
+  # and `just claude-hooks` do on a mise account. tb comes from
+  # lib/packages/taskbook.nix. The settings entry is a merge, not a managed
+  # file, because Claude writes ~/.claude/settings.json itself; install-hooks
+  # keeps what is there and adds the hook once. The whole directory goes to
+  # the store so install-hooks finds hooks.json beside it.
+  home.file.".claude/hooks/session-end-taskbook.sh".source =
+    ../tools/claude/hooks/session-end-taskbook.sh;
+  home.activation.claudeHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run env PATH=${lib.makeBinPath [ pkgs.jq ]}:"$PATH" ${../tools/claude}/install-hooks
+  '';
+
   programs.home-manager.enable = true;
   home.stateVersion = "26.05";
 }

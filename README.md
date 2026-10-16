@@ -51,6 +51,11 @@ linked into `~/.claude/hooks/`; the settings entry is merged in by
 quietly. The mise devcontainer runs the same recipe and bind-mounts the host's
 `~/.taskbook`, so a session inside it lands on the same board.
 
+On a Nix account, a home-manager switch does both steps
+([home-manager/common.nix](home-manager/common.nix)), and `tb` comes with the
+other packages. The Nix devcontainer and `just docker-run` mount the host's
+`~/.taskbook` the same way.
+
 ## [Nix](https://nixos.org/download/)
 
 `flake.nix` has a (minimal) dev shell. Install Nix:
