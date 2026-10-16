@@ -30,15 +30,18 @@ the Effect stack, which is where Alyssa is coming from.
 ```sh
 grep -A1 '^name = "topcoat"$' Cargo.lock        # resolved version
 rustc --version                                  # 0.8.1 needs >= 1.98
-ls -d ~/.cargo/registry/src/*/topcoat-*<ver>/docs \
-      ~/.cargo/registry/src/*/topcoat-*<ver>/macro/docs 2>/dev/null
+ls -d ~/.cargo/registry/src/*/topcoat-*<ver>/docs   # every crate that has guides
 ```
 
 The guides are embedded in the published crates (`include_str!` into the API
-docs), so after a `cargo build` they are on disk at the resolved version:
+docs), so after a `cargo build` they are on disk at the resolved version, in
+three kinds of crate (the `ls` above lists all of them):
 `topcoat-<ver>/docs/` holds the facade guides (router, context, app_context,
-runtime, session, ui, …), and `topcoat-<crate>-macro-<ver>/docs/` holds the
-macro references (`view.md`, `live.md`, `procedure.md`, `shard.md`, …).
+runtime, session, ui, …); `topcoat-router-<ver>/docs/` holds the router's own
+(content types, errors, module_router, tower); and
+`topcoat-<crate>-macro-<ver>/docs/` holds the macro references (`view.md`,
+`live.md`, `procedure.md`, `shard.md`, …). The repository keeps macro docs at
+`crates/<crate>/macro/docs/`; that path does not exist in the registry.
 `cargo doc --open -p topcoat` renders the same text.
 
 The guide *index* is `AGENTS.md` in the repository, and it does **not** ship in
