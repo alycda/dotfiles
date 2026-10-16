@@ -58,7 +58,7 @@ convex-tunnel:
     fi
     rm -f "$sock"   # a master that died uncleanly leaves its socket behind
     ssh -fN -o ControlMaster=yes -o ControlPath="$sock" -o ExitOnForwardFailure=yes \
-        -L 13210:127.0.0.1:3210 -L 13211:127.0.0.1:3211 -L 16791:127.0.0.1:6791 venari
+        -L 127.0.0.1:13210:127.0.0.1:3210 -L 127.0.0.1:13211:127.0.0.1:3211 -L 127.0.0.1:16791:127.0.0.1:6791 venari
     echo "convex tunnel open: API 13210, HTTP actions 13211, dashboard 16791"
 
 # close the Convex tunnel
