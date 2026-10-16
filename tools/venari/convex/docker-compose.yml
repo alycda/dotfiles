@@ -1,34 +1,14 @@
-# Convex on venari: the self-hosted Convex backend and its dashboard, from
-# get-convex/convex-backend's self-hosted/docker/docker-compose.yml. Both listen
-# on the box's loopback only and are reached over ssh -L, like Soft Serve and
-# Ghost: the cloud firewall admits 22 alone.
+# Convex on venari: the self-hosted backend and dashboard, from
+# get-convex/convex-backend's self-hosted/docker/docker-compose.yml.
 #
 # On the box: /srv/convex/docker-compose.yml, next to an untracked .env (see
-# .env.example) and data/ (never tracked).
+# .env.example) and data/ (never tracked). The database is in Ghost's cluster,
+# so Ghost must be up first.
 #
-# The database is Postgres in Ghost's cluster (ghost-postgres), not upstream's
-# default SQLite: one Postgres on the box, not two. Convex gets a database of
-# its own (convex_self_hosted), owned by a role of its own (convex), with
-# CONNECT revoked from PUBLIC so tsdbadmin - the shared role Ghost hands to
-# agents - cannot even open it. ghost-server only ever touches databases listed
-# in its ghost.databases table, so it neither sees nor sizes nor drops this one
-# (checked against the fork's internal/server/store.go). The two projects meet
-# on the venari-postgres network, which Ghost's project creates; Convex only
-# joins it, so Ghost must be up first.
-#
-# State is split in two, and a backup needs both, taken together:
-# - convex_self_hosted in the cluster: every document and index.
-# - data/: stored files, pushed function modules, search indexes (storage/),
-#   and credentials/ - the instance name and the secret admin keys are signed
-#   with. The backend generates both on first start.
-# Admin keys: `generate_admin_key.sh` gives a different key on every call, and
-# every one stays valid as long as credentials/ does (checked 2026-09-22: a key
-# issued before a restart still worked after it).
-#
-# Upstream ships `:latest`. Both images are pinned to one revision here, because
-# upstream says a backend and dashboard of different versions are not
-# guaranteed to work together. Upgrading: self-hosted/advanced/upgrading.md -
-# `npx convex export` first, then bump BOTH tags.
+# The reasons for every choice below - the shared cluster and its isolation,
+# the network, plaintext, the connection budget, the port offset, the pinned
+# revision, admin keys and backups - are in tools/venari/README.md, "Convex",
+# and only there. The comments here say what must stay true when you edit.
 name: convex
 services:
   backend:
@@ -48,35 +28,17 @@ services:
       - "127.0.0.1:3210:3210" # client API, websocket sync
       - "127.0.0.1:3211:3211" # HTTP actions
     environment:
-      # What clients are told the backend is: the laptop's end of the tunnel.
-      # These appear in storage URLs and action callbacks, so they must be the
-      # address the client actually uses, not the container's. The laptop
-      # ports are offset by 10000 (`just convex-tunnel`: 13210 -> 3210), like
-      # Ghost's 15432 -> 5432, because 3210/3211 are where a local
-      # `npx convex dev` deployment starts; sharing them would let a project
-      # deploy to whichever backend held the port.
+      # The laptop's end of the tunnel, not the container's address. Must match
+      # the forwards in `just convex-tunnel` (box port + 10000).
       CONVEX_CLOUD_ORIGIN: http://127.0.0.1:13210
       CONVEX_SITE_ORIGIN: http://127.0.0.1:13211
       # No database name: the backend appends one derived from INSTANCE_NAME
-      # (default convex-self-hosted -> convex_self_hosted).
-      #
-      # Plaintext, on purpose, and both settings are needed (checked
-      # 2026-09-22). The backend verifies TLS certificates, and Ghost's is
-      # self-signed, so a TLS handshake fails with CaUsedAsEndEntity.
-      # DO_NOT_REQUIRE_SSL alone still attempts TLS whenever the server
-      # offers it, and fails the same way. `sslmode=disable` alone is refused
-      # without DO_NOT_REQUIRE_SSL. The hop is container to container on the
-      # venari-postgres bridge and never leaves the host. Anyone able to read
-      # that bridge is root, and root can read .env.
+      # (default convex-self-hosted -> convex_self_hosted). Plaintext on
+      # purpose; it takes BOTH sslmode=disable and DO_NOT_REQUIRE_SSL.
       POSTGRES_URL: "postgresql://convex:${CONVEX_POSTGRES_PASSWORD:?set it in .env}@ghost-postgres:5432?sslmode=disable"
       DO_NOT_REQUIRE_SSL: "1"
-      # Connection budget. Ghost's cluster allows 25 connections in total
-      # (TimescaleDB tunes max_connections from its 768m limit), 3 of them
-      # reserved for superusers, and every agent's Ghost database draws on
-      # the same 22. The backend's pool defaults to 128 - enough to starve
-      # them, or be starved. 8 is above the 7 it used under a 500-mutation
-      # burst (2026-10-16); the convex role's CONNECTION LIMIT 10 (README
-      # setup) enforces the cap server-side even if this knob changed.
+      # Keep below the convex role's CONNECTION LIMIT (10, README setup). The
+      # cluster has 25 connections in total, shared with every Ghost database.
       POSTGRES_MAX_CONNECTIONS: "8"
       # The anonymous usage beacon (a random ID plus the backend version).
       DISABLE_BEACON: "true"
@@ -99,8 +61,7 @@ services:
     ports:
       - "127.0.0.1:6791:6791"
     environment:
-      # Read by the dashboard in the *browser*, so it is the laptop's tunnel
-      # end too.
+      # Read in the browser, so it is the laptop's tunnel end too.
       NEXT_PUBLIC_DEPLOYMENT_URL: http://127.0.0.1:13210
       # Otherwise the editor panes load monaco from a CDN.
       NEXT_PUBLIC_LOAD_MONACO_INTERNALLY: "true"

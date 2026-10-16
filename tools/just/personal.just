@@ -37,11 +37,11 @@ ghost-tunnel-close:
     @pkill -f 'ssh -fN venari-ghost' && echo "ghost tunnel closed" || echo "no ghost tunnel open"
 
 # Convex on venari (tools/venari/README.md, "Convex"): backend, HTTP actions and
-# dashboard listen on the box's loopback. The forwards are inline rather than an
-# ssh alias like venari-ghost, so nothing outside this repo has to exist first;
-# laptop ports are the box's plus 10000 (13210 -> 3210, like Ghost's 15432 -> 5432),
-# because 3210/3211 are where a local `npx convex dev` deployment starts, and they
-# must match CONVEX_CLOUD_ORIGIN / CONVEX_SITE_ORIGIN in convex/docker-compose.yml.
+# dashboard listen on the box's loopback. These recipes use the `venari` and
+# `venari-root` aliases from ~/.ssh/config (README, "Access"; the box's address
+# is never in this repo). The forwards are inline, so unlike Ghost they need no
+# third alias. Laptop ports are the box's plus 10000 and must match
+# CONVEX_CLOUD_ORIGIN / CONVEX_SITE_ORIGIN in convex/docker-compose.yml.
 # The tunnel is an ssh control master on a socket, so `ssh -O check` / `-O exit`
 # find and close it on macOS and Linux alike - no pgrep/pkill, whose flags differ
 # (procps pgrep has no -q) and whose -f pattern also matches the calling shell.
