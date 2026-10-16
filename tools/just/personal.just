@@ -42,17 +42,37 @@ ghost-tunnel-close:
 # laptop ports are the box's plus 10000 (13210 -> 3210, like Ghost's 15432 -> 5432),
 # because 3210/3211 are where a local `npx convex dev` deployment starts, and they
 # must match CONVEX_CLOUD_ORIGIN / CONVEX_SITE_ORIGIN in convex/docker-compose.yml.
-# Safe to re-run: ExitOnForwardFailure kills a second tunnel that cannot bind.
+# The tunnel is an ssh control master on a socket, so `ssh -O check` / `-O exit`
+# find and close it on macOS and Linux alike - no pgrep/pkill, whose flags differ
+# (procps pgrep has no -q) and whose -f pattern also matches the calling shell.
 
 # open the Convex tunnel: 13210 -> API, 13211 -> HTTP actions, 16791 -> dashboard
 [group('personal')]
 convex-tunnel:
-    @pgrep -qf 'L 13210:127.0.0.1:3210' && echo "convex tunnel already open" || ssh -fN -o ExitOnForwardFailure=yes -L 13210:127.0.0.1:3210 -L 13211:127.0.0.1:3211 -L 16791:127.0.0.1:6791 venari
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sock="$HOME/.ssh/venari-convex.sock"
+    if ssh -o ControlPath="$sock" -O check venari 2>/dev/null; then
+        echo "convex tunnel already open"
+        exit 0
+    fi
+    rm -f "$sock"   # a master that died uncleanly leaves its socket behind
+    ssh -fN -o ControlMaster=yes -o ControlPath="$sock" -o ExitOnForwardFailure=yes \
+        -L 13210:127.0.0.1:3210 -L 13211:127.0.0.1:3211 -L 16791:127.0.0.1:6791 venari
+    echo "convex tunnel open: API 13210, HTTP actions 13211, dashboard 16791"
 
 # close the Convex tunnel
 [group('personal')]
 convex-tunnel-close:
-    @pkill -f 'L 13210:127.0.0.1:3210' && echo "convex tunnel closed" || echo "no convex tunnel open"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sock="$HOME/.ssh/venari-convex.sock"
+    if ssh -o ControlPath="$sock" -O exit venari 2>/dev/null; then
+        echo "convex tunnel closed"
+    else
+        rm -f "$sock"
+        echo "no convex tunnel open"
+    fi
 
 # print a new Convex admin key (each call differs; all stay valid until data/ is lost)
 [group('personal')]
