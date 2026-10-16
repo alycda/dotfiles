@@ -1,5 +1,5 @@
 # Convex on venari: the self-hosted backend and dashboard, from
-# get-convex/convex-backend's self-hosted/docker/docker-compose.yml.
+# convex/convex-backend's self-hosted/docker/docker-compose.yml.
 #
 # On the box: /srv/convex/docker-compose.yml, next to an untracked .env (see
 # .env.example) and data/ (never tracked). The database is in Ghost's cluster,
@@ -12,9 +12,11 @@
 name: convex
 services:
   backend:
-    # 0cf49cb = get-convex/convex-backend main on 2026-09-21; the tag :latest
+    # 0cf49cb = convex/convex-backend main on 2026-09-21; the tag :latest
     # pointed at on 2026-09-22.
-    image: ghcr.io/get-convex/convex-backend:0cf49cbf8c4b7e22e631ceda9b5111f6cccbcd49
+    # ghcr.io/convex/, not get-convex/: the old path went away with the org
+    # rename (denied, even for :latest), though upstream's compose still names it.
+    image: ghcr.io/convex/convex-backend:0cf49cbf8c4b7e22e631ceda9b5111f6cccbcd49
     container_name: convex-backend
     restart: unless-stopped
     stop_grace_period: 10s
@@ -53,7 +55,7 @@ services:
     mem_limit: 512m
 
   dashboard:
-    image: ghcr.io/get-convex/convex-dashboard:0cf49cbf8c4b7e22e631ceda9b5111f6cccbcd49
+    image: ghcr.io/convex/convex-dashboard:0cf49cbf8c4b7e22e631ceda9b5111f6cccbcd49
     container_name: convex-dashboard
     restart: unless-stopped
     stop_grace_period: 10s

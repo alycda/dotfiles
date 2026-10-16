@@ -201,7 +201,7 @@ cluster also holds Convex's database, which is not (see "Convex").
 a document database, server functions (queries, mutations, actions), and live
 queries that push new results to subscribed clients. `/srv/convex/` runs the
 open-source backend and dashboard from
-[get-convex/convex-backend](https://github.com/get-convex/convex-backend)
+[convex/convex-backend](https://github.com/convex/convex-backend)
 (`self-hosted/`), pinned to one revision for both images.
 
 It is not a replacement for Ghost, and Ghost is not one for it. Ghost hands out
