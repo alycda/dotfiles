@@ -25,7 +25,10 @@ adds one, and `just check-effver` checks it against `VERSION`.
 - Still to define, in task 20261003-082724: shesfast's casks, defaults and
   profile.
 
-To adopt: nothing changes until shesfast switches to its configuration.
+To adopt: nothing changes until shesfast switches to its configuration. A
+host that imports `darwin/homebrew.nix` must already have Homebrew: nix-darwin
+runs `brew bundle` for it but does not install brew, so run Homebrew's own
+installer first, as the primary user.
 
 ## 0.1.7 (meso) - 2026-10-06
 

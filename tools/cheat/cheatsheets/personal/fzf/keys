@@ -1,0 +1,29 @@
+# Shell keys (home-manager/shell.nix)
+#   Ctrl-R   history: pick a past command into the prompt
+#   Ctrl-T   files: insert paths at the cursor (from rg, bat preview)
+#   Alt-C    directories: cd into one (macOS terminals: Option as Meta)
+
+# ** then Tab completes with fzf, after most commands
+hx **<Tab>
+cd **<Tab>
+ssh **<Tab>       # hosts from ~/.ssh/config and known_hosts
+kill **<Tab>      # processes
+
+# Search syntax (space = AND)
+#   abc      fuzzy
+#   'abc     exact substring
+#   ^abc     starts with           abc$   ends with
+#   !abc     doesn't contain       !^abc  doesn't start with
+#   a | b    either (OR binds tighter than AND)
+
+# Inside fzf
+#   Tab / Shift-Tab        mark / unmark (with --multi)
+#   Ctrl-J/K, Ctrl-N/P     move down / up
+#   Shift-Up/Down          scroll the preview
+
+# Placeholders in --preview and --bind
+#   {}  the line   {1} {2} {-1}  fields (split by --delimiter, default space)
+#   {+} every marked line   {q}  the query
+# Actions: become(cmd) replaces fzf, execute(cmd) runs and returns,
+# reload(cmd) refreshes the list, toggle-preview
+fzf --bind 'ctrl-/:toggle-preview'
