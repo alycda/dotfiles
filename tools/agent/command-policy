@@ -1,0 +1,503 @@
+#!/usr/bin/env python3
+# command-policy: decide whether an agent may run a shell command line in a
+# jj repository. One policy for every harness; each harness gets a thin
+# adapter (Claude Code: .claude/hooks/command-policy).
+#
+#   command-policy [--cwd DIR] COMMAND...   (or the command line on stdin)
+#
+# Prints nothing and exits 0 to allow. Prints the reason on stderr and exits
+# 2 to block, or 3 to ask the user first.
+#
+# - block: git writes (jj owns the repository), a bare `jj restore` (it
+#   discards the working copy), and jj commands that open an editor or a
+#   diff editor (an agent cannot answer them, so they hang).
+# - ask: jj commands that reach outside the repository or are hard to undo:
+#   git push/fetch/import/export, undo and op restore, bookmark and
+#   workspace changes, user config.
+# - allow: everything else, including the history rewrites that curating a
+#   jj stack needs (new, describe -m, squash -u, edit, rebase, abandon).
+#
+# A guardrail, not a sandbox: it reads the command line, so commands run
+# from a script, `bash -c "..."`, `eval` or `$(...)` are not seen.
+# Heredoc bodies are data and are skipped. Outside a jj repository every
+# command is allowed.
+import os
+import re
+import shlex
+import sys
+
+ALLOW, BLOCK, ASK = 0, 2, 3
+
+# Words that run the rest of the line as a command, with their options
+# that take a value: `nice -n 5 git ...` runs git.
+WRAPPERS = {
+    "command": set(),
+    "env": {"-u", "--unset", "-C", "--chdir", "-S", "--split-string"},
+    "exec": {"-a"},
+    "nice": {"-n", "--adjustment"},
+    "sudo": {"-u", "--user", "-g", "--group", "-h", "--host", "-p",
+             "--prompt", "-C", "--close-from", "-D", "--chdir", "-r", "--role",
+             "-t", "--type", "-U", "--other-user", "-T", "--command-timeout"},
+    "time": {"-o", "--output", "-f", "--format"},
+    "xargs": {"-a", "--arg-file", "-d", "--delimiter", "-E", "-I", "-L",
+              "-n", "--max-args", "-P", "--max-procs", "-s", "--max-chars"},
+}
+
+# git: subcommands that never write.
+GIT_READ = {
+    "blame", "cat-file", "check-attr", "check-ignore", "describe", "diff",
+    "for-each-ref", "grep", "help", "log", "ls-files", "ls-remote", "ls-tree",
+    "merge-base", "name-rev", "rev-list", "rev-parse", "shortlog", "show",
+    "show-ref", "status", "var", "version", "whatchanged",
+}
+# git: subcommands that read only when every option is one of these. Each
+# maps to (options that read, the ones among them that take a value). Bare
+# names are checked in git_reads: patterns with --list, a key for config.
+GIT_LISTING = {
+    "branch": ({"-l", "--list", "-a", "--all", "-r", "--remotes", "-v", "-vv",
+                "--verbose", "--show-current", "--contains", "--no-contains",
+                "--merged", "--no-merged", "--points-at", "--sort", "--format",
+                "--color", "--no-color", "--column", "--no-column", "-i",
+                "--ignore-case", "--omit-empty"},
+               {"--contains", "--no-contains", "--merged", "--no-merged",
+                "--points-at", "--sort", "--format"}),
+    "tag": ({"-l", "--list", "-n", "--contains", "--no-contains", "--merged",
+             "--no-merged", "--points-at", "--sort", "--format", "--color",
+             "--no-color", "--column", "--no-column", "-i", "--ignore-case",
+             "--omit-empty"},
+            {"--contains", "--no-contains", "--merged", "--no-merged",
+             "--points-at", "--sort", "--format"}),
+    "config": ({"--get", "--get-all", "--get-regexp", "--get-urlmatch", "-l",
+                "--list", "--global", "--system", "--local", "--worktree",
+                "-f", "--file", "--blob", "--show-origin", "--show-scope",
+                "-z", "--null", "--name-only", "--type", "--bool", "--int",
+                "--path", "--default", "--includes", "--no-includes"},
+               {"-f", "--file", "--blob", "--type", "--default"}),
+}
+GIT_GLOBAL_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
+
+JJ_GLOBAL_WITH_VALUE = {
+    "-R", "--repository", "--at-op", "--at-operation", "--color",
+    "--config", "--config-toml", "--config-file",
+}
+# jj: subcommands that take a subcommand of their own.
+JJ_GROUPS = {"bookmark", "config", "file", "git", "op", "sparse", "tag",
+             "util", "workspace"}
+
+# jj: asked before running. (group, subcommand) or (command, None).
+JJ_ASK = {
+    ("git", "push"): "pushes to a remote",
+    ("git", "fetch"): "fetches from a remote",
+    ("git", "import"): "imports git refs over jj's view",
+    ("git", "export"): "exports jj's view over git refs",
+    ("git", "init"): "creates a repository",
+    ("git", "clone"): "creates a repository",
+    ("undo", None): "undoes the last operation",
+    ("redo", None): "redoes an operation",
+    ("op", "restore"): "restores the whole repository to an old operation",
+    ("op", "revert"): "reverts an operation",
+    ("op", "abandon"): "drops operation history",
+    ("util", "gc"): "deletes unreachable data",
+}
+JJ_ASK_GROUP = {
+    "bookmark": ({"advance", "delete", "forget", "move", "rename", "set",
+                  "track", "untrack"}, "changes bookmarks other people may see"),
+    "tag": ({"delete", "set", "track", "untrack"},
+            "changes tags other people may see"),
+    "workspace": ({"add", "forget", "rename"}, "changes the workspaces"),
+}
+# jj's built-in aliases (jj 0.45), so `jj b d` is checked as
+# `jj bookmark delete`.
+JJ_ALIASES = {"b": "bookmark", "ci": "commit", "desc": "describe",
+              "operation": "op", "st": "status"}
+JJ_SUB_ALIASES = {
+    "bookmark": {"a": "advance", "c": "create", "d": "delete", "f": "forget",
+                 "l": "list", "m": "move", "r": "rename", "s": "set",
+                 "t": "track"},
+    "config": {"e": "edit", "g": "get", "l": "list", "p": "path", "s": "set",
+               "u": "unset"},
+    "tag": {"d": "delete", "l": "list", "s": "set"},
+}
+# Flags that open an editor or a diff editor.
+JJ_INTERACTIVE = {"-i", "--interactive", "--editor", "--edit"}
+
+GIT_MESSAGE = """\
+`git {sub}` writes, and this is a jj repository. Use jj:
+`jj describe`/`jj commit` (commit), `jj new`/`jj edit` (checkout),
+`jj restore --from` (reset), `jj rebase`, `jj git fetch`/`jj git push`.
+Reading with git is fine (status, log, diff, show, ...)."""
+
+
+def jj_root(cwd):
+    """The jj workspace that contains `cwd`, or None."""
+    path = os.path.abspath(cwd)
+    while True:
+        if os.path.isdir(os.path.join(path, ".jj")):
+            return path
+        parent = os.path.dirname(path)
+        if parent == path:
+            return None
+        path = parent
+
+
+def in_jj_repo(cwd):
+    return jj_root(cwd) is not None
+
+
+# `<<WORD` or `<<-WORD`, but not a here-string (`<<< word`), which has
+# no body.
+HEREDOC = re.compile(r"(?<!<)<<(?!<)(-?)\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\2")
+
+
+def strip_heredocs(command):
+    """Drop heredoc bodies: they are data, not commands."""
+    out, pending = [], []
+    for line in command.split("\n"):
+        if pending:
+            strip_tabs, word = pending[0]
+            if (line.lstrip("\t") if strip_tabs else line) == word:
+                pending.pop(0)
+            continue
+        out.append(line)
+        pending = [(m.group(1) == "-", m.group(3))
+                   for m in HEREDOC.finditer(line)]
+    return "\n".join(out)
+
+
+PUNCTUATION = ";&|()<>\n"
+# A redirection operator: >, >>, <, >&, <&, &>, <<, <<<, >|.
+REDIRECT = re.compile(r"&?[<>]+[&|]?")
+
+
+def segments(command):
+    """Split a command line into simple commands, as lists of words.
+    Redirections (`>/dev/null`, `2>&1`) are dropped with their targets:
+    they are not arguments."""
+    lexer = shlex.shlex(strip_heredocs(command), posix=True,
+                        punctuation_chars=PUNCTUATION)
+    lexer.whitespace = " \t\r"  # newline separates commands, like ;
+    lexer.whitespace_split = True
+    words = []
+    target = False  # the next word is a redirection's target
+    for token in lexer:
+        if not (token and set(token) <= set(PUNCTUATION)):
+            if target:
+                target = False
+            else:
+                words.append(token)
+            continue
+        separator = REDIRECT.sub("", token)
+        if separator and words:
+            yield words
+            words = []
+        if separator != token:
+            # `2>`: the lexer splits the fd number off as a word.
+            if words and words[-1].isdigit() and len(words) > 1:
+                words.pop()
+            target = True
+    if words:
+        yield words
+
+
+def program(words):
+    """The program a simple command runs, and its arguments."""
+    i = 0
+    while i < len(words):
+        w = words[i]
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", w):
+            i += 1
+        elif w in WRAPPERS:
+            i += 1
+            while i < len(words) and words[i].startswith("-"):
+                if words[i] == "--":
+                    i += 1
+                    break
+                i += 2 if words[i] in WRAPPERS[w] else 1
+        elif w == "mise" and words[i + 1:i + 2] in (["exec"], ["x"]):
+            i += 2
+            while i < len(words) and words[i] != "--":
+                i += 1
+            i += 1
+        else:
+            break
+    if i >= len(words):
+        return None, []
+    return os.path.basename(words[i]), words[i + 1:]
+
+
+def skip_globals(args, with_value):
+    i = 0
+    while i < len(args) and args[i].startswith("-"):
+        i += 2 if args[i] in with_value else 1
+    return args[i:]
+
+
+def git_reads(sub, rest):
+    """Whether `git SUB REST...` only reads."""
+    if sub in GIT_READ:
+        return True
+    words = positionals(rest)
+    if sub == "remote":
+        return all(a in ("-v", "--verbose") for a in rest) \
+            or (words[:1] in (["get-url"], ["show"]))
+    if sub == "stash":
+        return words[:1] in (["list"], ["show"])
+    if sub == "worktree":
+        return words[:1] == ["list"]
+    if sub not in GIT_LISTING:
+        return False
+    reads, with_value = GIT_LISTING[sub]
+    skip = False
+    for a in rest:
+        if skip:
+            skip = False
+        elif a.startswith("-"):
+            name = a.split("=", 1)[0]
+            if name not in reads and not (name.startswith("-n") and sub == "tag"):
+                return False
+            skip = a in with_value
+    names = positionals(rest, with_value)
+    if sub == "config":
+        if names[:1] in (["get"], ["list"]):
+            return True  # git 2.46: `git config get KEY`
+        listing = has(rest, "--get", "--get-all", "--get-regexp",
+                      "--get-urlmatch", "-l", "--list")
+        return len(names) <= (2 if listing else 1)
+    # branch and tag: a bare name creates one; with --list it is a pattern.
+    return not names or has(rest, "-l", "--list")
+
+
+def check_git(args):
+    args = skip_globals(args, GIT_GLOBAL_WITH_VALUE)
+    if not args or git_reads(args[0], args[1:]):
+        return ALLOW, ""
+    return BLOCK, GIT_MESSAGE.format(sub=args[0])
+
+
+def has(args, *flags):
+    for a in args:
+        for f in flags:
+            if a == f or (f.startswith("--") and a.startswith(f + "=")):
+                return True
+            # Short flags with a value attached: -mfoo
+            if len(f) == 2 and not f.startswith("--") and a.startswith(f) \
+                    and not a.startswith("--"):
+                return True
+    return False
+
+
+def positionals(args, with_value=()):
+    """The arguments that are not options, nor the value of an option."""
+    out, skip = [], False
+    for a in args:
+        if skip:
+            skip = False
+        elif a.startswith("-"):
+            skip = a in with_value
+        else:
+            out.append(a)
+    return out
+
+
+# jj split: options that take the next word as their value.
+SPLIT_WITH_VALUE = {
+    "-r", "--revision", "-m", "--message", "-d", "--destination", "-o",
+    "--onto", "-A", "--insert-after", "--after", "-B", "--insert-before",
+    "--before", "--tool",
+}
+
+
+def jj_parts(args):
+    """A jj command's (command, subcommand, rest), aliases resolved. The
+    command is None for a bare `jj`, which runs `jj log`."""
+    args = skip_globals(args, JJ_GLOBAL_WITH_VALUE)
+    if not args:
+        return None, None, []
+    cmd, rest = JJ_ALIASES.get(args[0], args[0]), args[1:]
+    sub = None
+    if cmd in JJ_GROUPS and rest and not rest[0].startswith("-"):
+        sub, rest = rest[0], rest[1:]
+        sub = JJ_SUB_ALIASES.get(cmd, {}).get(sub, sub)
+    return cmd, sub, rest
+
+
+def check_jj(args):
+    cmd, sub, rest = jj_parts(args)
+    if cmd is None:
+        return ALLOW, ""
+    name = "jj " + cmd + (" " + sub if sub else "")
+
+    # Block: an editor or a diff editor would wait for a human.
+    flag = next((a for a in rest if a in JJ_INTERACTIVE), None)
+    if flag and cmd != "new":
+        return BLOCK, f"`{name} {flag}` opens an editor, and nobody can answer it."
+    if cmd == "diffedit" or (cmd, sub) in {("config", "edit"), ("sparse", "edit")}:
+        return BLOCK, f"`{name}` opens an editor, and nobody can answer it."
+    if cmd == "describe" and not has(rest, "-m", "--message", "--stdin", "--no-edit"):
+        return BLOCK, "`jj describe` without -m opens an editor. Use -m or --stdin."
+    if cmd == "commit" and not has(rest, "-m", "--message"):
+        return BLOCK, "`jj commit` without -m opens an editor. Use -m."
+    if cmd == "split" and not (positionals(rest, SPLIT_WITH_VALUE)
+                               and has(rest, "-m", "--message")):
+        return BLOCK, ("`jj split` without paths opens a diff editor, and without "
+                       "-m an editor. Use `jj split -m MSG PATHS`.")
+    if cmd == "squash" and not has(rest, "-m", "--message", "-u", "--use-destination-message"):
+        return BLOCK, ("`jj squash` opens an editor when both commits have a "
+                       "description. Add -u (--use-destination-message) or -m.")
+    if cmd == "resolve" and not has(rest, "-l", "--list", "--tool"):
+        return BLOCK, ("`jj resolve` opens a merge editor. Use --tool :ours, "
+                       "--tool :theirs or --tool weave, or --list.")
+    # Block: a bare restore discards every change in the working copy.
+    if cmd == "restore" and not rest:
+        return BLOCK, ("bare `jj restore` discards every change in the working "
+                       "copy. Name the paths, or --from/--into.")
+
+    # Ask: outside the repository, or hard to undo.
+    reason = JJ_ASK.get((cmd, sub)) or JJ_ASK.get((cmd, None))
+    if not reason and cmd in JJ_ASK_GROUP and sub in JJ_ASK_GROUP[cmd][0]:
+        reason = JJ_ASK_GROUP[cmd][1]
+    if not reason and (cmd, sub) in {("config", "set"), ("config", "unset")} \
+            and has(rest, "--user"):
+        reason = "changes the user's jj config"
+    if reason:
+        return ASK, f"`{name}` {reason}."
+    return ALLOW, ""
+
+
+def resolve(here, path):
+    """`path` as seen from directory `here`, or None when it is unknown:
+    a variable the hook cannot expand, `cd -`, or an unknown `here`."""
+    path = os.path.expandvars(os.path.expanduser(path))
+    if path == "-" or "$" in path or "`" in path:
+        return None
+    if os.path.isabs(path):
+        return os.path.normpath(path)
+    return None if here is None else os.path.normpath(os.path.join(here, path))
+
+
+def target(here, prog, args):
+    """The directory a git or jj command acts on: `here`, unless `git -C`
+    or `jj -R` points somewhere else."""
+    flags = {"git": ("-C",), "jj": ("-R", "--repository")}[prog]
+    for i, a in enumerate(args):
+        if not a.startswith("-"):
+            break  # the subcommand: global options end here
+        if a in flags and i + 1 < len(args):
+            here = resolve(here, args[i + 1])
+        elif a.startswith("--repository="):
+            here = resolve(here, a.split("=", 1)[1])
+    return here
+
+
+def vcs_commands(command, cwd):
+    """The git and jj commands on a command line that act on a jj
+    repository, as (program, arguments, directory). Each is placed where it
+    runs: `cd` moves that place, and `git -C` or `jj -R` points a single
+    command elsewhere. A place that cannot be known (`cd $DIR`) is taken to
+    be a jj repository, with directory None. Raises ValueError on unbalanced
+    quotes."""
+    here = os.path.abspath(cwd)
+    for words in list(segments(command)):
+        prog, args = program(words)
+        if prog in ("cd", "pushd"):
+            dirs = [a for a in args if a == "-" or not a.startswith("-")]
+            here = resolve(here, dirs[0] if dirs else "~")
+            continue
+        if prog == "popd":
+            here = None
+            continue
+        if prog not in ("git", "jj"):
+            continue
+        where = target(here, prog, args)
+        if where is None or in_jj_repo(where):
+            yield prog, args, where
+
+
+# jj commands that only read the repository (they may snapshot the working
+# copy, which records it but moves nothing).
+JJ_READS = {
+    (None, None), ("diff", None), ("evolog", None), ("help", None),
+    ("interdiff", None), ("log", None), ("root", None), ("show", None),
+    ("status", None), ("version", None), ("bookmark", "list"),
+    ("config", "get"), ("config", "list"), ("config", "path"),
+    ("file", "annotate"), ("file", "list"), ("file", "search"),
+    ("file", "show"), ("op", "diff"), ("op", "log"),
+    ("op", "show"), ("tag", "list"), ("workspace", "list"),
+    ("workspace", "root"),
+}
+
+
+# jj reads whose output shows where the repository is: running one counts
+# as looking. `diff` and `file show` show contents, not where @ is.
+JJ_LOOKS = {(None, None), ("status", None), ("log", None), ("evolog", None),
+            ("show", None), ("op", "log"), ("op", "show"),
+            ("workspace", "list")}
+
+
+def jj_kind(args):
+    """What a jj command does to the agent's view of the repository:
+    "help" (shows usage only), "look", "read" or "write"."""
+    cmd, sub, rest = jj_parts(args)
+    if cmd == "help" or "-h" in rest or "--help" in rest:
+        return "help"
+    if (cmd, sub) in JJ_LOOKS:
+        return "look"
+    if (cmd, sub) in JJ_READS or (cmd, None) in JJ_READS:
+        return "read"
+    return "write"
+
+
+def jj_targets(command, cwd, kinds, unknown=None):
+    """The workspaces in which a command line runs a jj command of one of
+    `kinds`. A command whose place cannot be known counts for `unknown`
+    (skipped when None). Unparseable command lines have no targets."""
+    out = []
+    try:
+        for prog, args, where in vcs_commands(command, cwd):
+            if prog != "jj" or jj_kind(args) not in kinds:
+                continue
+            root = jj_root(where) if where is not None else unknown
+            if root is not None and root not in out:
+                out.append(root)
+    except ValueError:
+        pass
+    return out
+
+
+def jj_writes(command, cwd):
+    """Whether a command line runs a jj command that changes the repository."""
+    return bool(jj_targets(command, cwd, ("write",), unknown=cwd))
+
+
+def check(command, cwd):
+    """The decision for a whole command line: the strictest of its parts."""
+    try:
+        parsed = list(vcs_commands(command, cwd))
+    except ValueError:
+        return ALLOW, ""  # unbalanced quotes: let the shell report it
+    asked = None
+    for prog, args, _ in parsed:
+        if prog == "git":
+            decision = check_git(args)
+        else:
+            decision = check_jj(args)
+        if decision[0] == BLOCK:
+            return decision
+        if decision[0] == ASK and asked is None:
+            asked = decision
+    return asked or (ALLOW, "")
+
+
+def main(argv):
+    cwd = os.getcwd()
+    if argv[:1] == ["--cwd"]:
+        cwd, argv = argv[1], argv[2:]
+    command = " ".join(argv) if argv else sys.stdin.read()
+    decision, reason = check(command, cwd)
+    if reason:
+        print(reason, file=sys.stderr)
+    return decision
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
