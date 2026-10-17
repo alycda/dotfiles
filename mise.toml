@@ -25,8 +25,8 @@
 # The few tools needed outside this checkout (tb), as global mise tools. In
 # conf.d, so ~/.config/mise/config.toml stays the account's own.
 "~/.config/mise/conf.d/dotfiles.toml" = { source = "tools/mise/global.toml", mode = "symlink" }
-# Claude Code's SessionEnd hook: one resume pointer per session on taskbook's
-# @claude board. Only the script is linked. The hook entry goes into
+# Claude Code's SessionEnd hook: one recap and resume command per session on
+# taskbook's @claude board. Only the script is linked. The hook entry goes into
 # ~/.claude/settings.json by `just claude-hooks`, a merge, because Claude
 # writes that file itself (theme, model), so a link would track those too.
 "~/.claude/hooks/session-end-taskbook.sh" = { source = "tools/claude/hooks/session-end-taskbook.sh", mode = "symlink" }

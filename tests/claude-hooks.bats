@@ -29,9 +29,30 @@ STUB
   PATH="$stubs:$PATH"
 }
 
-# ended ID DIR REASON: what Claude writes to the hook's stdin.
+# ended ID DIR REASON [TRANSCRIPT]: what Claude writes to the hook's stdin.
+# The default transcript doesn't exist, so the task is the pointer alone.
 ended() {
-  printf '{"session_id":"%s","transcript_path":"/t.jsonl","cwd":"%s","hook_event_name":"SessionEnd","reason":"%s"}' "$@"
+  printf '{"session_id":"%s","transcript_path":"%s","cwd":"%s","hook_event_name":"SessionEnd","reason":"%s"}' \
+    "$1" "${4:-/t.jsonl}" "$2" "$3"
+}
+
+# transcript: a session's JSONL, the shapes Claude Code writes, with the noise
+# the recap has to skip: an injected attachment carrying a PR link, harness
+# blocks ("<bash-input>"), a meta message, a short last prompt, a torn line.
+transcript() {
+  t="$BATS_TEST_TMPDIR/session.jsonl"
+  cat > "$t" <<'JSONL'
+{"type":"attachment","attachment":{"type":"skill_listing","content":"see https://github.com/acme/other/pull/9"},"timestamp":"2026-10-17T04:00:00.000Z"}
+{"type":"user","message":{"role":"user","content":"look at https://github.com/acme/repo/pull/211 and tasks/20261003-082724"},"gitBranch":"main","timestamp":"2026-10-17T04:00:05.000Z"}
+{"type":"user","isMeta":true,"message":{"role":"user","content":"Base directory for this skill: https://github.com/acme/meta/issues/1"},"timestamp":"2026-10-17T04:01:00.000Z"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Posted https://github.com/acme/repo/pull/211#discussion_r1"},{"type":"tool_use","name":"Write","input":{"file_path":"/r/tasks/20261017-120000/TASK.md"}}]},"gitBranch":"v0.1.8","timestamp":"2026-10-17T04:10:00.000Z"}
+{"type":"user","message":{"role":"user","content":"<bash-input>just tasks</bash-input>"},"timestamp":"2026-10-17T04:20:00.000Z"}
+{"type":"user","message":{"role":"user","content":"make the pointer more useful,\n with p:1 and me@host"},"gitBranch":"v0.1.8","timestamp":"2026-10-17T04:30:00.000Z"}
+{"type":"ai-title","aiTitle":"Stale opening title"}
+{"type":"user","message":{"role":"user","content":"post it"},"gitBranch":"v0.1.8","timestamp":"2026-10-17T05:35:00.000Z"}
+{"type":"user","message":{"rol
+JSONL
+  printf '%s' "$t"
 }
 
 @test "a session leaves one resume task on the @claude board" {
@@ -42,11 +63,48 @@ ended() {
   grep -Fx 'tb --cli --task @claude resume: claude --resume abc-123 (in /work/repo, prompt_input_exit)' "$log"
 }
 
-@test "a session already on the board is not added again" {
-  echo '  1. ☐ resume: claude --resume abc-123 (in /work/repo, clear)' > "$BATS_TEST_TMPDIR/found"
+@test "a session already on the board is updated in place, not added again" {
+  echo '  3. ☐ resume: claude --resume abc-123 (in /work/repo, clear)' > "$BATS_TEST_TMPDIR/found"
   run sh "$hook" <<< "$(ended abc-123 /work/repo other)"
   [ "$status" -eq 0 ]
   run ! grep -q -- '--task' "$log"
+  grep -Fx 'tb --cli --edit @3 resume: claude --resume abc-123 (in /work/repo, other)' "$log"
+}
+
+@test "the transcript gives the task a recap ahead of the pointer" {
+  run sh "$hook" <<< "$(ended abc-123 /work/repo other "$(transcript)")"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  grep -Fx 'tb --cli --task @claude make the pointer more useful, with p_1 and me_host · on v0.1.8 · repo#211 · task 20261003-082724, 20261017-120000 · 3 prompts, 1h35m · resume: claude --resume abc-123 (in /work/repo, other)' "$log"
+}
+
+@test "the recap skips injected context, harness blocks and meta messages" {
+  run sh "$hook" <<< "$(ended abc-123 /work/repo other "$(transcript)")"
+  run ! grep -E 'other#9|meta#1|bash-input|Stale opening title' "$log"
+}
+
+@test "a /rename title heads the recap" {
+  t=$(transcript)
+  printf '%s\n' '{"type":"custom-title","customTitle":"Session recap hook"}' >> "$t"
+  run sh "$hook" <<< "$(ended abc-123 /work/repo other "$t")"
+  grep -F -- '--task @claude Session recap hook · on v0.1.8' "$log"
+}
+
+@test "a /recap heads it when there is no title" {
+  t=$(transcript)
+  printf '%s\n' '{"type":"system","subtype":"away_summary","content":"Drafted the hook recap\nmore detail"}' >> "$t"
+  run sh "$hook" <<< "$(ended abc-123 /work/repo other "$t")"
+  grep -F -- '--task @claude Drafted the hook recap · on v0.1.8' "$log"
+  run ! grep -F 'more detail' "$log"
+}
+
+@test "a long prompt is clipped to 80 characters" {
+  t="$BATS_TEST_TMPDIR/long.jsonl"
+  printf '{"type":"user","message":{"role":"user","content":"%s"}}\n' "$(printf 'word %.0s' $(seq 40))" > "$t"
+  run sh "$hook" <<< "$(ended abc-123 /work/repo other "$t")"
+  headline=$(sed -n 's/^tb --cli --task @claude \(.*\) · 1 prompts.*/\1/p' "$log")
+  [ "${#headline}" -eq 80 ]
+  [[ $headline == *… ]]
 }
 
 @test "an @ in the directory can't turn into a board" {
