@@ -36,14 +36,19 @@ lists the recipes.
 into `~/.config/mise/conf.d/`, so `tb`
 ([taskbook](https://github.com/taskbook-sh/taskbook)) works from any
 directory. `just claude-hooks` registers a Claude Code `SessionEnd` hook that
-leaves one task per session on the `@claude` board:
+leaves one task per session on the `@claude` board, a recap read off the
+session's transcript ahead of the resume command:
 
 ```text
-resume: claude --resume <session id> (in <directory>, <reason>)
+<headline> · on <branch> · <repo>#<PR> · task <HUID> · <N> prompts, <time> · resume: claude --resume <session id> (in <directory>, <reason>)
 ```
 
-The reason is Claude's: `clear`, `resume`, `logout`, `prompt_input_exit` or
-`other`. The hook script,
+The headline is the `/rename` title, else the latest `/recap`, else the last
+prompt of four words or more. Fields with nothing to show are left out; without
+`jq` or a readable transcript the task is the resume command alone. A session
+that ends again (resumed, or `/clear` then exit) updates its task instead of
+adding one. The reason is Claude's: `clear`, `resume`, `logout`,
+`prompt_input_exit` or `other`. The hook script,
 [session-end-taskbook.sh](tools/claude/hooks/session-end-taskbook.sh), is
 linked into `~/.claude/hooks/`; the settings entry is merged in by
 [install-hooks](tools/claude/install-hooks), since Claude writes
