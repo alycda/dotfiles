@@ -20,11 +20,13 @@
   #   - the preview placeholder is `{0}`, not `{}` — for jj-log, `{0}` is the
   #     short change id and `jj show <id>` accepts it;
   #   - the [metadata]/[source]/[preview] table split is current.
-  # STILL UNVERIFIED: the macOS config path (~/.config/television vs
-  # ~/Library/...), and the DB channels' *queries* — only their schema was
-  # checked, since sqlite3/psql/redis-cli are absent here and there is no live
-  # DB to query. Each DB channel declares `requirements`, so it stays inert on
-  # a machine lacking its client rather than erroring at startup.
+  # macOS config path VERIFIED (felixia, tv 0.15.9 via mise, Catalina): with
+  # XDG_CONFIG_HOME unset, `tv list-channels` picks up
+  # ~/.config/television/cable/*.toml, so xdg.configFile lands in the right
+  # place there too. The sqlite and apple-notes queries were run against real
+  # dbs; postgres/redis queries remain schema-checked only (no live DB). Each
+  # DB channel declares `requirements`, so it stays inert on a machine lacking
+  # its client rather than erroring at startup.
   # DB channels (sqlite/postgres/redis) are EXAMPLES: their queries reference
   # placeholder tables (tasks/users) and read connection info from the
   # environment ($TV_SQLITE_DB / $DATABASE_URL / $REDIS_URL) — no secrets in the
