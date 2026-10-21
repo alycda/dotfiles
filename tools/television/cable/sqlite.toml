@@ -9,13 +9,15 @@
 # SQL — fine for browsing your own data, but keep the source's first column a
 # numeric/opaque id, never free text. The db path is double-quoted so paths
 # with spaces (e.g. macOS "Group Containers") survive word splitting.
+# The source uses `-separator ' '` because sqlite3's default `|` would glue the
+# id to the title and make `{0}` "2|title" instead of "2".
 [metadata]
 name = "sqlite"
 description = "Select a row from a SQLite table; preview the full row"
 requirements = ["sqlite3"]
 
 [source]
-command = "sqlite3 -readonly \"${TV_SQLITE_DB:-app.db}\" 'SELECT id, title FROM tasks ORDER BY id DESC'"
+command = "sqlite3 -readonly -separator ' ' \"${TV_SQLITE_DB:-app.db}\" 'SELECT id, title FROM tasks ORDER BY id DESC'"
 
 [preview]
 command = "sqlite3 -readonly \"${TV_SQLITE_DB:-app.db}\" 'SELECT * FROM tasks WHERE id = {0}'"
