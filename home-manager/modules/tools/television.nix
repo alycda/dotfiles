@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 
 # television (tv): modern fuzzy finder (Rust), channel-based architecture
 # Unlike fzf's single-stream model, tv has typed "channels":
@@ -37,6 +37,10 @@
     "television/cable/sqlite.toml".source = ../../../tools/television/cable/sqlite.toml;
     "television/cable/postgres.toml".source = ../../../tools/television/cable/postgres.toml;
     "television/cable/redis.toml".source = ../../../tools/television/cable/redis.toml;
+  } // lib.optionalAttrs pkgs.stdenv.isDarwin {
+    # Read-only Apple Notes browser over NoteStore.sqlite; the path only exists
+    # on macOS, and reading it needs Full Disk Access for the calling process.
+    "television/cable/apple-notes.toml".source = ../../../tools/television/cable/apple-notes.toml;
   };
 
   # Wire `tv` into Ctrl+R for shell history as an fzf alternative
