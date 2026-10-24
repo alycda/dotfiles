@@ -71,6 +71,26 @@ in
       name = "asd-ste100-skill";
     };
 
+    # https://www.skills.sh/mattpocock/skills/writing-for-agents
+    # How to structure a document an agent reads (a skill, CLAUDE.md /
+    # AGENTS.md, a doc behind a pointer): context pointers, context vs
+    # cognitive load, what stays in-file vs behind a pointer, completion
+    # criteria, leading words, pruning no-ops. SKILL-MECHANICS.md covers
+    # model- vs user-invoked skills.
+    #
+    # The one skill taken from mattpocock/skills; the rest of the collection
+    # overlaps compound-engineering. It pairs with `ste100` rather than
+    # competing with it: this skill decides what a document contains and
+    # where each piece sits, ste100 then makes each sentence read one way.
+    # One real tension: a leading word ("tight", "red") is a figurative,
+    # unapproved word, which strict STE would rewrite away. Register it in
+    # CONCEPTS.md as a technical name and both skills accept it.
+    #
+    # Indexed at v1.3.1; writing-for-agents is unchanged from there to
+    # upstream 5beb35b (2026-10-19). Model-invoked, with a ~100-byte
+    # description, so it costs little context.
+    writing-for-agents = github.mattpocock.skills.writing-for-agents;
+
     # https://www.skills.sh/effect-ts/skills
     # The Effect team's own skills. Both are deliberately thin: `effect-ts`
     # tells an agent to read node_modules/effect/AGENTS.md, which the v4 npm

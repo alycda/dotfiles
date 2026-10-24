@@ -118,6 +118,7 @@ let
     effect-v3-to-v4 = pkgs.skills-sh.effect-v3-to-v4;
     here-now = pkgs.skills-sh.here-now;
     supabase-postgres-best-practices = pkgs.skills-sh.supabase-postgres-best-practices;
+    writing-for-agents = pkgs.skills-sh.writing-for-agents;
   };
 
   # canonical copies: ~/.agents/skills/<name>
