@@ -1,0 +1,17 @@
+# television cable channel: browse Apple Notes (read-only).  Usage: `tv apple-notes`
+#
+# Reads NoteStore.sqlite directly (URI mode=ro), never Notes.app/AppleScript.
+# Needs Full Disk Access for the calling process on 10.14+ (sshd on felixia
+# already has it). Bodies are gzipped protobuf; the preview gunzips and runs
+# `strings`, so formatting-run bytes show up as noise. Locked notes stay
+# encrypted. `{0}` is Z_PK (integer), safe to interpolate.
+[metadata]
+name = "apple-notes"
+description = "Select an Apple Note by title; preview metadata and raw text"
+requirements = ["sqlite3", "xxd", "gunzip", "strings"]
+
+[source]
+command = """sqlite3 -readonly "file:$HOME/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite?mode=ro" "SELECT Z_PK, ZTITLE1 FROM ZICCLOUDSYNCINGOBJECT WHERE ZTITLE1 IS NOT NULL AND ifnull(ZMARKEDFORDELETION,0)=0 ORDER BY ZMODIFICATIONDATE1 DESC" | tr '|' ' '"""
+
+[preview]
+command = """DB="file:$HOME/Library/Group Containers/group.com.apple.notes/NoteStore.sqlite?mode=ro"; sqlite3 -readonly -line "$DB" "SELECT datetime(ZMODIFICATIONDATE1+978307200,'unixepoch','localtime') AS modified, ifnull(ZISPASSWORDPROTECTED,0) AS locked FROM ZICCLOUDSYNCINGOBJECT WHERE Z_PK = {0}"; echo; sqlite3 -readonly "$DB" "SELECT hex(ZDATA) FROM ZICNOTEDATA WHERE ZNOTE = {0}" | xxd -r -p | gunzip -c 2>/dev/null | LC_ALL=C strings -n 3"""
