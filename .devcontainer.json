@@ -32,7 +32,7 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                // Claude in the panel; Copilot chat is disabled below
+                // Claude in the panel; built-in chat uses Claude via BYOK
                 "anthropic.claude-code",
                 "jjk.jjk",
                 "jnoortheen.nix-ide",
@@ -42,9 +42,13 @@
                 "visualjj.visualjj"
             ],
             "settings": {
-                // remove the Copilot chat surface entirely (chat.agent.enabled
-                // only turned off agent mode and left the chat view behind)
-                "chat.disableAIFeatures": true,
+                // built-in chat runs on Claude via my API key (BYOK), as in
+                // home-manager/modules/ide/vscode-profiles/base.nix: inline
+                // chat needs agent mode, and utility flows go to the BYOK
+                // model ("mainAgent" is the stored value; the UI label is
+                // "Main Agent Model")
+                "chat.agent.enabled": true,
+                "chat.byokUtilityModelDefault": "mainAgent",
                 "editor.wordWrap": "on",
                 "files.exclude": {
                     "**/.jj": true
