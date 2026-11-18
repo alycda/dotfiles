@@ -1,0 +1,8 @@
+{
+    "image": "debian:bookworm-slim",
+    "features": {
+        "ghcr.io/devcontainers/features/nix:1": {
+            "packages": []  // home-manager handles packages
+        }
+    },
+}
