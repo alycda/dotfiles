@@ -1,7 +1,17 @@
 { pkgs, ... }:
 {
   userSettings = {
-    chat.agent.enabled = false;
+    # Claude through my own API key (BYOK) instead of disabling the built-in
+    # AI. The provider lives in chatLanguageModels.json, which stays unmanaged:
+    # VS Code writes it at runtime and it holds a secret-storage reference.
+    chat = {
+      # Inline chat (Cmd+I) failed until agent mode was on, so BYOK needs it.
+      agent.enabled = true;
+      # Utility flows (titles, intent detection) go to the BYOK model, not
+      # Copilot - with no GitHub sign-in they fail otherwise. The Settings UI
+      # labels this "Main Agent Model"; the stored value is "mainAgent".
+      byokUtilityModelDefault = "mainAgent";
+    };
     # claudeCode = {
     #   preferredLocation = "panel";
     # };
