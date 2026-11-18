@@ -1,0 +1,30 @@
+{
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+    // https://containers.dev/features?search=
+    "features": {
+      "ghcr.io/guiyomh/features/just:0": {},
+      "ghcr.io/helpers4/devcontainer/jj:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "anthropic.claude-code",
+                "jjk.jjk",
+                "skellock.just",
+                "visualjj.visualjj"
+            ],
+            "settings": {
+              "files.exclude": {
+                    "**/.jj": true
+                },
+                "git.confirmSync": false,
+                // disable git for jj
+                "git.enabled": false,
+                "search.exclude": {
+                    "**/.jj": true
+                }
+            }
+        }
+    }
+}
+  

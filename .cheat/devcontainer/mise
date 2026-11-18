@@ -1,0 +1,2 @@
+# https://mise.jdx.dev/ide-integration.html#dev-containers
+mise generate devcontainer

@@ -1,0 +1,20 @@
+{
+    // Ensure the host dir exists, otherwise the bind mount fails (or Docker creates it as root)
+    "initializeCommand": "mkdir -p \"${localEnv:HOME}/.claude\"",
+    "mounts": [
+      // Share skills, credentials, settings, session history and memory with the host
+      "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached"
+    ],
+    "containerEnv": {
+      // Keeps .claude.json inside the mounted dir instead of ~/.claude.json, so it persists too
+      "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "anthropic.claude-code",
+            }
+        }
+    }
+}
+  
