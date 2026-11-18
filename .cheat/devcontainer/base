@@ -1,3 +1,9 @@
+# 2. Check the new image
+docker run --rm --entrypoint sh local/immich-postgres:14-vectorchord0.4.3-pgvectors0.2.0-ca1 -c \
+  'dpkg-query -W ca-certificates; ls /etc/ssl/certs | grep -i emsign || true'
+#   expect: 20250419~deb12u2 (or newer), and no emSign_ECC_Root_CA_-_G3
+
+
 {
     "image": "debian:bookworm-slim",
     "features": {
